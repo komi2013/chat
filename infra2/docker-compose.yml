@@ -1,0 +1,76 @@
+version: '3'
+
+services:
+  go120:
+    build:
+      context: .
+      dockerfile: DockerGo
+    working_dir: '/root/'
+    ports:
+      - "9080:9080"
+      - "80:80"
+    tty: true
+    volumes:
+      - ../:/root/
+    command: >
+      bash -c "
+      go get github.com/catinello/base62 &&
+      go get go.mongodb.org/mongo-driver/mongo &&
+      go get github.com/gorilla/websocket &&
+      go get github.com/mitchellh/mapstructure &&
+      pwd &&
+      bash
+      "
+
+  nginx:
+    build:
+      context: .
+      dockerfile: DockerNginx
+    ports:
+      - "443:443"
+    tty: true
+    depends_on:
+      - "go120"
+    volumes:
+      - ../public:/usr/share/nginx/html
+      - ./nginx_local.conf:/etc/nginx/conf.d/nginx_local.conf
+      - ./fullchain.pem:/etc/nginx/conf.d/fullchain.pem
+      - ./privkey.pem:/etc/nginx/conf.d/privkey.pem
+
+  node:
+    image: node:lts-alpine3.18
+    # container_name: node
+    volumes:
+      - ../vue:/app/vue
+      - ../public:/app/vue/dist
+    tty: true
+    ports:
+      - 3000:3000
+
+  mongo:
+    image: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 12345678
+    ports:
+      - 27017:27017
+    volumes:
+      - ./:/data/
+
+  mongo-express:
+    image: mongo-express
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: 12345678
+      ME_CONFIG_MONGODB_URL: mongodb://root:12345678@mongo:27017/
+      # ME_CONFIG_MONGODB_URL: mongodb://host.docker.internal:27017/
+
+  # redis:
+  #   image: "redis:latest"
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - "./redis:/data"
+

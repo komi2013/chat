@@ -1,0 +1,9 @@
+.bash_history
+.cache/
+chat
+public/data/
+
+common/config.go
+log/
+
+infra/redis
