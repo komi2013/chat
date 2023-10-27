@@ -2,6 +2,7 @@ package ws
 
 import (
   "log"
+  "fmt"
   "net/http"
 )
 
@@ -26,8 +27,15 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 // 
 
 
-  cookie, _ := r.Cookie("ss")
-  client.id = cookie.Value
+  cookie, err := r.Cookie("ss")
+  if err != nil {
+    // log.Println(err)
+    fmt.Printf(" r.Cookie ss %s\n", err)
+    client.id = "nuuul"
+  } else {
+  	client.id = cookie.Value
+  }
+
   client.hub.register <- client
 
   // Allow collection of memory referenced by the caller by doing all work in

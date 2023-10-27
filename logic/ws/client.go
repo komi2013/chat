@@ -6,11 +6,15 @@ package ws
 
 import (
   "bytes"
+  "encoding/json"
   "fmt"
   "log"
   "time"
 
   "github.com/gorilla/websocket"
+
+	"chat/logic/read"
+
 )
 
 const (
@@ -52,12 +56,25 @@ func (c *Client) readPump() {
   c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
   for {
     _, message, err := c.conn.ReadMessage()
+    fmt.Printf("ReadMessage message %s\n", message)
+    fmt.Printf("c.conn %s\n", c.id)
     if err != nil {
       if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
         log.Printf("error: %v", err)
       }
       break
     }
+
+    var jsonData []interface{}
+    if err := json.Unmarshal(message, &jsonData); err != nil {
+      fmt.Printf(" err %s\n", err)
+    }
+    fmt.Printf(" jsonData %s\n", jsonData)
+    if err := read.Load(); err != nil {
+      fmt.Printf(" err %s\n", err)
+    }
+
+
     message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
     c.hub.broadcast <- message
   }

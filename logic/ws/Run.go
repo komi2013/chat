@@ -20,6 +20,7 @@ func (h *Hub) Run() {
       client.send <- []byte(string(s))
     case client := <-h.unregister:
       if _, ok := h.clients[client]; ok {
+      	fmt.Printf(" h.unregister %s\n", client)
         delete(h.clients, client)
         close(client.send)
       }
