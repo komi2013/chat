@@ -1,0 +1,1 @@
+import{r as n,o as s,c as r,w as c,v as u,a as t,F as i}from"./index-dd1ce358.js";const _={__name:"SignView",setup(p){const e=n(""),a=()=>{console.log(e.value)};return(m,o)=>(s(),r(i,null,[c(t("input",{"onUpdate:modelValue":o[0]||(o[0]=l=>e.value=l)},null,512),[[u,e.value]]),t("button",{onClick:a},"click")],64))}};export{_ as default};

@@ -1,4 +1,4 @@
-@import './base.css';
+/*@import './base.css';
 
 #app {
   max-width: 1280px;
@@ -31,5 +31,63 @@ a,
     display: grid;
     grid-template-columns: 1fr 1fr;
     padding: 0 2rem;
+  }
+}
+*/
+body {
+  margin: 0 auto;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+a {
+  text-decoration: none;
+}
+#content {
+  padding: 2px;
+  word-break: break-all;
+}
+
+/*.emoji {
+  font-size: 40px;
+}
+.icon {
+  max-height: 48px;
+  vertical-align: middle;
+}*/
+@media screen and (min-width : 901px) { 
+  #content{
+    width: 500px;
+    float:left;
+  }
+/*  #menu_td img{
+    display: none;
+  }*/
+  #drawer_column {
+    width : 400px;
+    float : left;
+  }
+  .pc_disp_none{
+    display: none;
+  }
+  #ad_right{
+    margin:2px;
+  }
+}
+
+@media screen and (max-width : 900px) {
+  #header{
+    width: 100%;
+    text-align: left;
+    background-color: #EEEEEE;
+  }
+  .sp_disp_none{
+    display: none;
+  }
+  .menu{
+    width: 50px;
+    height: 50px;
+    font-size: 40px;
   }
 }
