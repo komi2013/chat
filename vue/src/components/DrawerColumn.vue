@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 const props = defineProps({
   data: String,
   channels: {
@@ -7,6 +8,8 @@ const props = defineProps({
   },
 })
 
+const userID = ref('');
+const onClick = () => { console.log(userID.value) };
 
 </script>
 
@@ -19,14 +22,13 @@ const props = defineProps({
       <tr><td><a href="/rank/">draft</a></td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
-          {{d[1]}}
+          <RouterLink :to="'/channel/' + d[0]">{{d[1]}}</RouterLink>
         </td>
       </tr>
       <tr><td><a href="/htm/mydata/" rel="nofollow"><span class="emoji">📊</span> chart</a></td></tr>
       <tr><td><a href="/htm/rule/" rel="nofollow"><span class="emoji">📏</span> rule</a></td></tr>
     </table>
   </div>
-
 </template>
 
 <style scoped>

@@ -1,0 +1,1 @@
+.icon{max-width:50px;max-height:50px}.icon_td{width:50px}.setting{text-align:right}.box{display:flex}.alias,.time,.emoji,.reply,.others{margin:2px}@media screen and (min-width : 701px){.msgBox{position:fixed;bottom:0;width:380px}}@media screen and (max-width : 700px){.msgBox{position:fixed;bottom:0;width:100%}}

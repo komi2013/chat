@@ -1,0 +1,17 @@
+package collection
+
+import (
+  "time"
+)
+
+type ChannelStruct struct {
+  ChannelID  string    `bson:"channel_id,omitempty"`
+  ChannelName  string    `bson:"channel_name,omitempty"`
+  ChannelDescription  bool      `bson:"channel_description,omitempty"`
+  UpdatedAt  time.Time `bson:"updated_at,omitempty"`
+}
+
+// channel_id
+// channel_name
+// channel_description
+// updated_at

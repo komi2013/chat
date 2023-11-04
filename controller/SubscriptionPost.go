@@ -40,5 +40,5 @@ func SubscriptionPost(w http.ResponseWriter, r *http.Request) {
   
   fmt.Printf("%s", r.FormValue("json"))
 
-  fmt.Fprint(w, `[[1]`)
+  fmt.Fprint(w, `[1]`)
 }

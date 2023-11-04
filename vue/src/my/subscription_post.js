@@ -1,7 +1,8 @@
-export function subscription_post(jsonData) {
+export function subscription_post(subscription, userID) {
   const fd = new FormData()
-  fd.append('json', jsonData)
-  const request = new Request('/SubscriptionPost/', {
+  fd.append('subscription', subscription)
+  fd.append('userID', userID)
+  const request = new Request('/SetCookie/', {
     method: 'POST',
     body: fd,
   });

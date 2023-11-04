@@ -12,18 +12,27 @@ const router = createRouter({
     {
       path: '/about',
       name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
       component: () => import('../views/AboutView.vue')
+    },
+    {
+      path: '/channel/:id',
+      name: 'channel',
+      component: () => import('../views/ChannelView.vue')
     },
     {
       path: '/sign',
       name: 'sign',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
       component: () => import('../views/SignView.vue')
+    },
+    {
+      path: '/emoji/:id',
+      name: 'emoji',
+      component: () => import('../views/EmojiView.vue')
+    },
+    {
+      path: '/reply/:id',
+      name: 'reply',
+      component: () => import('../views/ReplyView.vue')
     }
   ]
 })
