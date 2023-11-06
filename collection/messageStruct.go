@@ -13,7 +13,7 @@ type MessageStruct struct {
   EditFlg  int      `bson:"edit_flg,omitempty"`
   ParentID  string      `bson:"parent_id,omitempty"`
   Emojis  string      `bson:"emojis,omitempty"`
-  UpdatedAt  time.Time `bson:"updated_at,omitempty"`
+  CreatedAt  time.Time `bson:"created_at,omitempty"`
 }
 
 // message_id

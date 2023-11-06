@@ -8,6 +8,7 @@ const props = defineProps({
   },
 })
 
+console.log(props.channels)
 const userID = ref('');
 const onClick = () => { console.log(userID.value) };
 

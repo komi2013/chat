@@ -2,6 +2,7 @@
 .cache/
 chat
 public/data/
+public/assets/
 
 common/config.go
 log/

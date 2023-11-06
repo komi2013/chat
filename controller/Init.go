@@ -49,20 +49,21 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	// dataJson := `["1","2","3"]`
 	// jsonParser := json.NewDecoder(session.AliasNames)
 	bytes := []byte(session.AliasNames)
-	// var arr [][]interface{}
-  var names [][]interface{}
-  if err := json.Unmarshal(bytes, &names); err != nil {
+
+  // var names [][]interface{}
+  var arrName []string
+  if err := json.Unmarshal(bytes, &arrName); err != nil {
     log.Fatal(err)
   }
 
-  var arrName []string
-  for _, d := range names {
-		str, ok := d[0].(string)
-		if !ok {
-		  fmt.Printf("ERROR: not a string -> %#v\n", d[0])
-		}
-  	arrName = append(arrName, str)
-  }
+  // var arrName []string
+  // for _, d := range names {
+		// str, ok := d[0].(string)
+		// if !ok {
+		//   fmt.Printf("ERROR: not a string -> %#v\n", d[0])
+		// }
+  // 	arrName = append(arrName, str)
+  // }
 	coll = db1.Collection("community")
 	filter = bson.D{{"alias_name", bson.D{{"$in", arrName}}}}
 	project := bson.D{
@@ -78,33 +79,41 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		panic(err)
 	}
-	// fmt.Printf(" results %s\n", results)
+
 	var arrChannelID []string
 	for _, r := range results {
 		cursor.Decode(&r)
 		arrChannelID = append(arrChannelID, r.ChannelID)
 	}
-	// coll = db1.Collection("channel")
+	fmt.Printf(" arrChannelID %s\n", arrChannelID)
+	coll = db1.Collection("channel")
 	// filter = bson.D{{"_id", bson.D{{"$in", arrChannelID}}}}
-	// project = bson.D{
-	// 	{"channel_id", 1},
-	// 	{"channel_name", 1},
-	// 	{"channel_description", 1}}
-	// opts := options.Find().SetProjection(project)
-	// cursor, err := coll.Find(context.TODO(), filter, opts)
-	// if err != nil {
-	// 	return err
-	// }
-	// var results []collection.ChannelGroupStruct
-	// if err = cursor.All(context.TODO(), &results); err != nil {
-	// 	return err
-	// }
-	// var channelArr []collection.ChannelStruct
-	// for _, r := range results {
-	// 	cursor.Decode(&r)
-	// 	channelArr = append(channelArr, r)
-	// }
-
+	filter = bson.D{}
+	project = bson.D{
+		{"channel_id", 1},
+		{"channel_name", 1},
+		{"channel_description", 1},
+		{"updated_at", 1}}
+	opts4 := options.Find().SetProjection(project)
+	cursor, err = coll.Find(context.TODO(), filter, opts4)
+	if err != nil {
+		fmt.Printf(" err %s\n", err)
+	}
+	var results4 []collection.ChannelStruct
+	if err = cursor.All(context.TODO(), &results4); err != nil {
+		fmt.Printf(" err %s\n", err)
+	}
+	var channelArr []interface{}
+	for _, r := range results4 {
+		cursor.Decode(&r)
+		var arr []interface{}
+		arr = append(arr, r.ChannelID)
+		arr = append(arr, r.ChannelName)
+		arr = append(arr, r.ChannelDescription)
+		arr = append(arr, r.UpdatedAt)
+		channelArr = append(channelArr, arr)
+	}
+	fmt.Printf(" channelArr %s\n", channelArr)
 	coll = db1.Collection("message")
 	filter = bson.D{{"channel_id", bson.D{{"$in", arrChannelID}}}}
 	project = bson.D{
@@ -116,7 +125,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		{"edit_flg", 1},
 		{"parent_id", 1},
 		{"emojis", 1},
-		{"updated_at", 1}}
+		{"created_at", 1}}
 	opts3 := options.Find().SetProjection(project)
 	cursor, _ = coll.Find(context.TODO(), filter, opts3)
 	// if err != nil {
@@ -131,16 +140,23 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		cursor.Decode(&r)
 		var arr []interface{}
 		arr = append(arr, r.MessageID)
+		arr = append(arr, r.ChannelID)
+		arr = append(arr, r.MessageTxt)
 		arr = append(arr, r.MessageType)
-		// arr = append(arr, r.MessageID)
-		// arr = append(arr, r.MessageID)
-		// msgArr = append(msgArr, interface{r.MessageID, r.ChannelID, r.MessageTxt, r.MessageType, r.From, r.EditFlg, r.ParentID, r.Emojis, r.UpdatedAt })
-
+		arr = append(arr, r.From)
+		arr = append(arr, r.EditFlg)
+		arr = append(arr, r.ParentID)
+		arr = append(arr, r.Emojis)
+		arr = append(arr, r.CreatedAt)
 		msgArr = append(msgArr, arr)
-
 	}
-	fmt.Printf(" msgArr %s\n", msgArr)
-	msgJson, _ := json.Marshal(msgArr)
-	fmt.Printf(" msgJson %s\n", msgJson)
-  fmt.Fprint(w, `[1,[[1,"channel name 1","description 1"],[2,"channel name 2","description2 1"]],"dfjdkosjo"]`)
+	status := 1
+	var jsonArr []interface{}
+	jsonArr = append(jsonArr, status)
+	jsonArr = append(jsonArr, channelArr)
+	jsonArr = append(jsonArr, msgArr)
+	fmt.Printf(" jsonArr %s\n", jsonArr)
+	jsonData, _ := json.Marshal(jsonArr)
+	fmt.Printf(" jsonData %s\n", jsonData)
+  fmt.Fprint(w, string(jsonData))
 }

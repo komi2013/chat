@@ -1,22 +1,33 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, defineProps, defineEmits } from 'vue'
+import { useCounterStore } from '../my/store';
+const store = useCounterStore();
+
+const incrementChildCount = () => {
+  // const newCount = count + 1;
+  // 親コンポーネントに新しいカウントを伝える
+  defineEmits('countUpdated')(3);
+};
+
 const props = defineProps({
-  msgs: ref(''),
-  channels: {
-    type: Object,
-    required: true
-  },
+  msgs: ref('')
+  // msgs: {
+  //   type: Object,
+  //   required: true
+  // },
 })
 props.msgs = [
   ["id1", "alias A", "/me.jpg", "09:00", 0, "message text", "",  [["aliasA","🙇"]]],
   ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
   ]
+console.log(props.msgs)
 const userID = ref('');
 const onClick = () => { console.log(userID.value) };
 
 </script>
 
 <template>
+  <button @click="incrementChildCount">Increment Child Count</button>
 <div v-for="d in msgs">
   <table>
     <tr>
