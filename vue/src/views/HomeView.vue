@@ -1,18 +1,28 @@
 <template>
   <div>
-    <h1>Home</h1>
-    <button @click="emitEvent">Emit Event to About</button>
+    <p>Count: {{ count }}</p>
+    <p>Count: {{ countString }}</p>
+    <button @click="incrementAction">Incrementこ</button>
+    <button @click="decrementAction">Decrementま</button>
   </div>
 </template>
 
 <script setup>
-import { defineEmits } from 'vue';
+import { computed } from 'vue'
+import { useCounterStore } from '../stores/counter.js';
 
-const { emit } = defineEmits();
-console.log(emit)
+const counterStore = useCounterStore();
+const count = counterStore.count;
 
-const emitEvent = () => {
-  // defineEmits('custom-event', 'Hello from Home');
-  console.log('emmmmiitttt')
+const incrementAction = () => {
+  counterStore.increment();
 };
+
+const decrementAction = () => {
+  counterStore.decrement();
+};
+
+const countString = computed(() => {
+  return counterStore.count
+})
 </script>

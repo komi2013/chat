@@ -122,6 +122,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		{"message_txt", 1},
 		{"message_type", 1},
 		{"from", 1},
+		{"from_img", 1},
 		{"edit_flg", 1},
 		{"parent_id", 1},
 		{"emojis", 1},
@@ -144,6 +145,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, r.MessageTxt)
 		arr = append(arr, r.MessageType)
 		arr = append(arr, r.From)
+		arr = append(arr, r.FromImg)
 		arr = append(arr, r.EditFlg)
 		arr = append(arr, r.ParentID)
 		arr = append(arr, r.Emojis)

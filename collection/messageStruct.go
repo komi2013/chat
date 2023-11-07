@@ -10,6 +10,7 @@ type MessageStruct struct {
   MessageTxt  string      `bson:"message_txt,omitempty"`
   MessageType  int      `bson:"message_type,omitempty"`
   From  string      `bson:"from,omitempty"`
+  FromImg  string      `bson:"from_img,omitempty"`
   EditFlg  int      `bson:"edit_flg,omitempty"`
   ParentID  string      `bson:"parent_id,omitempty"`
   Emojis  string      `bson:"emojis,omitempty"`

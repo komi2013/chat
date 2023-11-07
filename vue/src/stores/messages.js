@@ -1,16 +1,17 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-export const useCounterStore = defineStore({
-  id: 'counter',
+export const useMessagesStore = defineStore({
+  id: 'messages',
   state: () => ({
-    count: 1,
+    messages: [],
   }),
   actions: {
-    increment() {
-      this.count++;
+    insert(data) {
+      console.log(data)
+      this.messages = data;
     },
-    decrement() {
+    update() {
       this.count--;
     },
     adding(add) {

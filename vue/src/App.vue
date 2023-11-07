@@ -34,28 +34,6 @@ const props = defineProps({
 setInterval(() => {console.log(navigator.onLine)}, 1000)
 const msgs = ref('')
 const channels = ref([[1,"channel face 1","description 1"],[1,"channel init 1","description 1"]])
-const param = {
-  test1: 'POST',
-  test2: 'hi',
-}
-const request = new Request('/Init/', {
-  method: 'POST',
-  body: param,
-});
-fetch(request)
-.then((response)=>{
-  if(!response.ok){
-    throw new Error();
-  }
-  return response.json()
-})
-.then((json)=>{
-  channels.value = json[1]
-  msgs.value = json[2]
-})
-.catch((reason)=>{
-  console.log(reason)
-});
 
 if ('serviceWorker' in navigator) {
   const { port1, port2 } = new MessageChannel();
@@ -68,6 +46,7 @@ if ('serviceWorker' in navigator) {
 const messageFromHome = ref('');
 
 const handleCustomEvent = (message) => {
+  console.log(message)
   messageFromHome.value = message;
 };
 
@@ -76,18 +55,15 @@ const handleCustomEvent = (message) => {
 
 <template>
 
-  <DrawerColumn :channels="channels" />
+  <DrawerColumn />
   
   <div id="content">
-  <div>
-    <router-view @custom-event="handleCustomEvent" />
-  </div>
-    <RouterView />
+    <RouterView @custom-event="handleCustomEvent" @custom-event2="handleCustomEvent" />
   </div>
       <RouterLink to="/">Home</RouterLink>
       <RouterLink to="/about">About</RouterLink>
       <RouterLink to="/sign" >Sign</RouterLink>
-      <RouterLink to="/channel/" >channel q</RouterLink>
+      <RouterLink to="/channel/1/" >channel q</RouterLink>
 </template>
 
 <style scoped>

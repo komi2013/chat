@@ -1,45 +1,63 @@
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue'
-import { useCounterStore } from '../my/store';
-const store = useCounterStore();
-
-const incrementChildCount = () => {
-  // const newCount = count + 1;
-  // 親コンポーネントに新しいカウントを伝える
-  defineEmits('countUpdated')(3);
-};
-
-const props = defineProps({
-  msgs: ref('')
-  // msgs: {
-  //   type: Object,
-  //   required: true
-  // },
+import { ref, computed } from 'vue'
+import { useMessagesStore } from '../stores/messages.js';
+const messagesStore = useMessagesStore()
+const messages = computed(() => {
+  console.log(messagesStore.messages)
+  return messagesStore.messages
 })
-props.msgs = [
-  ["id1", "alias A", "/me.jpg", "09:00", 0, "message text", "",  [["aliasA","🙇"]]],
-  ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
-  ]
-console.log(props.msgs)
-const userID = ref('');
-const onClick = () => { console.log(userID.value) };
+
+// const counterStore = useCounterStore();
+
+// const countString = computed(() => {
+//   return counterStore.count
+// })
+// const incrementAction = () => {
+//   counterStore.increment();
+// };
+
+// const decrementAction = () => {
+//   counterStore.decrement();
+// };
+
+
+// props.msgs = [
+//   ["id1", "alias A", "/me.jpg", "09:00", 0, "message text", "",  [["aliasA","🙇"]]],
+//   ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
+//   ]
+
+//     arr = append(arr, r.MessageID)  0
+//     arr = append(arr, r.ChannelID)  1
+//     arr = append(arr, r.MessageTxt) 2
+//     arr = append(arr, r.MessageType)3
+//     arr = append(arr, r.From)       4
+//     arr = append(arr, r.FromImg)    5
+//     arr = append(arr, r.EditFlg)    6
+//     arr = append(arr, r.ParentID)   7
+//     arr = append(arr, r.Emojis)     8
+//     arr = append(arr, r.CreatedAt)  9
 
 </script>
 
 <template>
-  <button @click="incrementChildCount">Increment Child Count</button>
-<div v-for="d in msgs">
+<!--   <button @click="incrementChildCount">Increment Child Count</button>
+  <div>
+    <p>Count: {{ countString }}</p>
+    <button @click="counterStore.adding(3)">Increment</button>
+    <button @click="counterStore.decrement">Decrement</button>
+  </div> -->
+<div v-for="d in messages">
   <table>
     <tr>
-      <td rowspan="2" class="icon_td"><img v-if="d[2]" :src="d[2]" class="icon"></td>
-      <td><span class="alias">{{d[1]}}</span><span class="time">{{d[3]}}</span></td>
+      <td rowspan="2" class="icon_td"><img v-if="d[5]" :src="d[5]" class="icon"></td>
+      <td><span class="alias">{{d[4]}}</span><span class="time">{{d[9]}}</span></td>
       <td class="setting">
         <span class="emoji"> <RouterLink to="/emoji/1"> 😄 </RouterLink> </span>
         <span class="reply"> <RouterLink to="/reply/1"> 💬 </RouterLink> </span>
         <span class="others">⋮</span>
       </td>
     </tr>
-    <tr><td colspan="2" class="msg">{{d[5]}}</td></tr>
+    <tr><td colspan="2" class="msg">{{d[2]}}</td></tr>
   </table>
 <!--   <div class="box">
     <img v-if="d[2]" :src="d[2]" class="icon">

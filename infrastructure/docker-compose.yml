@@ -43,6 +43,8 @@ services:
     volumes:
       - ../vue:/app/vue
       - ../public:/app/vue/dist
+      # - ../public:/app/public
+      # - ../vue_emit:/app/emit
     tty: true
     ports:
       - 3000:3000

@@ -2,49 +2,59 @@
 import { ref } from 'vue'
 import {subscribe} from '../my/subscribe.js'
 import {subscription_post} from '../my/subscription_post.js'
-// import DrawerColumn from '../components/DrawerColumn.vue'
+import { useChannelsStore } from '../stores/channels.js'
+import { useMessagesStore } from '../stores/messages.js'
 
 const count = ref(0)
 const userID = ref('')
-// setInterval(() => {
-//   count.value += 1;
-// }, 1000);
+
 const props = defineProps({
   channels: '',
 })
 
-// channels = [[1,"channel face 1","description 1"],[1,"channel init 1","description 1"]]
+
+const channelsStore = useChannelsStore()
+const messagesStore = useMessagesStore()
+
+const request = new Request('/Init/', {
+  method: 'POST',
+});
+fetch(request)
+.then((response)=>{
+  if(!response.ok){
+    throw new Error();
+  }
+  return response.json()
+})
+.then((json)=>{
+  // channels.value = json[1]
+  channelsStore.insert(json[1])
+  messagesStore.insert(json[2])
+  // msgs.value = json[2]
+})
+.catch((reason)=>{
+  console.log(reason)
+});
 
 // function setCookie() {
-//   console.log(userID.value)
-//   const fd = new FormData()
-//   fd.append('ss', userID.value)
-//   const request = new Request('/SetCookie/', {
-//     method: 'POST',
-//     body: fd,
-//   });
-//   fetch(request)
-//     .then((response) => response.json())
+//   if ('serviceWorker' in navigator) {
+//     navigator.serviceWorker.register('service-worker.js');
+//     navigator.serviceWorker.ready
+//       .then(function(registration) {
+//         return registration.pushManager.getSubscription();
+//       })
+//       .then(function(subscription) {
+//         if (!subscription) {
+//           subscribe()
+//         } else {
+//           console.log(
+//             JSON.stringify(subscription)
+//           );
+//           subscription_post(JSON.stringify(subscription),userID.value)
+//         }
+//       });
+//   }
 // }
-function setCookie() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
-    navigator.serviceWorker.ready
-      .then(function(registration) {
-        return registration.pushManager.getSubscription();
-      })
-      .then(function(subscription) {
-        if (!subscription) {
-          subscribe()
-        } else {
-          console.log(
-            JSON.stringify(subscription)
-          );
-          subscription_post(JSON.stringify(subscription),userID.value)
-        }
-      });
-  }
-}
 
 </script>
 

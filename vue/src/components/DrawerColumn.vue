@@ -1,16 +1,10 @@
 <script setup>
-import { ref } from 'vue'
-const props = defineProps({
-  data: String,
-  channels: {
-    type: Object,
-    required: true
-  },
+import { ref, computed } from 'vue'
+import { useChannelsStore } from '../stores/channels.js';
+const channelsStore = useChannelsStore()
+const channels = computed(() => {
+  return channelsStore.channels
 })
-
-console.log(props.channels)
-const userID = ref('');
-const onClick = () => { console.log(userID.value) };
 
 </script>
 
