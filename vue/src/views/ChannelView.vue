@@ -40,6 +40,19 @@ const pushAction = () => {
   });
   fetch(request)
     .then((response) => response.json())
+    // .then((json)=>{
+
+    //   let data = ["","6545c74e71aee3b6bb941191","micro plastic ","1","sei1","/me.jpg","1",0,null,"2023-11-10T14:30:23.352583421Z"]
+    //   console.log(data)
+    //   console.log(json)
+    //   console.log(JSON.parse(json))
+    //   // messagesStore.update(JSON.parse(json))
+    //   messagesStore.update(data)
+
+    // })
+    .catch((reason)=>{
+      console.log(reason)
+    })
 }
 
 

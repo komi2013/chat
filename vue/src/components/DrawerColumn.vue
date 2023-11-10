@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { useChannelsStore } from '../stores/channels.js';
 const channelsStore = useChannelsStore()
 const channels = computed(() => {
-  console.log('wow' , channelsStore.channels)
   return channelsStore.channels
 })
 

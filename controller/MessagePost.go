@@ -26,11 +26,6 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   // }
 
   channelID := r.FormValue("channelID")
-  // messageID := r.FormValue("MessageID")
-  // messageTxt := r.FormValue("MessageTxt")
-  // messageType := r.FormValue("MessageType")
-  // editFlg := r.FormValue("EditFlg")
-
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -56,6 +51,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   }
   var community collection.CommunityStruct
   coll = db1.Collection("community")
+  // check access right
 	filter2 := bson.D{
 		{"alias_name", bson.D{{"$in", session.AliasNames}}},
 		{"channel_id", channelID},
@@ -88,21 +84,30 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", err)
   }
 
+	var arr []interface{}
+	arr = append(arr, r.FormValue("messageID"))
+	arr = append(arr, channelID)
+	arr = append(arr, r.FormValue("messageTxt"))
+	arr = append(arr, r.FormValue("messageType"))
+	arr = append(arr, community.AliasName)
+	arr = append(arr, community.AliasImg)
+	arr = append(arr, r.FormValue("editFlg"))
+	arr = append(arr, 0)
+	arr = append(arr, nil)
+	arr = append(arr, time.Now())
 
-//     arr = append(arr, r.MessageID)  0
-//     arr = append(arr, r.ChannelID)  1
-//     arr = append(arr, r.MessageTxt) 2
-//     arr = append(arr, r.MessageType)3
-//     arr = append(arr, r.From)       4
-//     arr = append(arr, r.FromImg)    5
-//     arr = append(arr, r.EditFlg)    6
-//     arr = append(arr, r.ParentID)   7
-//     arr = append(arr, r.Emojis)     8
-//     arr = append(arr, r.CreatedAt)  9
-// props.msgs = [
+// props.msgs = [AliasImg
 //   ["MessageID1", "ChannelID1", "MessageTxt A", 0, "alias A", "/me.jpg", 0, "ParentID1", [["aliasA","🙇"]], "09:00" ],
 //   ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
 //   ]
+	// arr を JSON 形式の文字列に変換
+	msgJson, err := json.Marshal(arr)
+	if err != nil {
+		fmt.Println("JSON変換エラー:", err)
+	}
+
+	// JSON 文字列を表示
+	fmt.Println(string(msgJson))
 
   for _, r := range results4 {
     cursor.Decode(&r)
@@ -110,7 +115,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal([]byte(r.Subscription), webpushSub)
 
 		// Send Notification
-		resp, err := webpush.SendNotification([]byte(`["MessageID1", "ChannelID1", "MessageTxt A", 0, "alias A", "/me.jpg", 0, "ParentID1", [["aliasA","🙇"]], "09:00" ]`), webpushSub, &webpush.Options{
+		resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
 			Subscriber:      "example@example.com",
 			VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
 			VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",

@@ -1,9 +1,10 @@
 <script setup>
 import { ref } from 'vue'
-import {subscribe} from '../my/subscribe.js'
+// import {subscribe} from '../my/subscribe.js'
 import {subscription_post} from '../my/subscription_post.js'
 import { useChannelsStore } from '../stores/channels.js'
 import { useMessagesStore } from '../stores/messages.js'
+import {subscriptionRegister} from '../my/subscribe.js'
 
 const count = ref(0)
 const userID = ref('')
@@ -37,27 +38,23 @@ fetch(request)
   console.log(reason)
 });
 
-// function setCookie(userID, alias) {
-//   if ('serviceWorker' in navigator) {
-//     navigator.serviceWorker.register('service-worker.js');
-//     navigator.serviceWorker.ready
-//       .then(function(registration) {
-//         return registration.pushManager.getSubscription();
-//       })
-//       .then(function(subscription) {
-//         console.log('userID, alias value', userID.value, alias.value)
-//         console.log('userID, alias', userID, alias)
-//         if (!subscription) {
-//           subscribe('seijiro', 'sei1')
-//         } else {
-//           console.log(JSON.stringify(subscription))
-          
-//           subscription_post(JSON.stringify(subscription),
-//             'seijiro', 'sei1')
-//         }
-//       });
-//   }
-// }
+function setCookie() {
+  if ('serviceWorker' in navigator) {
+    subscriptionRegister()
+    console.log(userID.value, alias.value)
+    subscription_post(userID.value, alias.value)
+  }
+}
+
+function unregister() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+}
 
 </script>
 
@@ -66,7 +63,9 @@ fetch(request)
   <!-- <DrawerColumn :channels="channels" /> -->
   <input v-model="userID" placeholder="seijiro" />
   <input v-model="alias" placeholder="sei1" />
-  <button @click="setCookie(userID, alias)">click</button>
+  <br>
+  <button @click="setCookie()">setCookie</button>
+  <button @click="unregister()">unregister</button>
   <div>{{count}}</div>
 </div>
 </template>

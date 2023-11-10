@@ -8,11 +8,11 @@ export const useMessagesStore = defineStore({
   }),
   actions: {
     insert(data) {
-      console.log(data)
+      // console.log(data)
       this.messages = data;
     },
-    update() {
-      this.count--;
+    update(data) {
+      this.messages.push(data)
     },
     adding(add) {
       this.count = this.count + add;
