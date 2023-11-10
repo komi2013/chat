@@ -73,7 +73,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     fmt.Printf(" err %s\n", err)
   }
-  fmt.Printf("community %+v\n", community)
+  fmt.Printf("community.UserIDs %+v\n", community.UserIDs)
   coll = db1.Collection("session")
   filter = bson.D{{
   	"user_id", bson.D{{"$in", community.UserIDs}}}}

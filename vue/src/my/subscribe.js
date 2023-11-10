@@ -1,7 +1,7 @@
 import {urlBase64ToUint8Array} from './urlBase64ToUint8Array.js'
 import {subscription_post} from './subscription_post.js'
 
-export function subscribe() {
+export function subscribe(userID, alias) {
   navigator.serviceWorker.ready
     .then(function(registration) {
       const vapidPublicKey = 'BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8';
@@ -15,7 +15,7 @@ export function subscribe() {
       console.log(
         JSON.stringify(subscription)
       );
-      subscription_post(JSON.stringify(subscription))
+      subscription_post(JSON.stringify(subscription), userID, alias)
     })
     .catch(err => console.error(err));
 }
