@@ -3,8 +3,10 @@ import { ref, computed } from 'vue'
 import { useChannelsStore } from '../stores/channels.js';
 const channelsStore = useChannelsStore()
 const channels = computed(() => {
+  console.log('wow' , channelsStore.channels)
   return channelsStore.channels
 })
+
 
 </script>
 
@@ -14,10 +16,10 @@ const channels = computed(() => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/rank/">threads</a></td></tr>
-      <tr><td><a href="/rank/">draft</a></td></tr>
+      <tr><td><RouterLink to="/sign/" >Sign</RouterLink></td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
-          <RouterLink :to="'/channel/' + d[0]">{{d[1]}}</RouterLink>
+          <RouterLink :to="'/channel/' + d[0]">{{ d[1] }}</RouterLink>
         </td>
       </tr>
       <tr><td><a href="/htm/mydata/" rel="nofollow"><span class="emoji">📊</span> chart</a></td></tr>

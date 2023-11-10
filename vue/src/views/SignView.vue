@@ -36,32 +36,30 @@ fetch(request)
   console.log(reason)
 });
 
-// function setCookie() {
-//   if ('serviceWorker' in navigator) {
-//     navigator.serviceWorker.register('service-worker.js');
-//     navigator.serviceWorker.ready
-//       .then(function(registration) {
-//         return registration.pushManager.getSubscription();
-//       })
-//       .then(function(subscription) {
-//         if (!subscription) {
-//           subscribe()
-//         } else {
-//           console.log(
-//             JSON.stringify(subscription)
-//           );
-//           subscription_post(JSON.stringify(subscription),userID.value)
-//         }
-//       });
-//   }
-// }
+function setCookie() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+    navigator.serviceWorker.ready
+      .then(function(registration) {
+        return registration.pushManager.getSubscription();
+      })
+      .then(function(subscription) {
+        if (!subscription) {
+          subscribe()
+        } else {
+          console.log(JSON.stringify(subscription));
+          subscription_post(JSON.stringify(subscription),userID.value)
+        }
+      });
+  }
+}
 
 </script>
 
 <template>
 
   <!-- <DrawerColumn :channels="channels" /> -->
-  <input v-model="userID" />
+  <input v-model="userID" placeholder="seijiro" />
   <button @click="setCookie">click</button>
   <div>{{count}}</div>
 </template>

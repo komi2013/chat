@@ -5,7 +5,7 @@ import (
 )
 
 type ChannelStruct struct {
-  ChannelID  string    `bson:"channel_id,omitempty"`
+  ChannelID  string    `bson:"_id,omitempty"`
   ChannelName  string    `bson:"channel_name,omitempty"`
   ChannelDescription  string      `bson:"channel_description,omitempty"`
   UpdatedAt  time.Time `bson:"updated_at,omitempty"`

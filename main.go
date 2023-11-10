@@ -14,9 +14,9 @@ import (
 func main() {
 
   if len(os.Args) == 1 {
+  	http.HandleFunc("/MessagePost/", controller.MessagePost)
     http.HandleFunc("/Init/", controller.Init)
     http.HandleFunc("/SetCookie/", controller.SetCookie)
-    http.HandleFunc("/SubscriptionPost/", controller.SubscriptionPost)
 
     http.HandleFunc("/", controller.Top)
 

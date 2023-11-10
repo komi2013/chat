@@ -13,9 +13,7 @@ export function subscribe() {
     })
     .then(function(subscription) {
       console.log(
-        JSON.stringify({
-          subscription: subscription,
-        })
+        JSON.stringify(subscription)
       );
       subscription_post(JSON.stringify(subscription))
     })

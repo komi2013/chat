@@ -17,7 +17,8 @@ const router = createRouter({
     {
       path: '/channel/:id',
       name: 'channel',
-      component: () => import('../views/ChannelView.vue')
+      component: () => import('../views/ChannelView.vue'),
+      props: route => ({id: route.params.id}),
     },
     {
       path: '/sign',

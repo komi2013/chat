@@ -6,20 +6,12 @@ const messages = computed(() => {
   console.log(messagesStore.messages)
   return messagesStore.messages
 })
+const props = defineProps({
+  id: '',
+})
 
-// const counterStore = useCounterStore();
-
-// const countString = computed(() => {
-//   return counterStore.count
-// })
-// const incrementAction = () => {
-//   counterStore.increment();
-// };
-
-// const decrementAction = () => {
-//   counterStore.decrement();
-// };
-
+// const id = computed(() => context.attrs.id)
+console.log(props.id)
 
 // props.msgs = [
 //   ["id1", "alias A", "/me.jpg", "09:00", 0, "message text", "",  [["aliasA","🙇"]]],
@@ -36,6 +28,20 @@ const messages = computed(() => {
 //     arr = append(arr, r.ParentID)   7
 //     arr = append(arr, r.Emojis)     8
 //     arr = append(arr, r.CreatedAt)  9
+const pushAction = () => {
+  const fd = new FormData()
+  fd.append('channelID', props.id)
+  fd.append('messageTxt', document.getElementById("msgText").value)
+  fd.append('messageType', 1)
+  fd.append('editFlg', 1)
+  const request = new Request('/MessagePost/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request)
+    .then((response) => response.json())
+}
+
 
 </script>
 
@@ -66,7 +72,10 @@ const messages = computed(() => {
     <div >{{d[5]}}</div>
   </div> -->
 </div>
-<textarea class="msgBox"></textarea>
+<RouterLink to="/channel/abc/" >channel abc</RouterLink>
+<button @click="pushAction">pushAction</button>
+
+<textarea class="msgBox" id="msgText"></textarea>
 </template>
 
 <style>

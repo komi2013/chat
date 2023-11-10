@@ -36,6 +36,7 @@ const msgs = ref('')
 const channels = ref([[1,"channel face 1","description 1"],[1,"channel init 1","description 1"]])
 
 if ('serviceWorker' in navigator) {
+  console.log(navigator.serviceWorker.controller)
   const { port1, port2 } = new MessageChannel();
   port1.onmessage = ev => {
     // $span.textContent = ev.data;
@@ -43,12 +44,12 @@ if ('serviceWorker' in navigator) {
   };
 }
 
-const messageFromHome = ref('');
+// const messageFromHome = ref('');
 
-const handleCustomEvent = (message) => {
-  console.log(message)
-  messageFromHome.value = message;
-};
+// const handleCustomEvent = (message) => {
+//   console.log(message)
+//   messageFromHome.value = message;
+// };
 
 
 </script>
@@ -57,9 +58,9 @@ const handleCustomEvent = (message) => {
 
   <DrawerColumn />
   
-  <div id="content">
+<!--   <div id="content">
     <RouterView @custom-event="handleCustomEvent" @custom-event2="handleCustomEvent" />
-  </div>
+  </div> -->
       <RouterLink to="/">Home</RouterLink>
       <RouterLink to="/about">About</RouterLink>
       <RouterLink to="/sign" >Sign</RouterLink>

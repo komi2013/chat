@@ -45,27 +45,8 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Printf(" session.AliasNames %s\n", session.AliasNames)
-	// dataJson := `["1","2","3"]`
-	// jsonParser := json.NewDecoder(session.AliasNames)
-	bytes := []byte(session.AliasNames)
-
-  // var names [][]interface{}
-  var arrName []string
-  if err := json.Unmarshal(bytes, &arrName); err != nil {
-    log.Fatal(err)
-  }
-
-  // var arrName []string
-  // for _, d := range names {
-		// str, ok := d[0].(string)
-		// if !ok {
-		//   fmt.Printf("ERROR: not a string -> %#v\n", d[0])
-		// }
-  // 	arrName = append(arrName, str)
-  // }
 	coll = db1.Collection("community")
-	filter = bson.D{{"alias_name", bson.D{{"$in", arrName}}}}
+	filter = bson.D{{"alias_name", bson.D{{"$in", session.AliasNames}}}}
 	project := bson.D{
 		{"channel_id", 1},
 		{"unread_flg", 1},
@@ -90,7 +71,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	// filter = bson.D{{"_id", bson.D{{"$in", arrChannelID}}}}
 	filter = bson.D{}
 	project = bson.D{
-		{"channel_id", 1},
+		{"_id", 1},
 		{"channel_name", 1},
 		{"channel_description", 1},
 		{"updated_at", 1}}
