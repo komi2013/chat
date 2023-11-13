@@ -30,9 +30,11 @@ func SetCookie(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.D{{"_id", r.FormValue("userID")}}
 	// arrAlias := []string{r.FormValue("userID")}
+	var aliasArray [][]string
+	aliasArray[0][0] = r.FormValue("alias")
 	update := bson.D{{"$set", bson.D{
 		{"user_id", r.FormValue("userID")},
-		{"alias_names", []string{r.FormValue("alias")}},
+		{"alias_array", aliasArray},
 		{"subscription", r.FormValue("subscription")},
 		{"created_at", time.Now()}}}}
 	opts := options.Update().SetUpsert(true)

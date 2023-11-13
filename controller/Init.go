@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/collection"
   "chat/common"
@@ -39,14 +40,18 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	// opts := options.FindOne().SetProjection(projection)
 	opts := options.FindOne().SetProjection(bson.D{
 		{"user_id", 1},
-		{"alias_names", 1},
+		{"alias_array", 1},
 	})
 	coll.FindOne(context.TODO(), filter, opts).Decode(&session)
 	if err != nil {
 		panic(err)
 	}
+  var aliasNames []string
+  for _, arrayData := range session.AliasArray {
+  	aliasNames = append(aliasNames, arrayData[0])
+  }
 	coll = db1.Collection("community")
-	filter = bson.D{{"alias_name", bson.D{{"$in", session.AliasNames}}}}
+	filter = bson.D{{"alias_name", bson.D{{"$in", aliasNames}}}}
 	project := bson.D{
 		{"channel_id", 1},
 		{"unread_flg", 1},
@@ -61,7 +66,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	var arrChannelID []string
+	var arrChannelID []primitive.ObjectID
 	for _, r := range results {
 		cursor.Decode(&r)
 		arrChannelID = append(arrChannelID, r.ChannelID)

@@ -8,7 +8,7 @@ type SessionStruct struct {
   SessionID  string    `bson:"_id,omitempty"`
   UserID  string    `bson:"user_id,omitempty"`
   CreatedAt  time.Time `bson:"created_at,omitempty"`
-  AliasNames  []string      `bson:"alias_names,omitempty"`
+  AliasArray  [][]string      `bson:"alias_array,omitempty"`
   Subscription  string      `bson:"subscription,omitempty"`
 }
 

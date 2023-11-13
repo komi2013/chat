@@ -14,15 +14,16 @@ const channels = computed(() => {
     <label for="drawer_check" class="pc_disp_none emoji" style="position: absolute;" >≡</label>
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
-      <tr><td><a href="/rank/">threads</a></td></tr>
+      <tr><td><RouterLink to="/" >Home</RouterLink></td></tr>
+      <tr><td><RouterLink to="/threads/" >threads</RouterLink></td></tr>
       <tr><td><RouterLink to="/sign/" >Sign</RouterLink></td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
           <RouterLink :to="'/channel/' + d[0]">{{ d[1] }}</RouterLink>
         </td>
       </tr>
-      <tr><td><a href="/htm/mydata/" rel="nofollow"><span class="emoji">📊</span> chart</a></td></tr>
-      <tr><td><a href="/htm/rule/" rel="nofollow"><span class="emoji">📏</span> rule</a></td></tr>
+      <tr><td><RouterLink to="/addChannel/" ><span> + </span><span>チャネルを追加</span></RouterLink></td></tr>
+      <tr><td><RouterLink to="/sign/" >Sign</RouterLink></td></tr>
     </table>
   </div>
 </template>

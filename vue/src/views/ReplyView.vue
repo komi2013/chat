@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import DrawerColumn from '../components/DrawerColumn.vue'
 const props = defineProps({
   msg: ref(''),
   channels: {
@@ -8,7 +9,7 @@ const props = defineProps({
   },
 })
 props.msg = 
-  ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
+  ["message", "id2", "alias A", "/me.jpg", "09:30", 0, "message", "", ["aliasB","aliasC"]]
   
 const userID = ref('');
 const onClick = () => { console.log(userID.value) };
@@ -16,6 +17,9 @@ const onClick = () => { console.log(userID.value) };
 </script>
 
 <template>
+<DrawerColumn />
+<div id="content">
+<br>
 <div>
   <table>
     <tr>
@@ -31,6 +35,7 @@ const onClick = () => { console.log(userID.value) };
   </table>
 </div>
 <textarea class="msgBox"></textarea>
+</div>
 </template>
 
 <style>

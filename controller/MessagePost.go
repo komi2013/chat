@@ -43,17 +43,21 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   // opts := options.FindOne().SetProjection(projection)
   opts := options.FindOne().SetProjection(bson.D{
     {"user_id", 1},
-    {"alias_names", 1},
+    {"alias_array", 1},
   })
   coll.FindOne(context.TODO(), filter, opts).Decode(&session)
   if err != nil {
     panic(err)
   }
+  var aliasNames []string
+  for _, arrayData := range session.AliasArray {
+  	aliasNames = append(aliasNames, arrayData[0])
+  }
   var community collection.CommunityStruct
   coll = db1.Collection("community")
   // check access right
 	filter2 := bson.D{
-		{"alias_name", bson.D{{"$in", session.AliasNames}}},
+		{"alias_name", bson.D{{"$in", aliasNames}}},
 		{"channel_id", channelID},
 	}
 	// filter2 := bson.D{}
@@ -85,6 +89,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   }
 
 	var arr []interface{}
+	arr = append(arr, "message")
 	arr = append(arr, r.FormValue("messageID"))
 	arr = append(arr, channelID)
 	arr = append(arr, r.FormValue("messageTxt"))
@@ -96,11 +101,6 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 	arr = append(arr, nil)
 	arr = append(arr, time.Now())
 
-// props.msgs = [AliasImg
-//   ["MessageID1", "ChannelID1", "MessageTxt A", 0, "alias A", "/me.jpg", 0, "ParentID1", [["aliasA","🙇"]], "09:00" ],
-//   ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
-//   ]
-	// arr を JSON 形式の文字列に変換
 	msgJson, err := json.Marshal(arr)
 	if err != nil {
 		fmt.Println("JSON変換エラー:", err)

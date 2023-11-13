@@ -1,22 +1,21 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import DrawerColumn from '../components/DrawerColumn.vue'
 import { useMessagesStore } from '../stores/messages.js';
+import { get_formated_time } from '../my/get_formated_time.js';
 const messagesStore = useMessagesStore()
 const messages = computed(() => {
-  console.log(messagesStore.messages)
+  // messagesStore.messages.forEach(row => {
+  //   row[9] = get_formated_time('hh:mm',row[9])
+  // })
   return messagesStore.messages
 })
 const props = defineProps({
   id: '',
 })
 
-// const id = computed(() => context.attrs.id)
 console.log(props.id)
 
-// props.msgs = [
-//   ["id1", "alias A", "/me.jpg", "09:00", 0, "message text", "",  [["aliasA","🙇"]]],
-//   ["id2", "alias A", "/me.jpg", "09:30", 0, "message text,message textmessage textmessage textmessage text", "", [["aliasB","🙇"]]]
-//   ]
 
 //     arr = append(arr, r.MessageID)  0
 //     arr = append(arr, r.ChannelID)  1
@@ -40,25 +39,26 @@ const pushAction = () => {
   });
   fetch(request)
     .then((response) => response.json())
-    // .then((json)=>{
-
-    //   let data = ["","6545c74e71aee3b6bb941191","micro plastic ","1","sei1","/me.jpg","1",0,null,"2023-11-10T14:30:23.352583421Z"]
-    //   console.log(data)
-    //   console.log(json)
-    //   console.log(JSON.parse(json))
-    //   // messagesStore.update(JSON.parse(json))
-    //   messagesStore.update(data)
-
-    // })
+    .then((json)=>{
+      // when status not 1
+    })
     .catch((reason)=>{
       console.log(reason)
     })
 }
-
-
+const msgText = ref(null)
+onMounted(() => {
+  msgText.value.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+  })
+})
 </script>
 
 <template>
+<DrawerColumn />
+<div id="content">
+<br>
 <!--   <button @click="incrementChildCount">Increment Child Count</button>
   <div>
     <p>Count: {{ countString }}</p>
@@ -69,11 +69,14 @@ const pushAction = () => {
   <table>
     <tr>
       <td rowspan="2" class="icon_td"><img v-if="d[5]" :src="d[5]" class="icon"></td>
-      <td><span class="alias">{{d[4]}}</span><span class="time">{{d[9]}}</span></td>
+      <td>
+        <span class="alias">{{d[4]}}</span>
+        <span class="time">{{get_formated_time('hh:mm',d[9]) }}</span>
+      </td>
       <td class="setting">
         <span class="emoji"> <RouterLink to="/emoji/1"> 😄 </RouterLink> </span>
         <span class="reply"> <RouterLink to="/reply/1"> 💬 </RouterLink> </span>
-        <span class="others">⋮</span>
+        <span class="others"> &nbsp; ⋮ &nbsp; </span>
       </td>
     </tr>
     <tr><td colspan="2" class="msg">{{d[2]}}</td></tr>
@@ -85,10 +88,15 @@ const pushAction = () => {
     <div >{{d[5]}}</div>
   </div> -->
 </div>
-<RouterLink to="/channel/abc/" >channel abc</RouterLink>
-<button @click="pushAction">pushAction</button>
+<!-- <RouterLink to="/channel/abc/" >channel abc</RouterLink> -->
 
-<textarea class="msgBox" id="msgText"></textarea>
+<div class="msgBox">
+  <div><span>📎</span><span style="font: bold;">B</span></div>
+  <textarea id="msgText" ref="msgText" ></textarea>
+  <div style="text-align: right"><button @click="pushAction">▶️</button></div>
+</div>
+
+</div>
 </template>
 
 <style>
@@ -130,19 +138,25 @@ const pushAction = () => {
   margin: 2px;
 }
 
+.msgBox textarea {
+  width: 100%;
+  border: none;
+  height: 50px;
+}
+
 @media screen and (min-width : 701px) { 
   .msgBox {
     position: fixed;
-    bottom: 0;
-    width: 380px;
+    bottom: 10px;
+    width: 300px;
   }
 }
 
 @media screen and (max-width : 700px) {
   .msgBox {
     position: fixed;
-    bottom: 0;
-    width: 100%;
+    bottom: 10px;
+    width: 300px;
   }
 }
 </style>

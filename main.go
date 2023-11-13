@@ -14,6 +14,7 @@ import (
 func main() {
 
   if len(os.Args) == 1 {
+  	http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
   	http.HandleFunc("/MessagePost/", controller.MessagePost)
     http.HandleFunc("/Init/", controller.Init)
     http.HandleFunc("/SetCookie/", controller.SetCookie)

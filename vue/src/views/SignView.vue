@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-// import {subscribe} from '../my/subscribe.js'
+import DrawerColumn from '../components/DrawerColumn.vue'
 import {subscription_post} from '../my/subscription_post.js'
 import { useChannelsStore } from '../stores/channels.js'
 import { useMessagesStore } from '../stores/messages.js'
@@ -59,7 +59,9 @@ function unregister() {
 </script>
 
 <template>
+  <DrawerColumn />
   <div id="content">
+    <br><br>
   <!-- <DrawerColumn :channels="channels" /> -->
   <input v-model="userID" placeholder="seijiro" />
   <input v-model="alias" placeholder="sei1" />
