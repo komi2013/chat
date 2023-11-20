@@ -11,7 +11,7 @@ const channels = computed(() => {
 
 <template>
   <div id="drawer_column">
-    <label for="drawer_check" class="pc_disp_none emoji" style="position: absolute;" >≡</label>
+    <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><RouterLink to="/" >Home</RouterLink></td></tr>
@@ -58,13 +58,20 @@ const channels = computed(() => {
   .pulling {
     position: absolute;
     top: 0px;
-    height: 40px;
+    height: 50px;
     width: 50px;
     opacity: 0;
     z-index: 10;
   }
   .pulling:checked ~ #drawer{
     left: 0%;
+  }
+  .for_drawer {
+    position: absolute;
+    font-size: 40px;
+    top: -10px;
+    width: 50px;
+    text-align: center;
   }
 }
 </style>

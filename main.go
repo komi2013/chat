@@ -17,6 +17,7 @@ func main() {
   	http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
   	http.HandleFunc("/MessagePost/", controller.MessagePost)
     http.HandleFunc("/Init/", controller.Init)
+    http.HandleFunc("/InvitationGet/", controller.InvitationGet)
     http.HandleFunc("/SetCookie/", controller.SetCookie)
 
     http.HandleFunc("/", controller.Top)

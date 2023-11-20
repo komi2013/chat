@@ -9,6 +9,8 @@ type ChannelStruct struct {
   ChannelName  string    `bson:"channel_name,omitempty"`
   ChannelDescription  string      `bson:"channel_description,omitempty"`
   UpdatedAt  time.Time `bson:"updated_at,omitempty"`
+  InvitationCode  string      `bson:"invitation_code,omitempty"`
+  InvitedAt  time.Time `bson:"invited_at,omitempty"`
 }
 
 // channel_id
