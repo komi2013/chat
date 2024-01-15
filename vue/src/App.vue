@@ -8,15 +8,19 @@ setInterval(() => {console.log(navigator.onLine)}, 1000)
 const messagesStore = useMessagesStore()
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
-    const data = JSON.parse(event.data.notificationData)
+    console.log(event.data.notificationData);
+    const data = JSON.parse(event.data.notificationData);
     switch (data[0]) {
       case 'message':
         const messageData = data.slice(1)
         console.log(messageData)
         messagesStore.update(messageData)
         break
-      case 'banana':
-        console.log('This is a banana.')
+      case 'community_join':
+  // arr = append(arr, channelID)
+  // arr = append(arr, aliasName)
+  // arr = append(arr, aliasImg)
+        console.log('community_join', data)
         break
       case 'orange':
         console.log('This is an orange.')

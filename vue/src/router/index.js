@@ -16,6 +16,15 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
+      path: '/communityJoin/:channel_id/:code/',
+      name: 'communityJoin',
+      component: () => import('../views/CommunityJoin.vue'),
+      props: route => ({
+        channel_id: route.params.channel_id, 
+        code: route.params.code
+      }),
+    },
+    {
       path: '/sign/',
       name: 'sign',
       component: () => import('../views/SignView.vue')
@@ -34,6 +43,11 @@ const router = createRouter({
       path: '/thread/:message_id/',
       name: 'reply',
       component: () => import('../views/ReplyView.vue')
+    },
+    {
+      path: '/',
+      name: 'top',
+      component: () => import('../views/Top.vue')
     }
   ]
 })

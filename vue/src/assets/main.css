@@ -91,4 +91,7 @@ a {
     height: 50px;
     font-size: 40px;
   }
+  #content{
+    margin-left: 50px;
+  }
 }

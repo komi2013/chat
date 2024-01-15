@@ -26,6 +26,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   // }
 
   channelID := r.FormValue("channelID")
+  aliasName := r.FormValue("aliasName")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -50,33 +51,36 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
     panic(err)
   }
   var aliasNames []string
+  trueAccess := false
+  var aliasImg string
   for _, arrayData := range session.AliasArray {
   	aliasNames = append(aliasNames, arrayData[0])
+  	if arrayData[0] == aliasName {
+  		aliasImg = arrayData[1]
+  		trueAccess = true
+  	}
   }
-  var community collection.CommunityStruct
-  coll = db1.Collection("community")
+  if !trueAccess {
+  	fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+  	return
+  }
+  var channel collection.ChannelStruct
+  coll = db1.Collection("channel")
   // check access right
 	filter2 := bson.D{
-		{"alias_name", bson.D{{"$in", aliasNames}}},
 		{"channel_id", channelID},
 	}
-	// filter2 := bson.D{}
   opts2 := options.FindOne().SetProjection(bson.D{
-    {"_id", 1},
-    {"channel_id", 1},
-    {"alias_name", 1},
     {"user_ids", 1},
-    {"channel_db", 1},
-    {"updated_at", 1},
   })
-  coll.FindOne(context.TODO(), filter2, opts2).Decode(&community)
+  coll.FindOne(context.TODO(), filter2, opts2).Decode(&channel)
   if err != nil {
     fmt.Printf(" err %s\n", err)
   }
-  fmt.Printf("community.UserIDs %+v\n", community.UserIDs)
+  fmt.Printf("channel.UserIDs %+v\n", channel.UserIDs)
   coll = db1.Collection("session")
   filter = bson.D{{
-  	"user_id", bson.D{{"$in", community.UserIDs}}}}
+  	"user_id", bson.D{{"$in", channel.UserIDs}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
@@ -94,8 +98,8 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 	arr = append(arr, channelID)
 	arr = append(arr, r.FormValue("messageTxt"))
 	arr = append(arr, r.FormValue("messageType"))
-	arr = append(arr, community.AliasName)
-	arr = append(arr, community.AliasImg)
+	arr = append(arr, aliasName)
+	arr = append(arr, aliasImg)
 	arr = append(arr, r.FormValue("editFlg"))
 	arr = append(arr, 0)
 	arr = append(arr, nil)

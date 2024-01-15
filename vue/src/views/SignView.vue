@@ -30,16 +30,30 @@ fetch(request)
 })
 .then((json)=>{
   // channels.value = json[1]
-  console.log(json[1]);
+  // console.log(json[1]);
 
   for (const d of json[1]) {
-    const data = {
+    const channel = {
       channelID: d[0],
       channelName: d[1],
       channelDescription: d[2],
       updatedAt: d[3],
     };
-    upsertData(data)
+    upsertData(channel, 'channel', 'channelID', channel.channelID)
+      .then((message) => {
+        console.log(message);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+  for (const d of json[2]) {
+    const alias = {
+      aliasName: d[0],
+      aliasImg: d[1],
+      groupFlg: d[2],
+    };
+    upsertData(alias, 'alias', 'aliasName', alias.aliasName)
       .then((message) => {
         console.log(message);
       })
@@ -48,7 +62,7 @@ fetch(request)
       });
   }
   channelsStore.insert(json[1]);
-  messagesStore.insert(json[2]);
+  // messagesStore.insert(json[2]);
   // msgs.value = json[2]
 })
 .catch((reason)=>{
@@ -73,46 +87,34 @@ function unregister() {
   }
 }
 
-function openDatabase() {
+function openDatabase(table, key) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 2);
-
+    const request = indexedDB.open('chat', 12);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
-
     request.onsuccess = (event) => {
       const db = event.target.result;
+      if (!db.objectStoreNames.contains(table)) {
+        db.createObjectStore(table, { keyPath: key });
+      }
       resolve(db);
     };
-
     request.onupgradeneeded = (event) => {
-      const db = event.target.result;
 
-      // Create an object store (table) if it doesn't exist
-      if (!db.objectStoreNames.contains('channel')) {
-        db.createObjectStore('channel', { keyPath: 'channelID' });
-      }
     };
   });
 }
 
-async function upsertData(data) {
-  const db = await openDatabase();
-
+async function upsertData(data, table, key, objKey) {
+  const db = await openDatabase(table, key);
   return new Promise(async (resolve, reject) => {
-    const transaction = db.transaction(['channel'], 'readwrite');
-    const objectStore = transaction.objectStore('channel');
-
-    // データが存在するか確認
-    const existingDataRequest = objectStore.get(data.channelID);
-
+    const transaction = db.transaction([table], 'readwrite');
+    const objectStore = transaction.objectStore(table);
+    const existingDataRequest = objectStore.get(objKey);
     existingDataRequest.onsuccess = async () => {
       const existingData = existingDataRequest.result;
-
-      // データが存在する場合は更新、存在しない場合は挿入
       if (existingData) {
-        // データが存在する場合の処理（例: データの更新）
         const putRequest = objectStore.put(data);
         putRequest.onsuccess = () => {
           resolve('Data updated successfully');
@@ -121,7 +123,6 @@ async function upsertData(data) {
           reject(`Error updating data: ${event.target.error}`);
         };
       } else {
-        // データが存在しない場合の処理（例: データの挿入）
         const addRequest = objectStore.add(data);
         addRequest.onsuccess = () => {
           resolve('Data inserted successfully');
@@ -131,7 +132,6 @@ async function upsertData(data) {
         };
       }
     };
-
     existingDataRequest.onerror = (event) => {
       reject(`Error checking existing data: ${event.target.error}`);
     };

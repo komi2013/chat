@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	// "go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/collection"
   "chat/common"
@@ -46,32 +46,30 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-  var aliasNames []string
-  for _, arrayData := range session.AliasArray {
-  	aliasNames = append(aliasNames, arrayData[0])
-  }
-	coll = db1.Collection("community")
-	filter = bson.D{{"alias_name", bson.D{{"$in", aliasNames}}}}
+
+	coll = db1.Collection("alias")
+	filter = bson.D{{"user_id", session.UserID}}
 	project := bson.D{
-		{"channel_id", 1},
-		{"unread_flg", 1},
-		{"channel_db", 1}}
-	opts2 := options.Find().SetProjection(project)
-	cursor, err := coll.Find(context.TODO(), filter, opts2)
-	if err != nil {
+		{"alias_name", 1},
+		{"alias_img", 1},
+		{"group_flg", 1}}
+	opts3 := options.Find().SetProjection(project)
+	cursor, _ := coll.Find(context.TODO(), filter, opts3)
+	var results2 []collection.AliasStruct
+	if err = cursor.All(context.TODO(), &results2); err != nil {
 		fmt.Printf(" err %s\n", err)
 	}
-	var results []collection.CommunityStruct
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		panic(err)
-	}
-
-	var arrChannelID []primitive.ObjectID
-	for _, r := range results {
+	var aliasArr []interface{}
+	var aliasNames []string
+	for _, r := range results2 {
 		cursor.Decode(&r)
-		arrChannelID = append(arrChannelID, r.ChannelID)
+		var arr []interface{}
+		arr = append(arr, r.AliasName)
+		arr = append(arr, r.AliasImg)
+		arr = append(arr, r.GroupFlg)
+		aliasArr = append(aliasArr, arr)
+		aliasNames = append(aliasNames, r.AliasName)
 	}
-	fmt.Printf(" arrChannelID %s\n", arrChannelID)
 	coll = db1.Collection("channel")
 	// filter = bson.D{{"_id", bson.D{{"$in", arrChannelID}}}}
 	filter = bson.D{}
@@ -100,49 +98,11 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		channelArr = append(channelArr, arr)
 	}
 	fmt.Printf(" channelArr %s\n", channelArr)
-	coll = db1.Collection("message")
-	filter = bson.D{{"channel_id", bson.D{{"$in", arrChannelID}}}}
-	project = bson.D{
-		{"_id", 1},
-		{"channel_id", 1},
-		{"message_txt", 1},
-		{"message_type", 1},
-		{"from", 1},
-		{"from_img", 1},
-		{"edit_flg", 1},
-		{"parent_id", 1},
-		{"emojis", 1},
-		{"created_at", 1}}
-	opts3 := options.Find().SetProjection(project)
-	cursor, _ = coll.Find(context.TODO(), filter, opts3)
-	// if err != nil {
-	// 	return err
-	// }
-	var results2 []collection.MessageStruct
-	if err = cursor.All(context.TODO(), &results2); err != nil {
-		fmt.Printf(" err %s\n", err)
-	}
-	var msgArr []interface{}
-	for _, r := range results2 {
-		cursor.Decode(&r)
-		var arr []interface{}
-		arr = append(arr, r.MessageID)
-		arr = append(arr, r.ChannelID)
-		arr = append(arr, r.MessageTxt)
-		arr = append(arr, r.MessageType)
-		arr = append(arr, r.From)
-		arr = append(arr, r.FromImg)
-		arr = append(arr, r.EditFlg)
-		arr = append(arr, r.ParentID)
-		arr = append(arr, r.Emojis)
-		arr = append(arr, r.CreatedAt)
-		msgArr = append(msgArr, arr)
-	}
 	status := 1
 	var jsonArr []interface{}
 	jsonArr = append(jsonArr, status)
 	jsonArr = append(jsonArr, channelArr)
-	jsonArr = append(jsonArr, msgArr)
+	jsonArr = append(jsonArr, aliasArr)
 	fmt.Printf(" jsonArr %s\n", jsonArr)
 	jsonData, _ := json.Marshal(jsonArr)
 	fmt.Printf(" jsonData %s\n", jsonData)

@@ -13,10 +13,10 @@ func main() {
 	// fmt.Println(str)
 	// Decode subscription
 	s := &webpush.Subscription{}
-	json.Unmarshal([]byte(`{"endpoint":"https://updates.push.services.mozilla.com/wpush/v2/gAAAAABlTdgMzziffOf-4fWTXtPtM9hnTfgWO6_ABAtMsGmOY-fcG0E4VLozToAYOMC5ZJVKsHm_u5McMXN1uMp_j52UMzKz77Psg8vwxniS4PHZylvulOw6lHOVl5QJjCu4jXuATr-BOjd4tvQVCZhFwNBiwFpXhzTjJcP8O6nTRPD8SmFp9v8","expirationTime":null,"keys":{"auth":"iLkiDQ8fKctQWh3LQuHR7g","p256dh":"BK2xPFLsHuBoRF3Ng0pELgXOFTfqRMqX_rxg89ihC_tVIbmO74mGgjsIiYP7lZraiVzoAGNcl0uTDpwTDrkYKrE"}}`), s)
+	json.Unmarshal([]byte(`{"endpoint":"https://updates.push.services.mozilla.com/wpush/v2/gAAAAABloxQ5BTb70thKuHZ-WJxS_Q8IyJsvS-Aitq2IX_N_PPh0mrap9nS6xpir8VrcxT2xRuDwqC9_EmoGY_xveVmiEUaq9glUjFI-0qAZ6f4dz8mvR6Xe47SGSERzLBtfxbx7rReTFDP8ps1mv35RSv2NKRGkQ0Io-45AUE1R9bIdnZ5N8hw","expirationTime":null,"keys":{"auth":"LdVh3BA4Ce3kgwOTWfTvPQ","p256dh":"BB_yF2nHXVCk6mXghtvzkQOMY-QydjufH0G3N_0kSTgBnxPxvmuI3rdOjMe_hyrwIdfJikPU-5xYbVoeqJuLczg"}}`), s)
 
 	// Send Notification
-	resp, err := webpush.SendNotification([]byte("['なせ','seijiro']"), s, &webpush.Options{
+	resp, err := webpush.SendNotification([]byte(`["message","seijiro"]`), s, &webpush.Options{
 		Subscriber:      "example@example.com",
 		VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
 		VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",

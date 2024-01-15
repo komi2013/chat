@@ -2,6 +2,7 @@ package controller
 
 import (
   "context"
+  "encoding/json"
   "fmt"
   "log"
   "net/http"
@@ -12,6 +13,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/common"
+  "chat/collection"
 )
 
 func InvitationGet(w http.ResponseWriter, r *http.Request) {
@@ -21,8 +23,8 @@ func InvitationGet(w http.ResponseWriter, r *http.Request) {
   // }
 
   channelID := r.FormValue("channelID")
-  aliasName := r.FormValue("aliasName")
-  channelDescription := r.FormValue("channelDescription")
+  // aliasName := r.FormValue("aliasName")
+  // channelDescription := r.FormValue("channelDescription")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -43,55 +45,43 @@ func InvitationGet(w http.ResponseWriter, r *http.Request) {
     {"alias_array", 1},
   })
   coll.FindOne(context.TODO(), filter, opts).Decode(&session)
-  if err != nil {
-    panic(err)
-  }
   var aliasNames []string
   for _, arrayData := range session.AliasArray {
   	aliasNames = append(aliasNames, arrayData[0])
   }
-
-	coll = db1.Collection("community")
+  var alias collection.AliasStruct
+	coll = db1.Collection("alias")
 	filter = bson.D{{"alias_name", bson.D{{"$in", aliasNames}}}}
-	project := bson.D{
-		{"channel_id", 1},
-		{"unread_flg", 1},
-		{"channel_db", 1}}
-	opts2 := options.Find().SetProjection(project)
-	cursor, err := coll.Find(context.TODO(), filter, opts2)
-	if err != nil {
-		fmt.Printf(" err %s\n", err)
-	}
-	var results []collection.CommunityStruct
-	if err = cursor.All(context.TODO(), &results); err != nil {
-		panic(err)
-	}
+  opts2 := options.FindOne().SetProjection(bson.D{{"channel_ids", 1},})
+	coll.FindOne(context.TODO(), filter, opts2).Decode(&alias)
 	trueAccess := false
-	for _, r := range results {
-		cursor.Decode(&r)
-		if channelID == r.ChannelID {
+	for _, r := range alias.ChannelIDs {
+		if channelID == r {
 			trueAccess = true
 		}
 	}
   if !trueAccess {
-  	fmt.Printf(" err %s\n", session.AliasArray, results)
+  	fmt.Printf(" err %s\n", session.AliasArray, alias)
   	return
   }
-
-	coll := db.Collection("channel")
-	filter := bson.D{{"_id", channelID}}
+  rand := common.StringRand(15)
+	coll = db1.Collection("channel")
+	filter = bson.D{{"_id", channelID}}
 	update := bson.D{
 		{"$set", bson.D{
-			{"invitation_code", "randome code must be here"},
+			{"invitation_code", rand},
 			{"invited_at", time.Now()},
 		}},
 	}
-
-	opts := options.Update().SetUpsert(false)
-	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
+	opts3 := options.Update().SetUpsert(true)
+	_, err = coll.UpdateOne(context.TODO(), filter, update, opts3)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-  fmt.Fprint(w, `[1]`)
+	var jsonArr []interface{}
+	jsonArr = append(jsonArr, 1)
+	jsonArr = append(jsonArr, rand)
+	jsonData, _ := json.Marshal(jsonArr)
+  fmt.Fprint(w, string(jsonData))
 }
