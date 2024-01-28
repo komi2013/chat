@@ -12,7 +12,7 @@ export const useMessagesStore = defineStore({
       this.messages = data;
     },
     update(data) {
-      this.messages.push(data)
+      this.messages.push(data);
     },
     adding(add) {
       this.count = this.count + add;

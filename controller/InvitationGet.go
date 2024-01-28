@@ -11,6 +11,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
+  "go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/common"
   "chat/collection"
@@ -64,16 +65,20 @@ func InvitationGet(w http.ResponseWriter, r *http.Request) {
   	fmt.Printf(" err %s\n", session.AliasArray, alias)
   	return
   }
+	ObjChannelID, err := primitive.ObjectIDFromHex(channelID)
+	if err != nil {
+		log.Fatal(err)
+	}
   rand := common.StringRand(15)
 	coll = db1.Collection("channel")
-	filter = bson.D{{"_id", channelID}}
+	filter = bson.D{{"_id", ObjChannelID}}
 	update := bson.D{
 		{"$set", bson.D{
 			{"invitation_code", rand},
 			{"invited_at", time.Now()},
 		}},
 	}
-	opts3 := options.Update().SetUpsert(true)
+	opts3 := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts3)
 	if err != nil {
 		panic(err)

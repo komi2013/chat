@@ -16,7 +16,7 @@ const invitationCode = ref('');
 const invitationQR = ref('');
 function getData(channelID) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',2);
+    const request = indexedDB.open('chat',12);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -92,7 +92,7 @@ const invite = async () => {
     const json = await response.json();
     console.log(json);
 
-    invitationCode.value = 'https://' + location.host + '/communityJoin/' + json[1];
+    invitationCode.value = 'https://' + location.host + '/communityJoin/' + props.id + '/' + json[1];
     invitationQR.value = await QRCode.toDataURL(invitationCode.value);
   } catch (error) {
     console.error(error);

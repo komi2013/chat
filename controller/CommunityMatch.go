@@ -6,7 +6,6 @@ import (
   "fmt"
   "log"
   "net/http"
-  "strconv"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -21,7 +20,7 @@ import (
   // "chat/logic/quiz"
 )
 
-func MessagePost(w http.ResponseWriter, r *http.Request) {
+func CommunityMatch(w http.ResponseWriter, r *http.Request) {
   cookie, _ := r.Cookie("ss")
   // if err != nil {
   //  return ""
@@ -31,6 +30,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
+  code := r.FormValue("code")
   aliasName := r.FormValue("aliasName")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -55,104 +55,114 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     panic(err)
   }
-  var aliasNames []string
   trueAccess := false
-  var aliasImg string
+  aliasImg := ""
   for _, arrayData := range session.AliasArray {
-  	aliasNames = append(aliasNames, arrayData[0])
-  	if arrayData[0] == aliasName {
-  		aliasImg = arrayData[1]
-  		trueAccess = true
-  	}
+    if arrayData[0] == aliasName {
+      trueAccess = true
+      aliasImg = arrayData[1]
+    }
   }
   if !trueAccess {
-  	fmt.Printf(" err %s\n", session.AliasArray, aliasName)
-  	return
+    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    return
   }
-  fmt.Printf("channelID %+v\n", channelID)
+
   var channel collection.ChannelStruct
   coll = db1.Collection("channel")
-  // check access right
-	filter2 := bson.D{
-		{"_id", channelID},
-	}
+
+  filter = bson.D{{"_id", channelID}}
   opts2 := options.FindOne().SetProjection(bson.D{
-    {"user_ids", 1},
+    {"_id", 1},
+    {"channel_name", 1},
+    {"invitation_code", 1},
+    {"invited_at", 1},
   })
-  coll.FindOne(context.TODO(), filter2, opts2).Decode(&channel)
+  coll.FindOne(context.TODO(), filter, opts2).Decode(&channel)
   if err != nil {
-    fmt.Printf(" err %s\n", err)
+    fmt.Printf("mongo err %+v\n", err)
   }
-  fmt.Printf("channel.UserIDs %+v\n", channel)
+	if channel.InvitationCode != code || time.Since(channel.InvitedAt).Hours() > 10 {
+    fmt.Printf("channel err %+v", channelID, channel)
+    fmt.Printf("code %+v", code)
+    fmt.Printf("channel.InvitedAt %+v", time.Since(channel.InvitedAt).Hours())
+    return
+	}
+
+  var userIDs []string
+  userIDs = append(channel.UserIDs, session.UserID)
+
+	coll = db1.Collection("channel")
+	filter = bson.D{{"_id", channelID}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"user_ids", userIDs},
+		}},
+	}
+	opts3 := options.Update().SetUpsert(false)
+	_, err = coll.UpdateOne(context.TODO(), filter, update, opts3)
+	if err != nil {
+		fmt.Printf(" err %+v\n", err)
+	}
+
+  var alias collection.AliasStruct
+  coll = db1.Collection("alias")
+  filter = bson.D{{"alias_name", aliasName}}
+  opts4 := options.FindOne().SetProjection(bson.D{
+    {"channel_ids", 1},
+  })
+  coll.FindOne(context.TODO(), filter, opts4).Decode(&alias)
+  if err != nil {
+    fmt.Printf(" err %+v\n", err)
+  }
+  var channelIDs []primitive.ObjectID
+	for _, str := range alias.ChannelIDs {
+		obj, err := primitive.ObjectIDFromHex(str)
+		if err != nil {
+			log.Fatal(err)
+		}
+		channelIDs = append(channelIDs, obj)
+	}
+  channelIDs = append(channelIDs, channelID)
+  fmt.Printf(" channelIDs %+v\n", channelIDs)
+	coll = db1.Collection("alias")
+	filter = bson.D{{"alias_name", aliasName}}
+	update = bson.D{
+		{"$set", bson.D{
+			{"channel_ids", channelIDs},
+		}},
+	}
+	opts5 := options.Update().SetUpsert(false)
+	_, err = coll.UpdateOne(context.TODO(), filter, update, opts5)
+	if err != nil {
+		fmt.Printf(" err %+v\n", err)
+	}
+  fmt.Printf("channel.UserIDs %+v", channel.UserIDs)
   coll = db1.Collection("session")
   filter = bson.D{{
-  	"user_id", bson.D{{"$in", channel.UserIDs}}}}
+  	"user_id", bson.D{{"$in", userIDs}}}}
   project := bson.D{{"subscription", 1}}
-  opts4 := options.Find().SetProjection(project)
-  cursor, err := coll.Find(context.TODO(), filter, opts4)
+  opts6 := options.Find().SetProjection(project)
+  cursor, err := coll.Find(context.TODO(), filter, opts6)
   if err != nil {
-    fmt.Printf(" err %s\n", err)
+    fmt.Printf(" err %+v\n", err)
   }
   var results4 []collection.SessionStruct
   if err = cursor.All(context.TODO(), &results4); err != nil {
-    fmt.Printf(" err %s\n", err)
+    fmt.Printf(" err %+v\n", err)
   }
 
-// message_id
-// channel_id
-// message_txt
-// message_type
-// from
-// from_img
-// edit_flg
-// parent_id
-// emojis
-// created_at
-
-
-	messageType, err := strconv.Atoi(r.FormValue("messageType"))
-	if err != nil {
-		fmt.Println("エラー:", err)
-		return
-	}
-
-  coll = db1.Collection("message")
-  message := collection.MessageStruct{
-		// MessageID: channelName,
-		ChannelID: r.FormValue("channelID"),
-		MessageTxt: r.FormValue("messageTxt"),
-		MessageType: messageType,
-		From: aliasName,
-		FromImg: aliasImg,
-		EditFlg: 0,
-		ParentID: "",
-		Emojis:  "",
-		CreatedAt: time.Now(),
-	}
-	insertResult, err := coll.InsertOne(context.TODO(), message)
-	if err != nil {
-		log.Fatal(err)
-	}
-	insertedID := insertResult.InsertedID.(primitive.ObjectID)
-
 	var arr []interface{}
-	arr = append(arr, "message")
-	arr = append(arr, insertedID)
+	arr = append(arr, "community_join")
 	arr = append(arr, channelID)
-	arr = append(arr, r.FormValue("messageTxt"))
-	arr = append(arr, r.FormValue("messageType"))
 	arr = append(arr, aliasName)
 	arr = append(arr, aliasImg)
-	arr = append(arr, r.FormValue("editFlg"))
-	arr = append(arr, 0)
-	arr = append(arr, nil)
-	arr = append(arr, time.Now())
 
 	msgJson, err := json.Marshal(arr)
 	if err != nil {
 		fmt.Println("JSON変換エラー:", err)
 	}
-	fmt.Println("JSONs成功:", msgJson)
+
 	// JSON 文字列を表示
 	fmt.Println(string(msgJson))
 
@@ -174,6 +184,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
   }
+
 
   fmt.Fprint(w, `{"Status":"1"}`)
 }

@@ -5,6 +5,7 @@ import {subscription_post} from '../my/subscription_post.js'
 import { useChannelsStore } from '../stores/channels.js'
 import { useMessagesStore } from '../stores/messages.js'
 import {subscriptionRegister} from '../my/subscribe.js'
+import { upsertData } from '../my/indexDB.js'
 
 const count = ref(0)
 const userID = ref('')
@@ -29,9 +30,6 @@ fetch(request)
   return response.json()
 })
 .then((json)=>{
-  // channels.value = json[1]
-  // console.log(json[1]);
-
   for (const d of json[1]) {
     const channel = {
       channelID: d[0],
@@ -85,57 +83,6 @@ function unregister() {
       }
     });
   }
-}
-
-function openDatabase(table, key) {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 12);
-    request.onerror = (event) => {
-      reject(`Error opening database: ${event.target.error}`);
-    };
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(table)) {
-        db.createObjectStore(table, { keyPath: key });
-      }
-      resolve(db);
-    };
-    request.onupgradeneeded = (event) => {
-
-    };
-  });
-}
-
-async function upsertData(data, table, key, objKey) {
-  const db = await openDatabase(table, key);
-  return new Promise(async (resolve, reject) => {
-    const transaction = db.transaction([table], 'readwrite');
-    const objectStore = transaction.objectStore(table);
-    const existingDataRequest = objectStore.get(objKey);
-    existingDataRequest.onsuccess = async () => {
-      const existingData = existingDataRequest.result;
-      if (existingData) {
-        const putRequest = objectStore.put(data);
-        putRequest.onsuccess = () => {
-          resolve('Data updated successfully');
-        };
-        putRequest.onerror = (event) => {
-          reject(`Error updating data: ${event.target.error}`);
-        };
-      } else {
-        const addRequest = objectStore.add(data);
-        addRequest.onsuccess = () => {
-          resolve('Data inserted successfully');
-        };
-        addRequest.onerror = (event) => {
-          reject(`Error inserting data: ${event.target.error}`);
-        };
-      }
-    };
-    existingDataRequest.onerror = (event) => {
-      reject(`Error checking existing data: ${event.target.error}`);
-    };
-  });
 }
 
 </script>
