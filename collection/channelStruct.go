@@ -12,7 +12,7 @@ type ChannelStruct struct {
   InvitationCode  string      `bson:"invitation_code,omitempty"`
   InvitedAt  time.Time `bson:"invited_at,omitempty"`
   UserIDs  []string `bson:"user_ids,omitempty"`
-  AliasNames  []string `bson:"alias_names,omitempty"`
+  AliasArray  [][]string `bson:"alias_array,omitempty"`
 }
 
 // channel_id

@@ -16,10 +16,22 @@ const channel = ref({
   channelDescription: '',
   updatedAt: ''
 });
+// const messages = ref({
+//   messageID: '',
+//   channelID: '',
+//   messageTxt: '',
+//   messageType: 0,
+//   aliasName: '',
+//   aliasImg: 'no_img.png',
+//   editFlg: 0,
+//   parentID: '',
+//   emojis: '',
+//   createdAt: ''
+// });
 const messagesStore = useMessagesStore()
 const messages = computed(() => {
   console.log(messagesStore.messages);
-  return messagesStore.messages
+  return messagesStore.messages;
 })
 
 async function fetchData() {
@@ -58,11 +70,17 @@ async function fetchData() {
 const fetchMessageData = async () => {
   try {
     const data = await getIDBs('message', 'channelIDIndex', props.id);
-    console.log('IDB Data retrieved:', data);
-    messages.value = data;
+    console.log('IDBs Data retrieved:', data);
+    const latest = data.reverse();
+    latest.forEach(message => {
+      messagesStore.update(message);
+      console.log(message);
+    });
+
+    // messages.value = data;
   } catch (error) {
     console.error(error);
-    messages.value = null;
+    // messages.value = null;
   }
 };
 
@@ -73,7 +91,7 @@ const pushAction = () => {
   fd.append('messageTxt', document.getElementById("msgText").value);
   fd.append('messageType', 1);
   fd.append('editFlg', 1);
-  fd.append('aliasName', 'sei2');
+  fd.append('aliasName', 'ivan1');
   const request = new Request('/MessagePost/', {
     method: 'POST',
     body: fd,
@@ -88,33 +106,6 @@ const pushAction = () => {
     })
 }
 const msgText = ref(null)
-
-function getMessageData(channelID) {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',12);
-
-    request.onerror = (event) => {
-      reject(`Error opening database: ${event.target.error}`);
-    };
-
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      const transaction = db.transaction(['message'], 'readonly');
-      const objectStore = transaction.objectStore('message');
-
-      const getRequest = objectStore.get(channelID);
-
-      getRequest.onsuccess = (event) => {
-        const data = event.target.result;
-        resolve(data);
-      };
-
-      getRequest.onerror = (event) => {
-        reject(`Error getting data: ${event.target.error}`);
-      };
-    };
-  });
-}
 
 onMounted(() => {
   msgText.value.addEventListener('input', function () {
@@ -142,23 +133,27 @@ onMounted(() => {
     <button @click="counterStore.adding(3)">Increment</button>
     <button @click="counterStore.decrement">Decrement</button>
   </div> -->
-<div v-for="d in messages">
-  <table>
-    <tr>
-      <td rowspan="2" class="icon_td"><img v-if="d[5]" :src="d[5]" class="icon"></td>
-      <td>
-        <span class="alias">{{d[4]}}</span>
-        <span class="time">{{get_formated_time('hh:mm',d[9]) }}</span>
-      </td>
-      <td class="setting">
-        <span class="emoji"> <RouterLink to="/emoji/1"> 😄 </RouterLink> </span>
-        <span class="reply"> <RouterLink to="/reply/1"> 💬 </RouterLink> </span>
-        <span class="others"> &nbsp; ⋮ &nbsp; </span>
-      </td>
-    </tr>
-    <tr><td colspan="2" class="msg">{{d[2]}}</td></tr>
-  </table>
-</div>
+  <div v-for="message in messages" :key="message.messageID">
+    <table>
+      <tr>
+        <td rowspan="2" class="icon_td">
+          <img v-if="message.aliasImg" :src="message.aliasImg" class="icon">
+        </td>
+        <td>
+          <span class="alias">{{ message.aliasName }}</span>
+          <span class="time">{{ get_formated_time('hh:mm', message.createdAt) }}</span>
+        </td>
+        <td class="setting">
+          <span class="emoji"> <RouterLink :to="'/emoji/' + message.messageID"> 😄 </RouterLink> </span>
+          <span class="reply"> <RouterLink :to="'/reply/' + message.messageID"> 💬 </RouterLink> </span>
+          <span class="others"> &nbsp; ⋮ &nbsp; </span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="msg">{{ message.messageTxt }}</td>
+      </tr>
+    </table>
+  </div>
 <!-- <RouterLink to="/channel/abc/" >channel abc</RouterLink> -->
 
 <div class="msgBox">

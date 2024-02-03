@@ -73,7 +73,7 @@ function processNotificationData(notificationData) {
         .catch((error) => {
           console.error(error);  // エラー時のメッセージをログに表示
         });
-      messagesStore.update(messageData);
+      messagesStore.update(obj);
       break;
     case 'community_join':
       // arr = append(arr, channelID)

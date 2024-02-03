@@ -55,11 +55,9 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     panic(err)
   }
-  var aliasNames []string
   trueAccess := false
   var aliasImg string
   for _, arrayData := range session.AliasArray {
-  	aliasNames = append(aliasNames, arrayData[0])
   	if arrayData[0] == aliasName {
   		aliasImg = arrayData[1]
   		trueAccess = true

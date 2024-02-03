@@ -11,11 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	// "go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/collection"
   "chat/common"
-  // "chat/logic/quiz"
+
 )
 
 func Init(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,8 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	project := bson.D{
 		{"alias_name", 1},
 		{"alias_img", 1},
-		{"group_flg", 1}}
+		{"group_flg", 1},
+		{"channel_ids", 1}}
 	opts3 := options.Find().SetProjection(project)
 	cursor, _ := coll.Find(context.TODO(), filter, opts3)
 	var results2 []collection.AliasStruct
@@ -60,7 +61,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf(" err %s\n", err)
 	}
 	var aliasArr []interface{}
-	var aliasNames []string
+	var arrChannelID  []string
 	for _, r := range results2 {
 		cursor.Decode(&r)
 		var arr []interface{}
@@ -68,15 +69,25 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, r.AliasImg)
 		arr = append(arr, r.GroupFlg)
 		aliasArr = append(aliasArr, arr)
-		aliasNames = append(aliasNames, r.AliasName)
+		arrChannelID = append(arrChannelID, r.ChannelIDs...)
+	}
+	fmt.Printf(" arrChannelID %s\n", arrChannelID)
+	var hexChannelIDs []primitive.ObjectID
+	for _, r := range arrChannelID {
+		primitiveID, err := primitive.ObjectIDFromHex(r)
+		if err != nil {
+			log.Fatal(err)
+		}		
+		hexChannelIDs = append(hexChannelIDs, primitiveID)
 	}
 	coll = db1.Collection("channel")
-	// filter = bson.D{{"_id", bson.D{{"$in", arrChannelID}}}}
-	filter = bson.D{}
+	filter = bson.D{{"_id", bson.D{{"$in", hexChannelIDs}}}}
+	// filter = bson.D{}
 	project = bson.D{
 		{"_id", 1},
 		{"channel_name", 1},
 		{"channel_description", 1},
+		{"alias_array", 1},
 		{"updated_at", 1}}
 	opts4 := options.Find().SetProjection(project)
 	cursor, err = coll.Find(context.TODO(), filter, opts4)
@@ -95,6 +106,16 @@ func Init(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, r.ChannelName)
 		arr = append(arr, r.ChannelDescription)
 		arr = append(arr, r.UpdatedAt)
+		arr = append(arr, r.AliasArray)
+		var myAliasName string
+		for _, r2 := range r.AliasArray {
+			for i3, r3 := range results2 {
+        if r2[0] == r3.AliasName && ( i3 == len(results2)-1 || r3.GroupFlg != 1 ) {
+        	myAliasName = r3.AliasName
+        }
+			}
+		}
+		arr = append(arr, myAliasName)
 		channelArr = append(channelArr, arr)
 	}
 	fmt.Printf(" channelArr %s\n", channelArr)

@@ -76,35 +76,58 @@ function getIDB(table, id) {
 // }
 
 
+// async function getIDBs(table, key, id) {
+//   return new Promise((resolve, reject) => {
+//     const request = indexedDB.open('chat',21);
+//     request.onerror = (event) => {
+//       reject(`Error opening database: ${event.target.error}`);
+//     };
+//     request.onsuccess = (event) => {
+//       const db = event.target.result;
+//       const transaction = db.transaction([table], 'readonly');
+//       const objectStore = transaction.objectStore(table);
+//       const IDIndex = objectStore.index(key);
+//       const getRequest = IDIndex.getAll(IDBKeyRange.only(id));
+//       getRequest.onsuccess = (event) => {
+//         const data = event.target.result;
+//         resolve(data);
+//       };
+//       getRequest.onerror = (event) => {
+//         console.error(`Error getting messages for channel ${channelID}: ${event.target.error}`);
+//         reject(`Error getting messages for channel ${channelID}: ${event.target.error}`);
+//       };
+//     };
+//   });
+// }
+
 async function getIDBs(table, key, id) {
+  const db = await openDatabase('chat', 21);
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',21);
-    request.onerror = (event) => {
-      reject(`Error opening database: ${event.target.error}`);
-    };
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+    const index = objectStore.index(key);
+
+    const range = IDBKeyRange.only(id);
+    const request = index.openCursor(range, 'prev');
+
+    const result = [];
+
     request.onsuccess = (event) => {
-// console.log('arg', table, key, id);
-      const db = event.target.result;
-      const transaction = db.transaction([table], 'readonly');
-      const objectStore = transaction.objectStore(table);
-      const IDIndex = objectStore.index(key);
-      // const getRequest = objectStore.getAll();
-      const getRequest = IDIndex.getAll(IDBKeyRange.only(id));
-      // const getRequest = IDIndex.getAll();
-      // const getRequest = objectStore.get(id);
+      const cursor = event.target.result;
+      if (cursor && result.length < 5) {
+        result.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(result);
+      }
+    };
 
-      getRequest.onsuccess = (event) => {
-        const data = event.target.result;
-        resolve(data);
-      };
-
-      getRequest.onerror = (event) => {
-        console.error(`Error getting messages for channel ${channelID}: ${event.target.error}`);
-        reject(`Error getting messages for channel ${channelID}: ${event.target.error}`);
-      };
+    request.onerror = (event) => {
+      reject(`Error fetching data: ${event.target.error}`);
     };
   });
 }
+
 
 async function upsertData(data, table, key, objKey) {
   const db = await openDatabase(table, key);

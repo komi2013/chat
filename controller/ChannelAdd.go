@@ -53,9 +53,11 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
     panic(err)
   }
   trueAccess := false
+  var aliasArray [][]string
   for _, arrayData := range session.AliasArray {
   	if arrayData[0] == aliasName {
   		trueAccess = true
+  		aliasArray = append(aliasArray, arrayData)
   	}
   }
   if !trueAccess {
@@ -63,7 +65,6 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   	return
   }
   userIDs := []string{session.UserID}
-  aliasNames := []string{aliasName}
   coll = db1.Collection("channel")
   // var channel collection.ChannelStruct
   channel := collection.ChannelStruct{
@@ -71,7 +72,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		ChannelDescription:  channelDescription,
 		UpdatedAt:  time.Now(),
 		UserIDs:  userIDs,
-		AliasNames:  aliasNames,
+		AliasArray:  aliasArray,
 	}
 	insertResult, err := coll.InsertOne(context.TODO(), channel)
 	if err != nil {

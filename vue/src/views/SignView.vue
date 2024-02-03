@@ -30,14 +30,18 @@ fetch(request)
   return response.json()
 })
 .then((json)=>{
-  for (const d of json[1]) {
-    const channel = {
-      channelID: d[0],
-      channelName: d[1],
-      channelDescription: d[2],
-      updatedAt: d[3],
+  let myAlias = [];
+  for (let i = 0; i < json[2].length; i++) {
+    const d = json[2][i];
+    const alias = {
+      aliasName: d[0],
+      aliasImg: d[1],
+      groupFlg: d[2],
     };
-    upsertData(channel, 'channel', 'channelID', channel.channelID)
+    if (alias.groupFlg === 1 || i === json[2].length - 1) {
+      myAlias = alias
+    }
+    upsertData(alias, 'alias', 'aliasName', alias.aliasName)
       .then((message) => {
         console.log(message);
       })
@@ -45,13 +49,15 @@ fetch(request)
         console.error(error);
       });
   }
-  for (const d of json[2]) {
-    const alias = {
-      aliasName: d[0],
-      aliasImg: d[1],
-      groupFlg: d[2],
+  for (const d of json[1]) {
+    const channel = {
+      channelID: d[0],
+      channelName: d[1],
+      channelDescription: d[2],
+      updatedAt: d[3],
+      alias: myAlias,
     };
-    upsertData(alias, 'alias', 'aliasName', alias.aliasName)
+    upsertData(channel, 'channel', 'channelID', channel.channelID)
       .then((message) => {
         console.log(message);
       })
