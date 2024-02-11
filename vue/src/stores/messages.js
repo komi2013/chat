@@ -8,14 +8,16 @@ export const useMessagesStore = defineStore({
   }),
   actions: {
     insert(data) {
-      // console.log(data)
-      this.messages = data;
-    },
-    update(data) {
       this.messages.push(data);
     },
-    adding(add) {
-      this.count = this.count + add;
+    update(data, messageID) {
+      const index = this.messages.findIndex(message => message.messageID === messageID);
+      if (index !== -1) {
+        this.messages[index] = data;
+      }
+    },
+    delete(messageID) {
+      this.messages = this.messages.filter(message => message.messageID !== messageID);
     },
   },
 });

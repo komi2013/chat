@@ -11,10 +11,10 @@ type MessageStruct struct {
   MessageType  int      `bson:"message_type,omitempty"`
   From  string      `bson:"from,omitempty"`
   FromImg  string      `bson:"from_img,omitempty"`
-  EditFlg  int      `bson:"edit_flg,omitempty"`
   ParentID  string      `bson:"parent_id,omitempty"`
-  Emojis  string      `bson:"emojis,omitempty"`
+  Emojis  [][]string      `bson:"emojis,omitempty"`
   CreatedAt  time.Time `bson:"created_at,omitempty"`
+  UpdatedAt  time.Time `bson:"updated_at,omitempty"`
 }
 
 // message_id

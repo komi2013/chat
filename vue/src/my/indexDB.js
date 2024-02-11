@@ -1,6 +1,7 @@
+const INDEX_DB_VERSION = 22;
 function openDatabase(table, key) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 21);
+    const request = indexedDB.open('chat', INDEX_DB_VERSION);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -30,7 +31,7 @@ function openDatabase(table, key) {
 
 function getIDB(table, id) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',21);
+    const request = indexedDB.open('chat',INDEX_DB_VERSION);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -55,53 +56,8 @@ function getIDB(table, id) {
   });
 }
 
-// async function getIDBs(table, key, channelID) {
-//   const db = await openDatabase('message', 'messageID');
-//   return new Promise((resolve, reject) => {
-//     const transaction = db.transaction(['message'], 'readonly');
-//     const objectStore = transaction.objectStore('message');
-//     const channelIDIndex = objectStore.index('messageID');
-
-//     const getRequest = channelIDIndex.getAll(IDBKeyRange.only(channelID));
-
-//     getRequest.onsuccess = (event) => {
-//       const messages = event.target.result;
-//       resolve(messages);
-//     };
-
-//     getRequest.onerror = (event) => {
-//       reject(`Error getting messages for channel ${channelID}: ${event.target.error}`);
-//     };
-//   });
-// }
-
-
-// async function getIDBs(table, key, id) {
-//   return new Promise((resolve, reject) => {
-//     const request = indexedDB.open('chat',21);
-//     request.onerror = (event) => {
-//       reject(`Error opening database: ${event.target.error}`);
-//     };
-//     request.onsuccess = (event) => {
-//       const db = event.target.result;
-//       const transaction = db.transaction([table], 'readonly');
-//       const objectStore = transaction.objectStore(table);
-//       const IDIndex = objectStore.index(key);
-//       const getRequest = IDIndex.getAll(IDBKeyRange.only(id));
-//       getRequest.onsuccess = (event) => {
-//         const data = event.target.result;
-//         resolve(data);
-//       };
-//       getRequest.onerror = (event) => {
-//         console.error(`Error getting messages for channel ${channelID}: ${event.target.error}`);
-//         reject(`Error getting messages for channel ${channelID}: ${event.target.error}`);
-//       };
-//     };
-//   });
-// }
-
 async function getIDBs(table, key, id) {
-  const db = await openDatabase('chat', 21);
+  const db = await openDatabase('chat', INDEX_DB_VERSION);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);
@@ -114,7 +70,7 @@ async function getIDBs(table, key, id) {
 
     request.onsuccess = (event) => {
       const cursor = event.target.result;
-      if (cursor && result.length < 5) {
+      if (cursor && result.length < 10) {
         result.push(cursor.value);
         cursor.continue();
       } else {
@@ -161,4 +117,18 @@ async function upsertData(data, table, key, objKey) {
   });
 }
 
-export { openDatabase, getIDB, getIDBs, upsertData };
+async function deleteData(table, key, objKey) {
+  const db = await openDatabase(table, key);
+  const objectStore = db.transaction([table], 'readwrite').objectStore(table);
+  return new Promise((resolve, reject) => {
+    const deleteRequest = objectStore.delete(objKey);
+    deleteRequest.onsuccess = () => {
+      resolve('Data deleted successfully');
+    };
+    deleteRequest.onerror = (event) => {
+      reject(`Error deleting data: ${event.target.error}`);
+    };
+  });
+}
+
+export { openDatabase, getIDB, getIDBs, upsertData, deleteData };

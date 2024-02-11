@@ -16,6 +16,7 @@ func main() {
 	if len(os.Args) == 1 {
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
+		http.HandleFunc("/MessageEdit/", controller.MessageEdit)
 		http.HandleFunc("/MessagePost/", controller.MessagePost)
 		http.HandleFunc("/Init/", controller.Init)
 		http.HandleFunc("/InvitationGet/", controller.InvitationGet)

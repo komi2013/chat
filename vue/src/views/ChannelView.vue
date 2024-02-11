@@ -5,116 +5,100 @@ import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
+import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
+import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, cancelEdit, adjustHeight, textareaRefs } from '../my/other.js';
+import EmojiModal from '../components/EmojiModal.vue';
+import OtherModal from '../components/OtherModal.vue';
 
 const props = defineProps({
   id: '',
 })
 
-const channel = ref({
-  channelID: '',
-  channelName: '',
-  channelDescription: '',
-  updatedAt: ''
-});
-// const messages = ref({
-//   messageID: '',
-//   channelID: '',
-//   messageTxt: '',
-//   messageType: 0,
-//   aliasName: '',
-//   aliasImg: 'no_img.png',
-//   editFlg: 0,
-//   parentID: '',
-//   emojis: '',
-//   createdAt: ''
-// });
-const messagesStore = useMessagesStore()
+const channel = ref('');
+const messagesStore = useMessagesStore();
 const messages = computed(() => {
-  console.log(messagesStore.messages);
   return messagesStore.messages;
 })
 
 async function fetchData() {
   try {
     const data = await getIDB('channel', props.id);
-    console.log('Data retrieved:', data);
-    console.log(data.channelID);
     channel.value = data;
   } catch (error) {
-    console.error(error);
     channel.value = null;
   }
 }
 
-// const obj = {
-//   messageID: 'A3',
-//   channelID: 'fakeIDa',
-//   messageTxt: 'oiiii',
-//   messageType: 0,
-//   aliasName: 'tekiotu',
-//   aliasImg: 'no_img.png',
-//   editFlg: 0,
-//   parentID: '',
-//   emojis: '',
-//   createdAt: '2023-10-01'
-// };
-// upsertData(obj, 'message', 'messageID', 'A3')
-//   .then((message) => {
-//     console.log(message);  // 成功時のメッセージをログに表示
-//   })
-//   .catch((error) => {
-//     console.error(error);  // エラー時のメッセージをログに表示
-//   });
-
-
-const fetchMessageData = async () => {
-  try {
-    const data = await getIDBs('message', 'channelIDIndex', props.id);
-    console.log('IDBs Data retrieved:', data);
-    const latest = data.reverse();
-    latest.forEach(message => {
-      messagesStore.update(message);
-      console.log(message);
-    });
-
-    // messages.value = data;
-  } catch (error) {
-    console.error(error);
-    // messages.value = null;
-  }
+const fetchMessageData = () => {
+  return new Promise((resolve, reject) => {
+    getIDBs('message', 'channelIDIndex', props.id)
+      .then((data) => {
+        const latest = data.reverse();
+        latest.forEach(message => {
+          messagesStore.insert(message);
+        });
+        resolve();
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
 };
 
-
-const pushAction = () => {
+const msgText = ref(null);
+const msgUpsert = (messageTxt, messageId) => {
+  const messageData = messageTxt ? messageTxt : document.getElementById('editable_' + messageId).innerText;
+  let uri = messageId ? '/MessageEdit/' : '/MessagePost/';
   const fd = new FormData();
   fd.append('channelID', props.id);
-  fd.append('messageTxt', document.getElementById("msgText").value);
+  fd.append('messageID', messageId);
+  fd.append('messageTxt', messageData);
   fd.append('messageType', 1);
   fd.append('editFlg', 1);
-  fd.append('aliasName', 'ivan1');
-  const request = new Request('/MessagePost/', {
+  fd.append('aliasName', channel.value.aliasName);
+  const request = new Request(uri, {
     method: 'POST',
     body: fd,
   });
   fetch(request)
-    .then((response) => response.json())
-    .then((json)=>{
-      // when status not 1
-    })
     .catch((reason)=>{
-      console.log(reason)
+      alert(reason)
     })
 }
-const msgText = ref(null)
 
+const contentRef = ref(null);
 onMounted(() => {
-  msgText.value.addEventListener('input', function () {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
-  });
   fetchData();
-  fetchMessageData();
-})
+  fetchMessageData()
+  .then(() => {
+      const content = contentRef.value;
+      content.scrollTop = content.scrollHeight;
+    });
+});
+
+const clickEmoji = (messageId, emoji) => {
+  const fd = new FormData();
+  fd.append('channelID', props.id);
+  fd.append('messageID', messageId);
+  fd.append('emoji', emoji[0]);
+  fd.append('clicked', emoji[2] ? 1 : 0);
+  fd.append('aliasName', channel.value.aliasName);
+  const request = new Request('/MessageEdit/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request)
+    .catch((reason)=>{
+      alert(reason)
+    })
+};
+
+// const handleInput = (event, message) => {
+//   const newText = event.target.innerText; // テキストの変更を取得
+//   message.updateTxt = newText; // updateTxt に新しいテキストを代入
+//   // message.updateTxt = message.messageTxt;
+//   messagesStore.update(message, message.messageID);
+// };
 
 </script>
 
@@ -122,17 +106,11 @@ onMounted(() => {
 
 <template>
 <DrawerColumn />
-<div id="content">
+<div id="content" ref="contentRef">
 <div class="headTitle">
   <RouterLink :to="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </RouterLink>
 </div>
 
-<!--   <button @click="incrementChildCount">Increment Child Count</button>
-  <div>
-    <p>Count: {{ countString }}</p>
-    <button @click="counterStore.adding(3)">Increment</button>
-    <button @click="counterStore.decrement">Decrement</button>
-  </div> -->
   <div v-for="message in messages" :key="message.messageID">
     <table>
       <tr>
@@ -144,13 +122,42 @@ onMounted(() => {
           <span class="time">{{ get_formated_time('hh:mm', message.createdAt) }}</span>
         </td>
         <td class="setting">
-          <span class="emoji"> <RouterLink :to="'/emoji/' + message.messageID"> 😄 </RouterLink> </span>
+          <span class="emoji" @click="activeEdit(message, message.messageID, $event)"> 🖋 </span>
+          <span class="emoji" @click="openEmoji(message.messageID)"> 😄 </span>
+          <EmojiModal :key="message.messageID" v-if="isEmojiOpen && selectedMessageId === message.messageID" @selectEmoji="selectEmoji" @closeEmoji="closeEmoji" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" />
+
           <span class="reply"> <RouterLink :to="'/reply/' + message.messageID"> 💬 </RouterLink> </span>
-          <span class="others"> &nbsp; ⋮ &nbsp; </span>
+          <span class="others" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
+          <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" />
         </td>
       </tr>
       <tr>
-        <td colspan="2" class="msg">{{ message.messageTxt }}</td>
+        <td v-if="message.editFlg" colspan="2" class="msg">
+          <div>
+            <div><span>📎</span><span style="font-weight: bold;">B</span></div>
+            <div contenteditable="true"
+              class="chgble"
+              :id="'editable_' + message.messageID"
+            >{{ message.updateTxt }}</div>
+            <div style="text-align: right">
+              <button @click="cancelEdit(message, message.messageID)">⬅</button>
+              <button @click="msgUpsert(null, message.messageID)">▶️</button>
+            </div>
+          </div>
+        </td>
+        <td v-else colspan="2" class="msg">
+          <div>{{ message.messageTxt }}</div>
+          <div>
+          <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
+            <template v-if="emojiPath(d[0])">
+              <span class="img-stamp" :class="{ 'selected-class': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
+            </template>
+            <template v-else>
+              <span class="emoji-stamp" :class="{ 'selected-class': d[2] }" @click="clickEmoji(message.messageID, d)" >{{ d[0] }} {{d[1]}} </span>
+            </template>
+          </template>
+          </div>
+        </td>
       </tr>
     </table>
   </div>
@@ -158,14 +165,36 @@ onMounted(() => {
 
 <div class="msgBox">
   <div><span>📎</span><span style="font-weight: bold;">B</span></div>
-  <textarea id="msgText" ref="msgText" ></textarea>
-  <div style="text-align: right"><button @click="pushAction">▶️</button></div>
+  <div contenteditable="true" ref="msgData" class="chgble" ></div>
+  <div style="text-align: right"><button @click="msgUpsert($refs.msgData.innerText)">▶️</button></div>
 </div>
 
 </div>
 </template>
 
 <style>
+
+textarea {
+  resize: none;
+  height: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#content {
+  height: 100%;  /*コンテナの高さを固定 */
+  overflow-y: auto; /* 縦方向のスクロールを有効にする */
+}
+
+#content > div {
+  display: flex;
+  flex-direction: column-reverse; /* コンテンツを下から上に並べる */
+}
+
+/* コンテンツのスタイル */
+#content table {
+  /* テーブルのスタイルを適用 */
+}
 
 .icon {
   max-width: 50px;
@@ -210,20 +239,52 @@ onMounted(() => {
   height: 50px;
 }
 
+.emoji-stamp {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 2px;
+  border-radius: 5px;
+  margin: 1px 2px;
+  vertical-align: text-bottom;
+  font-size: 14px;
+  background-color: #92a7b54a;
+}
+
+.img-stamp {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 2px;
+  border-radius: 5px;
+  margin: 1px 2px;
+  background-color: #92a7b54a;
+}
+
+.emoji-img {
+  max-width: 20px;
+  max-height: 20px;
+  padding: 2px;
+}
+
+.selected-class {
+  border: 1px solid #3498db;
+}
+
+.chgble {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-y: hidden;
+  width: 90%;
+}
+.msgBox {
+  /*position: fixed;*/
+  /*bottom: 10px;*/
+  width: 90%;
+}
 @media screen and (min-width : 701px) { 
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
+
 }
 
 @media screen and (max-width : 700px) {
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
   .headTitle {
     margin-left: 50px;
   }

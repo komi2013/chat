@@ -30,7 +30,6 @@ fetch(request)
   return response.json()
 })
 .then((json)=>{
-  let myAlias = [];
   for (let i = 0; i < json[2].length; i++) {
     const d = json[2][i];
     const alias = {
@@ -38,9 +37,6 @@ fetch(request)
       aliasImg: d[1],
       groupFlg: d[2],
     };
-    if (alias.groupFlg === 1 || i === json[2].length - 1) {
-      myAlias = alias
-    }
     upsertData(alias, 'alias', 'aliasName', alias.aliasName)
       .then((message) => {
         console.log(message);
@@ -55,7 +51,8 @@ fetch(request)
       channelName: d[1],
       channelDescription: d[2],
       updatedAt: d[3],
-      alias: myAlias,
+      aliasArray: d[4],
+      aliasName: d[5],
     };
     upsertData(channel, 'channel', 'channelID', channel.channelID)
       .then((message) => {

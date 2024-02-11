@@ -29,11 +29,11 @@ const router = createRouter({
       name: 'sign',
       component: () => import('../views/SignView.vue')
     },
-    {
-      path: '/emoji/:id/',
-      name: 'emoji',
-      component: () => import('../views/EmojiView.vue')
-    },
+    // {
+    //   path: '/emoji/:id/',
+    //   name: 'emoji',
+    //   component: () => import('../views/EmojiView.vue')
+    // },
     {
       path: '/addChannel/',
       name: 'addChannel',

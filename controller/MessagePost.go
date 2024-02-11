@@ -96,18 +96,6 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", err)
   }
 
-// message_id
-// channel_id
-// message_txt
-// message_type
-// from
-// from_img
-// edit_flg
-// parent_id
-// emojis
-// created_at
-
-
 	messageType, err := strconv.Atoi(r.FormValue("messageType"))
 	if err != nil {
 		fmt.Println("エラー:", err)
@@ -122,9 +110,6 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 		MessageType: messageType,
 		From: aliasName,
 		FromImg: aliasImg,
-		EditFlg: 0,
-		ParentID: "",
-		Emojis:  "",
 		CreatedAt: time.Now(),
 	}
 	insertResult, err := coll.InsertOne(context.TODO(), message)
@@ -141,9 +126,6 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
 	arr = append(arr, r.FormValue("messageType"))
 	arr = append(arr, aliasName)
 	arr = append(arr, aliasImg)
-	arr = append(arr, r.FormValue("editFlg"))
-	arr = append(arr, 0)
-	arr = append(arr, nil)
 	arr = append(arr, time.Now())
 
 	msgJson, err := json.Marshal(arr)
