@@ -93,12 +93,98 @@ const clickEmoji = (messageId, emoji) => {
     })
 };
 
-// const handleInput = (event, message) => {
-//   const newText = event.target.innerText; // テキストの変更を取得
-//   message.updateTxt = newText; // updateTxt に新しいテキストを代入
-//   // message.updateTxt = message.messageTxt;
-//   messagesStore.update(message, message.messageID);
+const formattedText = (rawText) => {
+  let escaped = escapeHtml(rawText);
+  let formatted = escaped.replace(/\n/g, "<br>");
+
+  // リンクの置換
+  formatted = replaceLinks(formatted);
+
+  // コードブロックの置換
+  formatted = replaceCodeBlocks(formatted);
+
+  // 引用文の置換
+  formatted = replaceBlockquotes(formatted);
+
+  // 強調の置換
+  formatted = replaceEmphasis(formatted);
+
+  return formatted;
+};
+
+
+function escapeHtml(html) {
+  return html.replace(/[&<>"']/g, function(match) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[match];
+  });
+}
+
+// リンクの置換処理
+const replaceLinks = (text) => {
+  return text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, p1, p2) => {
+    return `<a href="${p2}">${p1}</a>`;
+  });
+};
+
+// コードブロックの置換処理
+const replaceCodeBlocks = (text) => {
+  return text.replace(/`(.*?)`/g, '<code>$1</code>');
+};
+
+// 引用文の置換処理
+const replaceBlockquotes = (text) => {
+  return text.replace(/^>(.*)$/gm, '<blockquote>$1</blockquote>');
+};
+
+// 強調の置換処理
+const replaceEmphasis = (text) => {
+  return text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+};
+
+const highlightTags = (event, messageID) => {
+  const target = event.target;
+  console.log(document.getElementById('bold_' + messageID));
+  if (target.tagName === 'STRONG') {
+    addSelected(document.getElementById('bold_' + messageID));
+  } else {
+    removeSelected(document.getElementById('bold_' + messageID));
+  }
+};
+
+const addSelected = (element) => {
+  element.classList.add('selected');
+};
+const removeSelected = (element) => {
+  element.classList.remove('selected');
+};
+
+// const removeSelectedClass = (messageID) => {
+//   const boldElement = document.getElementById('bold_' + messageID);
+//   if (boldElement) {
+//     boldElement.classList.remove('selected');
+//   }
 // };
+
+  // // リンク [リンクテキスト](URL)
+  // formatted = formatted.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, p1, p2) => {
+  //   return `<a href="${p2}">${p1}</a>`;
+  // });
+
+  // // コード `コード`　📄
+  // formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>');
+
+  // // 引用 > 引用文　󠀢”
+  // formatted = formatted.replace(/^>(.*)$/gm, '<blockquote>$1</blockquote>');
+
+  // // 強調 **強調**　<span style="font-weight: bold;">B</span>
+  // formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
 
 </script>
 
@@ -132,31 +218,37 @@ const clickEmoji = (messageId, emoji) => {
         </td>
       </tr>
       <tr>
-        <td v-if="message.editFlg" colspan="2" class="msg">
+        <td v-if="message.editFlg" colspan="2" class="msg" >
           <div>
-            <div><span>📎</span><span style="font-weight: bold;">B</span></div>
-            <div contenteditable="true"
-              class="chgble"
-              :id="'editable_' + message.messageID"
-            >{{ message.updateTxt }}</div>
-            <div style="text-align: right">
+            <div class="editLeft">
+              <span :id="'link_' + message.messageID" class="markdown">📎</span>
+              <span :id="'bold_' + message.messageID" class="markdown">B</span>
+              <span :id="'quote_' + message.messageID" class="markdown">&quot; &quot;</span>
+              <span :id="'code_' + message.messageID" class="markdown">&lt;/&gt;</span>
+            </div>
+            <div class="editRight">
               <button @click="cancelEdit(message, message.messageID)">⬅</button>
               <button @click="msgUpsert(null, message.messageID)">▶️</button>
             </div>
           </div>
+          <div contenteditable="true"
+              class="chgble"
+              :id="'editable_' + message.messageID"
+              v-html="formattedText(message.messageTxt)"
+              @click="highlightTags($event, message.messageID, true)"
+            >
+          </div>
         </td>
         <td v-else colspan="2" class="msg">
-          <div>{{ message.messageTxt }}</div>
-          <div>
+          <div v-html="formattedText(message.messageTxt)"></div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
-              <span class="img-stamp" :class="{ 'selected-class': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
+              <span class="img-stamp" :class="{ 'selected': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
             </template>
             <template v-else>
-              <span class="emoji-stamp" :class="{ 'selected-class': d[2] }" @click="clickEmoji(message.messageID, d)" >{{ d[0] }} {{d[1]}} </span>
+              <span class="emoji-stamp" :class="{ 'selected': d[2] }" @click="clickEmoji(message.messageID, d)" >{{ d[0] }} {{d[1]}} </span>
             </template>
           </template>
-          </div>
         </td>
       </tr>
     </table>
@@ -182,27 +274,22 @@ textarea {
 }
 
 #content {
-  height: 100%;  /*コンテナの高さを固定 */
-  overflow-y: auto; /* 縦方向のスクロールを有効にする */
+  height: 100%;
+  overflow-y: auto;
 }
 
 #content > div {
   display: flex;
-  flex-direction: column-reverse; /* コンテンツを下から上に並べる */
-}
-
-/* コンテンツのスタイル */
-#content table {
-  /* テーブルのスタイルを適用 */
+  flex-direction: column-reverse;
 }
 
 .icon {
   max-width: 50px;
   max-height: 50px;
 }
-
 .icon_td {
   width: 50px;
+  vertical-align: top;
 }
 
 .setting {
@@ -231,6 +318,21 @@ textarea {
 
 .others {
   margin: 2px;
+}
+
+.markdown {
+  padding: 4px;
+}
+
+.editLeft {
+  display: inline-block;
+  width: 70%;
+}
+
+.editRight {
+  text-align: right;
+  display: inline-block;
+  width: 30%;
 }
 
 .msgBox textarea {
@@ -265,15 +367,12 @@ textarea {
   padding: 2px;
 }
 
-.selected-class {
+.selected {
   border: 1px solid #3498db;
 }
 
 .chgble {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-y: hidden;
-  width: 90%;
+  outline: 1px solid blue;
 }
 .msgBox {
   /*position: fixed;*/
