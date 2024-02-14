@@ -47,12 +47,13 @@ const fetchMessageData = () => {
 
 const msgText = ref(null);
 const msgUpsert = (messageTxt, messageId) => {
-  const messageData = messageTxt ? messageTxt : document.getElementById('editable_' + messageId).innerText;
+  const messageData = messageTxt ? messageTxt : document.getElementById('editable_' + messageId).innerHTML;
+  console.log(messageData);
   let uri = messageId ? '/MessageEdit/' : '/MessagePost/';
   const fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('messageID', messageId);
-  fd.append('messageTxt', messageData);
+  fd.append('messageTxt', htmlToMarkdown(messageData));
   fd.append('messageType', 1);
   fd.append('editFlg', 1);
   fd.append('aliasName', channel.value.aliasName);
@@ -134,7 +135,7 @@ const replaceLinks = (text) => {
 
 // コードブロックの置換処理
 const replaceCodeBlocks = (text) => {
-  return text.replace(/`(.*?)`/g, '<code>$1</code>');
+  return text.replace(/```(.*?)```/g, '<code>$1</code>');
 };
 
 // 引用文の置換処理
@@ -147,14 +148,45 @@ const replaceEmphasis = (text) => {
   return text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 };
 
+const htmlToMarkdown = (html) => {
+  console.log(html);
+  let markdown = html.replace(/\n/g, "");
+  console.log(markdown);
+  markdown = markdown.replace(/<br>/g, "\n");
+  console.log(markdown);
+  markdown = reverseEmphasis(markdown);
+  markdown = reverseBlockquotes(markdown);
+  markdown = reverseCodeBlocks(markdown);
+  markdown = reverseLinks(markdown);
+  return markdown;
+};
+
+const reverseEmphasis = (html) => {
+  return html.replace(/<strong>([^<]+)<\/strong>/g, '**$1**');
+};
+
+const reverseBlockquotes = (html) => {
+  return html.replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n');
+};
+
+const reverseCodeBlocks = (html) => {
+  return html.replace(/<code>(.*?)<\/code>/g, '```\n$1\n```');
+};
+
+const reverseLinks = (html) => {
+  return html.replace(/<a href="(.*?)">(.*?)<\/a>/g, '[$2]($1)');
+};
+
+
 const highlightTags = (event, messageID) => {
   const target = event.target;
-  console.log(document.getElementById('bold_' + messageID));
   if (target.tagName === 'STRONG') {
     addSelected(document.getElementById('bold_' + messageID));
   } else {
     removeSelected(document.getElementById('bold_' + messageID));
   }
+  const selection = window.getSelection();
+  textRange.value = selection.getRangeAt(0);
 };
 
 const addSelected = (element) => {
@@ -164,12 +196,29 @@ const removeSelected = (element) => {
   element.classList.remove('selected');
 };
 
-// const removeSelectedClass = (messageID) => {
-//   const boldElement = document.getElementById('bold_' + messageID);
-//   if (boldElement) {
-//     boldElement.classList.remove('selected');
-//   }
-// };
+let textRange = ref(''); 
+
+const toggleStrong = (messageID) => {
+  const element = document.getElementById('editable_' + messageID);
+  const selectedText = textRange.value.toString();
+  const parentNode = textRange.value.commonAncestorContainer.parentElement;
+  const isAlreadyStrong = parentNode.tagName === 'STRONG';
+
+  if (isAlreadyStrong) {
+    const strongNode = parentNode;
+    const parent = strongNode.parentNode;
+    while (strongNode.firstChild) {
+      parent.insertBefore(strongNode.firstChild, strongNode);
+    }
+    parent.removeChild(strongNode);
+    removeSelected(document.getElementById('bold_' + messageID));
+  } else if (selectedText) {
+    const strongText = '<strong>' + selectedText + '</strong>';
+    textRange.value.deleteContents();
+    textRange.value.insertNode(document.createRange().createContextualFragment(strongText));
+    addSelected(document.getElementById('bold_' + messageID));
+  }
+};
 
   // // リンク [リンクテキスト](URL)
   // formatted = formatted.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, p1, p2) => {
@@ -185,7 +234,6 @@ const removeSelected = (element) => {
   // // 強調 **強調**　<span style="font-weight: bold;">B</span>
   // formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-
 </script>
 
 
@@ -196,6 +244,14 @@ const removeSelected = (element) => {
 <div class="headTitle">
   <RouterLink :to="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </RouterLink>
 </div>
+
+<div class="text_body" id="text_body">
+  <!-- ここにテキストが含まれると仮定 -->
+  This is some text.
+</div>
+
+<button id="btn">Get Selected Text</button>
+<div class="result"></div>
 
   <div v-for="message in messages" :key="message.messageID">
     <table>
@@ -222,7 +278,7 @@ const removeSelected = (element) => {
           <div>
             <div class="editLeft">
               <span :id="'link_' + message.messageID" class="markdown">📎</span>
-              <span :id="'bold_' + message.messageID" class="markdown">B</span>
+              <span :id="'bold_' + message.messageID" class="markdown" @click="toggleStrong(message.messageID)">B</span>
               <span :id="'quote_' + message.messageID" class="markdown">&quot; &quot;</span>
               <span :id="'code_' + message.messageID" class="markdown">&lt;/&gt;</span>
             </div>
@@ -235,7 +291,7 @@ const removeSelected = (element) => {
               class="chgble"
               :id="'editable_' + message.messageID"
               v-html="formattedText(message.messageTxt)"
-              @click="highlightTags($event, message.messageID, true)"
+              @click="highlightTags($event, message.messageID)"
             >
           </div>
         </td>
@@ -373,6 +429,8 @@ textarea {
 
 .chgble {
   outline: 1px solid blue;
+  width: 90%;
+  display: inline-block;
 }
 .msgBox {
   /*position: fixed;*/
