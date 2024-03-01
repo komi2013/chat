@@ -21,6 +21,8 @@ func main() {
 		http.HandleFunc("/Init/", controller.Init)
 		http.HandleFunc("/InvitationGet/", controller.InvitationGet)
 		http.HandleFunc("/SetCookie/", controller.SetCookie)
+		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
+		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
 
 		http.HandleFunc("/", controller.Top)
 

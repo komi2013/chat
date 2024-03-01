@@ -1,15 +1,9 @@
-const INDEX_DB_VERSION = 22;
-function openDatabase(table, key) {
+const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', INDEX_DB_VERSION);
+    const request = indexedDB.open('chat', 30);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
-    };
-
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      resolve(db);
     };
 
     request.onupgradeneeded = (event) => {
@@ -17,47 +11,61 @@ function openDatabase(table, key) {
       const tables = [
         ['channel', 'channelID'],
         ['alias', 'aliasName'],
-        ['message', 'messageID']
+        ['message', 'messageID'],
+        ['thread', 'messageID'],
+        ['threadHead', 'parentID']
       ];
       tables.forEach(([tableName, keyPath]) => {
-        const objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
-        if (tableName === 'message' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        if (!db.objectStoreNames.contains(tableName)) { // オブジェクトストアが存在しない場合のみ作成する
+          const objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
+          if (tableName === 'message' && !objectStore.indexNames.contains('channelIDIndex')) {
+            objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+          }
+          if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
+            objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
+          }
         }
       });
-    };
-  });
-}
-
-function getIDB(table, id) {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',INDEX_DB_VERSION);
-
-    request.onerror = (event) => {
-      reject(`Error opening database: ${event.target.error}`);
+      
+      // アップグレード完了後にresolveを呼び出す
+      resolve(db);
     };
 
     request.onsuccess = (event) => {
       const db = event.target.result;
-      const transaction = db.transaction([table], 'readonly');
-      const objectStore = transaction.objectStore(table);
+      resolve(db);
+    };
+  });
+};
 
-      const getRequest = objectStore.get(id);
+async function getIDB(table, id) {
+  try {
+    const db = await openDatabase();
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+    const getRequest = objectStore.get(id);
 
+    return new Promise((resolve, reject) => {
       getRequest.onsuccess = (event) => {
         const data = event.target.result;
-        resolve(data);
+        if (data) {
+          resolve(data); // データが存在する場合は解決
+        } else {
+          reject('Data not found'); // データが存在しない場合は拒否
+        }
       };
 
       getRequest.onerror = (event) => {
         reject(`Error getting data: ${event.target.error}`);
       };
-    };
-  });
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
 }
 
 async function getIDBs(table, key, id) {
-  const db = await openDatabase('chat', INDEX_DB_VERSION);
+  const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);

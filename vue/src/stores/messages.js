@@ -19,5 +19,8 @@ export const useMessagesStore = defineStore({
     delete(messageID) {
       this.messages = this.messages.filter(message => message.messageID !== messageID);
     },
+    deleteAll() {
+      this.messages = []; // 全てのメッセージを削除する
+    },
   },
 });

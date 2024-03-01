@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
 import { get_formated_time } from '../my/get_formated_time.js';
+import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import QRCode from 'qrcode';
 const props = defineProps({
   id: '',
@@ -14,35 +15,10 @@ const channel = ref({
 });
 const invitationCode = ref('');
 const invitationQR = ref('');
-function getData(channelID) {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat',12);
 
-    request.onerror = (event) => {
-      reject(`Error opening database: ${event.target.error}`);
-    };
-
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      const transaction = db.transaction(['channel'], 'readonly');
-      const objectStore = transaction.objectStore('channel');
-
-      const getRequest = objectStore.get(channelID);
-
-      getRequest.onsuccess = (event) => {
-        const data = event.target.result;
-        resolve(data);
-      };
-
-      getRequest.onerror = (event) => {
-        reject(`Error getting data: ${event.target.error}`);
-      };
-    };
-  });
-}
 async function fetchData() {
   try {
-    const data = await getData(props.id);
+    const data = await getIDB('channel', props.id);
     console.log('Data retrieved:', data);
     console.log(data.channelID);
     channel.value = data;

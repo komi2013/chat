@@ -32,15 +32,10 @@ const activeEdit = (message, messageID) => {
   closeOther();
 };
 
-const cancelEdit = (message, messageID) => {
-  message.editFlg = false;
-  messagesStore.update(message, message.messageID);
-};
-
 const adjustHeight = () => {
   const textarea = document.querySelector('.chgble');
   textarea.style.height = 'auto';
   textarea.style.height = `${textarea.scrollHeight}px`;
 };
 
-export { openOther, closeOther, selectOther, activeEdit, cancelEdit, adjustHeight };
+export { openOther, closeOther, selectOther, activeEdit, adjustHeight };

@@ -1,12 +1,13 @@
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
-export async function messageEdit(pushData) {
-  const idb = await getIDB('message', pushData[1]);
+export async function threadEdit(pushData) {
+  console.log('other file', pushData);
+  const idb = await getIDB('thread', pushData[1]);
   console.log('idb', idb);
   const messagesStore = useMessagesStore();
   if(pushData[3] == 3){
-    deleteData('message', 'messageID', idb.messageID)
+    deleteData('thread', 'messageID', idb.messageID)
       .then((message) => {
         console.log(message);
       })
@@ -43,7 +44,7 @@ export async function messageEdit(pushData) {
       createdAt: idb.createdAt,
       emojis: emojis
     };
-    upsertData(obj, 'message', 'messageID', idb.messageID)
+    upsertData(obj, 'thread', 'messageID', idb.messageID)
       .then((message) => {
         console.log(message);
       })

@@ -20,16 +20,16 @@ import (
   // "chat/logic/quiz"
 )
 
-func MessagePost(w http.ResponseWriter, r *http.Request) {
+func ThreadPost(w http.ResponseWriter, r *http.Request) {
   cookie, _ := r.Cookie("ss")
   // if err != nil {
   //  return ""
   // }
 
-	channelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
-	if err != nil {
-		log.Fatal(err)
-	}
+  channelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
+  if err != nil {
+    log.Fatal(err)
+  }
   aliasName := r.FormValue("aliasName")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -57,22 +57,22 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   trueAccess := false
   var aliasImg string
   for _, arrayData := range session.AliasArray {
-  	if arrayData[0] == aliasName {
-  		aliasImg = arrayData[1]
-  		trueAccess = true
-  	}
+    if arrayData[0] == aliasName {
+      aliasImg = arrayData[1]
+      trueAccess = true
+    }
   }
   if !trueAccess {
-  	fmt.Printf(" err %s\n", session.AliasArray, aliasName)
-  	return
+    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    return
   }
   fmt.Printf("channelID %+v\n", channelID)
   var channel collection.ChannelStruct
   coll = db1.Collection("channel")
   // check access right
-	filter2 := bson.D{
-		{"_id", channelID},
-	}
+  filter2 := bson.D{
+    {"_id", channelID},
+  }
   opts2 := options.FindOne().SetProjection(bson.D{
     {"user_ids", 1},
   })
@@ -83,7 +83,7 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
   fmt.Printf("channel.UserIDs %+v\n", channel)
   coll = db1.Collection("session")
   filter = bson.D{{
-  	"user_id", bson.D{{"$in", channel.UserIDs}}}}
+    "user_id", bson.D{{"$in", channel.UserIDs}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
@@ -95,54 +95,55 @@ func MessagePost(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", err)
   }
 
-  coll = db1.Collection("message")
-  message := collection.MessageStruct{
-		ChannelID: r.FormValue("channelID"),
-		MessageTxt: r.FormValue("messageTxt"),
-		From: aliasName,
-		FromImg: aliasImg,
-		CreatedAt: time.Now(),
-	}
-	insertResult, err := coll.InsertOne(context.TODO(), message)
-	if err != nil {
-		log.Fatal(err)
-	}
-	insertedID := insertResult.InsertedID.(primitive.ObjectID)
+  coll = db1.Collection("thread")
+  message := collection.ThreadStruct{
+    ParentID: r.FormValue("parentID"),
+    MessageTxt: r.FormValue("messageTxt"),
+    From: aliasName,
+    FromImg: aliasImg,
+    CreatedAt: time.Now(),
+  }
+  insertResult, err := coll.InsertOne(context.TODO(), message)
+  if err != nil {
+    log.Fatal(err)
+  }
+  insertedID := insertResult.InsertedID.(primitive.ObjectID)
 
-	var arr []interface{}
-	arr = append(arr, "message")
-	arr = append(arr, insertedID)
-	arr = append(arr, channelID)
-	arr = append(arr, r.FormValue("messageTxt"))
-	arr = append(arr, aliasName)
-	arr = append(arr, aliasImg)
-	arr = append(arr, time.Now())
+  var arr []interface{}
+  arr = append(arr, "thread")
+  arr = append(arr, insertedID)
+  arr = append(arr, r.FormValue("parentID"))
+  arr = append(arr, r.FormValue("messageTxt"))
+  arr = append(arr, aliasName)
+  arr = append(arr, aliasImg)
+  arr = append(arr, time.Now())
+  arr = append(arr, r.FormValue("channelID"))
 
-	msgJson, err := json.Marshal(arr)
-	if err != nil {
-		fmt.Println("JSON変換エラー:", err)
-	}
-	fmt.Println("JSONs成功:", msgJson)
-	// JSON 文字列を表示
-	fmt.Println(string(msgJson))
+  msgJson, err := json.Marshal(arr)
+  if err != nil {
+    fmt.Println("JSON変換エラー:", err)
+  }
+  fmt.Println("JSONs成功:", msgJson)
+  // JSON 文字列を表示
+  fmt.Println(string(msgJson))
 
   for _, r := range results4 {
     cursor.Decode(&r)
-		webpushSub := &webpush.Subscription{}
-		json.Unmarshal([]byte(r.Subscription), webpushSub)
+    webpushSub := &webpush.Subscription{}
+    json.Unmarshal([]byte(r.Subscription), webpushSub)
 
-		// Send Notification
-		resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
-			Subscriber:      "example@example.com",
-			VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
-			VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
-			TTL:             30,
-		})
-		if err != nil {
-			// TODO: Handle error
-	    fmt.Printf(" err %s\n", err)
-		}
-		defer resp.Body.Close()
+    // Send Notification
+    resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
+      Subscriber:      "example@example.com",
+      VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
+      VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
+      TTL:             30,
+    })
+    if err != nil {
+      // TODO: Handle error
+      fmt.Printf(" err %s\n", err)
+    }
+    defer resp.Body.Close()
   }
 
   fmt.Fprint(w, `{"Status":"1"}`)

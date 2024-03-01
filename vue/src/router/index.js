@@ -29,20 +29,19 @@ const router = createRouter({
       name: 'sign',
       component: () => import('../views/SignView.vue')
     },
-    // {
-    //   path: '/emoji/:id/',
-    //   name: 'emoji',
-    //   component: () => import('../views/EmojiView.vue')
-    // },
     {
       path: '/addChannel/',
       name: 'addChannel',
       component: () => import('../views/AddChannel.vue')
     },
     {
-      path: '/thread/:message_id/',
-      name: 'reply',
-      component: () => import('../views/ReplyView.vue')
+      path: '/thread/:channel_id/:message_id/',
+      name: 'thread',
+      component: () => import('../views/ThreadView.vue'),
+      props: route => ({
+        channel_id: route.params.channel_id,
+        message_id: route.params.message_id
+      })
     },
     {
       path: '/',

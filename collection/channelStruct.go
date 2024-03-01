@@ -14,8 +14,3 @@ type ChannelStruct struct {
   UserIDs  []string `bson:"user_ids,omitempty"`
   AliasArray  [][]string `bson:"alias_array,omitempty"`
 }
-
-// channel_id
-// channel_name
-// channel_description
-// updated_at
