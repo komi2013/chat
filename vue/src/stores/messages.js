@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 export const useMessagesStore = defineStore({
   id: 'messages',
   state: () => ({
-    messages: [],
+    messages: ref([]),
   }),
   actions: {
     insert(data) {
@@ -20,7 +20,7 @@ export const useMessagesStore = defineStore({
       this.messages = this.messages.filter(message => message.messageID !== messageID);
     },
     deleteAll() {
-      this.messages = []; // 全てのメッセージを削除する
+      this.messages = ref([]); // 全てのメッセージを削除する
     },
   },
 });

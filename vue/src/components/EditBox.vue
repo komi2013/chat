@@ -41,13 +41,8 @@ const cancelEdit = (message, messageID) => {
   messagesStore.update(message, message.messageID);
 };
 
-
-
 const msgUpsert = (messageId) => {
   const messageData = document.getElementById('editable_' + messageId).innerHTML;
-  console.log(messageData);
-  console.log('props.parent_id', props.parent_id);
-  console.log('messageId', messageId);
   const uri = messageId ? (props.parent_id ? '/ThreadEdit/' : '/MessageEdit/') : (props.parent_id ? '/ThreadPost/' : '/MessagePost/');
   const fd = new FormData();
   fd.append('parentID', props.parent_id);

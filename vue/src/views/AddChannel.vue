@@ -43,19 +43,11 @@ const channelAdd = () => {
 <style>
 
 @media screen and (min-width : 701px) { 
-/*  .msgBox {
-    position: fixed;
-    bottom: 0;
-    width: 380px;
-  }*/
+
 }
 
 @media screen and (max-width : 700px) {
-/*  .msgBox {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-  }*/
+
 }
 </style>
 

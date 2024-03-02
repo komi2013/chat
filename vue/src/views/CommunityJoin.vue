@@ -4,6 +4,7 @@ import DrawerColumn from '../components/DrawerColumn.vue'
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
+import { getAllIDBs } from '../my/indexDB.js';
 
 const props = defineProps({
   channel_id: '',
@@ -14,24 +15,18 @@ console.log(props.channel_id)
 
 const aliass = ref('');
 const aliasName = ref(null);
-const openRequest = indexedDB.open('chat', 12);
 
-openRequest.onerror = function(event) {
-  console.error("Database error: " + event.target.errorCode);
-};
+async function fetchAlias() {
+  try {
+    const data = await getAllIDBs('alias');
+    aliass.value = data;
+    console.log('data', data);
+  } catch (error) {
+    aliass.value = null;
+  }
+}
 
-openRequest.onsuccess = function(event) {
-  const db = event.target.result;
-  const transaction = db.transaction(['alias'], 'readonly');
-  const objectStore = transaction.objectStore('alias');
-  const getRequest = objectStore.getAll();
-  getRequest.onsuccess = function(event) {
-    aliass.value = event.target.result;
-  };
-  getRequest.onerror = function(event) {
-    console.error("Error getting data: " + event.target.errorCode);
-  };
-};
+fetchAlias();
 
 const join = () => {
   const fd = new FormData()
@@ -128,19 +123,10 @@ const join = () => {
 }
 
 @media screen and (min-width : 701px) { 
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
+
 }
 
 @media screen and (max-width : 700px) {
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
   .headTitle {
     margin-left: 50px;
   }

@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue'
-import DrawerColumn from '../components/DrawerColumn.vue'
-import EditBox from '../components/EditBox.vue'
-import Messages from '../components/Messages.vue'
+import { ref, computed, onBeforeMount } from 'vue';
+import { onBeforeRouteUpdate, useRouter } from 'vue-router';
+import DrawerColumn from '../components/DrawerColumn.vue';
+import EditBox from '../components/EditBox.vue';
+import Messages from '../components/Messages.vue';
 
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
@@ -23,9 +24,8 @@ const message = ref('');
 const threadHead = ref('');
 const parentID = ref('');
 const messagesStore = useMessagesStore();
-messagesStore.deleteAll();
+
 const messages = computed(() => {
-  console.log('computed', messagesStore.messages);
   return messagesStore.messages;
 });
 
@@ -70,8 +70,18 @@ async function fetchThreadHead() {
       console.log('threadHead.value', threadHead.value.messageID);
       messagesStore.insert(message);
     } catch (error) {
-      console.error('Failed to fetch message:', error);
-      threadHead.value = null;
+      console.log('no message', error);
+      try {
+        const message = await getIDB('thread', props.message_id);
+        threadHead.value = message;
+        threadHead.value.title = getSubstring(removeHtmlTags(textToHtml(message.messageTxt)), 0, 8);
+        threadHead.value.messageTxt = message.messageTxt;
+        console.log('threadHead.value', threadHead.value.messageID);
+        messagesStore.insert(message);
+      } catch (error) {
+        console.error('Failed to fetch thread:', error);
+        threadHead.value = null;
+      }
     }
   }
 }
@@ -95,15 +105,24 @@ const fetchMessageData = () => {
 };
 
 onBeforeMount(async () => {
+  await messagesStore.deleteAll();
   await fetchChannel();
   await fetchThreadHead();
   await fetchMessageData();
 
-  parentID.value = threadHead.value.parentID;
+  parentID.value = props.message_id;
   console.log('parentID.value', parentID.value);
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
   window.scrollTo(0, content.scrollHeight);
+});
+
+
+onBeforeRouteUpdate((to, from, next) => {
+  if (from.path != to.path) {
+    console.log('ページ遷移が検出されました:', from.path, to.path);
+    location.href = to.path;
+  }
 });
 
 </script>
@@ -116,7 +135,7 @@ onBeforeMount(async () => {
 </div>
 
   <template v-if="channel">
-    <Messages :channel="channel" :messages="messages" :parent_id="parentID" />
+    <Messages :channel="channel" :messages="messages" />
   </template>
 
 <div class="msgBox">

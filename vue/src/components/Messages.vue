@@ -17,7 +17,17 @@ const props = defineProps({
   channel: Object
 });
 
-const messages = props.messages;
+// const messages = props.messages;
+
+const messagesStore = useMessagesStore();
+messagesStore.deleteAll();
+const messages = computed(() => {
+  console.log('computed', messagesStore.messages);
+  return messagesStore.messages;
+});
+
+
+
 const channel = props.channel;
 
 const clickEmoji = (messageId, emoji) => {

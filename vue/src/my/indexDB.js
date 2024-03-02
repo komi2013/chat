@@ -139,4 +139,29 @@ async function deleteData(table, key, objKey) {
   });
 }
 
-export { openDatabase, getIDB, getIDBs, upsertData, deleteData };
+async function getAllIDBs(table) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+    const request = objectStore.openCursor();
+
+    const result = [];
+
+    request.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        result.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(result);
+      }
+    };
+
+    request.onerror = (event) => {
+      reject(`Error fetching data: ${event.target.error}`);
+    };
+  });
+}
+
+export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs };

@@ -102,66 +102,13 @@ const invite = async () => {
 
 <style>
 
-.icon {
-  max-width: 50px;
-  max-height: 50px;
-}
-
-.icon_td {
-  width: 50px;
-}
-
-.setting {
-  text-align: right;
-}
-
-.box {
-  display: flex;
-}
-
-.alias {
-  margin: 2px;
-}
-
-.time {
-  margin: 2px;
-}
-
-.emoji {
-  margin: 2px;
-}
-
-.reply {
-  margin: 2px;
-}
-
-.others {
-  margin: 2px;
-}
-
-.msgBox textarea {
-  width: 100%;
-  border: none;
-  height: 50px;
-}
 
 @media screen and (min-width : 701px) { 
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
+
 }
 
 @media screen and (max-width : 700px) {
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
-  .headTitle {
-    margin-left: 50px;
-  }
+
 }
 </style>
 

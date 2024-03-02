@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useMessagesStore } from '../stores/messages.js';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,5 +51,14 @@ const router = createRouter({
     }
   ]
 })
+
+// router.beforeEach((to, from, next) => {
+//   console.log('Leaving route:', from.path);
+//   const messagesStore = useMessagesStore();
+//   messagesStore.deleteAll();
+//   console.log('messagesStore', messagesStore);
+//   next(); // 次のナビゲーションステップを実行
+// })
+
 
 export default router

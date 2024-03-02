@@ -43,36 +43,5 @@ const closeModal = () => {
 </script>
 
 <style scoped>
-/* Add your styles here */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
 
-.modal-content {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.emoji-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.emoji-img {
-  max-width: 20px;
-  max-height: 20px;
-  padding: 6px;
-}
-
-/* Add more styles as needed */
 </style>
