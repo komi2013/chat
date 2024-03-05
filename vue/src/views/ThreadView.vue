@@ -131,7 +131,10 @@ onBeforeRouteUpdate((to, from, next) => {
 <DrawerColumn />
 <div id="content">
 <div class="headTitle">
-  <div v-html="threadHead.title"> </div>
+  <div style="width: 90%;" v-html="threadHead.title"> </div>
+  <div style="line-height: 50px;width: 50px;">
+    <RouterLink :to="'/channel/' + channel.channelID + '/'"> ⬅ </RouterLink>
+  </div>
 </div>
 
   <template v-if="channel">
@@ -161,8 +164,9 @@ onBeforeRouteUpdate((to, from, next) => {
 @media screen and (max-width : 700px) {
   .headTitle {
     margin-left: 50px;
-    height: 50px;
-    display: table;
+  }
+  .headTitle div {
+    display: table-cell;
   }
 }
 </style>

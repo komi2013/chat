@@ -84,7 +84,12 @@ const clickEmoji = (messageId, emoji) => {
 <DrawerColumn />
 <div id="content">
 <div class="headTitle">
-  <RouterLink :to="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </RouterLink>
+  <div>
+    <RouterLink :to="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </RouterLink>
+  </div>
+  <div style="line-height: 50px;">
+    &nbsp;
+  </div>
 </div>
 
   <template v-if="channel">
@@ -112,6 +117,9 @@ const clickEmoji = (messageId, emoji) => {
 @media screen and (max-width : 700px) {
   .headTitle {
     margin-left: 50px;
+  }
+  .headTitle div {
+    display: table-cell;
   }
 }
 </style>

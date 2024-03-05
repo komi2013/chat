@@ -7,4 +7,5 @@ public/assets/
 common/config.go
 log/
 
-infra/redis
+infrastructure/fullchain.pem
+infrastructure/privkey.pem

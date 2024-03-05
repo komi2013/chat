@@ -1,28 +1,30 @@
 <template>
-<div>
-  <div class="editLeft">
-    <span :id="'link_' + messageID" class="markdown">📎</span>
-    <span :id="'bold_' + messageID" class="markdown" @click="toggleStrong(messageID)">B</span>
-    <span :id="'quote_' + messageID" class="markdown">&gt;&gt;</span>
-    <span :id="'code_' + messageID" class="markdown">&lt;/&gt;</span>
-  </div>
-  <div class="editRight">
-    <button v-if="messageID" @click="cancelEdit(message, messageID)">⬅</button>
-    <button @click="msgUpsert(messageID)">▶️</button>
-  </div>
-</div>
-<div contenteditable="true"
-    class="chgble"
-    :id="'editable_' + messageID"
-    v-html="textToHtml(message.messageTxt)"
-    @click="highlightTags($event, messageID)"
-  >
-</div>
+  <QuillEditor :toolbar="'#my-toolbar_' + messageID" v-model:content="editorContent[messageID]" contentType="html" >
+    <template #toolbar>
+      <div class="editLeft" :id="'my-toolbar_' + messageID">
+        <button class="ql-bold"></button>
+        <button class="ql-strike"></button>
+        <button class="ql-blockquote"></button>
+        <button class="ql-code-block"></button>
+        <button class="ql-link"></button>
+        <select class="ql-color">
+          <option value="red">Red</option>
+        </select>
+      </div>
+      <div class="editRight ql-toolbar ql-snow">
+        <button v-if="messageID" @click="cancelEdit(message, messageID)">⬅</button>
+        <button @click="msgUpsert(messageID)">▶️</button>
+      </div>
+    </template>
+  </QuillEditor>
 </template>
 
 <script setup>
 import { ref, defineProps } from 'vue';
 import { useMessagesStore } from '../stores/messages.js';
+
+import { QuillEditor } from '@vueup/vue-quill';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 import { textToHtml } from '../my/textToHtml.js';
 
@@ -36,28 +38,31 @@ const messageID = props.message.messageID;
 
 const messagesStore = useMessagesStore();
 
+const editorContent = ref({});
+
 const cancelEdit = (message, messageID) => {
   message.editFlg = false;
   messagesStore.update(message, message.messageID);
 };
 
 const msgUpsert = (messageId) => {
-  const messageData = document.getElementById('editable_' + messageId).innerHTML;
-  const uri = messageId ? (props.parent_id ? '/ThreadEdit/' : '/MessageEdit/') : (props.parent_id ? '/ThreadPost/' : '/MessagePost/');
-  const fd = new FormData();
-  fd.append('parentID', props.parent_id);
-  fd.append('channelID', props.channel.channelID);
-  fd.append('messageID', messageId);
-  fd.append('messageTxt', htmlToMarkdown(messageData));
-  fd.append('aliasName', props.channel.aliasName);
-  const request = new Request(uri, {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      alert(reason)
-    })
+  console.log(editorContent.value[messageId]);
+  // const messageData = document.getElementById('editable_' + messageId).innerHTML;
+  // const uri = messageId ? (props.parent_id ? '/ThreadEdit/' : '/MessageEdit/') : (props.parent_id ? '/ThreadPost/' : '/MessagePost/');
+  // const fd = new FormData();
+  // fd.append('parentID', props.parent_id);
+  // fd.append('channelID', props.channel.channelID);
+  // fd.append('messageID', messageId);
+  // fd.append('messageTxt', htmlToMarkdown(messageData));
+  // fd.append('aliasName', props.channel.aliasName);
+  // const request = new Request(uri, {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request)
+  //   .catch((reason)=>{
+  //     alert(reason)
+  //   })
 }
 
 const htmlToMarkdown = (html) => {
@@ -82,6 +87,26 @@ function unescapeHtml(html) {
     }[match];
   });
 }
+
+// HTMLエスケープ関数
+const escapeHtml = (unsafe) => {
+  return unsafe.replace(/[&<"'\n]/g, (match) => {
+    switch (match) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#039;';
+      case "\n":
+        return '<br>';
+    }
+  });
+};
 
 const reverseEmphasis = (html) => {
   return html.replace(/<strong>([^<]+)<\/strong>/g, '**$1**');
@@ -109,6 +134,7 @@ const highlightTags = (event, messageID) => {
   }
   const selection = window.getSelection();
   textRange.value = selection.getRangeAt(0);
+  selectedText.value = selection.toString();
 };
 
 const addSelected = (element) => {
@@ -118,7 +144,8 @@ const removeSelected = (element) => {
   element.classList.remove('selected');
 };
 
-let textRange = ref(''); 
+let textRange = ref('');
+let selectedText = ref(''); 
 
 const toggleStrong = (messageID) => {
   const element = document.getElementById('editable_' + messageID);
@@ -141,6 +168,55 @@ const toggleStrong = (messageID) => {
     addSelected(document.getElementById('bold_' + messageID));
   }
 };
+
+const toggleBlockquote = (messageID) => {
+  const element = document.getElementById('editable_' + messageID);
+  const selectedText = escapeHtml(textRange.value.toString());
+  const parentNode = textRange.value.commonAncestorContainer.parentElement;
+  const isAlreadyBlockquote = parentNode.tagName === 'BLOCKQUOTE';
+
+  if (isAlreadyBlockquote) {
+    const blockquoteNode = parentNode;
+    const parent = blockquoteNode.parentNode;
+    while (blockquoteNode.firstChild) {
+      parent.insertBefore(blockquoteNode.firstChild, blockquoteNode);
+    }
+    parent.removeChild(blockquoteNode);
+    removeSelected(document.getElementById('quote_' + messageID));
+  } else if (selectedText) {
+    const blockquoteText = '<blockquote>' + selectedText + '</blockquote>';
+    textRange.value.deleteContents();
+    textRange.value.insertNode(document.createRange().createContextualFragment(blockquoteText));
+    addSelected(document.getElementById('quote_' + messageID));
+  }
+};
+
+const toggleCode = (messageID) => {
+  const element = document.getElementById('editable_' + messageID);
+  const selectText = escapeHtml(selectedText.value);
+  const selectText2 = escapeHtml(textRange.value.toString());
+  console.log(selectText);
+  console.log(selectText2);
+  const parentNode = textRange.value.commonAncestorContainer.parentElement;
+  const isAlreadyCode = parentNode.tagName === 'CODE';
+
+  if (isAlreadyCode) {
+    const codeNode = parentNode;
+    const parent = codeNode.parentNode;
+    while (codeNode.firstChild) {
+      parent.insertBefore(codeNode.firstChild, codeNode);
+    }
+    parent.removeChild(codeNode);
+    removeSelected(document.getElementById('code_' + messageID));
+  } else if (selectText) {
+    const codeText = '<code>' + selectText + '</code>';
+    textRange.value.deleteContents();
+    textRange.value.insertNode(document.createRange().createContextualFragment(codeText));
+    addSelected(document.getElementById('code_' + messageID));
+  }
+};
+
+
 
   // // リンク [リンクテキスト](URL)
   // formatted = formatted.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, p1, p2) => {
@@ -167,13 +243,12 @@ const toggleStrong = (messageID) => {
 .editLeft {
   text-align: left;
   display: inline-block;
-  width: 70%;
+  width: 80%;
 }
 
 .editRight {
-  text-align: right;
   display: inline-block;
-  width: 30%;
+  width: 20%;
 }
 
 .selected {
@@ -189,5 +264,10 @@ const toggleStrong = (messageID) => {
 .msgBox {
   text-align: center;
   width: 100%;
+}
+.quote {
+  padding: 3px;
+  margin: 0 0 0 5px;
+  border-left: 3px solid #ccc;
 }
 </style>

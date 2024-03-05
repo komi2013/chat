@@ -94,6 +94,19 @@ const clickEmoji = (messageId, emoji) => {
 
 <style>
 
+blockquote {
+  margin: 0;
+  padding: 3px; 
+  margin-left: 5px;
+  border-left: 3px solid #ccc;
+  background-color: #f9f9f9;
+}
+code {
+  display: block;
+  background-color: #c0c0c029;
+  border: 1px solid silver;
+  margin: 3px;
+}
 .icon {
   max-width: 50px;
   max-height: 50px;
@@ -136,6 +149,4 @@ const clickEmoji = (messageId, emoji) => {
   max-height: 20px;
   padding: 2px;
 }
-
-
 </style>
