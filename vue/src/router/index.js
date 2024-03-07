@@ -36,12 +36,13 @@ const router = createRouter({
       component: () => import('../views/AddChannel.vue')
     },
     {
-      path: '/thread/:channel_id/:message_id/',
+      path: '/thread/:channel_id/:message_id/:back_id/',
       name: 'thread',
       component: () => import('../views/ThreadView.vue'),
       props: route => ({
         channel_id: route.params.channel_id,
-        message_id: route.params.message_id
+        message_id: route.params.message_id,
+        back_id: route.params.back_id
       })
     },
     {

@@ -11,13 +11,14 @@ import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
-import { textToHtml } from '../my/textToHtml.js';
+import { removeMark } from '../my/markdown.js';
 
-import { getSubstring, removeHtmlTags } from '../my/strings.js';
+import { getSubstring, getParam } from '../my/strings.js';
 
 const props = defineProps({
   message_id: '',
-  channel_id: ''
+  channel_id: '',
+  back_id: ''
 })
 
 const message = ref('');
@@ -65,17 +66,19 @@ async function fetchThreadHead() {
     try {
       const message = await getIDB('message', props.message_id);
       threadHead.value = message;
-      threadHead.value.title = getSubstring(removeHtmlTags(textToHtml(message.messageTxt)), 0, 8);
+      threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
-      console.log('threadHead.value', threadHead.value.messageID);
+      threadHead.value.backURL = '/channel/' + props.channel_id + '/';
+      console.log('threadHead.value', threadHead.value);
       messagesStore.insert(message);
     } catch (error) {
       console.log('no message', error);
       try {
         const message = await getIDB('thread', props.message_id);
         threadHead.value = message;
-        threadHead.value.title = getSubstring(removeHtmlTags(textToHtml(message.messageTxt)), 0, 8);
+        threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
         threadHead.value.messageTxt = message.messageTxt;
+        threadHead.value.backURL = '/thread/' + props.channel_id + '/' + props.back_id + '/noback/';
         console.log('threadHead.value', threadHead.value.messageID);
         messagesStore.insert(message);
       } catch (error) {
@@ -133,7 +136,7 @@ onBeforeRouteUpdate((to, from, next) => {
 <div class="headTitle">
   <div style="width: 90%;" v-html="threadHead.title"> </div>
   <div style="line-height: 50px;width: 50px;">
-    <RouterLink :to="'/channel/' + channel.channelID + '/'"> ⬅ </RouterLink>
+    <RouterLink v-if="threadHead.backURL" :to="threadHead.backURL"> ⬅ </RouterLink>
   </div>
 </div>
 
@@ -141,7 +144,7 @@ onBeforeRouteUpdate((to, from, next) => {
     <Messages :channel="channel" :messages="messages" />
   </template>
 
-<div class="msgBox">
+<div class="editText">
   <template v-if="parentID">
     <EditBox :channel="channel" :message="msg" :parent_id="parentID" />
   </template>

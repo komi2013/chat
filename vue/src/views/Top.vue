@@ -55,26 +55,11 @@ TOP
   margin: 2px;
 }
 
-.msgBox textarea {
-  width: 100%;
-  border: none;
-  height: 50px;
-}
-
 @media screen and (min-width : 701px) { 
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
+
 }
 
 @media screen and (max-width : 700px) {
-  .msgBox {
-    position: fixed;
-    bottom: 10px;
-    width: 300px;
-  }
   .headTitle {
     margin-left: 50px;
   }

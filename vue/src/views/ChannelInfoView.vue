@@ -91,11 +91,6 @@ const invite = async () => {
 <div @click="invite"> <span>✉️</span> <span>招待URL</span> </div>
 <div> {{invitationCode}} </div>
 <div> <img :src="invitationQR"></div>
-<div class="msgBox">
-  <div><span>📎</span><span style="font-weight: bold;">B</span></div>
-  <textarea id="msgText" ref="msgText" ></textarea>
-  <div style="text-align: right"><button @click="pushAction">▶️</button></div>
-</div>
 
 </div>
 </template>
@@ -103,12 +98,5 @@ const invite = async () => {
 <style>
 
 
-@media screen and (min-width : 701px) { 
-
-}
-
-@media screen and (max-width : 700px) {
-
-}
 </style>
 

@@ -1,7 +1,7 @@
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
-import { textToHtml } from '../my/textToHtml.js';
+import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
   const messagesStore = useMessagesStore();
   const obj = {
@@ -12,10 +12,6 @@ export async function thread(pushData) {
     aliasImg: pushData[5],
     createdAt: pushData[6]
   };
-  console.log('thread messagesStore.messages', messagesStore.messages);
-  console.log('messagesStore.messages.value[0].messageID', messagesStore.messages[0].messageID);
-  console.log('messagesStore.messages.value[0].messageID', messagesStore.messages[0].messageID);
-
   if (messagesStore.messages.length === 1) {
     const threadHead = {
       parentID: messagesStore.messages[0].messageID,
@@ -25,7 +21,7 @@ export async function thread(pushData) {
       createdAt: messagesStore.messages[0].createdAt,
       emojis: messagesStore.messages[0].emojis,
       channelID: pushData[7],
-      title: getSubstring(removeHtmlTags(textToHtml(messagesStore.messages[0].messageTxt)), 0, 8),
+      title: getSubstring(removeMark(messagesStore.messages[0].messageTxt), 0, 8),
       unreadFlg: true
     };
     console.log("配列は1件ですthreadHead", threadHead);

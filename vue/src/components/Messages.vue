@@ -1,16 +1,21 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
+
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
+
 import DrawerColumn from '../components/DrawerColumn.vue'
 import EditBox from '../components/EditBox.vue'
+import EmojiModal from '../components/EmojiModal.vue';
+import OtherModal from '../components/OtherModal.vue';
+
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
-import { textToHtml } from '../my/textToHtml.js';
-import EmojiModal from '../components/EmojiModal.vue';
-import OtherModal from '../components/OtherModal.vue';
+
+import { markdownToHtml } from '../my/markdown.js';
 
 const props = defineProps({
   messages: Object,
@@ -26,9 +31,18 @@ const messages = computed(() => {
   return messagesStore.messages;
 });
 
-
-
 const channel = props.channel;
+
+function nextURL (message) {
+  let nextURL = ref('');
+  nextURL = '/thread/' + channel.channelID + '/' + message.messageID + '/';
+  if (message.parentID) {
+    nextURL += message.parentID + '/';
+  } else {
+    nextURL += 'noback/';
+  }
+  return nextURL;
+}
 
 const clickEmoji = (messageId, emoji) => {
   const fd = new FormData();
@@ -46,7 +60,6 @@ const clickEmoji = (messageId, emoji) => {
       alert(reason)
     })
 };
-
 
 </script>
 
@@ -67,17 +80,17 @@ const clickEmoji = (messageId, emoji) => {
           <span class="emoji" @click="openEmoji(message.messageID)"> 😄 </span>
           <EmojiModal :key="message.messageID" v-if="isEmojiOpen && selectedMessageId === message.messageID" @selectEmoji="selectEmoji" @closeEmoji="closeEmoji" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :parent_id="message.parentID" />
 
-          <span> <RouterLink :to="'/thread/' + channel.channelID + '/' + message.messageID + '/'"> 💬 </RouterLink> </span>
+          <span> <RouterLink :to="nextURL(message)"> 💬 </RouterLink> </span>
           <span class="emoji" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
           <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" />
         </td>
       </tr>
       <tr>
-        <td v-if="message.editFlg" colspan="2" >
+        <td v-if="message.editFlg" colspan="2" class="editText">
           <EditBox :channel="channel" :message="message" :parent_id="message.parentID" />
         </td>
-        <td v-else colspan="2" >
-          <div v-html="textToHtml(message.messageTxt)"></div>
+        <td v-else colspan="2" class="ql-container ql-snow" >
+          <div v-html="markdownToHtml(message.messageTxt)" class="ql-editor"></div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
               <span class="img-stamp" :class="{ 'selected': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
@@ -149,4 +162,13 @@ code {
   max-height: 20px;
   padding: 2px;
 }
+
+.ql-editor {
+  padding: 0;
+}
+.ql-container.ql-snow {
+  border: none;
+  font-size: 14px;
+}
+
 </style>

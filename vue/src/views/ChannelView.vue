@@ -9,7 +9,6 @@ import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
-import { textToHtml } from '../my/textToHtml.js';
 
 const props = defineProps({
   id: '',
@@ -96,7 +95,7 @@ const clickEmoji = (messageId, emoji) => {
     <Messages :channel="channel" :messages="messages" />
   </template>
 
-<div class="msgBox">
+<div class="editText">
   <EditBox :channel="channel" :message="message" />
 </div>
 <br>
