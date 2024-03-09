@@ -1,6 +1,5 @@
 self.addEventListener('push', event => {
-  console.log('のおお Push Received.');
-  console.log(`ああ is next ? Push had this data: "${event.data.text()}"`);
+  console.log(`Push Received.: "${event.data.text()}"`);
 
   const title = 'Test Webpush';
   const options = {

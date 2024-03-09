@@ -18,7 +18,7 @@ export async function message(pushData) {
     .catch((error) => {
       console.error(error);
     });
-  messagesStore.update(obj);
+  messagesStore.insert(obj);
 }
 
 

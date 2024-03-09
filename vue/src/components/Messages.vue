@@ -13,13 +13,14 @@ import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
+import { toggleEdit } from '../my/other.js';
 
 import { markdownToHtml } from '../my/markdown.js';
 
 const props = defineProps({
   messages: Object,
-  channel: Object
+  channel: Object,
+  threadHead: Object
 });
 
 // const messages = props.messages;
@@ -27,21 +28,29 @@ const props = defineProps({
 const messagesStore = useMessagesStore();
 messagesStore.deleteAll();
 const messages = computed(() => {
-  console.log('computed', messagesStore.messages);
   return messagesStore.messages;
 });
 
 const channel = props.channel;
 
 function nextURL (message) {
-  let nextURL = ref('');
+  let nextURL = '';
   nextURL = '/thread/' + channel.channelID + '/' + message.messageID + '/';
+  const params = {
+    backID: ''
+  };
   if (message.parentID) {
-    nextURL += message.parentID + '/';
+    params.backID = message.parentID;
+    const queryString = createGetParams(params);
+    return nextURL + '?' + queryString;
   } else {
-    nextURL += 'noback/';
+    return nextURL;
   }
-  return nextURL;
+}
+
+function createGetParams(params) {
+  const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
+  return queryString;
 }
 
 const clickEmoji = (messageId, emoji) => {
@@ -72,25 +81,31 @@ const clickEmoji = (messageId, emoji) => {
           <img v-if="message.aliasImg" :src="message.aliasImg" class="icon">
         </td>
         <td>
-          <span class="emoji">{{ channel.aliasName }}</span>
-          <span class="emoji">{{ get_formated_time('MM/DD hh:mm', message.createdAt) }}</span>
+          <span class="aliasName">{{ message.aliasName }}</span>
+          <span class="dateTime">{{ get_formated_time('MM-DD hh:mm', message.createdAt) }}</span>
         </td>
         <td class="setting">
-          <span class="emoji" @click="activeEdit(message, message.messageID, $event)"> 🖋 </span>
+          <span v-if="channel.aliasName == message.aliasName" class="emoji" @click="toggleEdit(message, message.messageID, $event)"> 🖋 </span>
           <span class="emoji" @click="openEmoji(message.messageID)"> 😄 </span>
           <EmojiModal :key="message.messageID" v-if="isEmojiOpen && selectedMessageId === message.messageID" @selectEmoji="selectEmoji" @closeEmoji="closeEmoji" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :parent_id="message.parentID" />
 
-          <span> <RouterLink :to="nextURL(message)"> 💬 </RouterLink> </span>
-          <span class="emoji" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
-          <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" />
+          <span> <a :href="nextURL(message)"> 💬 </a> </span>
+<!--           <span class="emoji" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
+          <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" /> -->
         </td>
       </tr>
       <tr>
         <td v-if="message.editFlg" colspan="2" class="editText">
-          <EditBox :channel="channel" :message="message" :parent_id="message.parentID" />
+          <EditBox :channel="channel" :message="message" :threadHead="threadHead" />
         </td>
         <td v-else colspan="2" class="ql-container ql-snow" >
           <div v-html="markdownToHtml(message.messageTxt)" class="ql-editor"></div>
+          <div class="threads" v-if="message.threadCount">
+            <a :href="'/thread/' + channel.channelID + '/' + message.messageID + '/'">
+              <span>{{message.threadCount}} messages &nbsp;</span>
+              <template v-for="img in message.threadImgs"><img :src="img" class="iconMini"></template>
+            </a>
+          </div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
               <span class="img-stamp" :class="{ 'selected': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
@@ -123,14 +138,26 @@ code {
 .icon {
   max-width: 50px;
   max-height: 50px;
+  border-radius: 10%;
 }
 .icon_td {
   width: 50px;
   vertical-align: top;
+  text-align: center;
 }
 
 .setting {
   text-align: right;
+}
+
+.aliasName {
+  margin: 2px;
+  font-size: 12px;
+}
+
+.dateTime {
+  margin: 2px;
+  font-size: 12px;
 }
 
 .emoji {
@@ -165,6 +192,15 @@ code {
 
 .ql-editor {
   padding: 0;
+}
+.iconMini {
+  max-width: 26px;
+  max-height: 26px;
+}
+.threads a {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 .ql-container.ql-snow {
   border: none;

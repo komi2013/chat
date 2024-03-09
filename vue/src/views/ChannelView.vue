@@ -38,8 +38,16 @@ const fetchMessageData = () => {
   return new Promise((resolve, reject) => {
     getIDBs('message', 'channelIDIndex', props.id)
       .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(message => {
+        const sortedData = data.sort((a, b) => {
+          if (a.createdAt < b.createdAt) {
+            return -1;
+          } else if (a.createdAt > b.createdAt) {
+            return 1;
+          } else {
+            return 0;
+          }
+        });
+        sortedData.forEach(message => {
           messagesStore.insert(message);
         });
         resolve();

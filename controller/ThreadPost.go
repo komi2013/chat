@@ -118,6 +118,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, aliasImg)
   arr = append(arr, time.Now())
   arr = append(arr, r.FormValue("channelID"))
+  arr = append(arr, r.FormValue("backID"))
 
   msgJson, err := json.Marshal(arr)
   if err != nil {

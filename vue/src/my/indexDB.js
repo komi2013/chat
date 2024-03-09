@@ -64,7 +64,7 @@ async function getIDB(table, id) {
   }
 }
 
-async function getIDBs(table, key, id) {
+async function getIDBs(table, key, id, limit = 10) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
@@ -78,7 +78,7 @@ async function getIDBs(table, key, id) {
 
     request.onsuccess = (event) => {
       const cursor = event.target.result;
-      if (cursor && result.length < 10) {
+      if (cursor && result.length < limit) {
         result.push(cursor.value);
         cursor.continue();
       } else {
