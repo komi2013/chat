@@ -1,75 +1,52 @@
 <template>
-  <QuillEditor :toolbar="'#my-toolbar_' + messageID" contentType="html" v-model:content="editorContent[messageID]" @input="handleInput" @mousedown="handleMove" @keydown="handleCross">
-    <template #toolbar>
-      <div class="editLeft" :id="'my-toolbar_' + messageID">
-        <button class="ql-bold"></button>
-        <button class="ql-strike"></button>
-        <button class="ql-blockquote"></button>
-        <button class="ql-code-block"></button>
-        <button class="ql-link"></button>
-        <select class="ql-color">
-          <option value="red">Red</option>
-          <option value=""></option>
-        </select>
-      </div>
-      <div class="editRight ql-toolbar ql-snow">
-        <button v-if="messageID" @click="cancelEdit(message, messageID)">⬅</button>
-        <button @click="msgUpsert(messageID)">▶️</button>
-      </div>
-    </template>
-  </QuillEditor>
-<!--   <div>
-    <textarea ref="textarea" @input="handleInput"></textarea>
-    <div ref="dropdown" class="dropdown" >
-      <ul>
-        <li v-for="item in aliasArray" :key="item">{{ item }}</li>
-      </ul>
-      <select>
-        <option v-for="item in aliasArray" :key="item">{{ item }}</option>
+    <div class="editLeft" :id="'toolbar_' + messageID">
+      <button class="ql-bold"></button>
+      <button class="ql-strike"></button>
+      <button class="ql-blockquote"></button>
+      <button class="ql-code-block"></button>
+      <button class="ql-link"></button>
+      <select class="ql-color">
+        <option value="red">Red</option>
+        <option value=""></option>
       </select>
     </div>
-  </div> -->
+    <div class="editRight ql-toolbar ql-snow">
+      <button v-if="messageID" @click="cancelEdit(message, messageID)">⬅</button>
+      <button @click="msgUpsert(messageID)">▶️</button>
+    </div>
+    <div :id="'edit_' + messageID" @input="handleInput" v-html="editTxt[messageID]">
+    </div>
   <div>
+    <textarea ref="textarea" @input="handleInput" style="display: none;"></textarea>
+    <div ref="dropdown" class="dropdown" >
+      <input :list="'alias_' + messageID" :id="'name_' + messageID" />
+      <datalist :id="'alias_' + messageID">
+        <option v-for="item in aliasArray">{{ item[0] }}{{ item[1] }}</option>
+      </datalist>
+    </div>
+  </div>
+<!--   <div>
+    <QuillEditor :toolbar="'#my-toolbar_' + messageID" contentType="html" v-model:content="editorContent[messageID]" @input="handleInput" @mousedown="handleMove" @keydown="handleCross">
+
     <textarea v-model="searchText" @input="updateDropdownItems"></textarea>
     <select v-model="selectedItem">
       <option v-for="item in filteredItems" :value="item.value">{{ item.label }}</option>
     </select>
     <p>選択されたアイテム: {{ selectedItem }}</p>
-  </div>
+  </div> -->
+<!-- <link href="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.snow.css" rel="stylesheet" /> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/quill@2.0.0-rc.2/dist/quill.js"></script> -->
+
 </template>
 
 <script setup>
-import { ref, defineProps, computed } from 'vue';
+import { ref, defineProps, onMounted } from 'vue';
 import { useMessagesStore } from '../stores/messages.js';
-
-import { QuillEditor } from '@vueup/vue-quill';
-import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
 
-const dropdownItems = ref([
-  { label: '選択肢1', value: 'option1' },
-  { label: '選択肢2', value: 'option2' },
-  { label: '選択肢3', value: 'option3' }
-]);
-
-// 入力されたテキストを保持するリアクティブ変数
-const searchText = ref('');
-
-// ドロップダウンリストで選択されたアイテムを保持するリアクティブ変数
-const selectedItem = ref('');
-
-// 入力されたテキストに基づいて選択肢をフィルタリングする計算されたプロパティ
-const filteredItems = computed(() => {
-  const searchLowerCase = searchText.value.toLowerCase();
-  return dropdownItems.value.filter(item => item.label.toLowerCase().includes(searchLowerCase));
-});
-
-// テキスト入力が更新されたときに呼び出される関数
-const updateDropdownItems = () => {
-  // ドロップダウンリストの選択肢を更新する
-  // ここでは何も行いませんが、必要に応じて検索結果を更新するロジックを追加できます
-};
+import Quill from 'quill';
+import "quill/dist/quill.snow.css";
 
 const props = defineProps({
   message: Object,
@@ -77,23 +54,17 @@ const props = defineProps({
   threadHead: Object
 });
 
-console.log('sesrver', props.threadHead);
 const messageID = props.message.messageID;
-
 const messagesStore = useMessagesStore();
 
-let editorContent = ref({});
-editorContent.value[messageID] = markdownToHtml(props.message.messageTxt);
+let editTxt = ref({});
+editTxt.value[messageID] = markdownToHtml(props.message.messageTxt);
 const cancelEdit = (message, messageID) => {
   message.editFlg = false;
   messagesStore.update(message, message.messageID);
 };
 
 const msgUpsert = (messageId) => {
-  // 'strong', 's', 'blockquote', 'pre', 'a', 'span' 'p',    
-  // console.log(editorContent.value[messageId]);
-  // console.log(htmlToMarkdown(editorContent.value[messageId]));
-
   const messageData = htmlToMarkdown(editorContent.value[messageId]);
   const threadFlg = props.message.parentID;
   const uri = messageId ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
@@ -106,14 +77,15 @@ const msgUpsert = (messageId) => {
   if (props.threadHead && props.threadHead.backID) {
     fd.append('backID', props.threadHead.backID);
   }
-  const request = new Request(uri, {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      alert(reason)
-    })
+
+  // const request = new Request(uri, {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request)
+  //   .catch((reason)=>{
+  //     alert(reason)
+  //   })
 }
 
 let aliasArray = [
@@ -233,53 +205,99 @@ function handleCross(event) {
 //   console.log(cursorIndex);
 // }
 
-// const textarea = ref(null);
-// const dropdown = ref(null);
-// const showDropdown = ref(false);
-// const dropdownItems = ref([]);
+let textarea = ref(null);
+const dropdown = ref(null);
+const showDropdown = ref(false);
+const dropdownItems = ref([]);
 
-// const handleInput = (event) => {
-//   const cursorInfo = getCaretCoordinates(textarea.value);
-//   const cursorIndex = cursorInfo.offset;
+const handleInput = (event) => {
+  
+  const cursorInfo = getCaretCoordinates(event.target);
+  const cursorIndex = cursorInfo.offset;
 
-//   // ドロップダウンリストを表示するための位置を設定
-//   dropdown.value.style.top = `${cursorInfo.top + cursorInfo.height}px`;
-//   dropdown.value.style.left = `${cursorInfo.left}px`;
+  // ドロップダウンリストを表示するための位置を設定
+  dropdown.value.style.top = `${cursorInfo.top + cursorInfo.height}px`;
+  dropdown.value.style.left = `${cursorInfo.left}px`;
 
-//   // テキストエリア内のカーソル位置に応じてドロップダウンリストを更新する処理を実装する
+  // テキストエリア内のカーソル位置に応じてドロップダウンリストを更新する処理を実装する
 
-//   // ドロップダウンリストを表示する
-//   showDropdown.value = true;
+  // // ドロップダウンリストを表示する
+  // showDropdown.value = true;
 
-//   // テキストエリアからフォーカスが外れたときにドロップダウンリストを非表示にする
-//   textarea.value.addEventListener('blur', () => {
-//     showDropdown.value = false;
-//   });
-// };
+  // // テキストエリアからフォーカスが外れたときにドロップダウンリストを非表示にする
+  // textarea.value.addEventListener('blur', () => {
+  //   showDropdown.value = false;
+  // });
+  
+  // const editableDiv = document.querySelector('#edit_' + messageID + ' .ql-editor');
 
-// const getCaretCoordinates = (element) => {
-//   const value = element.value;
-//   const selection = window.getSelection();
-//   const range = selection.getRangeAt(0);
-//   const preCaretRange = range.cloneRange();
-//   preCaretRange.selectNodeContents(element);
-//   preCaretRange.setEnd(range.endContainer, range.endOffset);
-//   const offset = preCaretRange.toString().length;
+  const caretOffset = getCaretCharacterOffsetWithin(event.target);
+  console.log("Caret position:", caretOffset);
+  let text = quill.getSemanticHTML();
+  console.log(text);
+  let newText = text.slice(0, caretOffset) + '<strong>komatsu</strong>' + text.slice(caretOffset);
+  console.log('newText', newText);
+  document.getElementById("name_" + messageID).focus();
+  // quill.root.innerHTML = newText;
+  // editableDiv.textContent = newText;
+  // editorContent.value[messageID] = newText;
+  // quill[messageID].setHTML(newText);
+  // quill[messageID].root.innerHTML = newText;
+  // console.log(editor.value[messageID]);
+};
 
-//   const rect = range.getBoundingClientRect();
-//   console.log(rect);
-//   return {
-//     top: rect.top,
-//     left: rect.left,
-//     height: rect.height,
-//     offset: offset
-//   };
-// };
+const getCaretCoordinates = (element) => {
+  const value = element.value;
+  const selection = window.getSelection();
+  const range = selection.getRangeAt(0);
+  const preCaretRange = range.cloneRange();
+  preCaretRange.selectNodeContents(element);
+  preCaretRange.setEnd(range.endContainer, range.endOffset);
+  const offset = preCaretRange.toString().length;
 
-// onMounted(() => {
-//   textarea.value = $refs.textarea;
-//   dropdown.value = $refs.dropdown;
-// });
+  const rect = range.getBoundingClientRect();
+  console.log(rect);
+  return {
+    top: rect.top,
+    left: rect.left,
+    height: rect.height,
+    offset: offset
+  };
+};
+
+// カーソル位置を取得する関数
+const getCaretCharacterOffsetWithin = (element) => {
+    let caretOffset = 0;
+    const doc = element.ownerDocument || element.document;
+    const win = doc.defaultView || doc.parentWindow;
+    let sel;
+    if (typeof win.getSelection != "undefined") {
+        sel = win.getSelection();
+        if (sel.rangeCount > 0) {
+            const range = win.getSelection().getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(element);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            caretOffset = preCaretRange.toString().length;
+        }
+    } else if ((sel = doc.selection) && sel.type != "Control") {
+        const textRange = sel.createRange();
+        const preCaretTextRange = doc.body.createTextRange();
+        preCaretTextRange.moveToElementText(element);
+        preCaretTextRange.setEndPoint("EndToEnd", textRange);
+        caretOffset = preCaretTextRange.text.length;
+    }
+    return caretOffset;
+};
+let quill;
+onMounted(() => {
+  quill = new Quill('#edit_' + messageID, {
+    modules: {
+      toolbar: '#toolbar_' + messageID
+    },
+    theme: 'snow'  // テーマを指定します（省略可能）
+  });
+});
 
 </script>
 

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
 
-import '@vueup/vue-quill/dist/vue-quill.snow.css';
+// import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 import DrawerColumn from '../components/DrawerColumn.vue'
 import EditBox from '../components/EditBox.vue'
@@ -95,7 +95,7 @@ const clickEmoji = (messageId, emoji) => {
         </td>
       </tr>
       <tr>
-        <td v-if="message.editFlg" colspan="2" class="editText">
+        <td v-if="message.editFlg" colspan="2" class="editText" :id="'for_content_' + messageID">
           <EditBox :channel="channel" :message="message" :threadHead="threadHead" />
         </td>
         <td v-else colspan="2" class="ql-container ql-snow" >
