@@ -16,23 +16,8 @@
       <button @click="msgUpsert(messageID)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
-      @input="checkMention"
-      @mousedown="handleMove"
-      @keydown="handleCross"
-      v-html="editTxt[messageID]">
-    </div>
-  </div>
-  <div>
-    <textarea ref="textarea" style="display: none;"></textarea>
-    <div ref="dropdown" class="dropdown">
-      <div>
-        <div v-for="(alias, i) in suggestions"
-          :style="{ backgroundColor: i == selectedIndex ? 'lightblue' : '' }"
-          @click="mentioning(alias)" >
-          <img :src="alias[1]" class="iconMini">
-          {{alias[0]}}
-        </div>
-      </div>
+      v-html="editTxt[messageID]"
+      ref="editor">
     </div>
   </div>
 </template>
@@ -44,7 +29,9 @@ import { useMessagesStore } from '../stores/messages.js';
 import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
 
 import Quill from 'quill';
+import "quill-mention";
 import "quill/dist/quill.snow.css";
+// import { MentionBlot } from '../my/MentionBlot.js';
 
 const props = defineProps({
   message: Object,
@@ -93,181 +80,76 @@ let aliasArray = [
   ['group2', '/group.png']
 ];
 
-let mention = ref(false);
-let mentionWords = '';
-let mentionPosition = 0;
-function checkMention(event) {
-  // console.log(event, event.target, event.selectionStart);
-  if (mention.value) {
-    if (event.inputType === 'deleteContentBackward') {
-      mentionPosition -= 1;
-      mentionWords = mentionWords.slice(0, -1);
-      if (mentionPosition < 0) {
-        mention.value = false;
-      }
-    } else {
-      mentionWords += event.data;
-      mentionPosition += 1;
-    }
-  }
-  if (event.data == '@' && mention.value == false) {
-    mention.value = true;
-    showMention(event);
-  } else if (event.data == ' ' || event.data == '　') {
-    mention.value = false;
-  }
-  if (mention.value) {
-    console.log('mention true');
-    console.log(mentionWords);
-    suggestions.value = aliasArray
-      .filter(([alias, img]) => alias.includes(mentionWords))
-      .map(([alias, img]) => [alias, img]);
+let editor = ref(null);
 
-    const originalText = quill.getSemanticHTML();
-    const newText = originalText.substring(0, caretOffset) + originalText.substring(caretOffset + 1);
-    console.log("New text after deletion:", newText);
-    // quill.root.innerHTML = newText;
+// Quill.register(MentionBlot);
 
-  } else {
-    mentionWords = '';
-    mentionPosition = 0;
+const MentionBlot = Quill.import("blots/mention");
+
+class StyledMentionBlot extends MentionBlot {
+  static render(data) {
+    const element = document.createElement('span');
+    element.innerText = data.value;
+    element.style.color = data.color;
+    return element;
   }
 }
+StyledMentionBlot.blotName = "styled-mention";
 
-function initMention() {
-  mention.value = false;
-  mentionWords = '';
-  mentionPosition = 0;
-  caretOffset = 0;
-  suggestions.value = [];
-  selectedIndex.value = -1;
-  dropdown.value.style.left = '-1000px';
+Quill.register(StyledMentionBlot);
 
-}
-
-let suggestions = ref([]);
-
-function handleMove(event) {
-  mention.value = false;
-}
-let selectedIndex = ref(-1);
-
-function handleCross(event) {
-  switch (event.keyCode) {
-    case 37: // left
-      mention.value = false;
-      break;
-    case 39: // right
-      mention.value = false;
-      break;
-    case 38: // up
-      selectedIndex.value -= 1
-      break;
-    case 40: // down
-      selectedIndex.value += 1
-      break;
-    case "Enter":
-      // console.log("Enter", suggestions.value[selectedIndex.value]);
-      // console.log(event.data);
-      if (suggestions.value[selectedIndex.value]) {
-        // console.log("Selected value:", suggestions.value[selectedIndex.value]);
-      }
-      break;
-    default:
-      break;
-  }
-  // console.log("Enter", selectedIndex.value);
-  // suggestions[0][2] = true;
-}
-
-const mentioning = (alias) => {
-  console.log("Caret position:", caretOffset);
-  let content = quill.getSemanticHTML();
-  // console.log(content);
-  let newText = content.slice(0, caretOffset) + alias[0] + content.slice(caretOffset);
-  console.log('newText', newText);
-}
-
-
-let textarea = ref(null);
-const dropdown = ref(null);
-let caretOffset;
-const showMention = (event) => {
-  const cursorInfo = getCaretCoordinates(event.target);
-  const cursorIndex = cursorInfo.offset;
-  dropdown.value.style.top = `${cursorInfo.top + cursorInfo.height}px`;
-  // dropdown.value.style.left = `${cursorInfo.left}px`;
-  dropdown.value.style.left = '14px';
-  caretOffset = getCaretCharacterOffsetWithin(event.target);
-  // document.getElementById("name_" + messageID).focus();
-  // quill.root.innerHTML = newText;
-};
-
-const getCaretCoordinates = (element) => {
-  const value = element.value;
-  const selection = window.getSelection();
-  const range = selection.getRangeAt(0);
-  const preCaretRange = range.cloneRange();
-  preCaretRange.selectNodeContents(element);
-  preCaretRange.setEnd(range.endContainer, range.endOffset);
-  const offset = preCaretRange.toString().length;
-
-  const rect = range.getBoundingClientRect();
-  // console.log(rect);
-  return {
-    top: rect.top,
-    left: rect.left,
-    height: rect.height,
-    offset: offset
-  };
-};
-
-// カーソル位置を取得する関数
-const getCaretCharacterOffsetWithin = (element) => {
-    const doc = element.ownerDocument || element.document;
-    const win = doc.defaultView || doc.parentWindow;
-    let sel;
-    if (typeof win.getSelection != "undefined") {
-        sel = win.getSelection();
-        if (sel.rangeCount > 0) {
-            const range = win.getSelection().getRangeAt(0);
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(element);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            const fragment = preCaretRange.cloneContents();
-            const div = document.createElement('div');
-            div.appendChild(fragment);
-            const preCaretText = div.innerHTML;
-            // console.log(preCaretText); // HTML タグを含めた文字列
-            // タグを含めたテキストをカウントする
-            console.log('element.innerHTML', element.innerHTML);
-            console.log('preCaretText', preCaretText);
-            const preCaretTextWithTags = element.innerHTML.substring(0, preCaretText.length);
-            console.log(preCaretTextWithTags.length);
-            // タグを除外したテキストの長さを取得
-            // const textWithoutTagsLength = preCaretTextWithTags.replace(/<[^>]+>/g, '').length;
-            // console.log(textWithoutTagsLength);
-
-            // カーソル位置を取得
-            caretOffset = preCaretTextWithTags.length -3;
-        }
-    // } else if ((sel = doc.selection) && sel.type != "Control") {
-    //     const textRange = sel.createRange();
-    //     const preCaretTextRange = doc.body.createTextRange();
-    //     preCaretTextRange.moveToElementText(element);
-    //     preCaretTextRange.setEndPoint("EndToEnd", textRange);
-    //     caretOffset = preCaretTextRange.text.length;
-    }
-    return caretOffset;
-};
 
 let quill;
 onMounted(() => {
   quill = new Quill('#edit_' + messageID, {
     modules: {
-      toolbar: '#toolbar_' + messageID
+      toolbar: '#toolbar_' + messageID,
+
+      mention: {
+        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+        mentionDenotationChars: ["@"],
+        blotName: 'styled-mention',
+        source: function(searchTerm, renderList, mentionChar) {
+          let values;
+
+          if (mentionChar === "@") {
+            values = [
+              { id: 1, value: "komatsu", imageUrl: "/me.jpg" },
+              { id: 2, value: "ivan", imageUrl: "/ivan.png" },
+              { id: 3, value: "seijiroseijiroseijiroseijiroseijiroseijiroseijiroseijiroseijiro", imageUrl: "/me.jpg" },
+              // Add more users as needed
+            ];
+          }
+
+          if (searchTerm.length === 0) {
+            renderList(values, searchTerm);
+          } else {
+            const matches = values.filter(item => item.value.toLowerCase().includes(searchTerm.toLowerCase()));
+            renderList(matches, searchTerm);
+          }
+        },
+        renderItem: function(item) {
+          // console.log(position);
+          const mentionWithImage = document.createElement("div");
+          // mentionWithImage.style.left = 0;
+          mentionWithImage.innerHTML = `<img src="${item.imageUrl}" class="iconMini">${item.value}`;
+          return mentionWithImage;
+        },
+        onOpen: function() {
+          const quillMentionList = document.getElementById('quill-mention-list');
+          const rect = quillMentionList.getBoundingClientRect();
+          if (rect.left > 150) {
+            quillMentionList.style.left = (- 1 * rect.left) + 'px';
+          }
+        }
+        // onSelect: function(item, insertItem) {
+        //   // console.log('insert HTML', item, insertItem );
+        //   insertItem({id:'123',value:'My Mention'},true, {blotName: "Inline"})
+        //   // return '<a>test</a>';
+        // }
+      }
     },
-    theme: 'snow'  // テーマを指定します（省略可能）
+    theme: 'snow'
   });
 });
 
@@ -311,18 +193,39 @@ onMounted(() => {
   padding: 4px 0px;
 }
 
-.dropdown {
-  position: absolute;
-  left: -1000px;
-  width: 300px;
-  height: 300px;
-  border: 1px solid black;
-  display: flex;
-  align-items: flex-end; /* 子要素を下部に配置 */
-  justify-content: center; /* 水平方向に中央揃え */
+.ql-mention-list-container {
+  background-color: white;
+  bottom: 0px;
 }
 
-.selected {
-  background-color: lightblue;
+.ql-mention-list {
+  display: flex;
+  flex-direction: column-reverse;
+  position: absolute;
+  left: -30px;
+  width: 300px;
+  bottom: 0px;
+}
+
+.ql-mention-list-item {
+  display: flex; /* メンションリストアイテムをフレックスボックスとして配置 */
+  align-items: center; /* 垂直方向に中央揃え */
+  background-color: white;
+}
+
+/* メンションリストアイテムのテキストスタイルを変更する */
+.ql-mention-list-item-text {
+  margin-left: 8px; /* テキストと画像の間隔を設定 */
+}
+
+/* メンションリストアイテムの画像スタイルを変更する */
+.ql-mention-list-item-image {
+  width: 24px; /* 画像の幅を設定 */
+  height: 24px; /* 画像の高さを設定 */
+}
+
+.mention {
+  background-color: #a7cad63d;
+  color: blue;
 }
 </style>
