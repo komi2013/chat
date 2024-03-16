@@ -17,7 +17,7 @@
     </div>
     <div :id="'edit_' + messageID"
       v-html="editTxt[messageID]"
-      ref="editor">
+      >
     </div>
   </div>
 </template>
@@ -80,25 +80,6 @@ let aliasArray = [
   ['group2', '/group.png']
 ];
 
-let editor = ref(null);
-
-// Quill.register(MentionBlot);
-
-const MentionBlot = Quill.import("blots/mention");
-
-class StyledMentionBlot extends MentionBlot {
-  static render(data) {
-    const element = document.createElement('span');
-    element.innerText = data.value;
-    element.style.color = data.color;
-    return element;
-  }
-}
-StyledMentionBlot.blotName = "styled-mention";
-
-Quill.register(StyledMentionBlot);
-
-
 let quill;
 onMounted(() => {
   quill = new Quill('#edit_' + messageID, {
@@ -108,7 +89,6 @@ onMounted(() => {
       mention: {
         allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
-        blotName: 'styled-mention',
         source: function(searchTerm, renderList, mentionChar) {
           let values;
 
@@ -142,11 +122,6 @@ onMounted(() => {
             quillMentionList.style.left = (- 1 * rect.left) + 'px';
           }
         }
-        // onSelect: function(item, insertItem) {
-        //   // console.log('insert HTML', item, insertItem );
-        //   insertItem({id:'123',value:'My Mention'},true, {blotName: "Inline"})
-        //   // return '<a>test</a>';
-        // }
       }
     },
     theme: 'snow'
