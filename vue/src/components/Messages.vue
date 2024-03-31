@@ -99,7 +99,7 @@ const clickEmoji = (messageId, emoji) => {
           <EditBox :channel="channel" :message="message" :threadHead="threadHead" />
         </td>
         <td v-else colspan="2" class="ql-container ql-snow" >
-          <div v-html="markdownToHtml(message.messageTxt)" class="ql-editor"></div>
+          <div v-html="markdownToHtml(message.messageTxt, channel)" class="ql-editor"></div>
           <div class="threads" v-if="message.threadCount">
             <a :href="'/thread/' + channel.channelID + '/' + message.messageID + '/'">
               <span>{{message.threadCount}} messages &nbsp;</span>
@@ -207,4 +207,8 @@ code {
   font-size: 14px;
 }
 
+.mentioned {
+  background-color: #a7cad63d;
+  color: blue;
+}
 </style>

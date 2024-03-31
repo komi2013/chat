@@ -1,8 +1,9 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
+import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
+  console.log('pushData', pushData);
   const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
@@ -21,21 +22,12 @@ export async function thread(pushData) {
   let threadHead = {
     parentID: obj.parentID,
     messageTxt: obj.messageTxt,
-    aliasName: obj.aliasName,
-    aliasImg: obj.aliasImg,
-    createdAt: obj.createdAt,
     channelID: obj.channelID,
-    unreadFlg: true
+    displayStatus: 1
   };
   let table = 'message';
   if (obj.backID) {
     table = 'thread';
-    // parent = await getIDB('thread', obj.parentID);
-    // parent.threadCount = parent.threadCount ? parent.threadCount + 1 : 1;
-    // upsertData(parent, 'thread', 'messageID', obj.parentID)
-    //   .catch((error) => {
-    //     console.error(error);
-    //   });
     threadHead.backID = obj.backID;
   }
   let title = 'edit your own title as you like';
@@ -49,7 +41,6 @@ export async function thread(pushData) {
     }
     title = getSubstring(removeMark(parent.messageTxt), 0, 8);
   } catch (error) {
-    console.log('parent', error);
     parent = {
       messageID: obj.parentID,
       channelID: obj.channelID,
@@ -62,27 +53,55 @@ export async function thread(pushData) {
       threadImgs: [obj.aliasImg]
     };
   }
-  console.log('clone??', parent, table, obj);
   upsertData(parent, table, 'messageID', obj.parentID)
     .catch((error) => {
       console.error('parent, table', error);
     });
+  const alias = await getAllIDBs('alias');
+  let displayStatus = 1;
+  let notify = false;
+  alias.forEach(d => {
+    const atName = '＠＠' + d.aliasName + '・＠＠';
+    if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
+      displayStatus = 2;
+    } else if (obj.messageTxt.includes(atName)) {
+      displayStatus = 2;
+      notify = true;
+      return;
+    }
+  });
+  let pushTitle = title;
   try {
     threadHead = await getIDB('threadHead', obj.parentID);
-    threadHead.unreadFlg = true;
-    console.log('threadHead..', threadHead);
+    if (threadHead.displayStatus != 3 || notify) {
+      threadHead.displayStatus = displayStatus;
+    }
+    threadHead.updatedAt = obj.createdAt;
+    pushTitle = threadHead.title;
   } catch (error) {
-    console.log('no threadHead', error);
     threadHead.emojis = parent.emojis;
     threadHead.title = title;
+    threadHead.displayStatus = displayStatus;
     threadHead.messageTxt = parent.messageTxt;
     threadHead.aliasName = parent.aliasName;
+    threadHead.aliasImg = parent.aliasImg;
     threadHead.createdAt = parent.createdAt;
+    threadHead.updatedAt = obj.createdAt;
   }
   upsertData(threadHead, 'threadHead', 'parentID', obj.parentID)
     .catch((error) => {
       console.error(error);
     });
+
+  if (notify) {
+    new Notification(pushTitle, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
+  }
+
+// 0 = read
+// 1 = unread
+// 2 = mention
+// 3 = mute
+// 4 = undisplay
 
   // messagesStore.insert(obj);
 

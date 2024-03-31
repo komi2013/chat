@@ -4,8 +4,10 @@ import (
   "context"
   "encoding/json"
   "fmt"
+  "io"
   "log"
   "net/http"
+  "os"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -66,6 +68,42 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
+
+	err = r.ParseMultipartForm(10 << 20) // 最大10MB
+	if err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+// 「＊([^]*?)＊」（＊([^]*?)＊）/
+	// fileNames := ""
+	fileLinks := ""
+	files := r.MultipartForm.File["files[]"]
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		// fileNames += "＊f＊" + fileHeader.Filename + "・＊f＊"
+		// fileLinks += "「＊/upload/" + r.FormValue("channelID") + "/" + fileHeader.Filename + "＊」（＊" + fileHeader.Filename + "＊）"
+		fileLinks += "＊f＊" + fileHeader.Filename + "・＊f＊"
+		saveDir := "./upload/" + r.FormValue("channelID") + "/"
+		os.MkdirAll(saveDir, 0755);
+		dst, err := os.Create(saveDir + fileHeader.Filename)
+		if err != nil {
+			http.Error(w, "Failed to create file", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		_, err = io.Copy(dst, file)
+		if err != nil {
+			http.Error(w, "Failed to copy file", http.StatusInternalServerError)
+			return
+		}
+	}
+
   fmt.Printf("channelID %+v\n", channelID)
   var channel collection.ChannelStruct
   coll = db1.Collection("channel")
@@ -98,7 +136,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   coll = db1.Collection("thread")
   message := collection.ThreadStruct{
     ParentID: r.FormValue("parentID"),
-    MessageTxt: r.FormValue("messageTxt"),
+    MessageTxt: r.FormValue("messageTxt") + fileLinks,
     From: aliasName,
     FromImg: aliasImg,
     CreatedAt: time.Now(),
@@ -113,7 +151,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, "thread")
   arr = append(arr, insertedID)
   arr = append(arr, r.FormValue("parentID"))
-  arr = append(arr, r.FormValue("messageTxt"))
+  arr = append(arr, message.MessageTxt)
   arr = append(arr, aliasName)
   arr = append(arr, aliasImg)
   arr = append(arr, time.Now())

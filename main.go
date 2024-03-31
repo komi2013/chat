@@ -23,6 +23,7 @@ func main() {
 		http.HandleFunc("/SetCookie/", controller.SetCookie)
 		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
+		http.HandleFunc("/upload/", controller.Upload)
 
 		http.HandleFunc("/", controller.Top)
 

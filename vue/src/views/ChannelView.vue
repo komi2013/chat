@@ -118,12 +118,16 @@ const clickEmoji = (messageId, emoji) => {
 }
 
 @media screen and (min-width : 701px) { 
-
+  .headTitle {
+    margin-left: 50px;
+    display: flex;
+  }
 }
 
 @media screen and (max-width : 700px) {
   .headTitle {
     margin-left: 50px;
+    display: flex;
   }
   .headTitle div {
     display: table-cell;

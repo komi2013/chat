@@ -1,13 +1,18 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 30);
-
+    const request = indexedDB.open('chat', 54);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
-
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+      const transaction = event.target.transaction;
+      transaction.onerror = (event) => {
+        console.error('Error in upgrade transaction:', event.target.error);
+      };
+      transaction.oncomplete = (event) => {
+        console.log('Upgrade transaction completed');
+      };
       const tables = [
         ['channel', 'channelID'],
         ['alias', 'aliasName'],
@@ -16,19 +21,26 @@ const openDatabase = () => {
         ['threadHead', 'parentID']
       ];
       tables.forEach(([tableName, keyPath]) => {
-        if (!db.objectStoreNames.contains(tableName)) { // オブジェクトストアが存在しない場合のみ作成する
-          const objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
-          if (tableName === 'message' && !objectStore.indexNames.contains('channelIDIndex')) {
-            objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
-          }
-          if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
-            objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
-          }
+        let objectStore;
+        if (db.objectStoreNames.contains(tableName)) {
+          objectStore = transaction.objectStore(tableName);
+        } else {
+          objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
+        }
+        console.log('objectStore', objectStore);
+        if (tableName === 'channel' && !objectStore.indexNames.contains('displayStatusIndex')) {
+          objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
+        }
+        if (tableName === 'message' && !objectStore.indexNames.contains('channelIDIndex')) {
+          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        }
+        if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
+          objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
+        }
+        if (tableName === 'threadHead' && !objectStore.indexNames.contains('displayStatusIndex')) {
+          objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
         }
       });
-      
-      // アップグレード完了後にresolveを呼び出す
-      resolve(db);
     };
 
     request.onsuccess = (event) => {
@@ -164,4 +176,36 @@ async function getAllIDBs(table) {
   });
 }
 
-export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs };
+async function updOne(table, key, columnName, columnValue) {
+  const db = await openDatabase(table, key);
+  const transaction = db.transaction([table], 'readwrite');
+  const objectStore = transaction.objectStore(table);
+
+  // 指定されたキーに対応するデータを取得
+  const getRequest = objectStore.get(key);
+
+  getRequest.onsuccess = () => {
+    const data = getRequest.result;
+    if (data) {
+      // 特定の列の値を更新
+      data[columnName] = columnValue;
+
+      // 更新したデータを保存
+      const putRequest = objectStore.put(data);
+      putRequest.onsuccess = () => {
+        console.log(`${columnName} updated successfully`);
+      };
+      putRequest.onerror = (event) => {
+        console.error(`Error updating ${columnName}: ${event.target.error}`);
+      };
+    } else {
+      console.error(`No data found for key: ${key}`);
+    }
+  };
+
+  getRequest.onerror = (event) => {
+    console.error(`Error getting data: ${event.target.error}`);
+  };
+}
+
+export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs, updOne };

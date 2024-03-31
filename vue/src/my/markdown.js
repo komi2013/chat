@@ -7,6 +7,7 @@ export const htmlToMarkdown = (html) => {
   markdown = reverseCodeBlocks(markdown);
   markdown = reverseLinks(markdown);
   markdown = reverseColors(markdown);
+  markdown = reverseMention(markdown);
   markdown = reverseParagraph(markdown);
   return markdown;
 };
@@ -39,21 +40,31 @@ const reverseColors = (html) => {
   return html.replace(/<span style="color: red;">(.*?)<\/span>/g, '色＊赤$1赤＊色');
 };
 
+const reverseMention = (html) => {
+  const replacedHtml = html.replace(/<span class="mention" .*?>(.*?)<\/span>/g, '$1');
+  return replacedHtml.replace(/<span contenteditable="false">@(.*?)<\/span>/g, '＠＠$1・＠＠');
+};
+
 const reverseParagraph = (html) => {
   return html
     .replace(/<p><br><\/p>/g, '')
     .replace(/<p>([^]*?)<\/p>/g, '＊p＊$1・＊p＊');
 };
 
-export const markdownToHtml = (html) => {
-  html = html.replace(/<[^>]*>/g, '');
+export const markdownToHtml = (markdown, channel) => {
+  if (!markdown) {
+    return ''; 
+  }
+  let html = markdown.replace(/<[^>]*>/g, '');
   html = html.replace(/\n/g, '');
   html = applyEmphasis(html);
   html = applyStrikethrough(html);
   html = applyBlockquotes(html);
   html = applyCodeBlocks(html);
+  html = applyAttach(html, channel);
   html = applyLinks(html);
   html = applyColors(html);
+  html = applyMention(html);
   html = applyParagraphs(html);
   return html;
 };
@@ -74,12 +85,22 @@ const applyCodeBlocks = (markdown) => {
   return markdown.replace(/｀｀｀([\s\S]*?)・｀｀｀/g, '<pre class="ql-syntax" spellcheck="false">$1</pre>');
 };
 
+const applyAttach = (markdown, channel) => {
+  const updatedFilePath = `/upload/${channel.channelID}/${channel.aliasName}/$1`;
+  return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="${updatedFilePath}" download>$1</a></p>`);
+  // return markdown.replace(/「＊([^]*?)＊」（＊([^]*?)＊）/g, '<p><a href="$2" download>$1</a></p>');
+};
+
 const applyLinks = (markdown) => {
   return markdown.replace(/「([^]*?)」（([^]*?)）/g, '<a href="$2" target="_blank">$1</a>');
 };
 
 const applyColors = (markdown) => {
   return markdown.replace(/色＊赤([^]*?)赤＊色/g, '<span style="color: red;">$1</span>');
+};
+
+const applyMention = (markdown) => {
+  return markdown.replace(/＠＠([^]*?)・＠＠/g, '<span class="mentioned" contenteditable="false">@$1</span>');
 };
 
 const applyParagraphs = (markdown) => {
@@ -95,6 +116,7 @@ export const removeMark = (html) => {
   html = removeCodeBlocks(html);
   html = removeLinks(html);
   html = removeColors(html);
+  html = removeMention(html);
   html = removeParagraphs(html);
   return html;
 };
@@ -121,6 +143,10 @@ const removeLinks = (markdown) => {
 
 const removeColors = (markdown) => {
   return markdown.replace(/色＊赤([^]*?)赤＊色/g, '$1');
+};
+
+const removeMention = (markdown) => {
+  return markdown.replace(/＠＠([^]*?)・＠＠/g, '$1');
 };
 
 const removeParagraphs = (markdown) => {

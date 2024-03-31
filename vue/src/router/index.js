@@ -36,6 +36,14 @@ const router = createRouter({
       component: () => import('../views/AddChannel.vue')
     },
     {
+      path: '/threadHead/:parent_id/',
+      name: 'threadHead',
+      component: () => import('../views/ThreadHead.vue'),
+      props: route => ({
+        parent_id: route.params.parent_id
+      })
+    },
+    {
       path: '/thread/:channel_id/:message_id/',
       name: 'thread',
       component: () => import('../views/ThreadView.vue'),

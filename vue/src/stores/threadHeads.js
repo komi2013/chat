@@ -1,14 +1,14 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-export const useChannelsStore = defineStore({
-  id: 'channels',
+export const useThreadHeadsStore = defineStore({
+  id: 'threadHeads',
   state: () => ({
-    channels: ref([]),
+    threadHeads: ref([]),
   }),
   actions: {
     insert(data) {
-      this.channels.push(data);
+      this.threadHeads.push(data);
     },
     // update() {
     //   this.count--;

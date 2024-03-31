@@ -9,7 +9,7 @@ import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
+import { getIDB, getIDBs, upsertData, updOne } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { removeMark } from '../my/markdown.js';
 
@@ -65,7 +65,6 @@ async function fetchThreadHead() {
     message.emojis = data.emojis;
     messagesStore.insert(message);
   } catch (error) {
-    console.log('no threadHead', error);
     if (getParam('backID')) {
       const message = await getIDB('thread', props.message_id);
       threadHead.value = message;
@@ -103,14 +102,26 @@ const fetchMessageData = () => {
   });
 };
 
+function readStatus () {
+  console.log(props.message_id);
+  if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
+    threadHead.value.displayStatus = 0;
+    updOne('threadHead', props.message_id, 'displayStatus', 0)
+      .catch((error) => {
+        console.error(error);
+      });
+    const favicon = document.querySelector('link[rel="icon"]');
+    favicon.href = '/favicon.ico';
+  }
+}
+
 onBeforeMount(async () => {
   await messagesStore.deleteAll();
   await fetchChannel();
   await fetchThreadHead();
   await fetchMessageData();
-
-  parentID.value = props.message_id;
-  console.log('threadHead', threadHead.value);
+  readStatus();
+  // parentID.value = props.message_id;
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
   window.scrollTo(0, content.scrollHeight);
@@ -138,7 +149,11 @@ function backTo(backID) {
 <DrawerColumn />
 <div id="content">
 <div class="headTitle">
-  <div style="width: 90%;" >{{threadHead.title}}</div>
+  <div style="width: 90%;" >
+    <a :href="'/threadHead/' + threadHead.parentID + '/'">
+      {{threadHead.title}}
+    </a>
+  </div>
   <div style="line-height: 50px;width: 50px;">
     <a :href="backTo(threadHead.backID)"> ⬅ </a>
    <!--  <span v-if="threadHead.edit" class="emoji" > 🖋 </span> -->
@@ -164,12 +179,16 @@ function backTo(backID) {
 }
 
 @media screen and (min-width : 701px) { 
-
+  .headTitle {
+    margin-left: 50px;
+    display: flex;
+  }
 }
 
 @media screen and (max-width : 700px) {
   .headTitle {
     margin-left: 50px;
+    display: flex;
   }
   .headTitle div {
     display: table-cell;
