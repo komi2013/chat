@@ -13,7 +13,7 @@ import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { toggleEdit } from '../my/other.js';
+import { toggleEdit, toggleBookmark } from '../my/other.js';
 
 import { markdownToHtml } from '../my/markdown.js';
 
@@ -48,18 +48,21 @@ function nextURL (message) {
   }
 }
 
+// const bookmark = await getIDB('bookmark', messageID);
+
 function createGetParams(params) {
   const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
   return queryString;
 }
 
 const clickEmoji = (messageId, emoji) => {
+  console.log(channel.aliasName);
   const fd = new FormData();
   fd.append('parentMessageID', props.message_id);
   fd.append('messageID', messageId);
   fd.append('emoji', emoji[0]);
   fd.append('clicked', emoji[2] ? 1 : 0);
-  fd.append('aliasName', channel.value.aliasName);
+  fd.append('aliasName', channel.aliasName);
   const request = new Request('/MessageEdit/', {
     method: 'POST',
     body: fd,
@@ -82,13 +85,25 @@ const clickEmoji = (messageId, emoji) => {
         </td>
         <td>
           <span class="aliasName">{{ message.aliasName }}</span>
-          <span class="dateTime">{{ get_formated_time('MM-DD hh:mm', message.createdAt) }}</span>
+          <span class="dateTime" :id="'msg_'+message.messageID">{{ get_formated_time('MM-DD hh:mm', message.createdAt) }}</span>
         </td>
         <td class="setting">
-          <span v-if="channel.aliasName == message.aliasName" class="emoji" @click="toggleEdit(message, message.messageID, $event)"> 🖋 </span>
-          <span class="emoji" @click="openEmoji(message.messageID)"> 😄 </span>
-          <EmojiModal :key="message.messageID" v-if="isEmojiOpen && selectedMessageId === message.messageID" @selectEmoji="selectEmoji" @closeEmoji="closeEmoji" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :parent_id="message.parentID" />
-
+          <span
+            :class="{ 'selected': message.bookmark }"
+            @click="toggleBookmark(message)"> 🔖 </span>
+          <span
+            v-if="channel.aliasName == message.aliasName"
+            @click="toggleEdit(message, message.messageID, $event)"> 🖋 </span>
+          <span @click="openEmoji(message.messageID)"> 😄 </span>
+            <EmojiModal
+              :key="message.messageID"
+              v-if="isEmojiOpen && selectedMessageId === message.messageID"
+              @selectEmoji="selectEmoji"
+              @closeEmoji="closeEmoji"
+              :channelID="channel.channelID"
+              :messageId="message.messageID"
+              :aliasName="channel.aliasName"
+              :parent_id="message.parentID" />
           <span> <a :href="nextURL(message)"> 💬 </a> </span>
 <!--           <span class="emoji" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
           <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" /> -->
@@ -108,10 +123,19 @@ const clickEmoji = (messageId, emoji) => {
           </div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
-              <span class="img-stamp" :class="{ 'selected': d[2] }"> <img :src="d[0]" class="emoji-img" @click="clickEmoji(message.messageID, d)" /> {{d[1]}} </span>
+              <span class="img-stamp"
+                :class="{ 'selected': d[2] }">
+                  <img :src="d[0]" 
+                    class="emoji-img" 
+                    @click="clickEmoji(message.messageID, d)" /> {{d[1]}}
+              </span>
             </template>
             <template v-else>
-              <span class="emoji-stamp" :class="{ 'selected': d[2] }" @click="clickEmoji(message.messageID, d)" >{{ d[0] }} {{d[1]}} </span>
+              <span class="emoji-stamp"
+                :class="{ 'selected': d[2] }"
+                @click="clickEmoji(message.messageID, d)" >
+                {{ d[0] }} {{d[1]}}
+              </span>
             </template>
           </template>
         </td>
@@ -150,6 +174,11 @@ code {
   text-align: right;
 }
 
+.setting span {
+  margin: 2px;
+  padding: 0px 2px;
+}
+
 .aliasName {
   margin: 2px;
   font-size: 12px;
@@ -160,10 +189,6 @@ code {
   font-size: 12px;
 }
 
-.emoji {
-  margin: 2px;
-}
-
 .emoji-stamp {
   display: inline-flex;
   align-items: center;
@@ -172,7 +197,13 @@ code {
   margin: 1px 2px;
   vertical-align: text-bottom;
   font-size: 14px;
+}
+
+.selected {
+  display: inline-flex;
   background-color: #92a7b54a;
+  border-radius: 5px;
+  border: 1px solid #3498db;
 }
 
 .img-stamp {
@@ -181,7 +212,6 @@ code {
   padding: 1px 2px;
   border-radius: 5px;
   margin: 1px 2px;
-  background-color: #92a7b54a;
 }
 
 .emoji-img {

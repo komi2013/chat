@@ -3,7 +3,6 @@ import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
-  console.log('pushData', pushData);
   const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
@@ -96,13 +95,7 @@ export async function thread(pushData) {
   if (notify) {
     new Notification(pushTitle, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
   }
-
-// 0 = read
-// 1 = unread
-// 2 = mention
-// 3 = mute
-// 4 = undisplay
-
-  // messagesStore.insert(obj);
-
+  if (messagesStore.currentDisplay(obj.parentID)) {
+    messagesStore.insert(obj);
+  }
 }

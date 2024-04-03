@@ -38,10 +38,6 @@ const selectEmoji = (emoji) => {
     body: fd,
   });
   fetch(request)
-    .then((response) => response.json())
-    .then((json)=>{
-      // when status not 1
-    })
     .catch((reason)=>{
       console.log(reason)
     })

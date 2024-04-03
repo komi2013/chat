@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 54);
+    const request = indexedDB.open('chat', 55);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -18,7 +18,8 @@ const openDatabase = () => {
         ['alias', 'aliasName'],
         ['message', 'messageID'],
         ['thread', 'messageID'],
-        ['threadHead', 'parentID']
+        ['threadHead', 'parentID'],
+        ['bookmark','messageID']
       ];
       tables.forEach(([tableName, keyPath]) => {
         let objectStore;

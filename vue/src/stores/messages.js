@@ -35,5 +35,11 @@ export const useMessagesStore = defineStore({
       // メッセージが見つかればtrue、見つからなければfalseを返す
       return !!message;
     },
+    upOne(messageID, key, value) {
+      const message = this.messages.find(message => message.messageID === messageID);
+      if (message) {
+        message[key] = value;
+      }
+    },
   },
 });

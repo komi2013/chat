@@ -3,10 +3,12 @@ import { RouterLink, RouterView } from 'vue-router'
 import { ref, onUpdated } from 'vue'
 import { useMessagesStore } from './stores/messages.js'
 import { upsertData } from './my/indexDB.js'
+import { bookmark } from './pushReceive/bookmark.js';
+import { message } from './pushReceive/message.js';
 import { messageEdit } from './pushReceive/messageEdit.js';
 import { thread } from './pushReceive/thread.js';
 import { threadEdit } from './pushReceive/threadEdit.js';
-import { message } from './pushReceive/message.js';
+
 
 const messagesStore = useMessagesStore()
 
@@ -17,11 +19,14 @@ navigator.serviceWorker.addEventListener('message', async (event) => {
 function processNotificationData(notificationData) {
   const data = JSON.parse(notificationData);
   switch (data[0]) {
-    case 'message':
-      message(data);
+    case 'bookmark':
+      bookmark(data);
       break;
     case 'community_join':
       console.log('community_join', data);
+      break;
+    case 'message':
+      message(data);
       break;
     case 'msgEdit':
       messageEdit(data);

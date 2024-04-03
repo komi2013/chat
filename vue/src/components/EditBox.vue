@@ -47,7 +47,7 @@ const messageID = props.message.messageID;
 const messagesStore = useMessagesStore();
 
 let editTxt = ref({});
-editTxt.value[messageID] = markdownToHtml(props.message.messageTxt);
+editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel);
 // console.log('props.message.messageTxt' , props.message.messageTxt);
 // console.log('editTxt.value[messageID]' , editTxt.value[messageID]);
 const cancelEdit = (message, messageID) => {
