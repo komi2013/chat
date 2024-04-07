@@ -15,8 +15,9 @@
       </button>
     </div>
     <div class="editRight ql-toolbar ql-snow">
-      <button v-if="messageID" @click="cancelEdit(message, messageID)">⬅</button>
-      <button @click="msgUpsert(messageID)">▶️</button>
+      <button v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
+      <button @click="task" :class="{ 'task': message.task }">🔖</button>
+      <button @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
       v-html="editTxt[messageID]"
@@ -43,6 +44,7 @@ const props = defineProps({
   threadHead: Object
 });
 
+const message = props.message;
 const messageID = props.message.messageID;
 const messagesStore = useMessagesStore();
 
@@ -50,9 +52,9 @@ let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel);
 // console.log('props.message.messageTxt' , props.message.messageTxt);
 // console.log('editTxt.value[messageID]' , editTxt.value[messageID]);
-const cancelEdit = (message, messageID) => {
-  message.editFlg = false;
-  messagesStore.update(message, message.messageID);
+const task = () => {
+  message.task = !message.task;
+  console.log(message);
 };
 
 const attach = () => {
@@ -89,12 +91,12 @@ const handleFileInputChange = (event) => {
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 
-const msgUpsert = (messageID) => {
-  const messageData = htmlToMarkdown(quill.root.innerHTML);
+const msgUpsert = (messageID, delMessage) => {
+  const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML);
   const threadFlg = props.message.parentID;
   const uri = messageID ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
   const fd = new FormData();
-  fd.append('parentID', props.message.parentID);
+  // fd.append('parentID', props.message.parentID);
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);
   fd.append('messageTxt', messageData);
@@ -102,7 +104,9 @@ const msgUpsert = (messageID) => {
   if (props.threadHead && props.threadHead.backID) {
     fd.append('backID', props.threadHead.backID);
   }
-
+  if (message.task) {
+    fd.append('task', 1);
+  }
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 0) {
     for (const file of fileInput.files) {
@@ -172,9 +176,6 @@ onMounted(() => {
 </script>
 
 <style>
-.markdown {
-  padding: 4px;
-}
 
 .editLeft {
   text-align: left;
@@ -187,21 +188,6 @@ onMounted(() => {
   width: 24%;
 }
 
-.selected {
-  border: 1px solid #3498db;
-}
-
-.chgble {
-  text-align: left;
-  outline: 1px solid blue;
-  width: 96%;
-  display: inline-block;
-}
-.quote {
-  padding: 3px;
-  margin: 0 0 0 5px;
-  border-left: 3px solid #ccc;
-}
 .editText .ql-container.ql-snow {
   border: 1px solid #d1d5db;
   border-bottom-width: 0;
@@ -209,9 +195,7 @@ onMounted(() => {
 .editText .ql-editor {
   padding: 4px 0px;
 }
-/*.ql-toolbar.ql-snow+.ql-container.ql-snow {
-  border-bottom-width: 0;
-}*/
+
 .files {
   border-top: none;
   border-right: 1px solid #d1d5db;
@@ -222,6 +206,10 @@ onMounted(() => {
 .ql-snow.ql-toolbar .attachment {
   font-size: 12px;
   padding-top: 0px;
+}
+.ql-snow.ql-toolbar .task {
+  background-color: #92a7b54a;
+  border-radius: 5px;
 }
 .ql-mention-list-container {
   background-color: white;
@@ -238,20 +226,18 @@ onMounted(() => {
 }
 
 .ql-mention-list-item {
-  display: flex; /* メンションリストアイテムをフレックスボックスとして配置 */
-  align-items: center; /* 垂直方向に中央揃え */
+  display: flex;
+  align-items: center;
   background-color: white;
 }
 
-/* メンションリストアイテムのテキストスタイルを変更する */
 .ql-mention-list-item-text {
-  margin-left: 8px; /* テキストと画像の間隔を設定 */
+  margin-left: 8px;
 }
 
-/* メンションリストアイテムの画像スタイルを変更する */
 .ql-mention-list-item-image {
-  width: 24px; /* 画像の幅を設定 */
-  height: 24px; /* 画像の高さを設定 */
+  width: 24px;
+  height: 24px;
 }
 
 .mention {

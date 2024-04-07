@@ -3,7 +3,6 @@ import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
-  const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
     parentID: pushData[2],
@@ -14,6 +13,7 @@ export async function thread(pushData) {
     channelID: pushData[7],
     backID: pushData[8]
   };
+  const messagesStore = useMessagesStore();
   upsertData(obj, 'thread', 'messageID', obj.messageID)
     .catch((error) => {
       console.error(error);
@@ -29,7 +29,7 @@ export async function thread(pushData) {
     table = 'thread';
     threadHead.backID = obj.backID;
   }
-  let title = 'edit your own title as you like';
+  let title = 'no title';
   let parent = {};
   try {
     parent = await getIDB(table, obj.parentID);

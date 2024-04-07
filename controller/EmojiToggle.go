@@ -21,15 +21,21 @@ import (
   // "chat/logic/quiz"
 )
 
-func MessageEdit(w http.ResponseWriter, r *http.Request) {
+func EmojiToggle(w http.ResponseWriter, r *http.Request) {
   cookie, _ := r.Cookie("ss")
   // if err != nil {
   //  return ""
   // }
-	primitiveChannelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
-	if err != nil {
-		log.Fatal(err)
-	}
+  fmt.Printf("channelID %+v\n", r.FormValue("messageID"))
+  primitiveChannelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
+  if err != nil {
+    log.Print(err)
+  }
+  // channelID := r.FormValue("channelID")
+  messageID := r.FormValue("messageID")
+  aliasName := r.FormValue("aliasName")
+  parentID := r.FormValue("parentID")
+  emojiValue := r.FormValue("emojiValue")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -55,15 +61,16 @@ func MessageEdit(w http.ResponseWriter, r *http.Request) {
   }
   trueAccess := false
   for _, arrayData := range session.AliasArray {
-    if arrayData[0] == r.FormValue("aliasName") {
+    if arrayData[0] == aliasName {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, r.FormValue("aliasName"))
+    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
 
+  
   var channel collection.ChannelStruct
   coll = db1.Collection("channel")
   // check access right
@@ -77,6 +84,7 @@ func MessageEdit(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     fmt.Printf(" err %s\n", err)
   }
+  fmt.Printf("channel.UserIDs %+v\n", channel)
   coll = db1.Collection("session")
   filter = bson.D{{
     "user_id", bson.D{{"$in", channel.UserIDs}}}}
@@ -90,22 +98,34 @@ func MessageEdit(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &results4); err != nil {
     fmt.Printf(" err %s\n", err)
   }
-  coll = db1.Collection("message_edit")
-  messageEdit := collection.MessageEditStruct{
-    MessageID: r.FormValue("messageID"),
-    MessageTxt: r.FormValue("messageTxt"),
-    Task: r.FormValue("task"),
-    CreatedAt: time.Now(),
+  var deleteType int
+  if r.FormValue("clicked") == "1" {
+    deleteType = 1
   }
-  _, err = coll.InsertOne(context.TODO(), messageEdit)
+  coll = db1.Collection("emoji")
+  emoji := collection.EmojiStruct{
+    MessageID: messageID,
+    AliasName: aliasName,
+    EmojiValue: emojiValue,
+    CreatedAt: time.Now(),
+    DeleteType: deleteType,
+  }
+  _, err = coll.InsertOne(context.TODO(), emoji)
   if err != nil {
     log.Fatal(err)
   }
+
+  editType := 1
+  if r.FormValue("clicked") == "1" {
+    editType = 3 // delete
+  }
   var arr []interface{}
-  arr = append(arr, "msgEdit")
-  arr = append(arr, messageEdit.MessageID)
-  arr = append(arr, messageEdit.MessageTxt)
-  arr = append(arr, messageEdit.Task)
+  arr = append(arr, "emoji")
+  arr = append(arr, messageID)
+  arr = append(arr, aliasName)
+  arr = append(arr, editType)
+  arr = append(arr, emojiValue)
+  arr = append(arr, parentID)
   arr = append(arr, time.Now())
 
   msgJson, err := json.Marshal(arr)

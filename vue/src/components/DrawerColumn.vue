@@ -38,7 +38,9 @@ const fetchMention = () => {
         latest.forEach(d => {
           threadHeadsStore.insert(d);
         });
-        addFaviconBadge();
+        if (data.length > 0) {
+          addFaviconBadge();
+        }
         resolve();
       })
       .catch((error) => {
@@ -185,7 +187,7 @@ function getStatusClass(status) {
 }
 
 const addFaviconBadge = () => {
-  const favicon = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+  const favicon = document.querySelector('link[rel="icon"]');
   favicon.href = '/me.jpg';
 };
 
@@ -219,24 +221,21 @@ onBeforeMount(async () => {
     <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
-      <tr><td><RouterLink to="/" >Home</RouterLink></td></tr>
-      <tr><td><RouterLink to="/threads/" >threads</RouterLink></td></tr>
-
+      <tr><td><a href="/" > 🏠 Home</a></td></tr>
+      <tr><td>Threads</td></tr>
       <tr v-for="d in threadHeads">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
           <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
         </td>
       </tr>
-
-      <tr><td><RouterLink to="/sign/" >Sign</RouterLink></td></tr>
-
+      <tr><td>Channels</td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
           <a :href="'/channel/' + d.channelID">{{ d.channelName }}</a>
         </td>
       </tr>
-      <tr><td><RouterLink to="/addChannel/" ><span> + </span><span>チャネルを追加</span></RouterLink></td></tr>
-      <tr><td><RouterLink to="/sign/" >Sign</RouterLink></td></tr>
+      <tr><td><a href="/addChannel/" ><span> + </span><span>Add Channel</span></a></td></tr>
+      <tr><td><a href="/sign/" >Sign</a></td></tr>
     </table>
   </div>
 </template>

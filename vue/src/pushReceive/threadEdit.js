@@ -2,57 +2,68 @@ import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 export async function threadEdit(pushData) {
-  console.log('other file', pushData);
-  const idb = await getIDB('thread', pushData[1]);
-  console.log('idb', idb);
+  const rcv = {
+    messageID: pushData[1],
+    messageTxt: pushData[2],
+    task: pushData[3]
+  };
   const messagesStore = useMessagesStore();
-  if(pushData[3] == 3){
-    deleteData('thread', 'messageID', idb.messageID)
-      .then((message) => {
-        console.log(message);
-      })
+  if(rcv.messageTxt == ''){
+    deleteData('thread', 'messageID', rcv.messageID)
       .catch((error) => {
         console.error(error);
       });
-      messagesStore.delete(idb.messageID);
+      messagesStore.delete(rcv.messageID);
   } else {
-    let emojis = idb.emojis // [['kom1','/me.jpg'],['kom2','✋']]
-    let messageTxt = idb.messageTxt
-    if (pushData[3] == 2) {
-      messageTxt = pushData[4];
-    }
-    if (pushData[3] == 1) {
-      if (emojis) {
-        const is = emojis.findIndex(item => item[0] === pushData[2]);
-        if (is !== -1) {
-          emojis.splice(is, 1);
-        } else {
-          emojis.push([pushData[2], pushData[4]]);
-        }
-      } else {
-        emojis = [[pushData[2], pushData[4]]];
-      }
-
-    }
-
+    const idb = await getIDB('thread', rcv.messageID);
     const obj = {
+      parentID: idb.parentID,
       messageID: idb.messageID,
       channelID: idb.channelID,
-      messageTxt: messageTxt,
+      messageTxt: rcv.messageTxt,
       aliasName: idb.aliasName,
       aliasImg: idb.aliasImg,
       createdAt: idb.createdAt,
-      emojis: emojis
+      emojis: idb.emojis
     };
     upsertData(obj, 'thread', 'messageID', idb.messageID)
-      .then((message) => {
-        console.log(message);
-      })
       .catch((error) => {
         console.error(error);
       });
-    messagesStore.update(obj, idb.messageID);
+    const alias = await getAllIDBs('alias');
+    let displayStatus = 1;
+    let notify = false;
+    alias.forEach(d => {
+      const atName = '＠＠' + d.aliasName + '・＠＠';
+      if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
+        displayStatus = 2;
+      } else if (obj.messageTxt.includes(atName)) {
+        displayStatus = 2;
+        notify = true;
+        return;
+      }
+    });
 
+    let threadHead;
+    try {
+      threadHead = await getIDB('threadHead', obj.parentID);
+      if (threadHead.displayStatus != 3 || notify) {
+        threadHead.displayStatus = displayStatus;
+      }
+      threadHead.updatedAt = obj.createdAt;
+    } catch (error) {
+      console.log('this device dont have this threadHead but receive message', obj);
+    }
+    upsertData(threadHead, 'threadHead', 'parentID', obj.parentID)
+      .catch((error) => {
+        console.error(error);
+      });
+    if (notify) {
+      new Notification(pushTitle, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
+    }
+    if (messagesStore.currentDisplay(obj.parentID)) {
+      messagesStore.insert(obj);
+    }
   }
 
 }

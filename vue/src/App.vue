@@ -1,16 +1,13 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
-import { ref, onUpdated } from 'vue'
-import { useMessagesStore } from './stores/messages.js'
-import { upsertData } from './my/indexDB.js'
+import { RouterLink, RouterView } from 'vue-router';
+import { ref, onUpdated } from 'vue';
+import { upsertData } from './my/indexDB.js';
 import { bookmark } from './pushReceive/bookmark.js';
 import { message } from './pushReceive/message.js';
+import { emoji } from './pushReceive/emoji.js';
 import { messageEdit } from './pushReceive/messageEdit.js';
 import { thread } from './pushReceive/thread.js';
 import { threadEdit } from './pushReceive/threadEdit.js';
-
-
-const messagesStore = useMessagesStore()
 
 navigator.serviceWorker.addEventListener('message', async (event) => {
   processNotificationData(event.data.notificationData);
@@ -24,6 +21,9 @@ function processNotificationData(notificationData) {
       break;
     case 'community_join':
       console.log('community_join', data);
+      break;
+    case 'emoji':
+      emoji(data);
       break;
     case 'message':
       message(data);
@@ -41,8 +41,6 @@ function processNotificationData(notificationData) {
       console.log('Unknown fruit.');
   }
 }
-
-
 
 </script>
 

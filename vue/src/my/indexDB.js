@@ -76,7 +76,7 @@ async function getIDB(table, id) {
     return Promise.reject(error);
   }
 }
-
+// getIDBs('thread', 'parentIDIndex', props.message_id)
 async function getIDBs(table, key, id, limit = 10) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {

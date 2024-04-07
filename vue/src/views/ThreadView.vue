@@ -103,7 +103,6 @@ const fetchMessageData = () => {
 };
 
 function readStatus () {
-  console.log(props.message_id);
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
     updOne('threadHead', props.message_id, 'displayStatus', 0)
@@ -116,12 +115,10 @@ function readStatus () {
 }
 
 onBeforeMount(async () => {
-  await messagesStore.deleteAll();
   await fetchChannel();
   await fetchThreadHead();
   await fetchMessageData();
   readStatus();
-  // parentID.value = props.message_id;
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
   window.scrollTo(0, content.scrollHeight);

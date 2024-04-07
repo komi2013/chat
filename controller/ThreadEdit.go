@@ -30,9 +30,6 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     log.Fatal(err)
   }
-  channelID := r.FormValue("channelID")
-  messageID := r.FormValue("messageID")
-  aliasName := r.FormValue("aliasName")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -58,16 +55,15 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   }
   trueAccess := false
   for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName {
+    if arrayData[0] == r.FormValue("aliasName") {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    fmt.Printf(" err %s\n", session.AliasArray, r.FormValue("aliasName"))
     return
   }
 
-  fmt.Printf("channelID %+v\n", channelID)
   var channel collection.ChannelStruct
   coll = db1.Collection("channel")
   // check access right
@@ -95,42 +91,22 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &results4); err != nil {
     fmt.Printf(" err %s\n", err)
   }
-  var deleteType int
-  if r.FormValue("clicked") == "1" {
-    deleteType = 1
-  }
   coll = db1.Collection("thread_edit")
   messageEdit := collection.MessageEditStruct{
-    // MessageID: channelName,
-    MessageID: messageID,
-    AliasName: aliasName,
-    EmojiPath: r.FormValue("emoji"),
+    MessageID: r.FormValue("messageID"),
     MessageTxt: r.FormValue("messageTxt"),
+    Task: r.FormValue("task"),
     CreatedAt: time.Now(),
-    DeleteType: deleteType,
   }
   _, err = coll.InsertOne(context.TODO(), messageEdit)
   if err != nil {
     log.Fatal(err)
   }
-
-  var editValue string
-  var editType int
-  if r.FormValue("emoji") == "" && r.FormValue("messageTxt") == "" {
-    editType = 3
-  } else if r.FormValue("emoji") != "" {
-    editValue = r.FormValue("emoji")
-    editType = 1
-  } else {
-    editValue = r.FormValue("messageTxt")
-    editType = 2
-  }
   var arr []interface{}
   arr = append(arr, "threadEdit")
-  arr = append(arr, messageID)
-  arr = append(arr, aliasName)
-  arr = append(arr, editType)
-  arr = append(arr, editValue)
+  arr = append(arr, messageEdit.MessageID)
+  arr = append(arr, messageEdit.MessageTxt)
+  arr = append(arr, messageEdit.Task)
   arr = append(arr, time.Now())
 
   msgJson, err := json.Marshal(arr)

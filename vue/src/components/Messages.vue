@@ -34,36 +34,39 @@ const messages = computed(() => {
 const channel = props.channel;
 
 function nextURL (message) {
-  let nextURL = '';
-  nextURL = '/thread/' + channel.channelID + '/' + message.messageID + '/';
+  let URL = '';
+  URL = '/thread/' + channel.channelID + '/' + message.messageID + '/';
   const params = {
     backID: ''
   };
   if (message.parentID) {
     params.backID = message.parentID;
     const queryString = createGetParams(params);
-    return nextURL + '?' + queryString;
+    return URL + '?' + queryString;
   } else {
-    return nextURL;
+    return URL;
   }
 }
 
-// const bookmark = await getIDB('bookmark', messageID);
-
 function createGetParams(params) {
-  const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
+  const queryString = Object.keys(params).map(key =>
+    `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`
+    ).join('&');
   return queryString;
 }
 
-const clickEmoji = (messageId, emoji) => {
+const clickEmoji = (message, emoji) => {
   console.log(channel.aliasName);
   const fd = new FormData();
-  fd.append('parentMessageID', props.message_id);
-  fd.append('messageID', messageId);
-  fd.append('emoji', emoji[0]);
+  if (message.parentID) {
+    fd.append('parentID', message.parentID);
+  }
+  fd.append('channelID', channel.channelID);
+  fd.append('messageID', message.messageID);
+  fd.append('emojiValue', emoji[0]);
   fd.append('clicked', emoji[2] ? 1 : 0);
   fd.append('aliasName', channel.aliasName);
-  const request = new Request('/MessageEdit/', {
+  const request = new Request('/EmojiToggle/', {
     method: 'POST',
     body: fd,
   });
@@ -89,11 +92,12 @@ const clickEmoji = (messageId, emoji) => {
         </td>
         <td class="setting">
           <span
-            :class="{ 'selected': message.bookmark }"
-            @click="toggleBookmark(message)"> 🔖 </span>
-          <span
             v-if="channel.aliasName == message.aliasName"
             @click="toggleEdit(message, message.messageID, $event)"> 🖋 </span>
+          <span> <a :href="nextURL(message)"> 💬 </a> </span>
+          <span
+            :class="{ 'selected': message.bookmark }"
+            @click="toggleBookmark(message)"> 🔖 </span>
           <span @click="openEmoji(message.messageID)"> 😄 </span>
             <EmojiModal
               :key="message.messageID"
@@ -101,12 +105,9 @@ const clickEmoji = (messageId, emoji) => {
               @selectEmoji="selectEmoji"
               @closeEmoji="closeEmoji"
               :channelID="channel.channelID"
-              :messageId="message.messageID"
+              :messageID="message.messageID"
               :aliasName="channel.aliasName"
-              :parent_id="message.parentID" />
-          <span> <a :href="nextURL(message)"> 💬 </a> </span>
-<!--           <span class="emoji" @click="openOther(message.messageID)"> &nbsp; ⋮ &nbsp; </span>
-          <OtherModal :key="message.messageID" v-if="isOtherOpen && otherMessageId === message.messageID" @selectOther="selectOther" @closeOther="closeOther" @activeEdit="activeEdit" :channelID="channel.channelID" :messageId="message.messageID" :aliasName="channel.aliasName" :message="message" /> -->
+              :parentID="message.parentID" />
         </td>
       </tr>
       <tr>
@@ -127,13 +128,13 @@ const clickEmoji = (messageId, emoji) => {
                 :class="{ 'selected': d[2] }">
                   <img :src="d[0]" 
                     class="emoji-img" 
-                    @click="clickEmoji(message.messageID, d)" /> {{d[1]}}
+                    @click="clickEmoji(message, d)" /> {{d[1]}}
               </span>
             </template>
             <template v-else>
               <span class="emoji-stamp"
                 :class="{ 'selected': d[2] }"
-                @click="clickEmoji(message.messageID, d)" >
+                @click="clickEmoji(message, d)" >
                 {{ d[0] }} {{d[1]}}
               </span>
             </template>
@@ -177,6 +178,7 @@ code {
 .setting span {
   margin: 2px;
   padding: 0px 2px;
+  cursor: pointer;
 }
 
 .aliasName {
@@ -215,8 +217,8 @@ code {
 }
 
 .emoji-img {
-  max-width: 20px;
-  max-height: 20px;
+  max-width: 23px;
+  max-height: 23px;
   padding: 2px;
 }
 

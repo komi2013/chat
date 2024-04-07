@@ -3,7 +3,6 @@ import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function message(pushData) {
-  const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
     channelID: pushData[2],
@@ -12,10 +11,8 @@ export async function message(pushData) {
     aliasImg: pushData[5],
     createdAt: pushData[6]
   };
-  upsertData(obj, 'message', 'messageID', pushData[1])
-    .then((message) => {
-      console.log(message);
-    })
+  const messagesStore = useMessagesStore();
+  upsertData(obj, 'message', 'messageID', obj.messageID)
     .catch((error) => {
       console.error(error);
     });

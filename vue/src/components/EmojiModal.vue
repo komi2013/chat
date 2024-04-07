@@ -19,21 +19,21 @@
 import { ref, defineProps, defineEmits } from 'vue';
 import { emojiPath } from '../my/emoji.js';
 
-const props = defineProps(['emojis', 'channelID', 'messageId', 'aliasName', 'parent_id']);
+const props = defineProps(['emojis', 'channelID', 'messageID', 'aliasName', 'parentID']);
 const emojis = ['😀','😁','/me.jpg','😂'];
 const emit = defineEmits();
 
-console.log('props.parent_id', props.parent_id);
-
 const selectEmoji = (emoji) => {
-  // emit('selectEmoji', emoji);
-  const uri = props.parent_id ? '/ThreadEdit/' : '/MessageEdit/';
   const fd = new FormData();
+  if (props.parentID) {
+    fd.append('parentID', props.parentID);
+  }
   fd.append('channelID', props.channelID);
-  fd.append('messageID', props.messageId);
-  fd.append('emoji', emoji);
+  fd.append('messageID', props.messageID);
+  fd.append('emojiValue', emoji);
   fd.append('aliasName', props.aliasName);
-  const request = new Request(uri, {
+
+  const request = new Request('/EmojiToggle/', {
     method: 'POST',
     body: fd,
   });
