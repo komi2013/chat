@@ -1,6 +1,7 @@
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData, updOne } from '../my/indexDB.js';
-
+import { getSubstring } from '../my/strings.js';
+import { removeMark } from '../my/markdown.js';
 export async function bookmark(pushData) {
   // arr = append(arr, "bookmark")
   // arr = append(arr, r.FormValue("messageID"))
@@ -28,7 +29,9 @@ export async function bookmark(pushData) {
     });
   const bm = {
     messageID: messageID,
-    channelID: channelID
+    channelID: channelID,
+    title: getSubstring(removeMark(idb.messageTxt), 0, 20),
+    displayStatus: 1
   };
   if (parentID) {
     bm.parentID = parentID

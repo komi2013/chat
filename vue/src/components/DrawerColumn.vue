@@ -98,6 +98,22 @@ const fetchMute = () => {
   });
 };
 
+const fetchBookmarks = () => {
+  return new Promise((resolve, reject) => {
+    getAllIDBs('bookmark')
+      .then((data) => {
+        data.forEach(d => {
+          threadHeadsStore.insert(d);
+        });
+        resolve();
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+
+
 const mentionChannel = () => {
   return new Promise((resolve, reject) => {
     getIDBs('channel', 'displayStatusIndex', 2)
@@ -162,20 +178,6 @@ const muteChannel = () => {
   });
 };
 
-// const fetchChannels = () => {
-//   return new Promise((resolve, reject) => {
-//     getAllIDBs('channel')
-//       .then((data) => {
-//         data.forEach(d => {
-//           channelsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
 
 function getStatusClass(status) {
   return {
@@ -199,6 +201,7 @@ onBeforeMount(async () => {
   await fetchUnread();
   await fetchRead();
   await fetchMute();
+  await fetchBookmarks();
   await mentionChannel();
   await unreadChannel();
   await readChannel();

@@ -50,7 +50,7 @@ const messageID = props.message.messageID;
 const messagesStore = useMessagesStore();
 
 let editTxt = ref({});
-editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel);
+editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel, []);
 // console.log('props.message.messageTxt' , props.message.messageTxt);
 // console.log('editTxt.value[messageID]' , editTxt.value[messageID]);
 const tasking = () => {
@@ -90,8 +90,15 @@ const handleFileInputChange = (event) => {
   }
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
-
+let clicked = false;
 const msgUpsert = (messageID, delMessage) => {
+  if (!messageID && quill.root.innerHTML == '<p><br></p>') {
+    return;
+  }
+  if (clicked) {
+    return;
+  }
+  clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const threadFlg = props.message.parentID;
   const uri = messageID ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
@@ -121,6 +128,9 @@ const msgUpsert = (messageID, delMessage) => {
     body: fd,
   });
   fetch(request)
+    .then(function(response) {
+      clicked = false;
+    })
     .catch((reason)=>{
       alert(reason)
     })

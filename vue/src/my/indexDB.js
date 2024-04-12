@@ -77,7 +77,7 @@ async function getIDB(table, id) {
   }
 }
 // getIDBs('thread', 'parentIDIndex', props.message_id)
-async function getIDBs(table, key, id, limit = 10) {
+async function getIDBs(table, key, id, limit = 5, offset = 0) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
@@ -88,11 +88,14 @@ async function getIDBs(table, key, id, limit = 10) {
     const request = index.openCursor(range, 'prev');
 
     const result = [];
-
+    let i = 0;
     request.onsuccess = (event) => {
       const cursor = event.target.result;
-      if (cursor && result.length < limit) {
-        result.push(cursor.value);
+      if (cursor) {
+        if (i >= offset && result.length < limit) {
+          result.push(cursor.value);
+        }
+        i++;
         cursor.continue();
       } else {
         resolve(result);

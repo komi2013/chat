@@ -11,7 +11,7 @@ import OtherModal from '../components/OtherModal.vue';
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
+import { getIDB, getIDBs, upsertData, getAllIDBs } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { toggleEdit, toggleBookmark } from '../my/other.js';
 
@@ -22,8 +22,6 @@ const props = defineProps({
   channel: Object,
   threadHead: Object
 });
-
-// const messages = props.messages;
 
 const messagesStore = useMessagesStore();
 messagesStore.deleteAll();
@@ -56,7 +54,6 @@ function createGetParams(params) {
 }
 
 const clickEmoji = (message, emoji) => {
-  console.log(channel.aliasName);
   const fd = new FormData();
   if (message.parentID) {
     fd.append('parentID', message.parentID);
@@ -75,6 +72,12 @@ const clickEmoji = (message, emoji) => {
       alert(reason)
     })
 };
+
+
+const aliass = ref([]);
+onBeforeMount(async () => {
+  aliass.value = await getAllIDBs('alias');
+});
 
 </script>
 
@@ -116,7 +119,9 @@ const clickEmoji = (message, emoji) => {
           <EditBox :channel="channel" :message="message" :threadHead="threadHead" />
         </td>
         <td v-else colspan="2" class="ql-container ql-snow" >
-          <div v-html="markdownToHtml(message.messageTxt, channel)" class="ql-editor"></div>
+          <div
+            v-html="markdownToHtml(message.messageTxt, channel, aliass)"
+            class="ql-editor"></div>
           <div class="threads" v-if="message.threadCount">
             <a :href="'/thread/' + channel.channelID + '/' + message.messageID + '/'">
               <span>{{message.threadCount}} messages &nbsp;</span>
@@ -242,6 +247,10 @@ code {
 
 .mentioned {
   background-color: #a7cad63d;
+  color: blue;
+}
+.mentionme {
+  background-color: #ffee00;
   color: blue;
 }
 </style>

@@ -50,7 +50,6 @@ async function fetchChannel() {
 async function fetchThreadHead() {
   try {
     const data = await getIDB('threadHead', props.message_id);
-    // console.log('already', data.aliasName, channel.value.aliasName);
     if (data.aliasName == channel.value.aliasName) {
       data.edit = true;
     }
@@ -70,17 +69,13 @@ async function fetchThreadHead() {
       threadHead.value = message;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
-      // threadHead.value.backURL = '/thread/' + props.channel_id + '/' + getParam('backID');
       threadHead.value.backID = getParam('backID');
-      // console.log('else threadHead.value', threadHead.value.messageID);
       messagesStore.insert(message);
     } else {
       const message = await getIDB('message', props.message_id);
       threadHead.value = message;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
-      // threadHead.value.backURL = '/channel/' + props.channel_id + '/';
-      // console.log('creating threadHead.value', threadHead.value);
       messagesStore.insert(message);
     }
   }

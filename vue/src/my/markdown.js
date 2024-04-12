@@ -51,7 +51,7 @@ const reverseParagraph = (html) => {
     .replace(/<p>([^]*?)<\/p>/g, '＊p＊$1・＊p＊');
 };
 
-export const markdownToHtml = (markdown, channel) => {
+export const markdownToHtml = (markdown, channel, aliass) => {
   if (!markdown) {
     return ''; 
   }
@@ -64,7 +64,7 @@ export const markdownToHtml = (markdown, channel) => {
   html = applyAttach(html, channel);
   html = applyLinks(html);
   html = applyColors(html);
-  html = applyMention(html);
+  html = applyMention(html, aliass);
   html = applyParagraphs(html);
   return html;
 };
@@ -99,8 +99,16 @@ const applyColors = (markdown) => {
   return markdown.replace(/色＊赤([^]*?)赤＊色/g, '<span style="color: red;">$1</span>');
 };
 
-const applyMention = (markdown) => {
-  return markdown.replace(/＠＠([^]*?)・＠＠/g, '<span class="mentioned" contenteditable="false">@$1</span>');
+const applyMention = (markdown, aliass) => {
+  const regex = /＠＠([^]*?)・＠＠/g;
+  aliass.forEach(d => {
+    const atName = '＠＠' + d.aliasName + '・＠＠';
+    if (markdown.includes(atName)) {
+      markdown = markdown.replace(new RegExp(atName, 'g'),
+        `<span class="mentionme" contenteditable="false">@${d.aliasName}</span>`);
+    }
+  });
+  return markdown.replace(regex, '<span class="mentioned" contenteditable="false">@$1</span>');
 };
 
 const applyParagraphs = (markdown) => {
