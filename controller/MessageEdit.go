@@ -6,7 +6,7 @@ import (
   "fmt"
   "log"
   "net/http"
-  // "strconv"
+  "strings"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -72,11 +72,22 @@ func MessageEdit(w http.ResponseWriter, r *http.Request) {
   }
   opts2 := options.FindOne().SetProjection(bson.D{
     {"user_ids", 1},
+    {"alias_array", 1},
   })
   coll.FindOne(context.TODO(), filter2, opts2).Decode(&channel)
   if err != nil {
     fmt.Printf(" err %s\n", err)
   }
+
+ 	var yets [][]string
+  for _, arrayData := range channel.AliasArray {
+  	atName := "＠＠" + arrayData[0] + "・＠＠"
+  	strings.Contains(r.FormValue("messageTxt"), atName)
+    if strings.Contains(r.FormValue("messageTxt"), atName) {
+      yets = append(yets, []string{arrayData[0], "/img/yet.png"})
+    }
+  }
+
   coll = db1.Collection("session")
   filter = bson.D{{
     "user_id", bson.D{{"$in", channel.UserIDs}}}}
@@ -105,15 +116,18 @@ func MessageEdit(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, "msgEdit")
   arr = append(arr, messageEdit.MessageID)
   arr = append(arr, messageEdit.MessageTxt)
-  arr = append(arr, messageEdit.Task)
+  if messageEdit.Task != "" {
+		arr = append(arr, yets)
+  } else {
+  	arr = append(arr, "")
+  }
   arr = append(arr, time.Now())
 
   msgJson, err := json.Marshal(arr)
   if err != nil {
     fmt.Println("JSON変換エラー:", err)
   }
-  fmt.Println("JSONs成功:", msgJson)
-  // JSON 文字列を表示
+
   fmt.Println(string(msgJson))
 
   for _, r := range results4 {

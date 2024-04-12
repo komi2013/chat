@@ -11,13 +11,11 @@ export async function thread(pushData) {
     aliasImg: pushData[5],
     createdAt: pushData[6],
     channelID: pushData[7],
-    backID: pushData[8]
+    backID: pushData[8],
+    emojis: pushData[9]
   };
   const messagesStore = useMessagesStore();
-  upsertData(obj, 'thread', 'messageID', obj.messageID)
-    .catch((error) => {
-      console.error(error);
-    });
+  upsertData(obj, 'thread', 'messageID', obj.messageID);
   let threadHead = {
     parentID: obj.parentID,
     messageTxt: obj.messageTxt,
@@ -38,7 +36,7 @@ export async function thread(pushData) {
     if (!parent.threadImgs.includes(obj.aliasImg)) {
         parent.threadImgs.push(obj.aliasImg);
     }
-    title = getSubstring(removeMark(parent.messageTxt), 0, 8);
+    title = getSubstring(removeMark(parent.messageTxt), 0, 30);
   } catch (error) {
     parent = {
       messageID: obj.parentID,
@@ -52,10 +50,7 @@ export async function thread(pushData) {
       threadImgs: [obj.aliasImg]
     };
   }
-  upsertData(parent, table, 'messageID', obj.parentID)
-    .catch((error) => {
-      console.error('parent, table', error);
-    });
+  upsertData(parent, table, 'messageID', obj.parentID);
   const alias = await getAllIDBs('alias');
   let displayStatus = 1;
   let notify = false;
@@ -87,13 +82,11 @@ export async function thread(pushData) {
     threadHead.createdAt = parent.createdAt;
     threadHead.updatedAt = obj.createdAt;
   }
-  upsertData(threadHead, 'threadHead', 'parentID', obj.parentID)
-    .catch((error) => {
-      console.error(error);
-    });
-
+  upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
   if (notify) {
-    new Notification(pushTitle, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
+    new Notification(pushTitle, {
+      body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg
+    });
   }
   if (messagesStore.currentDisplay(obj.parentID)) {
     messagesStore.insert(obj);

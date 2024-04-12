@@ -10,7 +10,6 @@ type ThreadStruct struct {
   MessageTxt  string      `bson:"message_txt,omitempty"`
   From  string      `bson:"from,omitempty"`
   FromImg  string      `bson:"from_img,omitempty"`
+  Task  string      `bson:"task,omitempty"`
   CreatedAt  time.Time `bson:"created_at,omitempty"`
-  ThreadTitle  time.Time `bson:"thread_title,omitempty"`
-  UnreadFlg  time.Time `bson:"unread_flg,omitempty"`
 }

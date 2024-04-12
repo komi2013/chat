@@ -9,13 +9,11 @@ export async function message(pushData) {
     messageTxt: pushData[3],
     aliasName: pushData[4],
     aliasImg: pushData[5],
-    createdAt: pushData[6]
+    createdAt: pushData[6],
+    emojis: pushData[7]
   };
   const messagesStore = useMessagesStore();
-  upsertData(obj, 'message', 'messageID', obj.messageID)
-    .catch((error) => {
-      console.error(error);
-    });
+  upsertData(obj, 'message', 'messageID', obj.messageID);
 
   const alias = await getAllIDBs('alias');
   let displayStatus = 1;
@@ -40,13 +38,10 @@ export async function message(pushData) {
   } catch (error) {
     console.log('this device dont have this channel but receive message', obj);
   }
-  upsertData(channel, 'channel', 'channelID', obj.channelID)
-    .catch((error) => {
-      console.error(error);
-    });
+  upsertData(channel, 'channel', 'channelID', obj.channelID);
 
   if (notify) {
-    new Notification(channel.channelName, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
+    new Notification(channel.channelName, { body: getSubstring(removeMark(obj.messageTxt), 0, 20), icon: obj.aliasImg });
   }
   if (messagesStore.currentDisplay(obj.channelID)) {
     messagesStore.insert(obj);

@@ -16,7 +16,7 @@
     </div>
     <div class="editRight ql-toolbar ql-snow">
       <button v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
-      <button @click="task" :class="{ 'task': message.task }">🔖</button>
+      <button @click="tasking" :class="{ 'task': task }">🔖</button>
       <button @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
@@ -45,6 +45,7 @@ const props = defineProps({
 });
 
 const message = props.message;
+let task = ref(false);
 const messageID = props.message.messageID;
 const messagesStore = useMessagesStore();
 
@@ -52,9 +53,8 @@ let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel);
 // console.log('props.message.messageTxt' , props.message.messageTxt);
 // console.log('editTxt.value[messageID]' , editTxt.value[messageID]);
-const task = () => {
-  message.task = !message.task;
-  console.log(message);
+const tasking = () => {
+  task.value = !task.value;
 };
 
 const attach = () => {
@@ -92,11 +92,11 @@ const handleFileInputChange = (event) => {
 }
 
 const msgUpsert = (messageID, delMessage) => {
-  const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML);
+  const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const threadFlg = props.message.parentID;
   const uri = messageID ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
   const fd = new FormData();
-  // fd.append('parentID', props.message.parentID);
+  fd.append('parentID', props.message.parentID);
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);
   fd.append('messageTxt', messageData);
@@ -104,7 +104,7 @@ const msgUpsert = (messageID, delMessage) => {
   if (props.threadHead && props.threadHead.backID) {
     fd.append('backID', props.threadHead.backID);
   }
-  if (message.task) {
+  if (task.value) {
     fd.append('task', 1);
   }
   const fileInput = document.getElementById('fileInput_' + messageID);
@@ -113,7 +113,9 @@ const msgUpsert = (messageID, delMessage) => {
       fd.append('files[]', file);
     }
   }
-
+  if (!messageID) {
+    quill.root.innerHTML = '';
+  }
   const request = new Request(uri, {
     method: 'POST',
     body: fd,
@@ -178,14 +180,13 @@ onMounted(() => {
 <style>
 
 .editLeft {
-  text-align: left;
   display: inline-block;
-  width: 76%;
+  width: 69%;
 }
 
 .editRight {
   display: inline-block;
-  width: 24%;
+  width: 30%;
 }
 
 .editText .ql-container.ql-snow {
@@ -202,7 +203,9 @@ onMounted(() => {
   border-bottom: 1px solid #d1d5db;
   border-left: 1px solid #d1d5db;
 }
-
+.ql-snow.ql-toolbar {
+  padding: 8px 0px;
+}
 .ql-snow.ql-toolbar .attachment {
   font-size: 12px;
   padding-top: 0px;

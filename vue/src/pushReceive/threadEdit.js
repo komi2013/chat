@@ -1,21 +1,33 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
+import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
+import { getSubstring } from '../my/strings.js';
+import { removeMark } from '../my/markdown.js';
 
 export async function threadEdit(pushData) {
   const rcv = {
     messageID: pushData[1],
     messageTxt: pushData[2],
-    task: pushData[3]
+    yets: pushData[3]
   };
   const messagesStore = useMessagesStore();
   if(rcv.messageTxt == ''){
-    deleteData('thread', 'messageID', rcv.messageID)
-      .catch((error) => {
-        console.error(error);
-      });
-      messagesStore.delete(rcv.messageID);
+    deleteData('thread', 'messageID', rcv.messageID);
+    messagesStore.delete(rcv.messageID);
   } else {
     const idb = await getIDB('thread', rcv.messageID);
+    let emojis;
+    if (rcv.yets) {
+      if (idb.emojis) {
+        const filtered = idb.emojis.filter(
+          ([name, url]) => !rcv.yets.some(([n, u]) => n === name && u === url)
+        );
+        emojis = rcv.yets.concat(filtered);
+      } else {
+        emojis = rcv.yets;
+      }
+    } else {
+      emojis = idb.emojis;
+    }
     const obj = {
       parentID: idb.parentID,
       messageID: idb.messageID,
@@ -24,12 +36,9 @@ export async function threadEdit(pushData) {
       aliasName: idb.aliasName,
       aliasImg: idb.aliasImg,
       createdAt: idb.createdAt,
-      emojis: idb.emojis
+      emojis: emojis
     };
-    upsertData(obj, 'thread', 'messageID', idb.messageID)
-      .catch((error) => {
-        console.error(error);
-      });
+    upsertData(obj, 'thread', 'messageID', idb.messageID);
     const alias = await getAllIDBs('alias');
     let displayStatus = 1;
     let notify = false;
@@ -41,6 +50,12 @@ export async function threadEdit(pushData) {
         displayStatus = 2;
         notify = true;
         return;
+      }
+      if (obj.messageTxt.includes(atName)) {
+        displayStatus = 2;
+        if (d.groupFlg != 1) {
+          notify = true;
+        }
       }
     });
 
@@ -54,18 +69,15 @@ export async function threadEdit(pushData) {
     } catch (error) {
       console.log('this device dont have this threadHead but receive message', obj);
     }
-    upsertData(threadHead, 'threadHead', 'parentID', obj.parentID)
-      .catch((error) => {
-        console.error(error);
-      });
+    upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
     if (notify) {
-      new Notification(pushTitle, { body: getSubstring(removeMark(obj.messageTxt), 0, 8), icon: obj.aliasImg });
+      new Notification(threadHead.title, {
+        body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg
+      });
     }
     if (messagesStore.currentDisplay(obj.parentID)) {
-      messagesStore.insert(obj);
+      messagesStore.update(obj, idb.messageID);
     }
   }
 
 }
-
-
