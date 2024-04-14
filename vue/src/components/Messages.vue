@@ -22,14 +22,52 @@ const props = defineProps({
   channel: Object,
   threadHead: Object
 });
-
+const channel = props.channel;
 const messagesStore = useMessagesStore();
-messagesStore.deleteAll();
 const messages = computed(() => {
   return messagesStore.messages;
 });
+const limit = 5;
+let offset = 0;
+let more = false;
+const fetchMessages = (table, index, parentMessageID) => {
+  return new Promise((resolve, reject) => {
+    getIDBs(table, index, parentMessageID, limit, offset)
+      .then((data) => {
+        const latest = data.reverse();
+        latest.forEach(message => {
+          messagesStore.insert(message);
+        });
+        resolve();
+        if (latest.length == limit) {
+          offset += limit;
+          more = true;
+        } else {
+          more = false;
+        }
+      });
+  });
+};
 
-const channel = props.channel;
+const moreMessages = () => {
+  return new Promise((resolve, reject) => {
+    getIDBs(table, index, parentMessageID, limit, offset)
+      .then((data) => {
+        const latest = data;
+        latest.forEach(message => {
+          messagesStore.unshift(message, addPosition);
+        });
+        resolve();
+        if (latest.length == limit) {
+          offset += limit;
+          more = true;
+        } else {
+          more = false;
+        }
+      });
+  });
+};
+
 
 function nextURL (message) {
   let URL = '';
@@ -75,7 +113,19 @@ const clickEmoji = (message, emoji) => {
 
 
 const aliass = ref([]);
+let table = 'message';
+let index = 'channelIDIndex';
+let parentMessageID = channel.channelID;
+let addPosition = 0;
+if (props.threadHead) {
+  table = 'thread';
+  index = 'parentIDIndex';
+  parentMessageID = props.threadHead.parentID;
+  addPosition = 1;
+}
+
 onBeforeMount(async () => {
+  await fetchMessages(table, index, parentMessageID);
   aliass.value = await getAllIDBs('alias');
 });
 
@@ -84,7 +134,9 @@ onBeforeMount(async () => {
 
 <template>
   <div class="messages" >
-    <table v-for="message in messages" :key="message.messageID">
+    <div v-if="more" @click="moreMessages" class="more"> - - more - - </div>
+    <template v-for="(message, k) in messages" :key="message.messageID" >
+    <table v-if="!more || k > 0">
       <tr>
         <td rowspan="2" class="icon_td">
           <img v-if="message.aliasImg" :src="message.aliasImg" class="icon">
@@ -148,6 +200,7 @@ onBeforeMount(async () => {
         </td>
       </tr>
     </table>
+    </template>
   </div>
 </template>
 
@@ -252,5 +305,13 @@ code {
 .mentionme {
   background-color: #ffee00;
   color: blue;
+}
+.more {
+  background-color: silver;
+/*  color: #fff;*/
+  margin: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
 }
 </style>

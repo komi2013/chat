@@ -1,8 +1,17 @@
+import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function message(pushData) {
+  // arr = append(arr, insertedID)
+  // arr = append(arr, channelID)
+  // arr = append(arr, message.MessageTxt)
+  // arr = append(arr, aliasName)
+  // arr = append(arr, aliasImg)
+  // arr = append(arr, time.Now())
+  const bookmarksStore = useBookmarksStore();
+  const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
     channelID: pushData[2],
@@ -12,9 +21,6 @@ export async function message(pushData) {
     createdAt: pushData[6],
     emojis: pushData[7]
   };
-  const messagesStore = useMessagesStore();
-  upsertData(obj, 'message', 'messageID', obj.messageID);
-
   const alias = await getAllIDBs('alias');
   let displayStatus = 1;
   let notify = false;
@@ -38,6 +44,18 @@ export async function message(pushData) {
   } catch (error) {
     console.log('this device dont have this channel but receive message', obj);
   }
+  if (displayStatus == 2) {
+    const bm = {
+      messageID: obj.messageID,
+      channelID: obj.channelID,
+      title: getSubstring(removeMark(obj.messageTxt), 0, 20),
+      displayStatus: 1
+    };
+    upsertData(bm, 'bookmark', 'messageID', obj.messageID);
+    bookmarksStore.insert(bm);
+    obj.bookmark = 1;
+  }
+  upsertData(obj, 'message', 'messageID', obj.messageID);
   upsertData(channel, 'channel', 'channelID', obj.channelID);
 
   if (notify) {

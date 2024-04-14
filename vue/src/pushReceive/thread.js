@@ -1,8 +1,11 @@
+import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
+  const bookmarksStore = useBookmarksStore();
+  const messagesStore = useMessagesStore();
   const obj = {
     messageID: pushData[1],
     parentID: pushData[2],
@@ -14,8 +17,6 @@ export async function thread(pushData) {
     backID: pushData[8],
     emojis: pushData[9]
   };
-  const messagesStore = useMessagesStore();
-  upsertData(obj, 'thread', 'messageID', obj.messageID);
   let threadHead = {
     parentID: obj.parentID,
     messageTxt: obj.messageTxt,
@@ -45,12 +46,11 @@ export async function thread(pushData) {
       aliasName: obj.aliasName,
       aliasImg: obj.aliasImg,
       createdAt: obj.createdAt,
-      emoji: [],
+      emoji: obj.emojis,
       threadCount: 1,
       threadImgs: [obj.aliasImg]
     };
   }
-  upsertData(parent, table, 'messageID', obj.parentID);
   const alias = await getAllIDBs('alias');
   let displayStatus = 1;
   let notify = false;
@@ -82,6 +82,19 @@ export async function thread(pushData) {
     threadHead.createdAt = parent.createdAt;
     threadHead.updatedAt = obj.createdAt;
   }
+  if (displayStatus == 2) {
+    const bm = {
+      messageID: obj.messageID,
+      channelID: obj.channelID,
+      title: getSubstring(removeMark(obj.messageTxt), 0, 20),
+      displayStatus: 1
+    };
+    upsertData(bm, 'bookmark', 'messageID', obj.messageID);
+    bookmarksStore.insert(bm);
+    obj.bookmark = 1;
+  }
+  upsertData(obj, 'thread', 'messageID', obj.messageID);
+  upsertData(parent, table, 'messageID', obj.parentID);
   upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
   if (notify) {
     new Notification(pushTitle, {

@@ -34,33 +34,9 @@ async function fetchData() {
   }
 }
 
-const fetchMessageData = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('message', 'channelIDIndex', props.id)
-      .then((data) => {
-        const sortedData = data.sort((a, b) => {
-          if (a.createdAt < b.createdAt) {
-            return -1;
-          } else if (a.createdAt > b.createdAt) {
-            return 1;
-          } else {
-            return 0;
-          }
-        });
-        sortedData.forEach(message => {
-          messagesStore.insert(message);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
-
 onBeforeMount(async () => {
   await fetchData();
-  await fetchMessageData();
+  // await fetchMessageData();
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
   window.scrollTo(0,content.scrollHeight);

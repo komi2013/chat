@@ -38,7 +38,6 @@ const msg = {
 const channel = ref('');
 
 async function fetchChannel() {
-  console.log('props.channel_id', props.channel_id);
   try {
     const data = await getIDB('channel', props.channel_id);
     channel.value = data;
@@ -67,6 +66,7 @@ async function fetchThreadHead() {
     if (getParam('backID')) {
       const message = await getIDB('thread', props.message_id);
       threadHead.value = message;
+      threadHead.value.parentID = props.message_id;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
       threadHead.value.backID = getParam('backID');
@@ -74,28 +74,13 @@ async function fetchThreadHead() {
     } else {
       const message = await getIDB('message', props.message_id);
       threadHead.value = message;
+      threadHead.value.parentID = props.message_id;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
       messagesStore.insert(message);
     }
   }
 }
-
-const fetchMessageData = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('thread', 'parentIDIndex', props.message_id)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(message => {
-          messagesStore.insert(message);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
 
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
@@ -112,7 +97,6 @@ function readStatus () {
 onBeforeMount(async () => {
   await fetchChannel();
   await fetchThreadHead();
-  await fetchMessageData();
   readStatus();
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
@@ -152,11 +136,11 @@ function backTo(backID) {
   </div>
 </div>
 
-  <template v-if="channel">
+  <template v-if="channel && messages && threadHead">
     <Messages :channel="channel" :messages="messages" :threadHead="threadHead" />
   </template>
 
-<div class="editText" v-if="threadHead">
+<div class="editText" v-if="channel && threadHead">
   <EditBox :channel="channel" :message="msg" :threadHead="threadHead" />
 </div>
 <br>

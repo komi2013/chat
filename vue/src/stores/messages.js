@@ -10,6 +10,9 @@ export const useMessagesStore = defineStore({
     insert(data) {
       this.messages.push(data);
     },
+    unshift(data, position) {
+      this.messages.splice(position, 0, data);
+    },
     update(data, messageID) {
       const index = this.messages.findIndex(message => message.messageID === messageID);
       if (index !== -1) {

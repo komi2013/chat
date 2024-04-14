@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
+import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { getIDB, getIDBs, getAllIDBs, upsertData } from '../my/indexDB.js';
@@ -9,26 +10,15 @@ const threadHeads = computed(() => {
   return threadHeadsStore.threadHeads
 })
 
+const bookmarksStore = useBookmarksStore()
+const bookmarks = computed(() => {
+  return bookmarksStore.bookmarks
+})
+
 const channelsStore = useChannelsStore()
 const channels = computed(() => {
   return channelsStore.channels
 })
-
-// const fetchThreadHeads = () => {
-//   return new Promise((resolve, reject) => {
-//     getAllIDBs('threadHead')
-//       .then((data) => {
-//         data.forEach(d => {
-//           threadHeadsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
-
 
 const fetchMention = () => {
   return new Promise((resolve, reject) => {
@@ -103,7 +93,7 @@ const fetchBookmarks = () => {
     getAllIDBs('bookmark')
       .then((data) => {
         data.forEach(d => {
-          threadHeadsStore.insert(d);
+          bookmarksStore.insert(d);
         });
         resolve();
       })
@@ -202,6 +192,8 @@ onBeforeMount(async () => {
   await fetchRead();
   await fetchMute();
   await fetchBookmarks();
+  console.log(bookmarks.value.length);
+  // const bookmarks = await getAllIDBs('bookmark');
   await mentionChannel();
   await unreadChannel();
   await readChannel();
@@ -231,6 +223,15 @@ onBeforeMount(async () => {
           <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
         </td>
       </tr>
+    <template v-if="bookmarks.length > 0">
+      <tr><td>Bookmarks</td></tr>
+      <tr v-for="d in bookmarks">
+        <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
+          <a :href="'/thread/' + d.channelID + '/' + d.messageID + '/?backID=' + d.parentID">
+            {{ d.title }}</a>
+        </td>
+      </tr>
+    </template>
       <tr><td>Channels</td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">

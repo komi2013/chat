@@ -1,3 +1,4 @@
+import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring } from '../my/strings.js';
@@ -9,12 +10,22 @@ export async function threadEdit(pushData) {
     messageTxt: pushData[2],
     yets: pushData[3]
   };
+  const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
   if(rcv.messageTxt == ''){
     deleteData('thread', 'messageID', rcv.messageID);
     messagesStore.delete(rcv.messageID);
   } else {
     const idb = await getIDB('thread', rcv.messageID);
+    const obj = {
+      parentID: idb.parentID,
+      messageID: idb.messageID,
+      channelID: idb.channelID,
+      messageTxt: rcv.messageTxt,
+      aliasName: idb.aliasName,
+      aliasImg: idb.aliasImg,
+      createdAt: idb.createdAt
+    };
     let emojis;
     if (rcv.yets) {
       if (idb.emojis) {
@@ -28,17 +39,7 @@ export async function threadEdit(pushData) {
     } else {
       emojis = idb.emojis;
     }
-    const obj = {
-      parentID: idb.parentID,
-      messageID: idb.messageID,
-      channelID: idb.channelID,
-      messageTxt: rcv.messageTxt,
-      aliasName: idb.aliasName,
-      aliasImg: idb.aliasImg,
-      createdAt: idb.createdAt,
-      emojis: emojis
-    };
-    upsertData(obj, 'thread', 'messageID', idb.messageID);
+    obj.emojis = emojis;
     const alias = await getAllIDBs('alias');
     let displayStatus = 1;
     let notify = false;
@@ -69,6 +70,18 @@ export async function threadEdit(pushData) {
     } catch (error) {
       console.log('this device dont have this threadHead but receive message', obj);
     }
+    if (displayStatus == 2) {
+      const bm = {
+        messageID: idb.messageID,
+        channelID: idb.channelID,
+        title: getSubstring(removeMark(rcv.messageTxt), 0, 20),
+        displayStatus: 1
+      };
+      upsertData(bm, 'bookmark', 'messageID', idb.messageID);
+      bookmarksStore.insert(bm);
+      obj.bookmark = 1;
+    }
+    upsertData(obj, 'thread', 'messageID', idb.messageID);
     upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
     if (notify) {
       new Notification(threadHead.title, {
