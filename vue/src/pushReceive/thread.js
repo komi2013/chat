@@ -14,8 +14,9 @@ export async function thread(pushData) {
     aliasImg: pushData[5],
     createdAt: pushData[6],
     channelID: pushData[7],
-    backID: pushData[8],
-    emojis: pushData[9]
+    threadType: pushData[8],
+    backID: pushData[9],
+    emojis: pushData[10]
   };
   let threadHead = {
     parentID: obj.parentID,

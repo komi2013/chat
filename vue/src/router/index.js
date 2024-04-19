@@ -26,6 +26,11 @@ const router = createRouter({
       }),
     },
     {
+      path: '/redirect/',
+      name: 'redirect',
+      component: () => import('../views/Redirect.vue')
+    },
+    {
       path: '/sign/',
       name: 'sign',
       component: () => import('../views/SignView.vue')

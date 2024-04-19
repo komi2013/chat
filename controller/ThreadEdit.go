@@ -137,8 +137,8 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
     // Send Notification
     resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
       Subscriber:      "example@example.com",
-      VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
-      VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
+      VAPIDPublicKey:  common.VAPIDPublicKey,
+      VAPIDPrivateKey: common.VAPIDPrivateKey,
       TTL:             30,
     })
     if err != nil {

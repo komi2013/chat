@@ -63,13 +63,29 @@ async function fetchThreadHead() {
     message.emojis = data.emojis;
     messagesStore.insert(message);
   } catch (error) {
-    if (getParam('backID')) {
+    if (props.message_id.includes('@')) {
+      const parts = props.message_id.split('@');
+      const toWhom = parts[0] === channel.value.aliasName ? parts[1] : parts[0];
+      const threadHeadValue = {
+        channelID: channel.value.channelID,
+        parentID: props.message_id,
+        title: getSubstring(toWhom, 0, 12),
+        messageTxt: toWhom,
+        aliasName: channel.value.aliasName,
+        aliasImg: channel.value.aliasImg,
+        threadType: 1,
+        aliasNames: parts,
+        displayStatus: 0
+      }
+      threadHead.value = threadHeadValue;
+    } else if (getParam('backID')) {
       const message = await getIDB('thread', props.message_id);
       threadHead.value = message;
       threadHead.value.parentID = props.message_id;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
       threadHead.value.backID = getParam('backID');
+      threadHead.value.threadType = 0;
       messagesStore.insert(message);
     } else {
       const message = await getIDB('message', props.message_id);
@@ -77,6 +93,7 @@ async function fetchThreadHead() {
       threadHead.value.parentID = props.message_id;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
+      threadHead.value.threadType = 0;
       messagesStore.insert(message);
     }
   }

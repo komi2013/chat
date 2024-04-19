@@ -114,7 +114,17 @@ const msgUpsert = (messageID, delMessage) => {
   if (task.value) {
     fd.append('task', 1);
   }
+  if (props.threadHead.threadType) {
+    fd.append('type', props.threadHead.threadType);
+    if (props.threadHead.parentID.includes('@')) {
+      fd.append('names', props.threadHead.aliasNames);
+    }
+  }
   const fileInput = document.getElementById('fileInput_' + messageID);
+  // if (fileInput && fileInput.files.length > 10) {
+  //   alert('too many files');
+  //   return;
+  // }
   if (fileInput && fileInput.files.length > 0) {
     for (const file of fileInput.files) {
       fd.append('files[]', file);

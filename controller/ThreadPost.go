@@ -165,6 +165,8 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, aliasImg)
   arr = append(arr, time.Now())
   arr = append(arr, r.FormValue("channelID"))
+  arr = append(arr, r.FormValue("type"))
+  arr = append(arr, r.FormValue("names"))
   arr = append(arr, r.FormValue("backID"))
   if message.Task != "" {
 		arr = append(arr, yets)
@@ -185,8 +187,8 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
     // Send Notification
     resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
       Subscriber:      "example@example.com",
-      VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
-      VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
+      VAPIDPublicKey:  common.VAPIDPublicKey,
+      VAPIDPrivateKey: common.VAPIDPrivateKey,
       TTL:             30,
     })
     if err != nil {

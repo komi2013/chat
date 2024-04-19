@@ -48,4 +48,19 @@ const emojiPath = (str) => {
   return filePathRegex.test(str);
 };
 
+
+export const isEmojiedOpen = ref(false);
+export const openEmojied = (messageId) => {
+  console.log('openEmojied');
+  isEmojiedOpen.value = true;
+  selectedMessageId.value = messageId;
+};
+
+export const closeEmojied = () => {
+  console.log('closeEmojied');
+  isEmojiedOpen.value = false;
+  selectedMessageId.value = null;
+};
+
+
 export { openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath };

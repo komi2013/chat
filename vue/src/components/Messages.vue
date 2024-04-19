@@ -1,20 +1,15 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue'
-
-// import '@vueup/vue-quill/dist/vue-quill.snow.css';
-
-import DrawerColumn from '../components/DrawerColumn.vue'
-import EditBox from '../components/EditBox.vue'
+import { ref, computed, onBeforeMount } from 'vue';
+import DrawerColumn from '../components/DrawerColumn.vue';
+import EditBox from '../components/EditBox.vue';
 import EmojiModal from '../components/EmojiModal.vue';
-import OtherModal from '../components/OtherModal.vue';
-
+import EmojiedModal from '../components/EmojiedModal.vue';
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData, getAllIDBs } from '../my/indexDB.js';
-import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
+import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath, isEmojiedOpen, openEmojied, closeEmojied } from '../my/emoji.js';
 import { toggleEdit, toggleBookmark } from '../my/other.js';
-
 import { markdownToHtml } from '../my/markdown.js';
 
 const props = defineProps({
@@ -155,15 +150,15 @@ onBeforeMount(async () => {
             :class="{ 'selected': message.bookmark }"
             @click="toggleBookmark(message)"> 🔖 </span>
           <span @click="openEmoji(message.messageID)"> 😄 </span>
-            <EmojiModal
-              :key="message.messageID"
-              v-if="isEmojiOpen && selectedMessageId === message.messageID"
-              @selectEmoji="selectEmoji"
-              @closeEmoji="closeEmoji"
-              :channelID="channel.channelID"
-              :messageID="message.messageID"
-              :aliasName="channel.aliasName"
-              :parentID="message.parentID" />
+          <EmojiModal
+            :key="message.messageID"
+            v-if="isEmojiOpen && selectedMessageId === message.messageID"
+            @selectEmoji="selectEmoji"
+            @closeEmoji="closeEmoji"
+            :channelID="channel.channelID"
+            :messageID="message.messageID"
+            :aliasName="channel.aliasName"
+            :parentID="message.parentID" />
         </td>
       </tr>
       <tr>
@@ -174,12 +169,6 @@ onBeforeMount(async () => {
           <div
             v-html="markdownToHtml(message.messageTxt, channel, aliass)"
             class="ql-editor"></div>
-          <div class="threads" v-if="message.threadCount">
-            <a :href="'/thread/' + channel.channelID + '/' + message.messageID + '/'">
-              <span>{{message.threadCount}} messages &nbsp;</span>
-              <template v-for="img in message.threadImgs"><img :src="img" class="iconMini"></template>
-            </a>
-          </div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
               <span class="img-stamp"
@@ -197,6 +186,25 @@ onBeforeMount(async () => {
               </span>
             </template>
           </template>
+          <span v-if="calcEmoji(message.emojis, channel.aliasName).length"
+            class="emojied"
+            @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
+          </span>
+          <EmojiedModal
+            :key="message.messageID"
+            v-if="isEmojiedOpen && selectedMessageId === message.messageID"
+            @closeEmojied="closeEmojied"
+            :channelID="channel.channelID"
+            :messageID="message.messageID"
+            :aliasName="channel.aliasName"
+            :parentID="message.parentID"
+            :emojis="message.emojis" />
+          <div class="threads" v-if="message.threadCount">
+            <a :href="'/thread/' + channel.channelID + '/' + message.messageID + '/'">
+              <span>{{message.threadCount}} messages &nbsp;</span>
+              <template v-for="img in message.threadImgs"><img :src="img" class="iconMini"></template>
+            </a>
+          </div>
         </td>
       </tr>
     </table>
@@ -281,12 +289,21 @@ code {
   padding: 2px;
 }
 
+.emojied {
+  vertical-align: bottom;
+  background-color: aliceblue;
+  border-radius: 4px;
+  padding: 0px 4px;
+  cursor: pointer;
+}
+
 .ql-editor {
   padding: 0;
 }
 .iconMini {
   max-width: 26px;
   max-height: 26px;
+  border-radius: 10%;
 }
 .threads a {
   cursor: pointer;
