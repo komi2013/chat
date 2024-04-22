@@ -33,7 +33,7 @@ const router = createRouter({
     {
       path: '/sign/',
       name: 'sign',
-      component: () => import('../views/SignView.vue')
+      component: () => import('../views/Sign.vue')
     },
     {
       path: '/addChannel/',
