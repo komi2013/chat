@@ -18,6 +18,7 @@ func main() {
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
 		http.HandleFunc("/EmojiToggle/", controller.EmojiToggle)
+		http.HandleFunc("/GoogleIdentity/", controller.GoogleIdentity)
 		http.HandleFunc("/MessageEdit/", controller.MessageEdit)
 		http.HandleFunc("/MessagePost/", controller.MessagePost)
 		http.HandleFunc("/Init/", controller.Init)
