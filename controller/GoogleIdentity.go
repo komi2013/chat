@@ -127,11 +127,5 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 	}
-  type View struct {
-    Redirect   string
-  }
-  var view View
-  view.Redirect = "/"
-  tpl := template.Must(template.ParseFiles("view/redirect.html"))
-  tpl.Execute(w, view)
+  http.Redirect(w, r, "/redirect/", http.StatusSeeOther)
 }
