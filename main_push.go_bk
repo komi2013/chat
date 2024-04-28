@@ -13,7 +13,7 @@ func main() {
 	// fmt.Println(str)
 	// Decode subscription
 	s := &webpush.Subscription{}
-	json.Unmarshal([]byte(`{"endpoint":"https://fcm.googleapis.com/fcm/send/cYSrnHSWCtI:APA91bFNaBgx9eRYSZiAGYCxlPAh6e3j8WkFI_1wRdWzqYtpbpxcck76oB9oRFEYiuABy2nWO-O8KsnF9Xo3cPqRhhop7q_BuO0qMYXihDY2kWGhzsdriztgfsei3T6SUnm24eq1YA8Q","expirationTime":null,"keys":{"p256dh":"BBkbQ5jb1u60NSZhxg5fEvsWKkTpW34y-sMxRJP8Oyiscdnj89oZzND7qZEeIEmEUVbgDj5jtkB0d8MTkj7lpoQ","auth":"C8GdBJWx4fAB-HJkvVEzOQ"}}`), s)
+	json.Unmarshal([]byte(`{"endpoint":"https://fcm.googleapis.com/fcm/send/c9qYw62veww:APA91bG2cAtwWZtoc41vb3zJqsXMwG209pafhnY50vTosdDlTf2mKr77tRDDFQ-7Zg3Y74DAa_BA6cx7pK1AVemcT4Ki-B-OslRfwSGqMhnTE0CUCdI7ELXQ3WCF4PbYHcxHEkltTOtY","expirationTime":null,"keys":{"p256dh":"BBM6bvT-0sRuvehGvPSFWtn3QWqheLCIGXOP-XGwBc4dGVetq0JOF0GULb-MeeHiSS3igtw3QL8u-IuD-xizUag","auth":"Ksmgx2nrgi0cg6rwO6YemA"}}`), s)
 
 	// Send Notification
 	resp, err := webpush.SendNotification([]byte(`["message","seijiro"]`), s, &webpush.Options{
