@@ -26,6 +26,11 @@ const router = createRouter({
       }),
     },
     {
+      path: '/mypage/',
+      name: 'mypage',
+      component: () => import('../views/mypage.vue')
+    },
+    {
       path: '/redirect/',
       name: 'redirect',
       component: () => import('../views/Redirect.vue')

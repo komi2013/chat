@@ -14,8 +14,10 @@ import (
 	 "chat/common"
 )
 
-func SetCookie(w http.ResponseWriter, r *http.Request) {
+func PushSubscribe(w http.ResponseWriter, r *http.Request) {
+	cookie, _ := r.Cookie("ss")
   log.Println(r.URL)
+  log.Println("hihii")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -25,32 +27,14 @@ func SetCookie(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Disconnect(ctx)
 	db1 := c.Database(common.MongoDb1)
-
+	
 	coll := db1.Collection("session")
-
-	filter := bson.D{{"_id", r.FormValue("userID")}}
-	// arrAlias := []string{r.FormValue("userID")}
-	var aliasArray [][]string
-	aliasArray[0][0] = r.FormValue("alias")
+	filter := bson.D{{"_id", cookie.Value}}
 	update := bson.D{{"$set", bson.D{
-		{"user_id", r.FormValue("userID")},
-		{"alias_array", aliasArray},
 		{"subscription", r.FormValue("subscription")},
-		{"created_at", time.Now()}}}}
-	opts := options.Update().SetUpsert(true)
+		{"updated_at", time.Now()}}}}
+	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 
-  cookie := &http.Cookie{
-    Name:     "ss",
-    Value:    r.FormValue("userID"),
-    MaxAge:   101556952,
-    Secure:   true,
-    HttpOnly: true,
-    Path:     "/",
-  }
-  http.SetCookie(w, cookie)
-  
-  fmt.Printf("%s", r.FormValue("userID"))
-
-  fmt.Fprint(w, `[1]`)
+  fmt.Fprint(w, `{"Status":"1"}`)
 }

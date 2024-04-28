@@ -22,6 +22,7 @@
               subscription: subscription,
             })
           );
+          pushSubscribe(subscription);
         })
         .catch(err => console.error(err));
     }
@@ -48,12 +49,29 @@
             console.log(
               JSON.stringify(subscription)
             );
+            pushSubscribe(subscription);
           }
         });
-      navigator.serviceWorker.addEventListener('message', event => {
-        const notificationData = event.data.notificationData;
-        console.log(`Received data from Service Worker: "${notificationData}"`);
+      // navigator.serviceWorker.addEventListener('message', event => {
+      //   const notificationData = event.data.notificationData;
+      //   console.log(`Received data from Service Worker: "${notificationData}"`);
+      // });
+    }
+    function pushSubscribe(subscription) {
+      const fd = new FormData();
+      fd.append('subscription', JSON.stringify(subscription));
+      const request = new Request('/PushSubscribe/', {
+        method: 'POST',
+        body: fd,
       });
+      fetch(request)
+        .then((response) => response.json())
+        .then((json)=>{
+          // when status not 1
+        })
+        .catch((reason)=>{
+          console.log(reason)
+        })
     }
   </script>
 </body>

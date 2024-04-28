@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
   "fmt"
-  "html/template"
   "log"
   // "encoding/json"
   "net/http"
@@ -85,7 +84,7 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
   }
   http.SetCookie(w, cookie)
 
-  var session collection.SessionStruct
+  var ssAlready collection.SessionStruct
   coll = db1.Collection("session")
 	filter3 := bson.D{{"user_id", user.UserID}}
   opts3 := options.FindOne().SetProjection(bson.D{
@@ -94,7 +93,7 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
   }).SetSort(bson.D{
     {"created_at", -1},
 	})
-  err = coll.FindOne(context.TODO(), filter3, opts3).Decode(&session)
+  err = coll.FindOne(context.TODO(), filter3, opts3).Decode(&ssAlready)
 
 	if err == mongo.ErrNoDocuments {
 		// ドキュメントが見つからない場合の処理
@@ -119,7 +118,7 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 	  session := collection.SessionStruct{
 			SessionID: sessionID,
 			UserID: user.UserID,
-			AliasArray: session.AliasArray,
+			AliasArray: ssAlready.AliasArray,
 			CreatedAt: time.Now(),
 		}
 		_, err := coll.InsertOne(context.TODO(), session)
@@ -127,5 +126,5 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 	}
-  http.Redirect(w, r, "/redirect/", http.StatusSeeOther)
+  http.Redirect(w, r, "/mypage/", http.StatusSeeOther)
 }
