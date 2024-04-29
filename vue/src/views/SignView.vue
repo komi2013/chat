@@ -53,6 +53,7 @@ fetch(request)
       updatedAt: d[3],
       aliasArray: d[4],
       aliasName: d[5],
+      displayStatus: 1
     };
     upsertData(channel, 'channel', 'channelID', channel.channelID)
       .then((message) => {

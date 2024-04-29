@@ -114,7 +114,7 @@ const msgUpsert = (messageID, delMessage) => {
   if (task.value) {
     fd.append('task', 1);
   }
-  if (props.threadHead.threadType) {
+  if (props.threadHead && props.threadHead.threadType) {
     fd.append('type', props.threadHead.threadType);
     if (props.threadHead.parentID.includes('@')) {
       fd.append('names', props.threadHead.aliasNames);

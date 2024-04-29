@@ -19,7 +19,7 @@ import (
 )
 
 func Init(w http.ResponseWriter, r *http.Request) {
-	cookie, _ := r.Cookie("ss")
+	// cookie, _ := r.Cookie("ss")
 	// if err != nil {
 	// 	return ""
 	// }
@@ -36,7 +36,7 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	var session collection.SessionStruct
 
 	coll := db1.Collection("session")
-	filter := bson.D{{"_id", cookie.Value}}
+	filter := bson.D{{}}
 	// opts := options.FindOne().SetProjection(projection)
 	opts := options.FindOne().SetProjection(bson.D{
 		{"user_id", 1},
@@ -46,7 +46,6 @@ func Init(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-
 	coll = db1.Collection("alias")
 	filter = bson.D{{"user_id", session.UserID}}
 	project := bson.D{
