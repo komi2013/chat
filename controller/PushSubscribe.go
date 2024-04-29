@@ -18,6 +18,8 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 	cookie, _ := r.Cookie("ss")
   log.Println(r.URL)
   log.Println("hihii")
+  log.Println(r.FormValue("subscription"))
+  
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
