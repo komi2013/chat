@@ -27,7 +27,7 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Disconnect(ctx)
 	db1 := c.Database(common.MongoDb1)
-	
+	log.Println(cookie.Value)
 	coll := db1.Collection("session")
 	filter := bson.D{{"_id", cookie.Value}}
 	update := bson.D{{"$set", bson.D{
