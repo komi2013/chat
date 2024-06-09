@@ -2,34 +2,33 @@ package controller
 
 import (
   "context"
-  // "encoding/json"
+  "encoding/base64"
+  "encoding/json"
   "fmt"
+  "io/ioutil"
   "log"
   "net/http"
+  "os"
+  "strings"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  "go.mongodb.org/mongo-driver/bson/primitive"
+  // "go.mongodb.org/mongo-driver/bson/primitive"
 
-  // webpush "github.com/SherClockHolmes/webpush-go"
+  webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
   "chat/common"
-  // "chat/logic/quiz"
 )
 
 func ChannelAdd(w http.ResponseWriter, r *http.Request) {
-  cookie, _ := r.Cookie("ss")
-  // if err != nil {
-  //  return ""
-  // }
-
-  channelName := r.FormValue("channelName")
-  aliasName := r.FormValue("aliasName")
-  channelDescription := r.FormValue("channelDescription")
-
+	session, err := common.Session(w,r)
+	if err != nil {
+  	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+    return
+	}
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -39,81 +38,122 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  var session collection.SessionStruct
+  //  channelName: 改めてグループ
+	// description: <p>ここはディスクリプション</p>
+	// aliasName: コマツ
+	// aliasImg: 
+	// jsonBytes := []byte(r.FormValue("aliasArray"))
+	// var aliases [][]string
+	// json.Unmarshal(jsonBytes, &aliases)
 
+	// aliases
+ //  fd.append('aliasName', aliasName.value);
+ //  fd.append('aliasImg', aliasImg.value);
+	aliasImg := r.FormValue("aliasImg")
+	if (strings.HasPrefix(r.FormValue("aliasImg"), "data:image")) {
+	  base64Data := strings.Split(r.FormValue("aliasImg"), ",")[1]
+	  imageData, err := base64.StdEncoding.DecodeString(base64Data)
+	  if err != nil {
+	      log.Println(err)
+	  }
+	  randPath := common.StringRand(4)
+		dirPath := "./aliasImg/"
+		os.MkdirAll(dirPath, 0755)
+		filePath := dirPath + randPath + r.FormValue("aliasName") + ".png"
+	  err = ioutil.WriteFile(filePath, imageData, 0644)
+	  if err != nil {
+	      log.Println(err)
+	  }
+	  log.Println("PNG image file saved successfully.")
+	  aliasImg = "/aliasImg/" + randPath + r.FormValue("aliasName") + ".png"
+	}
+
+	alias := []string{
+		r.FormValue("aliasName"),
+		aliasImg,
+		session.UserID}
+
+  // for _, d := range aliases {
+  if !isAliasExist(r.FormValue("aliasName"), session.AliasArray) {
+    session.AliasArray = append(session.AliasArray, []string{
+    	r.FormValue("aliasName"), aliasImg})
+  }
+  // }
   coll := db1.Collection("session")
-  filter := bson.D{{"_id", cookie.Value}}
-  // opts := options.FindOne().SetProjection(projection)
-  opts := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
-    {"alias_array", 1},
-  })
-  coll.FindOne(context.TODO(), filter, opts).Decode(&session)
-  if err != nil {
-    panic(err)
-  }
-  trueAccess := false
-  var aliasArray [][]string
-  for _, arrayData := range session.AliasArray {
-  	if arrayData[0] == aliasName {
-  		trueAccess = true
-  		aliasArray = append(aliasArray, arrayData)
-  	}
-  }
-  if !trueAccess {
-  	fmt.Printf(" err %s\n", session.AliasArray, aliasName)
-  	return
-  }
-  userIDs := []string{session.UserID}
-  coll = db1.Collection("channel")
-  // var channel collection.ChannelStruct
-  channel := collection.ChannelStruct{
-		ChannelName:   channelName,
-		ChannelDescription:  channelDescription,
-		UpdatedAt:  time.Now(),
-		UserIDs:  userIDs,
-		AliasArray:  aliasArray,
-	}
-	insertResult, err := coll.InsertOne(context.TODO(), channel)
-	if err != nil {
-		log.Fatal(err)
-	}
-	insertedID := insertResult.InsertedID.(primitive.ObjectID)
-	fmt.Println("Inserted document ID:", insertedID)
+  filter := bson.D{{"_id", session.SessionID}}
+  update := bson.D{{"$set", bson.D{
+      {"alias_array", session.AliasArray},
+  }}}
+  coll.UpdateOne(context.TODO(), filter, update)
 
-  var alias collection.AliasStruct
-  coll = db1.Collection("alias")
-  filter = bson.D{{"alias_name", aliasName}}
-  opts4 := options.FindOne().SetProjection(bson.D{
-    {"channel_ids", 1},
-  })
-  coll.FindOne(context.TODO(), filter, opts4).Decode(&alias)
-  if err != nil {
-    panic(err)
-  }
-  var channelIDs []string
-  channelIDs = append(alias.ChannelIDs, insertedID.Hex())
-	coll = db1.Collection("alias")
-	filter = bson.D{{"alias_name", aliasName}}
-	update := bson.D{
-		{"$set", bson.D{
-			{"channel_ids", channelIDs},
-		}},
-	}
-	opts5 := options.Update().SetUpsert(false)
-	_, err = coll.UpdateOne(context.TODO(), filter, update, opts5)
+	channelID := common.StringRand(4)
+	userIDs := []string{session.UserID}
+
+	coll = db1.Collection("session")
+  filter = bson.D{{
+  	"user_id", bson.D{{"$in", userIDs}}}}
+	project := bson.D{{"subscription", 1}}
+	opts4 := options.Find().SetProjection(project)
+	cursor, err := coll.Find(context.TODO(), filter, opts4)
 	if err != nil {
-		panic(err)
+	    fmt.Printf("err %s\n", err)
 	}
- 
+	var results4 []collection.SessionStruct
+	if err = cursor.All(context.TODO(), &results4); err != nil {
+	    fmt.Printf("err %s\n", err)
+	}
+
+  pushID := common.StringRand(12)
+	var arr []interface{}
+	arr = append(arr, pushID)
+	arr = append(arr, "channel")
+	arr = append(arr, channelID)
+	arr = append(arr, r.FormValue("channelName"))
+	arr = append(arr, r.FormValue("description"))
+	arr = append(arr, alias)
+	arr = append(arr, r.FormValue("aliasName"))
+	arr = append(arr, time.Now().Format("2006-01-02"))
+	arr = append(arr, 1) // 1 = add, 2 = edit
+
+	msgJson, err := json.Marshal(arr)
+	if err != nil {
+		fmt.Println("JSON変換エラー:", err)
+	}
+	fmt.Println(string(msgJson))
+
+	coll = db1.Collection("push")
+	document := bson.M{
+    "_id": pushID,
+    "contents": string(msgJson),
+    "created_at": time.Now().Format("2006-01-02 15:04:05"),
+	}
+	_, err = coll.InsertOne(context.TODO(), document)
+	if err != nil {
+	    fmt.Printf("err %s\n", err)
+	}
+  for _, r := range results4 {
+    cursor.Decode(&r)
+		webpushSub := &webpush.Subscription{}
+		json.Unmarshal([]byte(r.Subscription), webpushSub)
+		resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
+			Subscriber:      "example@example.com",
+      VAPIDPublicKey:  common.VAPIDPublicKey,
+      VAPIDPrivateKey: common.VAPIDPrivateKey,
+			TTL:             30,
+		})
+		if err != nil {
+	    fmt.Printf(" err %s\n", err)
+		}
+		defer resp.Body.Close()
+  }
   fmt.Fprint(w, `{"Status":"1"}`)
 }
 
-func containsString(arr []string, target string) bool {
-	for _, s := range arr {
-		if s == target {
-			return true
-		}
-	}
-	return false
+func isAliasExist(alias string, aliases [][]string) bool {
+    for _, a := range aliases {
+        if a[0] == alias {
+            return true
+        }
+    }
+    return false
 }

@@ -41,3 +41,12 @@ export function getParam(name, url) {
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
+export function generateRandomCode(codeLength) {
+  const characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let randomCode = '';
+  for (let i = 0; i < codeLength; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    randomCode += characters[randomIndex];
+  }
+  return randomCode;
+}

@@ -1,13 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useMessagesStore } from '../stores/messages.js';
+// import { useMessagesStore } from '../stores/messages.js';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/channelInfo/:id/',
+      path: '/channelAdd/',
+      name: 'channelAdd',
+      component: () => import('../views/ChannelAdd.vue')
+    },
+    {
+      path: '/channelInfo/:id?/',
       name: 'channelInfo',
-      component: () => import('../views/ChannelInfoView.vue'),
+      component: () => import('../views/ChannelInfo.vue'),
       props: route => ({id: route.params.id}),
     },
     {
@@ -17,11 +22,10 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/communityJoin/:channel_id/:code/',
+      path: '/communityJoin/:code/',
       name: 'communityJoin',
       component: () => import('../views/CommunityJoin.vue'),
       props: route => ({
-        channel_id: route.params.channel_id, 
         code: route.params.code
       }),
     },
@@ -39,11 +43,6 @@ const router = createRouter({
       path: '/sign/',
       name: 'sign',
       component: () => import('../views/SignView.vue')
-    },
-    {
-      path: '/addChannel/',
-      name: 'addChannel',
-      component: () => import('../views/AddChannel.vue')
     },
     {
       path: '/threadHead/:parent_id/',

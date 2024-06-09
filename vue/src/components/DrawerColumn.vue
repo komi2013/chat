@@ -238,7 +238,7 @@ onBeforeMount(async () => {
           <a :href="'/channel/' + d.channelID">{{ d.channelName }}</a>
         </td>
       </tr>
-      <tr><td><a href="/addChannel/" ><span> + </span><span>Add Channel</span></a></td></tr>
+      <tr><td><a href="/channelAdd/" ><span> + </span><span>グループ追加</span></a></td></tr>
       <tr><td><a href="/sign/" >Sign</a></td></tr>
     </table>
   </div>

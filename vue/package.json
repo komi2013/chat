@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "pinia": "^2.1.6",
-    "quill": "^1.3.7",
-    "quill-mention": "^4.1.0",
+    "quill": "^2.0.0",
+    "quill-mention": "^5.0.0",
     "vue": "^3.3.4",
     "vue-qrcode": "^2.2.0",
     "vue-router": "^4.2.4"

@@ -1,20 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import DrawerColumn from '../components/DrawerColumn.vue'
-import { useMessagesStore } from '../stores/messages.js';
-import { useChannelsStore } from '../stores/channels.js';
+// import { useMessagesStore } from '../stores/messages.js';
+// import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getAllIDBs } from '../my/indexDB.js';
 
-if (!localStorage.csrf) {
-  localStorage.setItem('TO', window.location.href);
-  location.href = '/sign.html';
-}
-
 const props = defineProps({
-  channel_id: '',
-  code: '',
-  toAliasName: ''
+  channel_id: ''
 })
 
 const aliass = ref('');
@@ -37,7 +29,7 @@ const channel = ref({
 async function fetchChannel() {
   if (props.id) {
     try {
-      channel.value = await getIDB('channel', props.id);
+      channel.value = await getIDB('channel', props.channel_id);
       aliasName.value = channel.value.aliasName;
     } catch (error) {
       console.error(error);
@@ -142,74 +134,32 @@ const updateAliasArray = (name, image) => {
   }
 };
 
-
-const join = () => {
-// `${window.location.origin}/communityJoin/${props.id}/${aliasName.value}/${json[1]}`;
-  const fd = new FormData()
-  fd.append('code', props.code);
-  fd.append('aliasName', aliasName.value);
-  fd.append('aliasImg', aliasImg.value);
-  fd.append('userID', localStorage.userID);
-  const request = new Request('/CommunityMatch/', {
-      method: 'POST',
-      body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
-    });
-
-//     .then((response) => response.json())
-//     .then((json)=>{
-      
-//   arr = append(arr, private.ChannelID)
-//   arr = append(arr, private.Contents)
-//       [
-//   "7sUqxN0hDGbr",
-//   "rookie",
-//   "vzz6",
-//   "[[\"sei1\",\"/me.jpg\",\"seijiro\"]]"
-// ]
-//     })
-}
-
 </script>
 
 
-
 <template>
-<DrawerColumn />
 
-<div id="content">
-
-<br><br>
-
-<div class="form-container">
-  <input type="text" v-model="aliasName" placeholder="グループ中の自分の名前" @input="showInputFile">
-  <template v-if="inputFile">
-    <img v-if="aliasImg" :src="aliasImg" class="new-alias-img"><br>
-    <input type="file" @change="previewAndUpload" accept="image/*">
-  </template>
-  <div class="alias-list">
-    <label v-for="alias in aliass" :key="alias.aliasName" 
-      :class="{ 'alias-item': true, 'selected': aliasName === alias.aliasName }">
-      <input type="radio" 
-        v-model="aliasName"
-        :value="alias.aliasName"
-        class="alias-radio"
-        @change="updatePreview">
-      <div class="alias-info">
-        <span class="alias-name">{{ alias.aliasName }}</span>
-        <img :src="alias.aliasImg" alt="❌" class="alias-image">
-      </div>
-    </label>
-  </div>
-  <button @click="join">▶️</button><br>
+<input type="text" v-model="aliasName" placeholder="グループ中の自分の名前" @input="showInputFile">
+<template v-if="inputFile">
+  <img v-if="aliasImg" :src="aliasImg" class="new-alias-img"><br>
+  <input type="file" @change="previewAndUpload" accept="image/*">
+</template>
+<div class="alias-list">
+  <label v-for="alias in aliass" :key="alias.aliasName" 
+    :class="{ 'alias-item': true, 'selected': aliasName === alias.aliasName }">
+    <input type="radio" 
+      v-model="aliasName"
+      :value="alias.aliasName"
+      class="alias-radio"
+      @change="updatePreview">
+    <div class="alias-info">
+      <span class="alias-name">{{ alias.aliasName }}</span>
+      <img :src="alias.aliasImg" alt="❌" class="alias-image">
+    </div>
+  </label>
 </div>
 <input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
 
-
-</div>
 </template>
 
 <style>
@@ -237,12 +187,12 @@ const join = () => {
 }
 
 .selected {
-  background-color: #4CAF50; /* Add your desired background color for selected items */
-  color: #fff; /* Add your desired text color for selected items */
+  background-color: #4CAF50;
+  color: #fff;
 }
 
 .alias-radio {
-  display: none; /* Hide the default radio button */
+  display: none;
 }
 
 .alias-info {

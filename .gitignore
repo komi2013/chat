@@ -6,7 +6,9 @@ public/assets/
 
 common/config.go
 log/
+aliasImg/
 upload/
+
 
 infrastructure/fullchain.pem
 infrastructure/privkey.pem

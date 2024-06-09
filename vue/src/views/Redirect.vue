@@ -6,15 +6,17 @@ import { getIDB } from '../my/indexDB.js';
 import { getSubstring, getParam } from '../my/strings.js';
 
 
-switch (getParam('to')) {
+switch (localStorage.getItem("TO")) {
   case 'dm':
     toDirectMessage();
     break;
-  case 'community_join':
-    console.log('community_join', data);
+  case null:
+  case undefined:
+    console.log('localStorage.TO is not set');
+    location.href = '/';
     break;
   default:
-    console.log('Unknown fruit.');
+    location.href = localStorage.TO;
 }
 
 function toDirectMessage() {

@@ -14,18 +14,23 @@ import (
 func main() {
 
 	if len(os.Args) == 1 {
+		http.HandleFunc("/aliasImg/", controller.AliasImg)
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
 		http.HandleFunc("/EmojiToggle/", controller.EmojiToggle)
 		http.HandleFunc("/GoogleIdentity/", controller.GoogleIdentity)
+		// http.HandleFunc("/HubPush/", controller.HubPush)
 		http.HandleFunc("/MessageEdit/", controller.MessageEdit)
 		http.HandleFunc("/MessagePost/", controller.MessagePost)
+		http.HandleFunc("/PrivateAdd/", controller.PrivateAdd)
+		http.HandleFunc("/PushGet/", controller.PushGet)
+		http.HandleFunc("/PushResponse/", controller.PushResponse)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
 		http.HandleFunc("/Init/", controller.Init)
-		http.HandleFunc("/InvitationGet/", controller.InvitationGet)
 		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
+		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
 		http.HandleFunc("/upload/", controller.Upload)
 
 		http.HandleFunc("/", controller.Top)

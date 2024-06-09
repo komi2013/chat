@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Webpush Golang Example</title>
+  <title>Webpush</title>
 </head>
 <body>
   <script>
@@ -52,10 +52,6 @@
             pushSubscribe(subscription);
           }
         });
-      // navigator.serviceWorker.addEventListener('message', event => {
-      //   const notificationData = event.data.notificationData;
-      //   console.log(`Received data from Service Worker: "${notificationData}"`);
-      // });
     }
     function pushSubscribe(subscription) {
       const fd = new FormData();
@@ -65,12 +61,11 @@
         body: fd,
       });
       fetch(request)
-        .then((response) => response.json())
-        .then((json)=>{
-          // when status not 1
+        .then(function(response) {
+          location.href = '/';
         })
         .catch((reason)=>{
-          console.log(reason)
+          alert(reason);
         })
     }
   </script>

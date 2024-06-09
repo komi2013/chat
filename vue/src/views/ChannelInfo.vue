@@ -1,20 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
-import { useMessagesStore } from '../stores/messages.js';
-import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getAllIDBs } from '../my/indexDB.js';
-
-if (!localStorage.csrf) {
-  localStorage.setItem('TO', window.location.href);
-  location.href = '/sign.html';
-}
+import { getIDB, getIDBs, upsertData, getAllIDBs } from '../my/indexDB.js';
+import { generateRandomCode } from '../my/strings.js';
+import QRCode from 'qrcode';
+import Quill from 'quill';
+import "quill/dist/quill.snow.css";
 
 const props = defineProps({
-  channel_id: '',
-  code: '',
-  toAliasName: ''
+  id: '',
 })
 
 const aliass = ref('');
@@ -143,35 +138,79 @@ const updateAliasArray = (name, image) => {
 };
 
 
-const join = () => {
-// `${window.location.origin}/communityJoin/${props.id}/${aliasName.value}/${json[1]}`;
-  const fd = new FormData()
-  fd.append('code', props.code);
+let clicked = false;
+const channelPost = () => {
+  if (clicked) {
+    return;
+  }
+  clicked = true;
+  const fd = new FormData();
+  fd.append('channelID', props.id);
+  fd.append('channelName', channel.value.channelName);
+  fd.append('description', quill.root.innerHTML);
   fd.append('aliasName', aliasName.value);
   fd.append('aliasImg', aliasImg.value);
-  fd.append('userID', localStorage.userID);
-  const request = new Request('/CommunityMatch/', {
-      method: 'POST',
-      body: fd,
+  updateAliasArray(aliasName.value, aliasImg.value);
+  fd.append('aliasArray', JSON.stringify(aliasArray));
+  const fileInput = document.getElementById('fileInput');
+  // if (fileInput && fileInput.files.length > 10) {
+  //   alert('too many files');
+  //   return;
+  // }
+  if (fileInput && fileInput.files.length > 0) {
+    for (const file of fileInput.files) {
+      fd.append('files[]', file);
+    }
+  }
+  const request = new Request('/ChannelUpsert/', {
+    method: 'POST',
+    body: fd,
   });
   fetch(request)
+    .then(function(response) {
+      clicked = false;
+    })
     .catch((reason)=>{
-      console.log(reason)
-    });
-
-//     .then((response) => response.json())
-//     .then((json)=>{
-      
-//   arr = append(arr, private.ChannelID)
-//   arr = append(arr, private.Contents)
-//       [
-//   "7sUqxN0hDGbr",
-//   "rookie",
-//   "vzz6",
-//   "[[\"sei1\",\"/me.jpg\",\"seijiro\"]]"
-// ]
-//     })
+      alert(reason)
+    })
 }
+
+const invitationCode = ref('');
+const invitationQR = ref('');
+const invite = async () => {
+  console.log(channel.value.allAliases);
+  const fd = new FormData();
+  fd.append('channelID', props.id);
+  fd.append('aliasName', aliasName.value);
+  fd.append('contents', JSON.stringify(channel.value));
+  const userIDs = channel.value.allAliases.map(entry => entry[2]);
+  fd.append('userIDs', JSON.stringify(userIDs));
+  try {
+    const response = await fetch('/PrivateAdd/', {
+      method: 'POST',
+      body: fd,
+    });
+    const json = await response.json();
+    invitationCode.value = `${window.location.origin}/communityJoin/${json[1]}/`;
+    invitationQR.value = await QRCode.toDataURL(invitationCode.value);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+
+let quill;
+onMounted(() => {
+  quill = new Quill('#description', {
+    modules: {
+      toolbar: '#toolbar',
+    },
+    theme: 'snow'
+  });
+  fetchChannel().then(() => {
+    quill.root.innerHTML = channel.value.channelDescription;
+  });
+});
 
 </script>
 
@@ -185,6 +224,22 @@ const join = () => {
 <br><br>
 
 <div class="form-container">
+  <input type="text" v-model="channel.channelName" placeholder="グループ名">
+  <div class="editLeft" id="toolbar">
+    <button class="ql-bold"></button>
+    <button class="ql-strike"></button>
+    <button class="ql-blockquote"></button>
+    <button class="ql-code-block"></button>
+    <button class="ql-link"></button>
+    <select class="ql-color">
+      <option value="red">Red</option>
+      <option value=""></option>
+    </select>
+    <button class="attachment" @click="attach">
+      🌄
+    </button>
+  </div>
+  <div id="description"></div><br>
   <input type="text" v-model="aliasName" placeholder="グループ中の自分の名前" @input="showInputFile">
   <template v-if="inputFile">
     <img v-if="aliasImg" :src="aliasImg" class="new-alias-img"><br>
@@ -204,7 +259,10 @@ const join = () => {
       </div>
     </label>
   </div>
-  <button @click="join">▶️</button><br>
+  <button @click="channelPost">▶️</button><br>
+  <button @click="invite"> <span>✉️</span> <span>招待URL</span> </button>
+  <div> {{invitationCode}} </div>
+  <div> <img :src="invitationQR"></div>
 </div>
 <input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
 
@@ -261,16 +319,37 @@ const join = () => {
   border-radius: 50%;
 }
 
+
 .form-container {
   max-width: 300px;
   margin: auto;
 }
 
+/*.editLeft {
+  display: inline-block;
+  width: 69%;
+}
+*/
+/*.editText .ql-container.ql-snow {
+  border: 1px solid #d1d5db;
+  border-bottom-width: 0;
+}
+.editText .ql-editor {
+  padding: 4px 0px;
+}
+*/
 .files {
   border-top: none;
   border-right: 1px solid #d1d5db;
   border-bottom: 1px solid #d1d5db;
   border-left: 1px solid #d1d5db;
+}
+.ql-snow.ql-toolbar {
+  padding: 8px 0px;
+}
+.ql-snow.ql-toolbar .attachment {
+  font-size: 12px;
+  padding-top: 0px;
 }
 
 input[type="text"] {
@@ -297,7 +376,6 @@ button {
 button:hover {
   background-color: #0056b3;
 }
-
 
 </style>
 

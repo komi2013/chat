@@ -68,7 +68,7 @@ const clickEmoji = (messageId, emoji) => {
 <div id="content">
 <div class="headTitle">
   <div>
-    <RouterLink :to="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </RouterLink>
+    <a :href="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </a>
   </div>
   <div style="line-height: 50px;">
     &nbsp;
