@@ -42,6 +42,7 @@ export async function channelJoin(pushData) {
     return response.json()
   })
   .then((channel)=>{
+    channel.aliasName = obj.aliasName;
     const aliases = [
       alias.aliasName, alias.aliasImg, alias.userID
     ];

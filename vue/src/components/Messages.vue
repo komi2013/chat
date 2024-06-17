@@ -25,11 +25,12 @@ const messages = computed(() => {
 const limit = 5;
 let offset = 0;
 let more = false;
-const fetchMessages = (table, index, parentMessageID) => {
+const fetchMessages = (parentMessageID) => {
   return new Promise((resolve, reject) => {
-    getIDBs(table, index, parentMessageID, limit, offset)
+    getIDBs('thread', 'parentIDIndex', parentMessageID, limit, offset)
       .then((data) => {
         const latest = data.reverse();
+        // const latest = data;
         latest.forEach(message => {
           messagesStore.insert(message);
         });
@@ -46,7 +47,7 @@ const fetchMessages = (table, index, parentMessageID) => {
 
 const moreMessages = () => {
   return new Promise((resolve, reject) => {
-    getIDBs(table, index, parentMessageID, limit, offset)
+    getIDBs('thread', 'parentIDIndex', parentMessageID, limit, offset)
       .then((data) => {
         const latest = data;
         latest.forEach(message => {
@@ -108,19 +109,16 @@ const clickEmoji = (message, emoji) => {
 
 
 const aliass = ref([]);
-let table = 'message';
-let index = 'channelIDIndex';
+
 let parentMessageID = channel.channelID;
 let addPosition = 0;
 if (props.threadHead) {
-  table = 'thread';
-  index = 'parentIDIndex';
   parentMessageID = props.threadHead.parentID;
   addPosition = 1;
 }
 
 onBeforeMount(async () => {
-  await fetchMessages(table, index, parentMessageID);
+  await fetchMessages(parentMessageID);
   aliass.value = await getAllIDBs('alias');
 });
 

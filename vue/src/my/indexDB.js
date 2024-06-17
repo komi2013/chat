@@ -77,7 +77,7 @@ async function getIDB(table, id) {
   }
 }
 // getIDBs('thread', 'parentIDIndex', props.message_id)
-async function getIDBs(table, key, id, limit = 5, offset = 0) {
+async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc') {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
@@ -85,7 +85,8 @@ async function getIDBs(table, key, id, limit = 5, offset = 0) {
     const index = objectStore.index(key);
 
     const range = IDBKeyRange.only(id);
-    const request = index.openCursor(range, 'prev');
+    const direction = sortOrder === 'asc' ? 'next' : 'prev';
+    const request = index.openCursor(range, direction);
 
     const result = [];
     let i = 0;

@@ -27,7 +27,7 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 
 	session, err := common.Session(w,r)
 	if err != nil {
-  	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -152,6 +152,7 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 		document := bson.M{
 	    "_id": pushID,
 	    "contents": private.Contents,
+	    "pushJson": string(jsonData),
 	    "created_at": time.Now().Format("2006-01-02 15:04:05"),
 		}
 		_, err = coll.InsertOne(context.TODO(), document)

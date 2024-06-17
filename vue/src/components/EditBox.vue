@@ -103,6 +103,9 @@ const msgUpsert = (messageID, delMessage) => {
   const threadFlg = props.message.parentID;
   const uri = messageID ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
   const fd = new FormData();
+  // console.log(props.channel.allAliases);
+  // userIDs = props.channel.allAliases.map(alias => alias[2]);
+  fd.append('allAliases', JSON.stringify(props.channel.allAliases));
   fd.append('parentID', props.message.parentID);
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);

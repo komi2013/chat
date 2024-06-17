@@ -14,7 +14,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  "go.mongodb.org/mongo-driver/bson/primitive"
+  // "go.mongodb.org/mongo-driver/bson/primitive"
 
   webpush "github.com/SherClockHolmes/webpush-go"
 
@@ -24,15 +24,12 @@ import (
 )
 
 func ThreadPost(w http.ResponseWriter, r *http.Request) {
-  cookie, _ := r.Cookie("ss")
-  // if err != nil {
-  //  return ""
-  // }
+	session, err := common.Session(w,r)
+	if err != nil {
+  	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+    return
+	}
 
-  channelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
-  if err != nil {
-    log.Fatal(err)
-  }
   aliasName := r.FormValue("aliasName")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -44,19 +41,6 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  var session collection.SessionStruct
-
-  coll := db1.Collection("session")
-  filter := bson.D{{"_id", cookie.Value}}
-  // opts := options.FindOne().SetProjection(projection)
-  opts := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
-    {"alias_array", 1},
-  })
-  coll.FindOne(context.TODO(), filter, opts).Decode(&session)
-  if err != nil {
-    panic(err)
-  }
   trueAccess := false
   var aliasImg string
   for _, arrayData := range session.AliasArray {
@@ -104,32 +88,25 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-  fmt.Printf("channelID %+v\n", channelID)
-  var channel collection.ChannelStruct
-  coll = db1.Collection("channel")
-  filter2 := bson.D{
-    {"_id", channelID},
-  }
-  opts2 := options.FindOne().SetProjection(bson.D{
-    {"user_ids", 1},
-    {"alias_array", 1},
-  })
-  coll.FindOne(context.TODO(), filter2, opts2).Decode(&channel)
-  if err != nil {
-    fmt.Printf(" err %s\n", err)
-  }
+  jsonBytes := []byte(r.FormValue("allAliases"))
+  allAliases := [][]string{}
+  userIDs := []string{}
+  json.Unmarshal(jsonBytes, &allAliases)
  	var yets [][]string
-  for _, arrayData := range channel.AliasArray {
+  for _, arrayData := range allAliases {
   	atName := "＠＠" + arrayData[0] + "・＠＠"
   	strings.Contains(r.FormValue("messageTxt"), atName)
     if strings.Contains(r.FormValue("messageTxt"), atName) {
       yets = append(yets, []string{arrayData[0], "/img/yet.png"})
     }
+    userIDs = append(userIDs, arrayData[2])
   }
-  coll = db1.Collection("session")
-  filter = bson.D{{
-    "user_id", bson.D{{"$in", channel.UserIDs}}}}
+  fmt.Println("userIDs:", userIDs)
+  fmt.Println("unixTime:", time.Now().Unix())
+
+  coll := db1.Collection("session")
+  filter := bson.D{{
+    "user_id", bson.D{{"$in", userIDs}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
@@ -140,52 +117,49 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &results4); err != nil {
     fmt.Printf(" err %s\n", err)
   }
+  messageID := common.Base62Encode(time.Now().Unix())
+  for _, r4 := range results4 {
+	  pushID := common.StringRand(12)
+	  var arr []interface{}
+	  arr = append(arr, pushID)
+	  arr = append(arr, "thread")
+	  arr = append(arr, messageID)
+	  arr = append(arr, r.FormValue("parentID"))
+	  arr = append(arr, r.FormValue("messageTxt") + fileLinks)
+	  arr = append(arr, aliasName)
+	  arr = append(arr, aliasImg)
+	  arr = append(arr, time.Now())
+	  arr = append(arr, r.FormValue("channelID"))
+	  arr = append(arr, r.FormValue("type"))
+	  arr = append(arr, r.FormValue("names"))
+	  arr = append(arr, r.FormValue("backID"))
+	  if r.FormValue("task") != "" {
+			arr = append(arr, yets)
+	  } else {
+	  	arr = append(arr, "")
+	  }
+	  jsonData, err := json.Marshal(arr)
+	  if err != nil {
+	    fmt.Println("JSON変換エラー:", err)
+	  }
+	  // fmt.Println(string(msgJson))
 
-  coll = db1.Collection("thread")
-  message := collection.ThreadStruct{
-    ParentID: r.FormValue("parentID"),
-    MessageTxt: r.FormValue("messageTxt") + fileLinks,
-    From: aliasName,
-    FromImg: aliasImg,
-    Task: r.FormValue("task"),
-    CreatedAt: time.Now(),
-  }
-  insertResult, err := coll.InsertOne(context.TODO(), message)
-  if err != nil {
-    log.Fatal(err)
-  }
-  insertedID := insertResult.InsertedID.(primitive.ObjectID)
-
-  var arr []interface{}
-  arr = append(arr, "thread")
-  arr = append(arr, insertedID)
-  arr = append(arr, r.FormValue("parentID"))
-  arr = append(arr, message.MessageTxt)
-  arr = append(arr, aliasName)
-  arr = append(arr, aliasImg)
-  arr = append(arr, time.Now())
-  arr = append(arr, r.FormValue("channelID"))
-  arr = append(arr, r.FormValue("type"))
-  arr = append(arr, r.FormValue("names"))
-  arr = append(arr, r.FormValue("backID"))
-  if message.Task != "" {
-		arr = append(arr, yets)
-  } else {
-  	arr = append(arr, "")
-  }
-  msgJson, err := json.Marshal(arr)
-  if err != nil {
-    fmt.Println("JSON変換エラー:", err)
-  }
-  fmt.Println(string(msgJson))
-
-  for _, r := range results4 {
-    cursor.Decode(&r)
+		coll = db1.Collection("push")
+		document := bson.M{
+	    "_id": pushID,
+	    "pushJson": string(jsonData),
+	    "created_at": time.Now().Format("2006-01-02 15:04:05"),
+		}
+		_, err = coll.InsertOne(context.TODO(), document)
+		if err != nil {
+		    fmt.Printf("err %s\n", err)
+		}
+    cursor.Decode(&r4)
     webpushSub := &webpush.Subscription{}
-    json.Unmarshal([]byte(r.Subscription), webpushSub)
+    json.Unmarshal([]byte(r4.Subscription), webpushSub)
 
     // Send Notification
-    resp, err := webpush.SendNotification([]byte(string(msgJson)), webpushSub, &webpush.Options{
+    resp, err := webpush.SendNotification([]byte(string(jsonData)), webpushSub, &webpush.Options{
       Subscriber:      "example@example.com",
       VAPIDPublicKey:  common.VAPIDPublicKey,
       VAPIDPrivateKey: common.VAPIDPrivateKey,
@@ -197,6 +171,4 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
     }
     defer resp.Body.Close()
   }
-
-  fmt.Fprint(w, `{"Status":"1"}`)
 }

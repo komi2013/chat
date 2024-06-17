@@ -78,23 +78,30 @@ async function fetchThreadHead() {
         displayStatus: 0
       }
       threadHead.value = threadHeadValue;
-    } else if (getParam('backID')) {
-      const message = await getIDB('thread', props.message_id);
-      threadHead.value = message;
-      threadHead.value.parentID = props.message_id;
-      threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
-      threadHead.value.messageTxt = message.messageTxt;
-      threadHead.value.backID = getParam('backID');
-      threadHead.value.threadType = 0;
-      messagesStore.insert(message);
+    // } else if (getParam('backID')) {
+    //   const message = await getIDB('thread', props.message_id);
+    //   threadHead.value = message;
+    //   threadHead.value.parentID = props.message_id;
+    //   threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
+    //   threadHead.value.messageTxt = message.messageTxt;
+    //   threadHead.value.backID = getParam('backID');
+    //   threadHead.value.threadType = 0;
+    //   messagesStore.insert(message);
     } else {
-      const message = await getIDB('message', props.message_id);
-      threadHead.value = message;
-      threadHead.value.parentID = props.message_id;
-      threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
-      threadHead.value.messageTxt = message.messageTxt;
-      threadHead.value.threadType = 0;
-      messagesStore.insert(message);
+      try {
+        const message = await getIDB('thread', props.message_id);
+        threadHead.value = message;
+        threadHead.value.parentID = props.message_id;
+        threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
+        threadHead.value.messageTxt = message.messageTxt;
+        threadHead.value.threadType = 0;
+        if (getParam('backID')) {
+          threadHead.value.backID = getParam('backID');
+        }
+        messagesStore.insert(message);
+      } catch (error) {
+        console.log('new thread', error);
+      }
     }
   }
 }
@@ -157,7 +164,7 @@ function backTo(backID) {
     <Messages :channel="channel" :messages="messages" :threadHead="threadHead" />
   </template>
 
-<div class="editText" v-if="channel && threadHead">
+<div class="editText" v-if="channel">
   <EditBox :channel="channel" :message="msg" :threadHead="threadHead" />
 </div>
 <br>

@@ -7,7 +7,7 @@ import (
 
 )
 
-const charset = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -44,7 +44,7 @@ func StringRand(length int) string {
 // 	return unique
 // }
 
-func base62Decode(s string) int64 {
+func Base62Decode(s string) int64 {
 	var result int64
 	for _, c := range s {
 		result = result*62 + int64(strings.IndexRune(charset, c))
@@ -52,7 +52,7 @@ func base62Decode(s string) int64 {
 	return result
 }
 
-func base62Encode(num int64) string {
+func Base62Encode(num int64) string {
 	var result strings.Builder
 	for num > 0 {
 		remainder := num % 62
@@ -71,7 +71,7 @@ func reverseString(s string) string {
 }
 
 func incrementBase62(s string) string {
-	num := base62Decode(s)
+	num := Base62Decode(s)
 	num++
-	return base62Encode(num)
+	return Base62Encode(num)
 }

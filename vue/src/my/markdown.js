@@ -13,7 +13,7 @@ export const htmlToMarkdown = (html) => {
 };
 
 const reverseEmphasis = (html) => {
-  return html.replace(/<strong>([^<]+)<\/strong>/g, '＊＊$1・＊＊');
+  return html.replace(/<strong>([^<]+)<\/strong>/g, '＊太＊$1・＊太＊');
 };
 
 const reverseStrikethrough = (html) => {
@@ -70,7 +70,7 @@ export const markdownToHtml = (markdown, channel, aliass) => {
 };
 
 const applyEmphasis = (markdown) => {
-  return markdown.replace(/＊＊(.*?)・＊＊/g, '<strong>$1</strong>');
+  return markdown.replace(/＊太＊(.*?)・＊太＊/g, '<strong>$1</strong>');
 };
 
 const applyStrikethrough = (markdown) => {
@@ -130,7 +130,7 @@ export const removeMark = (html) => {
 };
 
 const removeEmphasis = (markdown) => {
-  return markdown.replace(/＊＊(.*?)・＊＊/g, '$1');
+  return markdown.replace(/＊太＊(.*?)・＊太＊/g, '$1');
 };
 
 const removeStrikethrough = (markdown) => {

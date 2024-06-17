@@ -6,17 +6,25 @@ import { removeMark } from '../my/markdown.js';
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
+  const pushID = pushData[0];
+  const fd = new FormData();
+  fd.append('pushID', pushID);
+  const request = new Request('/PushResponse/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request);
   const obj = {
-    messageID: pushData[1],
-    parentID: pushData[2],
-    messageTxt: pushData[3],
-    aliasName: pushData[4],
-    aliasImg: pushData[5],
-    createdAt: pushData[6],
-    channelID: pushData[7],
-    threadType: pushData[8],
-    backID: pushData[9],
-    emojis: pushData[10]
+    messageID: pushData[2],
+    parentID: pushData[3],
+    messageTxt: pushData[4],
+    aliasName: pushData[5],
+    aliasImg: pushData[6],
+    createdAt: pushData[7],
+    channelID: pushData[8],
+    threadType: pushData[9],
+    backID: pushData[10],
+    emojis: pushData[11]
   };
   let threadHead = {
     parentID: obj.parentID,
@@ -24,15 +32,13 @@ export async function thread(pushData) {
     channelID: obj.channelID,
     displayStatus: 1
   };
-  let table = 'message';
   if (obj.backID) {
-    table = 'thread';
     threadHead.backID = obj.backID;
   }
-  let title = 'no title';
+  let title = getSubstring(removeMark(obj.messageTxt), 0, 30);
   let parent = {};
   try {
-    parent = await getIDB(table, obj.parentID);
+    parent = await getIDB('thread', obj.parentID);
     parent.threadCount = parent.threadCount ? parent.threadCount + 1 : 1;
     parent.threadImgs = parent.threadImgs || [];
     if (!parent.threadImgs.includes(obj.aliasImg)) {
@@ -43,7 +49,7 @@ export async function thread(pushData) {
     parent = {
       messageID: obj.parentID,
       channelID: obj.channelID,
-      messageTxt: 'new to this thread',
+      messageTxt: obj.messageTxt,
       aliasName: obj.aliasName,
       aliasImg: obj.aliasImg,
       createdAt: obj.createdAt,
@@ -66,12 +72,14 @@ export async function thread(pushData) {
     }
   });
   let pushTitle = title;
+  let newThread = false;
   try {
     threadHead = await getIDB('threadHead', obj.parentID);
     if (threadHead.displayStatus != 3 || notify) {
       threadHead.displayStatus = displayStatus;
     }
     threadHead.updatedAt = obj.createdAt;
+    threadHead.threadCount = parent.threadCount;
     pushTitle = threadHead.title;
   } catch (error) {
     threadHead.emojis = parent.emojis;
@@ -82,6 +90,8 @@ export async function thread(pushData) {
     threadHead.aliasImg = parent.aliasImg;
     threadHead.createdAt = parent.createdAt;
     threadHead.updatedAt = obj.createdAt;
+    threadHead.threadCount = parent.threadCount;
+    newThread = true;
   }
   if (displayStatus == 2) {
     const bm = {
@@ -94,8 +104,13 @@ export async function thread(pushData) {
     bookmarksStore.insert(bm);
     obj.bookmark = 1;
   }
-  upsertData(obj, 'thread', 'messageID', obj.messageID);
-  upsertData(parent, table, 'messageID', obj.parentID);
+  console.log(newThread);
+  if (!newThread) {
+    upsertData(obj, 'thread', 'messageID', obj.messageID);
+  }
+  if (obj.backID) {
+    upsertData(parent, 'thread', 'messageID', obj.parentID);
+  }
   upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
   if (notify) {
     new Notification(pushTitle, {
