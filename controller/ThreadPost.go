@@ -7,7 +7,7 @@ import (
   "io"
   "log"
   "net/http"
-  "strings"
+  // "strings"
   "os"
   "time"
 
@@ -88,21 +88,10 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-  jsonBytes := []byte(r.FormValue("allAliases"))
-  allAliases := [][]string{}
+  jsonBytes := []byte(r.FormValue("userIDs"))
   userIDs := []string{}
-  json.Unmarshal(jsonBytes, &allAliases)
- 	var yets [][]string
-  for _, arrayData := range allAliases {
-  	atName := "＠＠" + arrayData[0] + "・＠＠"
-  	strings.Contains(r.FormValue("messageTxt"), atName)
-    if strings.Contains(r.FormValue("messageTxt"), atName) {
-      yets = append(yets, []string{arrayData[0], "/img/yet.png"})
-    }
-    userIDs = append(userIDs, arrayData[2])
-  }
+  json.Unmarshal(jsonBytes, &userIDs)
   fmt.Println("userIDs:", userIDs)
-  fmt.Println("unixTime:", time.Now().Unix())
 
   coll := db1.Collection("session")
   filter := bson.D{{
@@ -117,7 +106,11 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &results4); err != nil {
     fmt.Printf(" err %s\n", err)
   }
+  jsonBytes = []byte(r.FormValue("names"))
+  names := []string{}
+  json.Unmarshal(jsonBytes, &names)
   messageID := common.Base62Encode(time.Now().Unix())
+  messageID = r.FormValue("channelID") + messageID + common.StringRand(1)
   for _, r4 := range results4 {
 	  pushID := common.StringRand(12)
 	  var arr []interface{}
@@ -128,12 +121,14 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 	  arr = append(arr, r.FormValue("messageTxt") + fileLinks)
 	  arr = append(arr, aliasName)
 	  arr = append(arr, aliasImg)
-	  arr = append(arr, time.Now())
-	  arr = append(arr, r.FormValue("channelID"))
 	  arr = append(arr, r.FormValue("type"))
-	  arr = append(arr, r.FormValue("names"))
+	  arr = append(arr, names)
 	  arr = append(arr, r.FormValue("backID"))
-	  if r.FormValue("task") != "" {
+	  if r.FormValue("yets") != "" {
+		  jsonBytes = []byte(r.FormValue("yets"))
+		  yets := [][]string{}
+		  json.Unmarshal(jsonBytes, &yets)
+		  fmt.Println("yets:", yets)
 			arr = append(arr, yets)
 	  } else {
 	  	arr = append(arr, "")

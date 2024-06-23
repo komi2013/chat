@@ -1,5 +1,5 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData, updOne } from '../my/indexDB.js';
+import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 export async function channelJoin(pushData) {
   const pushID = pushData[0];

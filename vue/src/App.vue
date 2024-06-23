@@ -5,9 +5,7 @@ import { upsertData } from './my/indexDB.js';
 import { bookmark } from './pushReceive/bookmark.js';
 import { channelJoin } from './pushReceive/channelJoin.js';
 import { channelUpsert } from './pushReceive/channelUpsert.js';
-import { message } from './pushReceive/message.js';
 import { emoji } from './pushReceive/emoji.js';
-import { messageEdit } from './pushReceive/messageEdit.js';
 import { rookie } from './pushReceive/rookie.js';
 import { thread } from './pushReceive/thread.js';
 import { threadEdit } from './pushReceive/threadEdit.js';
@@ -33,12 +31,6 @@ function processNotificationData(notificationData) {
       break;
     case 'emoji':
       emoji(data);
-      break;
-    case 'message':
-      message(data);
-      break;
-    case 'msgEdit':
-      messageEdit(data);
       break;
     case 'rookie':
       rookie(data);

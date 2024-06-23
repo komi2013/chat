@@ -41,12 +41,19 @@ export function getParam(name, url) {
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
+const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 export function generateRandomCode(codeLength) {
-  const characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  // const characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let randomCode = '';
   for (let i = 0; i < codeLength; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    randomCode += characters[randomIndex];
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    randomCode += chars[randomIndex];
   }
   return randomCode;
+}
+
+export function base62Decode(str) {
+  return str.split('').reverse().reduce((prev, curr, index) => {
+    return prev + chars.indexOf(curr) * Math.pow(62, index);
+  }, 0);
 }

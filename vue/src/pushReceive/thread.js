@@ -1,8 +1,9 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
-import { getSubstring, removeHtmlTags } from '../my/strings.js';
+import { getSubstring, removeHtmlTags, base62Decode } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
+import { get_formated_time } from '../my/get_formated_time.js';
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
@@ -14,18 +15,23 @@ export async function thread(pushData) {
     body: fd,
   });
   fetch(request);
+  const unixtime = base62Decode(pushData[2].slice(4, 10));
+
+  const channelID = pushData[2].slice(0, 4);
   const obj = {
     messageID: pushData[2],
-    parentID: pushData[3],
+    parentID: channelID + pushData[3],
     messageTxt: pushData[4],
     aliasName: pushData[5],
     aliasImg: pushData[6],
-    createdAt: pushData[7],
-    channelID: pushData[8],
-    threadType: pushData[9],
-    backID: pushData[10],
-    emojis: pushData[11]
+    createdAt: get_formated_time('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
+    channelID: channelID,
+    threadType: pushData[7] ?? '',
+    aliasNames: pushData[8],
+    backID: pushData[9] ?? '',
+    emojis: pushData[10]
   };
+
   let threadHead = {
     parentID: obj.parentID,
     messageTxt: obj.messageTxt,
@@ -91,9 +97,12 @@ export async function thread(pushData) {
     threadHead.createdAt = parent.createdAt;
     threadHead.updatedAt = obj.createdAt;
     threadHead.threadCount = parent.threadCount;
+    threadHead.aliasNames = obj.aliasNames;
+    threadHead.backID = obj.backID;
+    threadHead.threadType = obj.threadType;
     newThread = true;
   }
-  if (displayStatus == 2) {
+  if (displayStatus == 2 && obj.emojis) {
     const bm = {
       messageID: obj.messageID,
       channelID: obj.channelID,
@@ -108,9 +117,9 @@ export async function thread(pushData) {
   if (!newThread) {
     upsertData(obj, 'thread', 'messageID', obj.messageID);
   }
-  if (obj.backID) {
-    upsertData(parent, 'thread', 'messageID', obj.parentID);
-  }
+  // if (obj.backID) {
+  //   upsertData(parent, 'thread', 'messageID', obj.parentID);
+  // }
   upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
   if (notify) {
     new Notification(pushTitle, {

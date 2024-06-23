@@ -6,13 +6,12 @@ import (
   "fmt"
   "log"
   "net/http"
-  "strings"
+  // "strings"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  "go.mongodb.org/mongo-driver/bson/primitive"
 
   webpush "github.com/SherClockHolmes/webpush-go"
 
@@ -22,14 +21,11 @@ import (
 )
 
 func ThreadEdit(w http.ResponseWriter, r *http.Request) {
-  cookie, _ := r.Cookie("ss")
-  // if err != nil {
-  //  return ""
-  // }
-  primitiveChannelID, err := primitive.ObjectIDFromHex(r.FormValue("channelID"))
-  if err != nil {
-    log.Fatal(err)
-  }
+	session, err := common.Session(w,r)
+	if err != nil {
+  	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+    return
+	}
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -40,19 +36,6 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  var session collection.SessionStruct
-
-  coll := db1.Collection("session")
-  filter := bson.D{{"_id", cookie.Value}}
-  // opts := options.FindOne().SetProjection(projection)
-  opts := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
-    {"alias_array", 1},
-  })
-  coll.FindOne(context.TODO(), filter, opts).Decode(&session)
-  if err != nil {
-    panic(err)
-  }
   trueAccess := false
   for _, arrayData := range session.AliasArray {
     if arrayData[0] == r.FormValue("aliasName") {
@@ -64,33 +47,18 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  var channel collection.ChannelStruct
-  coll = db1.Collection("channel")
-  // check access right
-  filter2 := bson.D{
-    {"_id", primitiveChannelID},
-  }
-  opts2 := options.FindOne().SetProjection(bson.D{
-    {"user_ids", 1},
-    {"alias_array", 1},
-  })
-  coll.FindOne(context.TODO(), filter2, opts2).Decode(&channel)
-  if err != nil {
-    fmt.Printf(" err %s\n", err)
-  }
-
  	var yets [][]string
-  for _, arrayData := range channel.AliasArray {
-  	atName := "＠＠" + arrayData[0] + "・＠＠"
-  	strings.Contains(r.FormValue("messageTxt"), atName)
-    if strings.Contains(r.FormValue("messageTxt"), atName) {
-      yets = append(yets, []string{arrayData[0], "/img/yet.png"})
-    }
-  }
+  // for _, arrayData := range channel.AliasArray {
+  // 	atName := "＠＠" + arrayData[0] + "・＠＠"
+  // 	strings.Contains(r.FormValue("messageTxt"), atName)
+  //   if strings.Contains(r.FormValue("messageTxt"), atName) {
+  //     yets = append(yets, []string{arrayData[0], "/img/yet.png"})
+  //   }
+  // }
 
-  coll = db1.Collection("session")
-  filter = bson.D{{
-    "user_id", bson.D{{"$in", channel.UserIDs}}}}
+  coll := db1.Collection("session")
+  filter := bson.D{{
+    "user_id", bson.D{{"$in", r.FormValue("userIDs")}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
@@ -101,22 +69,13 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &results4); err != nil {
     fmt.Printf(" err %s\n", err)
   }
-  coll = db1.Collection("thread_edit")
-  messageEdit := collection.MessageEditStruct{
-    MessageID: r.FormValue("messageID"),
-    MessageTxt: r.FormValue("messageTxt"),
-    Task: r.FormValue("task"),
-    CreatedAt: time.Now(),
-  }
-  _, err = coll.InsertOne(context.TODO(), messageEdit)
-  if err != nil {
-    log.Fatal(err)
-  }
+  messageID := common.Base62Encode(time.Now().Unix())
+  messageID = messageID + common.StringRand(1)
   var arr []interface{}
   arr = append(arr, "threadEdit")
-  arr = append(arr, messageEdit.MessageID)
-  arr = append(arr, messageEdit.MessageTxt)
-  if messageEdit.Task != "" {
+  arr = append(arr, messageID)
+  arr = append(arr, r.FormValue("messageTxt"))
+  if r.FormValue("messageTxt") != "" {
 		arr = append(arr, yets)
   } else {
   	arr = append(arr, "")

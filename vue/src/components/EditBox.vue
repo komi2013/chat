@@ -100,28 +100,51 @@ const msgUpsert = (messageID, delMessage) => {
   }
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
-  const threadFlg = props.message.parentID;
-  const uri = messageID ? (threadFlg ? '/ThreadEdit/' : '/MessageEdit/') : (threadFlg ? '/ThreadPost/' : '/MessagePost/');
+  // const threadFlg = props.message.parentID;
+  const uri = messageID ? '/ThreadEdit/' : '/ThreadPost/';
   const fd = new FormData();
-  // console.log(props.channel.allAliases);
-  // userIDs = props.channel.allAliases.map(alias => alias[2]);
-  fd.append('allAliases', JSON.stringify(props.channel.allAliases));
+  console.log(messageData);
+  // fd.append('allAliases', JSON.stringify(props.channel.allAliases));
   fd.append('parentID', props.message.parentID);
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);
   fd.append('messageTxt', messageData);
   fd.append('aliasName', props.channel.aliasName);
-  if (props.threadHead && props.threadHead.backID) {
+  let userIDs = [localStorage.userID];
+  let names = [props.channel.aliasName];
+  if (props.threadHead) {
     fd.append('backID', props.threadHead.backID);
-  }
-  if (task.value) {
-    fd.append('task', 1);
-  }
-  if (props.threadHead && props.threadHead.threadType) {
     fd.append('type', props.threadHead.threadType);
     if (props.threadHead.parentID.includes('@')) {
-      fd.append('names', props.threadHead.aliasNames);
+      // fd.append('names', props.threadHead.aliasNames);
+      names = props.threadHead.parentID.split('@');
     }
+    userIDs = props.channel.allAliases
+      .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
+      .map(alias => alias[2]);
+  }
+  for (const d of props.channel.groupAliases) {
+    const atName = `＠＠${d[0]}・＠＠`;
+    if (messageData.includes(atName)) {
+      names.push(d[0]);
+    }
+  }
+  let yets = [];
+  for (const d of props.channel.allAliases) {
+    if (names.includes(d[0])) {
+      userIDs.push(d[2]);
+    }
+    const atName = `＠＠${d[0]}・＠＠`;
+    if (messageData.includes(atName)) {
+      userIDs.push(d[2]);
+      names.push(d[0]);
+      yets.push([d[0], '/img/yet.png']);
+    }
+  }
+  fd.append('names', JSON.stringify([...new Set(names)]));
+  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
+  if (task.value) {
+    fd.append('yets', JSON.stringify(yets));
   }
   const fileInput = document.getElementById('fileInput_' + messageID);
   // if (fileInput && fileInput.files.length > 10) {
@@ -161,7 +184,12 @@ onMounted(() => {
         source: function(searchTerm, renderList, mentionChar) {
           let values;
           if (mentionChar === "@") {
-            values = props.channel.aliasArray.map((alias, index) => {
+            console.log(props.channel.allAliases);
+            console.log(props.channel.groupAliases);
+            const aliasForMention = props.channel.allAliases.concat(
+              props.channel.groupAliases.map(group => [group[0], group[1]])
+            );
+            values = aliasForMention.map((alias, index) => {
               return {
                 id: index + 1,
                 value: alias[0],

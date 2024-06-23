@@ -46,9 +46,28 @@ async function fetchChannel() {
   }
 }
 
+// async function updateChannel(channelId, newGroupAliases) {
+//   try {
+//     const ch = await getIDB('channel', channelId);
+//     ch.groupAliases = newGroupAliases;
+//     await upsertData(ch, 'channel', 'channelID', channelId);
+//     console.log('Channel updated successfully');
+//   } catch (error) {
+//     console.error('Error updating channel:', error);
+//   }
+// }
+
+// // Example usage
+// const newGroupAliases = [
+//   ['groupname','/me.jpg', ['sei1']],
+//   ['gp1','/me.jpg', ['sei1','sei2']],
+//   ['gp2', '/group.png', ['abc']]
+// ];
+// updateChannel(props.channel_id, newGroupAliases);
+
 async function fetchThreadHead() {
   try {
-    const data = await getIDB('threadHead', props.message_id);
+    const data = await getIDB('threadHead', props.channel_id + props.message_id);
     if (data.aliasName == channel.value.aliasName) {
       data.edit = true;
     }
@@ -109,7 +128,7 @@ async function fetchThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updOne('threadHead', props.message_id, 'displayStatus', 0)
+    updOne('threadHead', props.channel_id + props.message_id, 'displayStatus', 0)
       .catch((error) => {
         console.error(error);
       });

@@ -22,7 +22,7 @@
 // }
 
 export function get_formated_time(
-  _fmt = 'YYYY/MM/DD hh:mm:ss.iii',
+  _fmt = 'YYYY/MM/DD hh:mm:ss',
   str
 ) {
   const _dt = new Date(str)
@@ -33,9 +33,6 @@ export function get_formated_time(
     ['hh', _dt.getHours()],
     ['mm', _dt.getMinutes()],
     ['ss', _dt.getSeconds()],
-    // [ 'iii',  _dt.getMilliseconds() ],
+    ['iii',  _dt.getMilliseconds() ],
   ].reduce((s, a) => s.replace(a[0], `${a[1]}`.padStart(a[0].length, '0')), _fmt);
 }
-
-
-

@@ -7,11 +7,7 @@ export async function emoji(pushData) {
   const editType = pushData[3];
   const emojiValue = pushData[4];
   const parentID = pushData[5];
-  let table = 'message';
-  if (parentID) {
-    table = 'thread';
-  }
-  const idb = await getIDB(table, messageID);
+  const idb = await getIDB('thread', messageID);
 
   const messagesStore = useMessagesStore();
 
@@ -26,7 +22,7 @@ export async function emoji(pushData) {
     const is = emojis.findIndex(d => d[0] === aliasName && d[1] === emojiValue);
     emojis.splice(is, 1);
   }
-  updOne(table, messageID, 'emojis', emojis)
+  updOne('thread', messageID, 'emojis', emojis)
     .catch((error) => {
       console.error(error);
     });

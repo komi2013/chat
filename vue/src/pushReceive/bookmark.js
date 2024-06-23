@@ -14,16 +14,10 @@ export async function bookmark(pushData) {
   const channelID = pushData[2];
   const parentID = pushData[3];
   const toggle = pushData[4] == '1' ? 1 : 0;
-
-  let table = 'message';
-  if (parentID) {
-    table = 'thread';
-  }
-  const idb = await getIDB(table, messageID);
+  const idb = await getIDB('thread', messageID);
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
-  // async function updOne(table, key, columnName, columnValue) {
-  updOne(table, messageID, 'bookmark', toggle)
+  updOne('thread', messageID, 'bookmark', toggle)
     .catch((error) => {
       console.error(error);
     });
