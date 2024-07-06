@@ -18,7 +18,7 @@ const router = createRouter({
     {
       path: '/channel/:id/',
       name: 'channel',
-      component: () => import('../views/ChannelView.vue'),
+      component: () => import('../views/Channel.vue'),
       props: route => ({id: route.params.id}),
     },
     {
@@ -28,6 +28,15 @@ const router = createRouter({
       props: route => ({
         code: route.params.code
       }),
+    },
+    {
+      path: '/groupAlias/:id/:groupAliasName?/',
+      name: 'groupAlias',
+      component: () => import('../views/GroupAlias.vue'),
+      props: route => ({
+        id: route.params.id,
+        groupAliasName: route.params.groupAliasName || null
+      })
     },
     {
       path: '/mypage/',

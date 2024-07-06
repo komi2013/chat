@@ -113,7 +113,7 @@ export async function thread(pushData) {
     bookmarksStore.insert(bm);
     obj.bookmark = 1;
   }
-  console.log(newThread);
+  // console.log(newThread);
   if (!newThread) {
     upsertData(obj, 'thread', 'messageID', obj.messageID);
   }
@@ -128,5 +128,8 @@ export async function thread(pushData) {
   }
   if (messagesStore.currentDisplay(obj.parentID)) {
     messagesStore.insert(obj);
+  }
+  if (newThread) {
+    location.href = '';
   }
 }

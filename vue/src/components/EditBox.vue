@@ -123,10 +123,12 @@ const msgUpsert = (messageID, delMessage) => {
       .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
       .map(alias => alias[2]);
   }
-  for (const d of props.channel.groupAliases) {
-    const atName = `＠＠${d[0]}・＠＠`;
-    if (messageData.includes(atName)) {
-      names.push(d[0]);
+  if (Array.isArray(props.channel.groupAliases)) {
+    for (const d of props.channel.groupAliases) {
+      const atName = `＠＠${d[0]}・＠＠`;
+      if (messageData.includes(atName)) {
+        names.push(d[0]);
+      }
     }
   }
   let yets = [];
@@ -186,9 +188,13 @@ onMounted(() => {
           if (mentionChar === "@") {
             console.log(props.channel.allAliases);
             console.log(props.channel.groupAliases);
-            const aliasForMention = props.channel.allAliases.concat(
-              props.channel.groupAliases.map(group => [group[0], group[1]])
-            );
+            const aliasForMention = props.channel.allAliases
+            if (Array.isArray(props.channel.groupAliases)) {
+              aliasForMention = props.channel.allAliases.concat(
+                props.channel.groupAliases.map(group => [group[0], group[1]])
+              );
+            }
+
             values = aliasForMention.map((alias, index) => {
               return {
                 id: index + 1,

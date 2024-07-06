@@ -3,9 +3,10 @@ import { ref, computed, onBeforeMount } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
 import EditBox from '../components/EditBox.vue'
 import Messages from '../components/Messages.vue'
-import { useMessagesStore } from '../stores/messages.js';
+import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
+import { generateRandomCode } from '../my/strings.js';
 import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
@@ -15,15 +16,7 @@ const props = defineProps({
 })
 
 const channel = ref('');
-const messagesStore = useMessagesStore();
-const messages = computed(() => {
-  return messagesStore.messages;
-})
-
-const message = {
-  messageTxt: '',
-  messageID: ''
-};
+const threadHeads = ref('');
 
 async function fetchData() {
   try {
@@ -34,31 +27,20 @@ async function fetchData() {
   }
 }
 
+async function fetchThreadHead() {
+  try {
+    const data = await getIDBs('threadHead', 'channelIDIndex', props.id);
+    threadHeads.value = data;
+  } catch (error) {
+    threadHeads.value = null;
+  }
+}
+
+const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 onBeforeMount(async () => {
   await fetchData();
-  // await fetchMessageData();
-  const content = document.getElementById('content');
-  content.scrollTop = content.scrollHeight;
-  window.scrollTo(0,content.scrollHeight);
+  await fetchThreadHead();
 });
-
-
-const clickEmoji = (messageId, emoji) => {
-  const fd = new FormData();
-  fd.append('channelID', props.id);
-  fd.append('messageID', messageId);
-  fd.append('emoji', emoji[0]);
-  fd.append('clicked', emoji[2] ? 1 : 0);
-  fd.append('aliasName', channel.value.aliasName);
-  const request = new Request('/MessageEdit/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      alert(reason)
-    })
-};
 
 
 </script>
@@ -74,15 +56,14 @@ const clickEmoji = (messageId, emoji) => {
     &nbsp;
   </div>
 </div>
-
-  <template v-if="channel">
-    <Messages :channel="channel" :messages="messages" />
-  </template>
-
-<div class="editText">
-  <EditBox :channel="channel" :message="message" />
-</div>
-<br>
+<p><a :href="newThreadURL">新スレッド</a></p>
+<template v-for="d in threadHeads" >
+  <p>
+    <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
+      {{d.title}}
+    </a>
+  </p>
+</template>
 </div>
 </template>
 

@@ -235,7 +235,7 @@ onBeforeMount(async () => {
       <tr><td>Channels</td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
-          <a :href="'/channel/' + d.channelID">{{ d.channelName }}</a>
+          <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
         </td>
       </tr>
       <tr><td><a href="/channelAdd/" ><span> + </span><span>グループ追加</span></a></td></tr>

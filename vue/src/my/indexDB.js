@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 56);
+    const request = indexedDB.open('chat', 60);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -37,8 +37,11 @@ const openDatabase = () => {
         if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
           objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
         }
-        if (tableName === 'threadHead' && !objectStore.indexNames.contains('displayStatusIndex')) {
+        if (!objectStore.indexNames.contains('displayStatusIndex')) {
           objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
+        }
+        if (!objectStore.indexNames.contains('channelIDIndex')) {
+          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
         }
       });
     };
