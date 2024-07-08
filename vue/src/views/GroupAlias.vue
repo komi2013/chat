@@ -17,33 +17,35 @@ const props = defineProps({
 })
 
 const channel = ref('');
-// const groupAlias = ref('');
 const groupAliases = ref('');
+const groupAliasName = ref(props.groupAliasName);
+const groupAliasNames = ref([]);
+const postable = ref(false);
 
 async function fetchChannel() {
   try {
     const data = await getIDB('channel', props.id);
     channel.value = data;
     groupAliases.value = data.groupAliases;
-
+    for (let i = 0; i < data.groupAliases.length; i++) {
+      groupAliasNames.value.push(data.groupAliases[i][0]);
+    }
   } catch (error) {
     channel.value = null;
   }
 }
 
-const filteredGroupAliases = computed(() => {
-  if (props.groupAliasName && groupAliases.value) {
-    return groupAliases.value.filter(groupAlias => groupAlias[0] === props.groupAliasName);
-  } else {
-    return groupAliases.value;
-  }
-});
-
 function isEditable(groupAlias) {
+  if (groupAliasName.value) {
+    return false;
+  }
   if (groupAlias[3]) {
     return true;
   }
-  return groupAlias[2].includes(channel.value.aliasName);
+  if (groupAlias[2].includes(channel.value.aliasName)) {
+    return true;
+  }
+  return false;
 }
 
 function updateGroupAliasName(event, groupAlias) {
@@ -58,7 +60,6 @@ function getImagePath(member) {
 function addName(suggestion, i) {
   if (!groupAliases.value[i][2].includes(suggestion[0])) {
     groupAliases.value[i][2].push(suggestion[0]);
-    console.log(groupAliases.value);
   }
   memberInput.value[i] = '';
   suggestions.value[i] = [];
@@ -68,73 +69,23 @@ function removeName(i2, i) {
   groupAliases.value[i][2].splice(i2, 1);
 }
 
-const newGroupName = ref('');
-const newGroupImage = ref('');
 const memberInput = ref([]);
-const newGroupMembers = ref([]);
 const suggestions = ref([]);
 
 function updateSuggestions(i) {
-  console.log('tako', memberInput.value[i]);
   const input = memberInput.value[i].toLowerCase();
   suggestions.value[i] = channel.value.allAliases.filter(alias =>
     alias[0].toLowerCase().includes(input)
   );
 }
 
-
-// function addMember(suggestion) {
-//   if (!newGroupMembers.value.includes(suggestion[0])) {
-//     newGroupMembers.value.push(suggestion[0]);
-//   }
-//   memberInput.value = '';
-//   suggestions.value = [];
-// }
-
-// function removeMember(index) {
-//   newGroupMembers.value.splice(index, 1);
-// }
-
 function newGroup() {
   groupAliases.value.unshift(['', '', [], true]);
-  console.log('push', groupAliases);
 }
 
 function editGroup() {
   console.log('ga', groupAliases);
-  // newGroupName.value = groupAlias[0];
-  // newGroupMembers.value = [...groupAlias[2]];
 }
-
-// function saveGroupAlias() {
-//   if (newGroupName.value && newGroupMembers.value.length) {
-//     // Update the existing group alias or add a new one
-//     const existingGroup = groupAliases.value.find(group => group[0] === newGroupName.value);
-//     if (existingGroup) {
-//       existingGroup[2] = [...newGroupMembers.value];
-//     } else {
-//       groupAliases.value.push([newGroupName.value, '/path/to/new/image.jpg', [...newGroupMembers.value]]);
-//     }
-//     // Reset inputs
-//     newGroupName.value = '';
-//     newGroupMembers.value = [];
-//   } else {
-//     alert('Please fill all the fields and add at least one member.');
-//   }
-// }
-
-// Add new group to channel.groupAliases
-// function addGroup() {
-//   if (newGroupName.value && newGroupImage.value && newGroupMembers.value.length) {
-//     // channel.groupAliases.push([newGroupName.value, newGroupImage.value, [...newGroupMembers.value]]);
-//     // Reset inputs
-//     newGroupName.value = '';
-//     newGroupImage.value = '';
-//     newGroupMembers.value = [];
-//   } else {
-//     alert('Please fill all the fields and add at least one member.');
-//   }
-// }
 
 const attach = () => {
   const fileInput = document.getElementById('fileInput');
@@ -185,52 +136,26 @@ onBeforeMount(async () => {
     </div>
   </div>
 
-<button @click="newGroup"> + </button>
+<div class="editButton">
+  <button v-if="!groupAliasName" @click="newGroup"> + </button>
+  <a v-if="groupAliasName" :href="'/groupAlias/' + props.id + '/'">グループ編集</a>
+</div>
 
-<!-- <table>
-  <tr>
-    <td @click="attach" style="text-align: center;">
-      <div v-html="fileInfo"></div>
-      <input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
-    </td>
-    <td colspan="2">
-      <input placeholder="グループエイリアス" v-model="newGroupName" />
-    </td>
-  </tr>
-  <tr>
-    <td colspan="3">
-      <input v-model="memberInput" @input="updateSuggestions" />
-      <table v-if="suggestions.length && memberInput" class="dropdown">
-        <tr v-for="(suggestion, index) in suggestions" @click="addMember(suggestion)">
-          <td style="width: 50px;"><img :src="suggestion[1]"></td>
-          <td>{{ suggestion[0] }}</td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-  <tr v-for="(member, index) in newGroupMembers" :key="index">
-    <td><button @click="removeMember(index)">🗑</button></td>
-    <td><img :src="getImagePath(member)"></td>
-    <td>{{ member }}</td>
-  </tr>
-  <tr>
-    <td colspan="3" style="text-align: center;">
-      <button style="width: 80%;" @click="saveGroupAlias">Save</button>
-    </td>
-  </tr>
-</table>
- -->
 <table>
-  <template v-for="(groupAlias, i) in filteredGroupAliases">
+  <template v-for="(groupAlias, i) in groupAliases">
+    <template v-if="!groupAliasName || (groupAliasName === groupAliasNames[i])">
     <tr>
       <td>
-        <img v-if="groupAlias[1]" :src="groupAlias[1]">
+        <a :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' ">
+          <img v-if="groupAlias[1]" :src="groupAlias[1]"></a>
         <span v-if="!groupAlias[1]">🖼️</span>
       </td>
       <td colspan="2">
         <input v-if="isEditable(groupAlias)" v-model="groupAlias[0]" />
         <div v-if="!isEditable(groupAlias)">
-          {{ groupAlias[0] }}
+          <a :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' ">
+            {{ groupAlias[0] }}
+          </a>
         </div>
       </td>
     </tr>
@@ -238,7 +163,7 @@ onBeforeMount(async () => {
       <td colspan="3">
         <input v-model="memberInput[i]" @input="updateSuggestions(i)" />
         <table v-if="suggestions[i] && memberInput[i]" class="dropdown">
-          <tr v-for="(suggestion, index) in suggestions[i]" @click="addName(suggestion, index)">
+          <tr v-for="suggestion in suggestions[i]" @click="addName(suggestion, i)">
             <td><img :src="suggestion[1]"></td>
             <td>{{ suggestion[0] }}</td>
           </tr>
@@ -255,11 +180,13 @@ onBeforeMount(async () => {
       </td>
       <td>{{ member }}</td>
     </tr>
+    <tr><td style="text-underline-position: under;">&nbsp;</td></tr>
+    </template>
   </template>
 </table>
 
-<div style="text-align: center; width: 100%;">
-  <button style="width: 80%;" @click="editGroup">▶️</button>
+<div v-if="!groupAliasName" class="editButton">
+  <button @click="editGroup">▶️</button>
 </div>
 
 </div>
@@ -280,6 +207,17 @@ img {
 .member {
   padding-left: 50px;
 }
+
+.editButton {
+  text-align: center;
+  width: 100%;
+}
+
+.editButton button {
+  width: 80%;
+  height: 30px;
+}
+
 
 .dropdown {
   padding: 10px;
