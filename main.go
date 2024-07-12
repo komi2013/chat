@@ -17,6 +17,7 @@ func main() {
 		http.HandleFunc("/aliasImg/", controller.AliasImg)
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
+		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
 		http.HandleFunc("/EmojiToggle/", controller.EmojiToggle)
 		http.HandleFunc("/GoogleIdentity/", controller.GoogleIdentity)

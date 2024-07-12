@@ -4,7 +4,8 @@ import { ref, onUpdated } from 'vue';
 import { upsertData } from './my/indexDB.js';
 import { bookmark } from './pushReceive/bookmark.js';
 import { channelJoin } from './pushReceive/channelJoin.js';
-import { channelUpsert } from './pushReceive/channelUpsert.js';
+import { channelAdd } from './pushReceive/channelAdd.js';
+import { channelEdit } from './pushReceive/channelEdit.js';
 import { emoji } from './pushReceive/emoji.js';
 import { rookie } from './pushReceive/rookie.js';
 import { thread } from './pushReceive/thread.js';
@@ -23,11 +24,11 @@ function processNotificationData(notificationData) {
     case 'channelJoin':
       channelJoin(data);
       break;
-    case 'channel':
-      channelUpsert(data);
+    case 'channelAdd':
+      channelAdd(data);
       break;
-    case 'community_join':
-      console.log('community_join', data);
+    case 'channelEdit':
+      channelEdit(data);
       break;
     case 'emoji':
       emoji(data);

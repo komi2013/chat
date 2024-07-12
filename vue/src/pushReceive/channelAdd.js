@@ -8,7 +8,7 @@ import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 // when community join, decide alias
 // aliasImg is changeble
 
-export async function channelUpsert(pushData) {
+export async function channelAdd(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
   fd.append('pushID', pushID);

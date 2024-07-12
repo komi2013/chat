@@ -23,8 +23,8 @@ import (
   "chat/common"
 )
 
-func ChannelAdd(w http.ResponseWriter, r *http.Request) {
-	session, err := common.Session(w,r)
+func ChannelEdit(w http.ResponseWriter, r *http.Request) {
+	_, err := common.Session(w,r)
 	if err != nil {
   	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
     return
@@ -38,17 +38,6 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  //  channelName: 改めてグループ
-	// description: <p>ここはディスクリプション</p>
-	// aliasName: コマツ
-	// aliasImg: 
-	// jsonBytes := []byte(r.FormValue("aliasArray"))
-	// var aliases [][]string
-	// json.Unmarshal(jsonBytes, &aliases)
-
-	// aliases
- //  fd.append('aliasName', aliasName.value);
- //  fd.append('aliasImg', aliasImg.value);
 	aliasImg := r.FormValue("aliasImg")
 	if (strings.HasPrefix(r.FormValue("aliasImg"), "data:image")) {
 	  base64Data := strings.Split(r.FormValue("aliasImg"), ",")[1]
@@ -68,29 +57,27 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	  aliasImg = "/aliasImg/" + randPath + r.FormValue("aliasName") + ".png"
 	}
 
-	alias := []string{
-		r.FormValue("aliasName"),
-		aliasImg,
-		session.UserID}
+  jsonBytes := []byte(r.FormValue("aliases"))
+  var aliases [][]string
+  json.Unmarshal(jsonBytes, &aliases)
 
-  // for _, d := range aliases {
-  if !isAliasExist(r.FormValue("aliasName"), session.AliasArray) {
-    session.AliasArray = append(session.AliasArray, []string{
-    	r.FormValue("aliasName"), aliasImg})
-  }
-  // }
-  coll := db1.Collection("session")
-  filter := bson.D{{"_id", session.SessionID}}
-  update := bson.D{{"$set", bson.D{
-      {"alias_array", session.AliasArray},
-  }}}
-  coll.UpdateOne(context.TODO(), filter, update)
+  for i := range aliases {
+		if aliases[i][0] == r.FormValue("aliasName") {
+			aliases[i][1] = aliasImg
+			break
+		}
+	}
 
-	channelID := common.StringRand(4)
-	userIDs := []string{session.UserID}
+  jsonBytes = []byte(r.FormValue("groupAliases"))
+  var groupAliases []interface{}
+  json.Unmarshal(jsonBytes, &groupAliases)
 
-	coll = db1.Collection("session")
-  filter = bson.D{{
+  jsonBytes = []byte(r.FormValue("userIDs"))
+  var userIDs []interface{}
+  json.Unmarshal(jsonBytes, &userIDs)
+  fmt.Printf("userIDs %s\n", userIDs)
+	coll := db1.Collection("session")
+  filter := bson.D{{
   	"user_id", bson.D{{"$in", userIDs}}}}
 	project := bson.D{{"subscription", 1}}
 	opts4 := options.Find().SetProjection(project)
@@ -107,15 +94,14 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	  pushID := common.StringRand(12)
 		var arr []interface{}
 		arr = append(arr, pushID)
-		arr = append(arr, "channelAdd")
-		arr = append(arr, channelID)
+		arr = append(arr, "channelEdit")
+		arr = append(arr, r.FormValue("channelID"))
 		arr = append(arr, r.FormValue("channelName"))
 		arr = append(arr, r.FormValue("description"))
-		arr = append(arr, alias)
+		arr = append(arr, aliases)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, time.Now().Format("2006-01-02"))
-		arr = append(arr, 1) // 1 = add, 2 = edit
-
+		arr = append(arr, groupAliases)
 		msgJson, err := json.Marshal(arr)
 		if err != nil {
 			fmt.Println("JSON変換エラー:", err)
@@ -148,13 +134,4 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		defer resp.Body.Close()
   }
   fmt.Fprint(w, `{"Status":"1"}`)
-}
-
-func isAliasExist(alias string, aliases [][]string) bool {
-    for _, a := range aliases {
-        if a[0] == alias {
-            return true
-        }
-    }
-    return false
 }

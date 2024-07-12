@@ -85,37 +85,129 @@ function newGroup() {
 
 function editGroup() {
   console.log('ga', groupAliases);
+  const fd = new FormData();
+  fd.append('channelID', channel.value.channelID);
+  fd.append('channelName', channel.value.channelName);
+  fd.append('channelDescription', channel.value.channelDescription);
+  let aliases = [];
+  let userIDS = [];
+  channel.value.allAliases.forEach(item => {
+    aliases.push([item[0], item[1]]);
+    userIDS.push(item[2]);
+  });
+  fd.append('aliases', JSON.stringify(aliases));
+  fd.append('userIDs', JSON.stringify(userIDS));
+  fd.append('aliasName', channel.value.aliasName);
+  fd.append('groupAliases', JSON.stringify(channel.value.groupAliases));
+  // fd.append('channelID', generateRandomCode(4));
+
+  // const fileInput = document.getElementById('fileInput_' + messageID);
+  // // if (fileInput && fileInput.files.length > 10) {
+  // //   alert('too many files');
+  // //   return;
+  // // }
+  // if (fileInput && fileInput.files.length > 0) {
+  //   for (const file of fileInput.files) {
+  //     fd.append('files[]', file);
+  //   }
+  // }
+
+
+  const request = new Request('/ChannelEdit/', {
+    method: 'POST',
+    body: fd,
+  })
+  fetch(request)
+    .then((response) => response.json())
+    .then((json)=>{
+      // when status not 1
+    })
+    .catch((reason)=>{
+      console.log(reason)
+    })
 }
 
-const attach = () => {
-  const fileInput = document.getElementById('fileInput');
+const fileInfo = ref({});
+fileInfo.value = '🖼️';
+
+const attach = (i, editable) => {
+  if (!editable) {
+    return;
+  }
+  const fileInput = document.getElementById('fileInput_' + i);
   if (fileInput) {
     fileInput.click();
   }
-  fileInput.addEventListener('change', handleFileInputChange);
+  // fileInput.addEventListener('change', handleFileInputChange);
+  fileInput.addEventListener('change', (event) => handleFileInputChange(event, i));
 }
-const fileInfo = ref({});
-fileInfo.value = '🖼️';
-const handleFileInputChange = (event) => {
-  const files = event.target.files;
+
+const handleFileInputChange = (event, i) => {
+  const file = event.target.files[0]; // 最初のファイルのみ取得
+  // if (!file) return; // ファイルが選択されていない場合は何もしない
+
   const newFileInfo = document.createElement('div');
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const fileContainer = document.createElement('div');
-    if (file.type.startsWith('image/')) {
-      const image = document.createElement('img');
-      image.src = URL.createObjectURL(file);
-      image.style.maxWidth = '50px';
-      image.style.maxHeight = '50px';
-      fileContainer.appendChild(image);
-    } else {
-      const fileName = document.createTextNode(file.name);
-      fileContainer.appendChild(fileName);
-    }
-    newFileInfo.appendChild(fileContainer);
+  const fileContainer = document.createElement('div');
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64Image = e.target.result;
+      resizeImage(base64Image, 50, 50, (resizedBase64Image) => {
+        groupAliases.value[i][1] = resizedBase64Image;
+
+        const image = document.createElement('img');
+        image.src = resizedBase64Image;
+        console.log('image', image);
+        // image.style.maxWidth = '50px';
+        // image.style.maxHeight = '50px';
+        // 必要に応じて、画像をDOMに追加
+        // document.body.appendChild(image);
+      });
+    };
+    reader.readAsDataURL(file);
+  } else {
+    return;
+    // const fileName = document.createTextNode(file.name);
+    // fileContainer.appendChild(fileName);
   }
-  fileInfo.value = newFileInfo.outerHTML;
+
+  // newFileInfo.appendChild(fileContainer);
+  // fileInfo.value = newFileInfo.outerHTML;
 }
+
+const resizeImage = (base64Str, maxWidth, maxHeight, callback) => {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    let width = img.width;
+    let height = img.height;
+
+    // 幅と高さの比率を計算して、サイズを変更
+    if (width > height) {
+      if (width > maxWidth) {
+        height *= maxWidth / width;
+        width = maxWidth;
+      }
+    } else {
+      if (height > maxHeight) {
+        width *= maxHeight / height;
+        height = maxHeight;
+      }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const resizedBase64 = canvas.toDataURL('image/png');
+    callback(resizedBase64);
+  }
+  img.src = base64Str;
+}
+
 
 onBeforeMount(async () => {
   await fetchChannel();
@@ -145,19 +237,18 @@ onBeforeMount(async () => {
   <template v-for="(groupAlias, i) in groupAliases">
     <template v-if="!groupAliasName || (groupAliasName === groupAliasNames[i])">
     <tr>
-      <td>
-        <a :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' ">
-          <img v-if="groupAlias[1]" :src="groupAlias[1]"></a>
+      <td @click="attach(i, isEditable(groupAlias))">
+        <img v-if="groupAlias[1]" :src="groupAlias[1]">
         <span v-if="!groupAlias[1]">🖼️</span>
+        <input type="file" style="position: fixed; left: -300px;" :id="'fileInput_' + i">
       </td>
-      <td colspan="2">
+      <td>
         <input v-if="isEditable(groupAlias)" v-model="groupAlias[0]" />
         <div v-if="!isEditable(groupAlias)">
-          <a :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' ">
-            {{ groupAlias[0] }}
-          </a>
+          {{ groupAlias[0] }}
         </div>
       </td>
+      <td> <a v-if="!groupAliasName" :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' "> ⏭️ </a> </td>
     </tr>
     <tr v-if="isEditable(groupAlias)" >
       <td colspan="3">
