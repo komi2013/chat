@@ -83,8 +83,15 @@ function newGroup() {
   groupAliases.value.unshift(['', '', [], true]);
 }
 
+function removeGroup(i) {
+  groupAliases.value.splice(i, 1);
+}
+
 function editGroup() {
   console.log('ga', groupAliases);
+  if (!confirm("▶️")) {
+    return;
+  }
   const fd = new FormData();
   fd.append('channelID', channel.value.channelID);
   fd.append('channelName', channel.value.channelName);
@@ -99,20 +106,6 @@ function editGroup() {
   fd.append('userIDs', JSON.stringify(userIDS));
   fd.append('aliasName', channel.value.aliasName);
   fd.append('groupAliases', JSON.stringify(channel.value.groupAliases));
-  // fd.append('channelID', generateRandomCode(4));
-
-  // const fileInput = document.getElementById('fileInput_' + messageID);
-  // // if (fileInput && fileInput.files.length > 10) {
-  // //   alert('too many files');
-  // //   return;
-  // // }
-  // if (fileInput && fileInput.files.length > 0) {
-  //   for (const file of fileInput.files) {
-  //     fd.append('files[]', file);
-  //   }
-  // }
-
-
   const request = new Request('/ChannelEdit/', {
     method: 'POST',
     body: fd,
@@ -138,14 +131,11 @@ const attach = (i, editable) => {
   if (fileInput) {
     fileInput.click();
   }
-  // fileInput.addEventListener('change', handleFileInputChange);
   fileInput.addEventListener('change', (event) => handleFileInputChange(event, i));
 }
 
 const handleFileInputChange = (event, i) => {
-  const file = event.target.files[0]; // 最初のファイルのみ取得
-  // if (!file) return; // ファイルが選択されていない場合は何もしない
-
+  const file = event.target.files[0];
   const newFileInfo = document.createElement('div');
   const fileContainer = document.createElement('div');
 
@@ -158,22 +148,12 @@ const handleFileInputChange = (event, i) => {
 
         const image = document.createElement('img');
         image.src = resizedBase64Image;
-        console.log('image', image);
-        // image.style.maxWidth = '50px';
-        // image.style.maxHeight = '50px';
-        // 必要に応じて、画像をDOMに追加
-        // document.body.appendChild(image);
       });
     };
     reader.readAsDataURL(file);
   } else {
     return;
-    // const fileName = document.createTextNode(file.name);
-    // fileContainer.appendChild(fileName);
   }
-
-  // newFileInfo.appendChild(fileContainer);
-  // fileInfo.value = newFileInfo.outerHTML;
 }
 
 const resizeImage = (base64Str, maxWidth, maxHeight, callback) => {
@@ -230,7 +210,7 @@ onBeforeMount(async () => {
 
 <div class="editButton">
   <button v-if="!groupAliasName" @click="newGroup"> + </button>
-  <a v-if="groupAliasName" :href="'/groupAlias/' + props.id + '/'">グループ編集</a>
+  <a v-if="groupAliasName" :href="'/groupAlias/' + props.id + '/'"><button> ✏️ </button></a>
 </div>
 
 <table>
@@ -249,6 +229,7 @@ onBeforeMount(async () => {
         </div>
       </td>
       <td> <a v-if="!groupAliasName" :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' "> ⏭️ </a> </td>
+      <td> <a v-if="isEditable(groupAlias)" @click="removeGroup(i)"> 🗑 </a> </td>
     </tr>
     <tr v-if="isEditable(groupAlias)" >
       <td colspan="3">
@@ -264,14 +245,14 @@ onBeforeMount(async () => {
     <tr v-for="(member, i2) in groupAlias[2]">
       <td>
         <button v-if="isEditable(groupAlias)"
-          @click="removeName(i2, i)">🗑</button>
+          @click="removeName(i2, i)"> 🗑 </button>
       </td>
-      <td>
+      <td colspan="2">
         <img :src="getImagePath(member)">
+        {{ member }}
       </td>
-      <td>{{ member }}</td>
     </tr>
-    <tr><td style="text-underline-position: under;">&nbsp;</td></tr>
+    <tr><td colspan="3"><hr></td></tr>
     </template>
   </template>
 </table>
@@ -293,6 +274,12 @@ onBeforeMount(async () => {
 img {
   max-width: 50px;
   max-height: 50px;
+}
+
+hr {
+  border: none;             /* デフォルトの境界線を取り除く */
+  border-top: 1px solid black; /* 上部に1pxの境界線を追加 */
+  margin: 20px 0;
 }
 
 .member {

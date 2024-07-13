@@ -56,7 +56,7 @@ onBeforeMount(async () => {
     &nbsp;
   </div>
 </div>
-<p><a :href="newThreadURL">新スレッド</a></p>
+<p><a :href="newThreadURL"> <button> + </button></a></p>
 <template v-for="d in threadHeads" >
   <p>
     <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">

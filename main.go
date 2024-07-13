@@ -14,7 +14,6 @@ import (
 func main() {
 
 	if len(os.Args) == 1 {
-		http.HandleFunc("/aliasImg/", controller.AliasImg)
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
@@ -28,6 +27,7 @@ func main() {
 		http.HandleFunc("/PushGet/", controller.PushGet)
 		http.HandleFunc("/PushResponse/", controller.PushResponse)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
+		http.HandleFunc("/img/", controller.Img)
 		http.HandleFunc("/Init/", controller.Init)
 		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)

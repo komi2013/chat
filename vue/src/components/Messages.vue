@@ -142,7 +142,7 @@ onBeforeMount(async () => {
           <span
             v-if="channel.aliasName == message.aliasName"
             :class="{ 'selected': message.editFlg }"
-            @click="toggleEdit(message, message.messageID, $event)"> 🖋 </span>
+            @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
           <span v-if="!message.threadCount"> <a :href="nextURL(message)"> 💬 </a> </span>
           <span
             :class="{ 'selected': message.bookmark }"

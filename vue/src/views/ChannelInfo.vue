@@ -263,7 +263,7 @@ onMounted(() => {
   <button @click="invite"> <span>✉️</span> <span>招待URL</span> </button>
   <div> {{invitationCode}} </div>
   <div> <img :src="invitationQR"></div>
-  <div> <a :href="'/groupAlias/' + props.id + '/'">グループ編集</a> </div>
+  <div> <a :href="'/groupAlias/' + props.id + '/'"><button> 👥 ✏️ </button></a> </div>
 </div>
 <input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
 
