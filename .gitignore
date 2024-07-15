@@ -6,7 +6,7 @@ public/assets/
 
 common/config.go
 log/
-aliasImg/
+img/
 upload/
 
 

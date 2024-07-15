@@ -48,7 +48,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-	// aliasImg := aliasImgSave(r.FormValue("aliasImg"))
+	aliasImg := aliasImgSave(r.FormValue("aliasImg"), r.FormValue("channelID"), 0)
   jsonBytes := []byte(r.FormValue("aliases"))
   var aliases [][]string
   json.Unmarshal(jsonBytes, &aliases)
@@ -94,7 +94,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, r.FormValue("channelID"))
 		arr = append(arr, r.FormValue("channelName"))
 		arr = append(arr, r.FormValue("description"))
-		arr = append(arr, aliases)
+		arr = append(arr, aliasImg)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, time.Now().Format("2006-01-02"))
 		arr = append(arr, groupAliases)

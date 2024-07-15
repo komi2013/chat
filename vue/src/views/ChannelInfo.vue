@@ -12,28 +12,33 @@ const props = defineProps({
   id: '',
 })
 
-const aliass = ref('');
+let aliass;
 const aliasName = ref(null);
 const aliasImg = ref(null);
 async function fetchAlias() {
   try {
-    aliass.value = await getAllIDBs('alias');
+    aliass = await getAllIDBs('alias');
+    console.log('aliass', aliass);
   } catch (error) {
-    aliass.value = [];
+    aliass = [];
   }
 }
-fetchAlias();
 
 // const channel = ref('');
-const channel = ref({
-  channelDescription: '',
-  channelName: ''
-});
+const channel = ref('');
 async function fetchChannel() {
   if (props.id) {
     try {
       channel.value = await getIDB('channel', props.id);
       aliasName.value = channel.value.aliasName;
+      await fetchAlias();
+      for (let i = 0; i < aliass.length; i++) {
+        if (aliass[i].aliasName == channel.value.aliasName) {
+          aliasImg.value = aliass[i].aliasImg;
+          console.log('aliasName.value', aliasName.value);
+          console.log('aliasImg.value', aliasImg.value);
+        }
+      }
     } catch (error) {
       console.error(error);
       channel.value = null;
@@ -53,6 +58,14 @@ const updatePreview = () => {
     aliasImg.value = selectedAlias.aliasImg;
   }
 };
+
+const fileInputRef = ref(null);
+function triggerFileInput() {
+  const fileInput = fileInputRef.value;
+  if (fileInput) {
+    fileInput.click();
+  }
+}
 
 const previewAndUpload = (event) => {
   const file = event.target.files[0];
@@ -87,9 +100,8 @@ const resizeAndPreviewImage = (file) => {
       ctx.drawImage(img, 0, 0, width, height);
       const resizedDataURL = canvas.toDataURL('image/jpeg'); // 画像を縮小してDataURLに変換
       aliasImg.value = resizedDataURL;
-      console.log(aliasImg.value);
     };
-    img.src = event.target.result;
+    aliasImg.value = event.target.result;
   };
   reader.readAsDataURL(file);
 };
@@ -123,19 +135,19 @@ const handleFileInputChange = (event) => {
   fileInfo.value = newFileInfo.outerHTML;
 };
 
-let aliasArray = channel.value.aliasArray || [];
-const updateAliasArray = (name, image) => {
-  if (image.startsWith('data:image')) {
-    const randomFileName = generateRandomCode(1) + '.png';
-    image = `/upload/${localStorage.userID}/${randomFileName}`;
-  }
-  const index = aliasArray.findIndex(entry => entry[0] === name);
-  if (index !== -1) {
-    aliasArray[index][1] = image;
-  } else {
-    aliasArray.push([name, image]);
-  }
-};
+// let aliasArray = channel.value.aliasArray || [];
+// const updateAliasArray = (name, image) => {
+//   if (image.startsWith('data:image')) {
+//     const randomFileName = generateRandomCode(1) + '.png';
+//     image = `/upload/${localStorage.userID}/${randomFileName}`;
+//   }
+//   const index = aliasArray.findIndex(entry => entry[0] === name);
+//   if (index !== -1) {
+//     aliasArray[index][1] = image;
+//   } else {
+//     aliasArray.push([name, image]);
+//   }
+// };
 
 
 let clicked = false;
@@ -150,8 +162,8 @@ const channelPost = () => {
   fd.append('description', quill.root.innerHTML);
   fd.append('aliasName', aliasName.value);
   fd.append('aliasImg', aliasImg.value);
-  updateAliasArray(aliasName.value, aliasImg.value);
-  fd.append('aliasArray', JSON.stringify(aliasArray));
+  // updateAliasArray(aliasName.value, aliasImg.value);
+  // fd.append('aliasArray', JSON.stringify(aliasArray));
   const fileInput = document.getElementById('fileInput');
   // if (fileInput && fileInput.files.length > 10) {
   //   alert('too many files');
@@ -162,7 +174,7 @@ const channelPost = () => {
       fd.append('files[]', file);
     }
   }
-  const request = new Request('/ChannelUpsert/', {
+  const request = new Request('/ChannelEdit/', {
     method: 'POST',
     body: fd,
   });
@@ -201,6 +213,7 @@ const invite = async () => {
 
 let quill;
 onMounted(() => {
+  console.log('fileInputRef onMounted', fileInputRef.value);
   quill = new Quill('#description', {
     modules: {
       toolbar: '#toolbar',
@@ -240,25 +253,12 @@ onMounted(() => {
     </button>
   </div>
   <div id="description"></div><br>
-  <input type="text" v-model="aliasName" placeholder="グループ中の自分の名前" @input="showInputFile">
-  <template v-if="inputFile">
-    <img v-if="aliasImg" :src="aliasImg" class="new-alias-img"><br>
-    <input type="file" @change="previewAndUpload" accept="image/*">
-  </template>
-  <div class="alias-list">
-    <label v-for="alias in aliass" :key="alias.aliasName" 
-      :class="{ 'alias-item': true, 'selected': aliasName === alias.aliasName }">
-      <input type="radio" 
-        v-model="aliasName"
-        :value="alias.aliasName"
-        class="alias-radio"
-        @change="updatePreview">
-      <div class="alias-info">
-        <span class="alias-name">{{ alias.aliasName }}</span>
-        <img :src="alias.aliasImg" alt="❌" class="alias-image">
-      </div>
-    </label>
-  </div>
+
+    <img v-if="aliasImg" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">
+    <span v-if="!aliasImg" @click="triggerFileInput" > 🌄 </span>
+    <input type="file" ref="fileInputRef" @change="previewAndUpload" accept="image/*" style="display: none;">
+    <span> {{ aliasName }} </span>
+
   <button @click="channelPost">▶️</button><br>
   <button @click="invite"> <span>✉️</span> <span>招待URL</span> </button>
   <div> {{invitationCode}} </div>

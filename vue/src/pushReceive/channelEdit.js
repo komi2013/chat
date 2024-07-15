@@ -26,6 +26,7 @@ export async function channelEdit(pushData) {
   // arr = append(arr, time.Now().Format("2006-01-02"))
   const channelID = pushData[2];
   const updatedBy = pushData[6];
+  const aliasImg = pushData[5];
   // const obj = {
   //   channelID: pushData[2],
   //   channelName: pushData[3],
@@ -33,14 +34,14 @@ export async function channelEdit(pushData) {
   //   updatedBy: pushData[6],
   //   updatedAt: pushData[7]
   // };
-  const aliases = pushData[5];
+  
   try {
     const channel = await getIDB('channel', channelID);
     console.log('channel', channel);
     let allAliases = channel.allAliases;
     for (let i = 0; i < allAliases.length; i++) {
-      if (updatedBy == aliases[i][0]) {
-        allAliases[i][1] = aliases[i][1];
+      if (updatedBy == allAliases[i][0]) {
+        allAliases[i][1] = aliasImg;
       }
     }
     channel.allAliases = allAliases;
