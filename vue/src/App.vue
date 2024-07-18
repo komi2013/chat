@@ -7,6 +7,7 @@ import { channelJoin } from './pushReceive/channelJoin.js';
 import { channelAdd } from './pushReceive/channelAdd.js';
 import { channelEdit } from './pushReceive/channelEdit.js';
 import { emoji } from './pushReceive/emoji.js';
+import { groupAliasEdit } from './pushReceive/groupAliasEdit.js';
 import { rookie } from './pushReceive/rookie.js';
 import { thread } from './pushReceive/thread.js';
 import { threadEdit } from './pushReceive/threadEdit.js';
@@ -32,6 +33,9 @@ function processNotificationData(notificationData) {
       break;
     case 'emoji':
       emoji(data);
+      break;
+    case 'groupAliasEdit':
+      groupAliasEdit(data);
       break;
     case 'rookie':
       rookie(data);

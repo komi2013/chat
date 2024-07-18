@@ -25,15 +25,6 @@ import (
 )
 
 func ChannelEdit(w http.ResponseWriter, r *http.Request) {
-
-  // r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10 MB
-  // _, err := ioutil.ReadAll(r.Body)
-  // if err != nil {
-  //     http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
-  //     return
-  // }
-
-
 	_, err := common.Session(w,r)
 	if err != nil {
   	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
@@ -48,27 +39,9 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-	aliasImg := aliasImgSave(r.FormValue("aliasImg"), r.FormValue("channelID"), 0)
-  jsonBytes := []byte(r.FormValue("aliases"))
-  var aliases [][]string
-  json.Unmarshal(jsonBytes, &aliases)
+	aliasImg := common.AliasImgSave(r.FormValue("aliasImg"), r.FormValue("channelID"), 0)
 
- //  for i := range aliases {
-	// 	if aliases[i][0] == r.FormValue("aliasName") {
-	// 		aliases[i][1] = aliasImg
-	// 		break
-	// 	}
-	// }
-
-  jsonBytes = []byte(r.FormValue("groupAliases"))
-  var groupAliases [][]interface{}
-  json.Unmarshal(jsonBytes, &groupAliases)
-
-  for i := range groupAliases {
-		groupAliases[i][1] = aliasImgSave(groupAliases[i][1].(string), r.FormValue("channelID"), i)
-	}
-
-  jsonBytes = []byte(r.FormValue("userIDs"))
+  jsonBytes := []byte(r.FormValue("userIDs"))
   var userIDs []interface{}
   json.Unmarshal(jsonBytes, &userIDs)
   fmt.Printf("userIDs %s\n", userIDs)
@@ -97,7 +70,6 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, aliasImg)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, time.Now().Format("2006-01-02"))
-		arr = append(arr, groupAliases)
 		msgJson, err := json.Marshal(arr)
 		if err != nil {
 			fmt.Println("JSON変換エラー:", err)
@@ -130,27 +102,4 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		defer resp.Body.Close()
   }
   fmt.Fprint(w, `{"Status":"1"}`)
-}
-
-func aliasImgSave(aliasImg string, channelID string, i int ) string {
-	imgPath := aliasImg
-	if (strings.HasPrefix(aliasImg, "data:image")) {
-	  base64Data := strings.Split(aliasImg, ",")[1]
-	  imageData, err := base64.StdEncoding.DecodeString(base64Data)
-	  if err != nil {
-	      log.Println(err)
-	  }
-	  randPath := common.StringRand(4)
-		dirPath := "/img/group/" + channelID + "/"
-		os.MkdirAll("." + dirPath, 0755)
-		imgPath = dirPath + strconv.Itoa(i) + "_" + randPath + ".png"
-		filePath := "." + imgPath
-	  err = ioutil.WriteFile(filePath, imageData, 0644)
-	  if err != nil {
-	      log.Println(err)
-	  }
-	  log.Println("PNG image file saved successfully.")
-	  // imgPath = ""
-	}
-	return imgPath
 }

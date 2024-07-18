@@ -26,10 +26,12 @@ async function fetchChannel() {
   try {
     const data = await getIDB('channel', props.id);
     channel.value = data;
+    console.log('channel.value', channel.value);
     groupAliases.value = data.groupAliases;
-    for (let i = 0; i < data.groupAliases.length; i++) {
-      groupAliasNames.value.push(data.groupAliases[i][0]);
-    }
+    // for (let i = 0; i < data.groupAliases.length; i++) {
+    //   groupAliasNames.value.push(data.groupAliases[i][0]);
+    // }
+    groupAliasNames.value = (data.groupAliases || []).map(alias => alias[0]);
   } catch (error) {
     channel.value = null;
   }
@@ -73,14 +75,20 @@ const memberInput = ref([]);
 const suggestions = ref([]);
 
 function updateSuggestions(i) {
-  const input = memberInput.value[i].toLowerCase();
+  console.log('channel.value', channel.value);
+  const input = memberInput.value[i];
+  
   suggestions.value[i] = channel.value.allAliases.filter(alias =>
     alias[0].toLowerCase().includes(input)
   );
 }
 
 function newGroup() {
-  groupAliases.value.unshift(['', '', [], true]);
+  if (groupAliases.value && groupAliases.value[0]) {
+    groupAliases.value.unshift(['', '', [], true]);
+  } else {
+    groupAliases.value = [['', '', [], true]];
+  }
 }
 
 function removeGroup(i) {
@@ -88,25 +96,19 @@ function removeGroup(i) {
 }
 
 function editGroup() {
-  console.log('ga', groupAliases);
   if (!confirm("▶️")) {
     return;
   }
   const fd = new FormData();
   fd.append('channelID', channel.value.channelID);
-  fd.append('channelName', channel.value.channelName);
-  fd.append('channelDescription', channel.value.channelDescription);
-  let aliases = [];
   let userIDS = [];
   channel.value.allAliases.forEach(item => {
-    aliases.push([item[0], item[1]]);
     userIDS.push(item[2]);
   });
-  fd.append('aliases', JSON.stringify(aliases));
   fd.append('userIDs', JSON.stringify(userIDS));
   fd.append('aliasName', channel.value.aliasName);
-  fd.append('groupAliases', JSON.stringify(channel.value.groupAliases));
-  const request = new Request('/ChannelEdit/', {
+  fd.append('groupAliases', JSON.stringify(groupAliases.value));
+  const request = new Request('/GroupAliasEdit/', {
     method: 'POST',
     body: fd,
   })

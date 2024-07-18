@@ -20,6 +20,7 @@ func main() {
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
 		http.HandleFunc("/EmojiToggle/", controller.EmojiToggle)
 		http.HandleFunc("/GoogleIdentity/", controller.GoogleIdentity)
+		http.HandleFunc("/GroupAliasEdit/", controller.GroupAliasEdit)
 		// http.HandleFunc("/HubPush/", controller.HubPush)
 		// http.HandleFunc("/MessageEdit/", controller.MessageEdit)
 		// http.HandleFunc("/MessagePost/", controller.MessagePost)

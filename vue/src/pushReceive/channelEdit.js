@@ -1,4 +1,3 @@
-import { useMessagesStore } from '../stores/messages.js';
 import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 // if bad guy change userIDs and post?
@@ -17,27 +16,11 @@ export async function channelEdit(pushData) {
     body: fd,
   });
   fetch(request);
-
-  // arr = append(arr, r.FormValue("channelID")) // 2
-  // arr = append(arr, r.FormValue("channelName"))
-  // arr = append(arr, r.FormValue("description"))
-  // arr = append(arr, aliases)
-  // arr = append(arr, r.FormValue("aliasName"))
-  // arr = append(arr, time.Now().Format("2006-01-02"))
   const channelID = pushData[2];
   const updatedBy = pushData[6];
   const aliasImg = pushData[5];
-  // const obj = {
-  //   channelID: pushData[2],
-  //   channelName: pushData[3],
-  //   channelDescription: pushData[4],
-  //   updatedBy: pushData[6],
-  //   updatedAt: pushData[7]
-  // };
-  
   try {
     const channel = await getIDB('channel', channelID);
-    console.log('channel', channel);
     let allAliases = channel.allAliases;
     for (let i = 0; i < allAliases.length; i++) {
       if (updatedBy == allAliases[i][0]) {
@@ -49,8 +32,9 @@ export async function channelEdit(pushData) {
     channel.channelDescription = pushData[4];
     channel.updatedBy = updatedBy;
     channel.updatedAt = pushData[7];
-    channel.groupAliases = pushData[8];
-    channel.displayStatus = 1
+    console.log('channel', channel);
+    // channel.groupAliases = pushData[8];
+    // channel.displayStatus = 1
     upsertData(channel, 'channel', 'channelID', channelID)
       .catch((error) => {
         console.error(error);
