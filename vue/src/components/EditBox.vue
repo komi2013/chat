@@ -69,6 +69,7 @@ const attach = () => {
 
 }
 
+let dm = false;
 const fileInfo = ref({});
 const handleFileInputChange = (event) => {
   const files = event.target.files;
@@ -116,15 +117,15 @@ const msgUpsert = (messageID, delMessage) => {
   if (props.threadHead) {
     fd.append('backID', props.threadHead.backID);
     fd.append('type', props.threadHead.threadType);
-    if (props.threadHead.parentID.includes('@')) {
-      // fd.append('names', props.threadHead.aliasNames);
+    dm = props.threadHead.parentID.includes('@');
+    if (dm) {
       names = props.threadHead.parentID.split('@');
     }
     userIDs = props.channel.allAliases
       .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
       .map(alias => alias[2]);
   }
-  if (Array.isArray(props.channel.groupAliases)) {
+  if (Array.isArray(props.channel.groupAliases) && !dm) {
     for (const d of props.channel.groupAliases) {
       const atName = `＠＠${d[0]}・＠＠`;
       if (messageData.includes(atName)) {
@@ -140,7 +141,7 @@ const msgUpsert = (messageID, delMessage) => {
       userIDs.push(d[2]);
     }
     const atName = `＠＠${d[0]}・＠＠`;
-    if (messageData.includes(atName)) {
+    if (messageData.includes(atName) && !dm) {
       userIDs.push(d[2]);
       names.push(d[0]);
       yets.push([d[0], '/img/yet.png']);
@@ -173,9 +174,9 @@ const msgUpsert = (messageID, delMessage) => {
     .then(function(response) {
       clicked = false;
     })
-    .catch((reason)=>{
-      alert(reason)
-    })
+    // .catch((reason)=>{
+    //   alert(reason)
+    // })
 }
 
 function getAliasImg(props) {

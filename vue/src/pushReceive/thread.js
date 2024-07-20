@@ -41,7 +41,14 @@ export async function thread(pushData) {
   if (obj.backID) {
     threadHead.backID = obj.backID;
   }
+  const channel = await getIDB('channel', channelID);
   let title = getSubstring(removeMark(obj.messageTxt), 0, 30);
+  // const dm = props.threadHead.parentID.includes('@');
+  if (pushData[3].includes('@')) {
+    const parts = pushData[3].split('@');
+    const toWhom = parts[0] === channel.aliasName ? parts[1] : parts[0];
+    title = getSubstring(toWhom, 0, 12);
+  }
   let parent = {};
   try {
     parent = await getIDB('thread', obj.parentID);
@@ -64,7 +71,6 @@ export async function thread(pushData) {
       threadImgs: [obj.aliasImg]
     };
   }
-  const channel = await getIDB('channel', obj.channelID);
   let displayStatus = 1;
   let notify = false;
   channel.allAliases.forEach(d => {
