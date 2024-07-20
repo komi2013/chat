@@ -36,14 +36,17 @@ func ThreadEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
+  aliasName := r.FormValue("aliasName")
+  channelID := r.FormValue("channelID")
+
   trueAccess := false
   for _, arrayData := range session.AliasArray {
-    if arrayData[0] == r.FormValue("aliasName") {
+    if arrayData[0] == aliasName && arrayData[1] == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, r.FormValue("aliasName"))
+    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
 

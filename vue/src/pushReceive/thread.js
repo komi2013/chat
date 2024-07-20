@@ -64,11 +64,11 @@ export async function thread(pushData) {
       threadImgs: [obj.aliasImg]
     };
   }
-  const alias = await getAllIDBs('alias');
+  const channel = await getIDB('channel', obj.channelID);
   let displayStatus = 1;
   let notify = false;
-  alias.forEach(d => {
-    const atName = '＠＠' + d.aliasName + '・＠＠';
+  channel.allAliases.forEach(d => {
+    const atName = '＠＠' + d[0] + '・＠＠';
     if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
       displayStatus = 2;
     } else if (obj.messageTxt.includes(atName)) {

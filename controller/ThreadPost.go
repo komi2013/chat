@@ -30,8 +30,6 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
     return
 	}
 
-  aliasName := r.FormValue("aliasName")
-
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -41,11 +39,12 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
+  aliasName := r.FormValue("aliasName")
+  channelID := r.FormValue("channelID")
+
   trueAccess := false
-  var aliasImg string
   for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName {
-      aliasImg = arrayData[1]
+    if arrayData[0] == aliasName && arrayData[1] == channelID {
       trueAccess = true
     }
   }
@@ -73,7 +72,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 		// fileNames += "＊f＊" + fileHeader.Filename + "・＊f＊"
 		// fileLinks += "「＊/upload/" + r.FormValue("channelID") + "/" + fileHeader.Filename + "＊」（＊" + fileHeader.Filename + "＊）"
 		fileLinks += "＊f＊" + fileHeader.Filename + "・＊f＊"
-		saveDir := "./upload/" + r.FormValue("channelID") + "/"
+		saveDir := "./upload/" + channelID + "/"
 		os.MkdirAll(saveDir, 0755);
 		dst, err := os.Create(saveDir + fileHeader.Filename)
 		if err != nil {
@@ -110,7 +109,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
   names := []string{}
   json.Unmarshal(jsonBytes, &names)
   messageID := common.Base62Encode(time.Now().Unix())
-  messageID = r.FormValue("channelID") + messageID + common.StringRand(1)
+  messageID = channelID + messageID + common.StringRand(1)
   for _, r4 := range results4 {
 	  pushID := common.StringRand(12)
 	  var arr []interface{}
@@ -120,7 +119,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 	  arr = append(arr, r.FormValue("parentID"))
 	  arr = append(arr, r.FormValue("messageTxt") + fileLinks)
 	  arr = append(arr, aliasName)
-	  arr = append(arr, aliasImg)
+	  arr = append(arr, r.FormValue("aliasImg"))
 	  arr = append(arr, r.FormValue("type"))
 	  arr = append(arr, names)
 	  arr = append(arr, r.FormValue("backID"))

@@ -2,15 +2,12 @@ package controller
 
 import (
   "context"
-  "encoding/base64"
   "encoding/json"
   "fmt"
-  "io/ioutil"
+  "io"
   "log"
   "net/http"
   "os"
-  "strconv"
-  "strings"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -38,9 +35,33 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
+  channelID := r.FormValue("channelID")
+	aliasImg := common.AliasImgSave(r.FormValue("aliasImg"), channelID, 0)
 
-	aliasImg := common.AliasImgSave(r.FormValue("aliasImg"), r.FormValue("channelID"), 0)
-
+	fileLinks := ""
+	files := r.MultipartForm.File["files[]"]
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, "Failed to open file", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		fileLinks += "＊f＊" + fileHeader.Filename + "・＊f＊"
+		saveDir := "./upload/" + channelID + "/"
+		os.MkdirAll(saveDir, 0755);
+		dst, err := os.Create(saveDir + fileHeader.Filename)
+		if err != nil {
+			http.Error(w, "Failed to create file", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, file)
+		if err != nil {
+			http.Error(w, "Failed to copy file", http.StatusInternalServerError)
+			return
+		}
+	}
   jsonBytes := []byte(r.FormValue("userIDs"))
   var userIDs []interface{}
   json.Unmarshal(jsonBytes, &userIDs)
@@ -66,7 +87,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, "channelEdit")
 		arr = append(arr, r.FormValue("channelID"))
 		arr = append(arr, r.FormValue("channelName"))
-		arr = append(arr, r.FormValue("description"))
+		arr = append(arr, r.FormValue("description") + fileLinks)
 		arr = append(arr, aliasImg)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, time.Now().Format("2006-01-02"))

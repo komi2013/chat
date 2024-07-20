@@ -11,7 +11,7 @@
         <option value=""></option>
       </select>
       <button class="attachment" @click="attach(messageID)">
-        📎
+        🌄
       </button>
     </div>
     <div class="editRight ql-toolbar ql-snow">
@@ -110,6 +110,7 @@ const msgUpsert = (messageID, delMessage) => {
   fd.append('messageID', messageID);
   fd.append('messageTxt', messageData);
   fd.append('aliasName', props.channel.aliasName);
+  fd.append('aliasImg', getAliasImg(props));
   let userIDs = [localStorage.userID];
   let names = [props.channel.aliasName];
   if (props.threadHead) {
@@ -127,7 +128,9 @@ const msgUpsert = (messageID, delMessage) => {
     for (const d of props.channel.groupAliases) {
       const atName = `＠＠${d[0]}・＠＠`;
       if (messageData.includes(atName)) {
-        names.push(d[0]);
+        for (const d2 of d[2]) {
+          names.push(d2);
+        }
       }
     }
   }
@@ -149,10 +152,10 @@ const msgUpsert = (messageID, delMessage) => {
     fd.append('yets', JSON.stringify(yets));
   }
   const fileInput = document.getElementById('fileInput_' + messageID);
-  // if (fileInput && fileInput.files.length > 10) {
-  //   alert('too many files');
-  //   return;
-  // }
+  if (fileInput && fileInput.files.length > 10) {
+    alert('too many files');
+    return;
+  }
   if (fileInput && fileInput.files.length > 0) {
     for (const file of fileInput.files) {
       fd.append('files[]', file);
@@ -160,6 +163,7 @@ const msgUpsert = (messageID, delMessage) => {
   }
   if (!messageID) {
     quill.root.innerHTML = '';
+    fileInfo.value = [];
   }
   const request = new Request(uri, {
     method: 'POST',
@@ -173,6 +177,19 @@ const msgUpsert = (messageID, delMessage) => {
       alert(reason)
     })
 }
+
+function getAliasImg(props) {
+  let aliasImg = null;
+  const { allAliases, aliasName } = props.channel;
+  for (let i = 0; i < allAliases.length; i++) {
+    if (allAliases[i][0] === aliasName) {
+      aliasImg = allAliases[i][1];
+      break;
+    }
+  }
+  return aliasImg;
+}
+
 
 let quill;
 onMounted(() => {
@@ -188,7 +205,7 @@ onMounted(() => {
           if (mentionChar === "@") {
             console.log(props.channel.allAliases);
             console.log(props.channel.groupAliases);
-            const aliasForMention = props.channel.allAliases
+            let aliasForMention = props.channel.allAliases
             if (Array.isArray(props.channel.groupAliases)) {
               aliasForMention = props.channel.allAliases.concat(
                 props.channel.groupAliases.map(group => [group[0], group[1]])

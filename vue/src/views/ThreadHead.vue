@@ -85,14 +85,14 @@ onMounted(() => {
 // showNotification("新しいメッセージ", "新着メッセージがあります", "/icon.png");
 
 
-const text = '＊p＊こっちばっかに集中してしまう　＠＠ivan1・＠＠・＊p＊';
+// const text = '＊p＊こっちばっかに集中してしまう　＠＠ivan1・＠＠・＊p＊';
 
-if (text.includes('＠＠ivan1・＠＠')) {
-  console.log('＠＠ivan1＠＠が見つかりました');
-  new Notification('title', { body: 'nbo', icon: '/me.jpg' });
-} else {
-  console.log('＠＠ivan1＠＠は見つかりませんでした');
-}
+// if (text.includes('＠＠ivan1・＠＠')) {
+//   console.log('＠＠ivan1＠＠が見つかりました');
+//   new Notification('title', { body: 'nbo', icon: '/me.jpg' });
+// } else {
+//   console.log('＠＠ivan1＠＠は見つかりませんでした');
+// }
 
 </script>
 

@@ -51,7 +51,7 @@ const reverseParagraph = (html) => {
     .replace(/<p>([^]*?)<\/p>/g, '＊p＊$1・＊p＊');
 };
 
-export const markdownToHtml = (markdown, channel, aliass) => {
+export const markdownToHtml = (markdown, channel) => {
   if (!markdown) {
     return ''; 
   }
@@ -64,7 +64,7 @@ export const markdownToHtml = (markdown, channel, aliass) => {
   html = applyAttach(html, channel);
   html = applyLinks(html);
   html = applyColors(html);
-  html = applyMention(html, aliass);
+  html = applyMention(html, channel);
   html = applyParagraphs(html);
   return html;
 };
@@ -99,16 +99,23 @@ const applyColors = (markdown) => {
   return markdown.replace(/色＊赤([^]*?)赤＊色/g, '<span style="color: red;">$1</span>');
 };
 
-const applyMention = (markdown, aliass) => {
+const applyMention = (markdown, channel) => {
+  const aliasName = channel.aliasName;
+  const channelID = channel.channelID;
   const regex = /＠＠([^]*?)・＠＠/g;
-  aliass.forEach(d => {
-    const atName = '＠＠' + d.aliasName + '・＠＠';
-    if (markdown.includes(atName)) {
-      markdown = markdown.replace(new RegExp(atName, 'g'),
-        `<span class="mentionme" contenteditable="false">@${d.aliasName}</span>`);
-    }
+  const atName = '＠＠' + aliasName + '・＠＠';
+  
+  if (markdown.includes(atName)) {
+    markdown = markdown.replace(new RegExp(atName, 'g'), 
+      `<a href="/thread/${channelID}/@${aliasName}/"><span class="mentionme" contenteditable="false">@${aliasName}</span></a>`);
+  }
+
+  return markdown.replace(regex, (match, p1) => {
+    const sortedNames = [aliasName, p1].sort();
+    const sortedMention = `${sortedNames[0]}@${sortedNames[1]}`;
+    
+    return `<a href="/thread/${channelID}/${sortedMention}/"><span class="mentioned" contenteditable="false">@${p1}</span></a>`;
   });
-  return markdown.replace(regex, '<span class="mentioned" contenteditable="false">@$1</span>');
 };
 
 const applyParagraphs = (markdown) => {

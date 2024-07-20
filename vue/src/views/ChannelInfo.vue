@@ -1,12 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+
+import QRCode from 'qrcode';
+import Quill from 'quill';
+import "quill/dist/quill.snow.css";
+
 import DrawerColumn from '../components/DrawerColumn.vue'
 import { get_formated_time } from '../my/get_formated_time.js';
 import { getIDB, getIDBs, upsertData, getAllIDBs } from '../my/indexDB.js';
 import { generateRandomCode } from '../my/strings.js';
-import QRCode from 'qrcode';
-import Quill from 'quill';
-import "quill/dist/quill.snow.css";
+import { markdownToHtml, htmlToMarkdown } from '../my/markdown.js';
 
 const props = defineProps({
   id: '',
@@ -102,6 +105,7 @@ const attach = () => {
   fileInput.addEventListener('change', handleFileInputChange);
 };
 const fileInfo = ref({});
+console.log(fileInfo.value);
 const handleFileInputChange = (event) => {
   const files = event.target.files;
   const newFileInfo = document.createElement('div');
@@ -120,7 +124,7 @@ const handleFileInputChange = (event) => {
     }
     newFileInfo.appendChild(fileContainer);
   }
-  console.log();
+  
   fileInfo.value = newFileInfo.outerHTML;
 };
 
@@ -133,7 +137,7 @@ const channelPost = () => {
   const fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('channelName', channel.value.channelName);
-  fd.append('description', quill.root.innerHTML);
+  fd.append('description', htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, '')));
   fd.append('aliasName', aliasName.value);
   fd.append('aliasImg', aliasImg.value);
   let userIDS = [];
@@ -199,8 +203,7 @@ onMounted(() => {
     theme: 'snow'
   });
   fetchChannel().then(() => {
-    console.log('channel.value', channel.value);
-    quill.root.innerHTML = channel.value.channelDescription;
+    quill.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
   });
 });
 
@@ -231,8 +234,8 @@ onMounted(() => {
       🌄
     </button>
   </div>
-  <div id="description"></div>
-  <div class="files" v-html="fileInfo"></div>
+  <div id="description" markdownToHtml></div>
+  <div class="files" v-if="fileInfo[0]" v-html="fileInfo"></div>
   <br>
   <img v-if="aliasImg" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">
   <span v-if="!aliasImg" @click="triggerFileInput" class="new-alias-img" > 🌄 </span>

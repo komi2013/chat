@@ -183,6 +183,16 @@ const addFaviconBadge = () => {
   favicon.href = '/me.jpg';
 };
 
+function paramParent(d) {
+  const modifiedParentID = d.parentID.replace(d.channelID, '');
+  return modifiedParentID;
+}
+
+function paramMsg(d) {
+  const modifiedParentID = d.messageID.replace(d.channelID, '');
+  return modifiedParentID;
+}
+
 
 onBeforeMount(async () => {
   // await messagesStore.deleteAll();
@@ -199,13 +209,6 @@ onBeforeMount(async () => {
   await readChannel();
   await muteChannel();
 
-  // await fetchMessageData();
-
-  // parentID.value = props.message_id;
-  // console.log('threadHead', threadHead.value);
-  // const content = document.getElementById('content');
-  // content.scrollTop = content.scrollHeight;
-  // window.scrollTo(0, content.scrollHeight);
 });
 
 
@@ -216,30 +219,30 @@ onBeforeMount(async () => {
     <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
-      <tr><td><a href="/" > 🏠 Home</a></td></tr>
-      <tr><td>Threads</td></tr>
+      <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td>スレッド</td></tr>
       <tr v-for="d in threadHeads">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
-          <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
+          <a :href="'/thread/' + d.channelID + '/' + paramParent(d) + '/'">{{ d.title }}</a>
         </td>
       </tr>
     <template v-if="bookmarks.length > 0">
-      <tr><td>Bookmarks</td></tr>
+      <tr><td> 🔖 ブックマーク </td></tr>
       <tr v-for="d in bookmarks">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
-          <a :href="'/thread/' + d.channelID + '/' + d.messageID + '/?backID=' + d.parentID">
+          <a :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)">
             {{ d.title }}</a>
         </td>
       </tr>
     </template>
-      <tr><td>Channels</td></tr>
+      <tr><td> 👥 グループ </td></tr>
       <tr v-for="d in channels">
         <td class="channel_menu">
           <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
         </td>
       </tr>
-      <tr><td><a href="/channelAdd/" ><span> + </span><span>グループ追加</span></a></td></tr>
-      <tr><td><a href="/sign/" >Sign</a></td></tr>
+      <tr><td><a href="/channelAdd/" > + グループ追加 </a></td></tr>
+      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>
 </template>

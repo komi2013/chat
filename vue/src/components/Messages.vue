@@ -107,9 +107,6 @@ const clickEmoji = (message, emoji) => {
     })
 };
 
-
-const aliass = ref([]);
-
 let parentMessageID = channel.channelID;
 let addPosition = 0;
 if (props.threadHead) {
@@ -119,7 +116,6 @@ if (props.threadHead) {
 
 onBeforeMount(async () => {
   await fetchMessages(parentMessageID);
-  aliass.value = await getAllIDBs('alias');
 });
 
 </script>
@@ -165,7 +161,7 @@ onBeforeMount(async () => {
         </td>
         <td v-else colspan="2" class="ql-container ql-snow" >
           <div
-            v-html="markdownToHtml(message.messageTxt, channel, aliass)"
+            v-html="markdownToHtml(message.messageTxt, channel)"
             class="ql-editor"></div>
           <template v-for="d in calcEmoji(message.emojis, channel.aliasName)">
             <template v-if="emojiPath(d[0])">
@@ -311,6 +307,10 @@ code {
 .ql-container.ql-snow {
   border: none;
   font-size: 14px;
+}
+
+.ql-snow .ql-editor a {
+    text-decoration: none;
 }
 
 .mentioned {
