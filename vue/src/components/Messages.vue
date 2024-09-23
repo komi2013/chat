@@ -97,6 +97,13 @@ const clickEmoji = (message, emoji) => {
   fd.append('emojiValue', emoji[0]);
   fd.append('clicked', emoji[2] ? 1 : 0);
   fd.append('aliasName', channel.aliasName);
+
+  const userIDs = channel.allAliases
+    .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
+    .map(alias => alias[2]);
+
+  fd.append('userIDs', JSON.stringify(userIDs));
+
   const request = new Request('/EmojiToggle/', {
     method: 'POST',
     body: fd,
@@ -149,10 +156,10 @@ onBeforeMount(async () => {
             v-if="isEmojiOpen && selectedMessageId === message.messageID"
             @selectEmoji="selectEmoji"
             @closeEmoji="closeEmoji"
-            :channelID="channel.channelID"
+            :channel="channel"
             :messageID="message.messageID"
-            :aliasName="channel.aliasName"
-            :parentID="message.parentID" />
+            :parentID="message.parentID"
+            :threadHead="props.threadHead" />
         </td>
       </tr>
       <tr>

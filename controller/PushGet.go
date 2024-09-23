@@ -17,11 +17,6 @@ import (
 )
 
 func PushGet(w http.ResponseWriter, r *http.Request) {
-  // session, err := common.Session(w,r)
-  // if err != nil {
-  //   log.Print(err)
-  //   return
-  // }
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -45,13 +40,6 @@ func PushGet(w http.ResponseWriter, r *http.Request) {
       log.Print(err)
       return
   }
- //  var arr []interface{}
-	// arr = append(arr, "got")
-	// arr = append(arr, push.Contents)
-	// jsonData, err := json.Marshal(arr)
-	// if err != nil {
-	// 	fmt.Println("JSON変換エラー:", err)
-	// }
   fmt.Fprint(w, push.Contents)
 }
 

@@ -17,3 +17,8 @@ type SessionStruct struct {
 // created_at
 // alias_names
 // subscription
+
+// [
+// 	['sei1','hQKP'],
+// 	['komi1','d']
+// ]

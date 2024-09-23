@@ -75,3 +75,17 @@ func incrementBase62(s string) string {
 	num++
 	return Base62Encode(num)
 }
+
+func UniqueStrings(input []string) []string {
+	uniqueMap := make(map[string]struct{})
+	uniqueList := []string{}
+
+	for _, entry := range input {
+		if _, exists := uniqueMap[entry]; !exists {
+			uniqueMap[entry] = struct{}{} // Add to the map to track seen entries
+			uniqueList = append(uniqueList, entry) // Add to the unique list
+		}
+	}
+
+	return uniqueList
+}

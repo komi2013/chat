@@ -25,7 +25,7 @@ export function get_formated_time(
   _fmt = 'YYYY/MM/DD hh:mm:ss',
   str
 ) {
-  const _dt = new Date(str)
+  const _dt = str ? new Date(str) : new Date();
   return [
     ['YYYY', _dt.getFullYear()],
     ['MM', _dt.getMonth() + 1],

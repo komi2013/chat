@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// import { useMessagesStore } from '../stores/messages.js';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -71,20 +70,51 @@ const router = createRouter({
       })
     },
     {
+      path: '/ticket/:ticketID/',
+      name: 'ticket',
+      component: () => import('../views/Ticket.vue'),
+      props: route => ({
+        ticketID: route.params.ticketID
+      })
+    },
+    {
+      path: '/timestamp/:name/:code/',
+      name: 'timestamp',
+      component: () => import('../views/Timestamp.vue'),
+      props: route => ({
+        name: route.params.name,
+        code: route.params.code
+      })
+    },
+    {
+      path: '/timestampCodeIssue/',
+      name: 'timestampCodeIssue',
+      component: () => import('../views/TimestampCodeIssue.vue')
+    },
+    {
+      path: '/timestampReport/:admin/:month/:stamper?/',
+      name: 'timestampReport',
+      component: () => import('../views/TimestampReport.vue'),
+      props: route => ({
+        admin: route.params.admin,
+        month: route.params.month,
+        stamper: route.params.stamper
+      })
+    },
+    {
       path: '/',
       name: 'top',
       component: () => import('../views/Top.vue')
+    },
+    {
+      path: '/workflow/:ticketID/',
+      name: 'workflow',
+      component: () => import('../views/Workflow.vue'),
+      props: route => ({
+        ticketID: route.params.ticketID
+      })
     }
   ]
 })
-
-// router.beforeEach((to, from, next) => {
-//   console.log('Leaving route:', from.path);
-//   const messagesStore = useMessagesStore();
-//   messagesStore.deleteAll();
-//   console.log('messagesStore', messagesStore);
-//   next(); // 次のナビゲーションステップを実行
-// })
-
 
 export default router

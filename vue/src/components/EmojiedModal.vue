@@ -14,19 +14,6 @@
         <td>{{ d[0] }}</td>
       </tr>
       </table>
-      <table>
-      <tr class="emoji-list" v-for="d in emojis">
-        <td>
-        <template v-if="emojiPath(d[1])">
-          <img :src="d[1]" class="emoji-img" />
-        </template>
-        <template v-else>
-          <span class="emoji-img" >{{ d[1] }}</span>
-        </template>
-        </td>
-        <td>{{ d[0] }}</td>
-      </tr>
-      </table>
       <button @click="closeModal">Close</button>
     </div>
   </div>

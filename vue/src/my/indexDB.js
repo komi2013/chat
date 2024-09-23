@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 63);
+    const request = indexedDB.open('chat', 74);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -8,16 +8,9 @@ const openDatabase = () => {
       const db = event.target.result;
 
       // オブジェクトストアを削除
-      if (db.objectStoreNames.contains('alias')) {
-        db.deleteObjectStore('alias');
-        console.log('Alias store deleted');
+      if (db.objectStoreNames.contains('stampCode')) {
+        db.deleteObjectStore('stampCode');
       }
-
-      if (db.objectStoreNames.contains('message')) {
-        db.deleteObjectStore('message');
-        console.log('Message store deleted');
-      }
-
 
       const transaction = event.target.transaction;
       transaction.onerror = (event) => {
@@ -30,7 +23,10 @@ const openDatabase = () => {
         ['channel', 'channelID'],
         ['thread', 'messageID'],
         ['threadHead', 'parentID'],
-        ['bookmark','messageID']
+        ['bookmark','messageID'],
+        ['timestampCode','code'],
+        ['timestamp','timestampID'],
+        ['ticket','ticketID'],        
       ];
       tables.forEach(([tableName, keyPath]) => {
         let objectStore;
@@ -39,7 +35,6 @@ const openDatabase = () => {
         } else {
           objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
         }
-        console.log('objectStore', objectStore);
         if (tableName === 'channel' && !objectStore.indexNames.contains('displayStatusIndex')) {
           objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
         }
@@ -49,11 +44,17 @@ const openDatabase = () => {
         if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
           objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
         }
-        if (!objectStore.indexNames.contains('displayStatusIndex')) {
-          objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
-        }
-        if (!objectStore.indexNames.contains('channelIDIndex')) {
+        if (tableName === 'timestampCode' && !objectStore.indexNames.contains('channelIDIndex')) {
           objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        }
+        if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelIDIndex')) {
+          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        }
+        if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelID_aliasName')) {
+          objectStore.createIndex('channelID_aliasName', ['channelID', 'aliasName'], { unique: false });
+        }
+        if (tableName === 'ticket' && !objectStore.indexNames.contains('ticketIDIndex')) {
+          objectStore.createIndex('ticketIDIndex', 'ticketID', { unique: false });
         }
       });
     };
@@ -78,7 +79,7 @@ async function getIDB(table, id) {
         if (data) {
           resolve(data); // データが存在する場合は解決
         } else {
-          reject('Data not found'); // データが存在しない場合は拒否
+          reject(`${table} by ${id} not found`); // データが存在しない場合は拒否
         }
       };
 
@@ -123,13 +124,46 @@ async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc'
   });
 }
 
+async function getByMulti(table, keys, values, limit = 5, offset = 0, sortOrder = 'desc') {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+    const indexName = keys.join('_');
+    const index = objectStore.index(indexName);
+    try {
+      const range = IDBKeyRange.only(values);
+      const direction = sortOrder === 'asc' ? 'next' : 'prev';
+      const request = index.openCursor(range, direction);
+      const result = [];
+      let i = 0;
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          if (i >= offset && result.length < limit) {
+            result.push(cursor.value);
+          }
+          i++;
+          cursor.continue();
+        } else {
+          resolve(result);
+        }
+      };
+      request.onerror = (event) => {
+        reject(`Error fetching data: ${event.target.error}`);
+      };
+    } catch (error) {
+      console.error("Values:", values);
+      reject(error);
+    }
+  });
+}
 
 async function upsertData(data, table, key, objKey) {
   const db = await openDatabase(table, key);
   const objectStore = db.transaction([table], 'readwrite').objectStore(table);
   return new Promise((resolve, reject) => {
     const existingDataRequest = objectStore.get(objKey);
-    console.log('existingDataRequest', existingDataRequest);
     existingDataRequest.onsuccess = async () => {
       const existingData = existingDataRequest.result;
       if (existingData) {
@@ -227,4 +261,4 @@ async function updOne(table, key, columnName, columnValue) {
   };
 }
 
-export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs, updOne };
+export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs, updOne, getByMulti };
