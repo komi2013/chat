@@ -33,6 +33,7 @@ func main() {
 		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
 		http.HandleFunc("/TicketAdd/", controller.TicketAdd)
+		http.HandleFunc("/TicketEdit/", controller.TicketEdit)
 		http.HandleFunc("/TicketGet/", controller.TicketGet)
 		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
 		http.HandleFunc("/upload/", controller.Upload)
