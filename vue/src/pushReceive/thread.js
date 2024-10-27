@@ -1,6 +1,5 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring, removeHtmlTags, base62Decode } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 import { get_formated_time } from '../my/get_formated_time.js';
@@ -115,18 +114,18 @@ export async function thread(pushData) {
       title: getSubstring(removeMark(obj.messageTxt), 0, 20),
       displayStatus: 1
     };
-    upsertData(bm, 'bookmark', 'messageID', obj.messageID);
+    upsertIDB(bm, 'bookmark', 'messageID', obj.messageID);
     bookmarksStore.insert(bm);
     obj.bookmark = 1;
   }
   // console.log(newThread);
   if (!newThread) {
-    upsertData(obj, 'thread', 'messageID', obj.messageID);
+    upsertIDB(obj, 'thread', 'messageID', obj.messageID);
   }
   // if (obj.backID) {
-  //   upsertData(parent, 'thread', 'messageID', obj.parentID);
+  //   upsertIDB(parent, 'thread', 'messageID', obj.parentID);
   // }
-  upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
+  upsertIDB(threadHead, 'threadHead', 'parentID', obj.parentID);
   if (notify) {
     new Notification(pushTitle, {
       body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg

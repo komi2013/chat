@@ -9,7 +9,7 @@ import (
   "log"
   "net/http"
   // "os"
-  "strconv"
+  // "strconv"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -29,50 +29,8 @@ func TicketEdit(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
     return
   }
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Print(err)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
-
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
-
-  jsonBytes := []byte(r.FormValue("ticket"))
-  var tk bson.M
-  err = json.Unmarshal(jsonBytes, &tk)
-  if err != nil && r.FormValue("ticket") != "" {
-    log.Print("ticket: ", err)
-  }
-  fmt.Printf("ticket from post err %s\n", tk)
-	ticketID, _ := primitive.ObjectIDFromHex(tk["ticketID"].(string))
-	// if !ok {
-	// 	http.Error(w, "Invalid ticket_id format", http.StatusBadRequest)
-	// 	return
-	// }
-
-  status, _ := strconv.Atoi(r.FormValue("status"))
-  title := r.FormValue("title")
-  assignee := r.FormValue("assignee")
-  priority, _ := strconv.Atoi(r.FormValue("priority"))
-  startDate := r.FormValue("start_date")
-  deadline := r.FormValue("deadline")
-  category, _ := strconv.Atoi(r.FormValue("category"))
-  approver1 := r.FormValue("approver1")
-  approver2 := r.FormValue("approver2")
-  approver3 := r.FormValue("approver3")
-  parentID := r.FormValue("parent_id")
-  description := r.FormValue("description")
-
-  jsonBytes = []byte(r.FormValue("children_ids"))
-  var childrenIDs []string
-  err = json.Unmarshal(jsonBytes, &childrenIDs)
-  if err != nil && r.FormValue("children_ids") != "" {
-    log.Print("childrenIDs: ", err)
-  }
   trueAccess := false
   for _, arrayData := range session.AliasArray {
     if arrayData[0] == aliasName && arrayData[1] == channelID {
@@ -83,75 +41,125 @@ func TicketEdit(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
-  ticket := collection.Ticket{
-  	TicketID:      ticketID,
-    Status:      status,
-    Title:       title,
-    Assignee:    assignee,
-    CreatedBy:   aliasName,
-    Description: description,
-    CreatedAt:   time.Now(),
-    ChannelID:   channelID,
-    AccessNames: []string{assignee, aliasName},
+
+  jsonBytes := []byte(r.FormValue("ticket"))
+  var tk bson.M
+  err = json.Unmarshal(jsonBytes, &tk)
+  if err != nil && r.FormValue("ticket") != "" {
+    log.Print("ticket: ", err)
   }
 
-  // if r.FormValue("contents") != "" {
-  //   ticket.Contents = contents
-  // }
-  // if contentsType != 0 {
-  //   ticket.ContentsType = contentsType
-  // }
-  if priority != 0 {
-    ticket.Priority = priority
-  }
-  if startDate != "" {
-    ticket.StartDate = startDate
-  }
-  if deadline != "" {
-    ticket.Deadline = deadline
-  }
-  if category != 0 {
-    ticket.Category = category
-  }
-  if approver1 != "" {
-    ticket.Approver1 = approver1
-    ticket.AccessNames = append(ticket.AccessNames, approver1)
-  }
-  if approver2 != "" {
-    ticket.Approver2 = approver2
-    ticket.AccessNames = append(ticket.AccessNames, approver2)
-  }
-  if approver3 != "" {
-    ticket.Approver3 = approver3
-    ticket.AccessNames = append(ticket.AccessNames, approver3)
-  }
-  if parentID != "" {
-    ticket.ParentID = parentID
-  }
-  if r.FormValue("children_ids") != "" {
-    ticket.ChildrenIDs = childrenIDs
-  }
+	ticketID, err := primitive.ObjectIDFromHex(tk["ticketID"].(string))
+	if common.ResponseErrorStatus(w, err) { return }
 
-  ticket.AccessNames = common.UniqueStrings(ticket.AccessNames)
+	title, err := collection.ValidateTicketTitle(tk["title"].(string))
+	if common.ResponseErrorStatus(w, err) { return }
+
+	description, err := collection.ValidateTicketDescription(tk["description"].(string))
+	if common.ResponseErrorStatus(w, err) { return }
+
+	newComment, err := collection.ValidateTicketNewComment(r.FormValue("newComment"))
+	if common.ResponseErrorStatus(w, err) { return }
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  if err != nil {
+    log.Print(err)
+  }
+  defer c.Disconnect(ctx)
+  db1 := c.Database(common.MongoDb1)
 
 	coll := db1.Collection("ticket")
-	filter := bson.D{{"_id", ticketID}}
-	update := bson.D{
-		{"$set", bson.D{
-			{"status", status},
-			{"title", title},
-			{"updated_at", time.Now().Format("2006-01-02 15:04:05")},
-		}},
+	var preTK collection.Ticket
+	filter := bson.M{"_id": ticketID}
+	err = coll.FindOne(ctx, filter).Decode(&preTK)
+	if err != nil {
+		log.Print(err, "ticket")
 	}
+	log.Print("pre title", preTK.Title)
+	var changedTexts []bson.M
+  updateFields := bson.D{}
+  status := int(tk["status"].(float64))
+	if status != preTK.Status {
+		updateFields = append(updateFields, bson.E{"status", status})
+		changedTexts = append(changedTexts, bson.M{"status": preTK.Status})
+	}
+
+	if title != preTK.Title {
+		updateFields = append(updateFields, bson.E{"title", title})
+		changedTexts = append(changedTexts, bson.M{"title": preTK.Title})
+	}
+	if description != preTK.Description {
+		updateFields = append(updateFields, bson.E{"description", description})
+		changedTexts = append(changedTexts, bson.M{"description": preTK.Description})
+	}
+	if len(newComment) > 0 {
+		changedTexts = append(changedTexts, bson.M{"comment": newComment})
+	}
+
+	// updateFields = append(updateFields, bson.E{"assignee", assignee})
+	// updateFields = append(updateFields, bson.E{"description", description})
+	// updateFields = append(updateFields, bson.E{"priority", priority})
+
+ //  if approver1 != "" {
+ //    updateFields = append(updateFields, bson.E{"approver1", approver1})
+ //    // ticket.AccessNames = append(ticket.AccessNames, approver1)
+ //  }
+ //  if approver2 != "" {
+ //    updateFields = append(updateFields, bson.E{"approver2", approver2})
+ //  }
+ //  if approver3 != "" {
+ //    updateFields = append(updateFields, bson.E{"approver3", approver3})
+ //  }
+ //  if parentID != "" {
+ //  	updateFields = append(updateFields, bson.E{"parent_id", parentID})
+ //  }
+	updateFields = append(updateFields, bson.E{"updated_at", time.Now()})
+  // if r.FormValue("children_ids") != "" {
+  //   ticket.ChildrenIDs = childrenIDs
+  // }
+
+  // ticket.AccessNames = common.UniqueStrings(ticket.AccessNames)
+
+	coll = db1.Collection("ticket")
+	filter = primitive.M{"_id": ticketID}
+	update := bson.D{
+		{"$set", updateFields},
+	}
+	// update := bson.D{
+	// 	{"$set", bson.D{
+	// 		{"status", status},
+	// 		{"title", title},
+	// 		{"updated_at", time.Now().Format("2006-01-02 15:04:05")},
+	// 	}},
+	// }
 	opts := options.Update().SetUpsert(true)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
+
+	ticketLog := collection.TicketLog{
+		TicketID   	: ticketID,
+		ChangedTexts	: changedTexts,
+		CreatedBy  : aliasName,
+		CreatedAt  : time.Now(),
+	}
+
+	coll = db1.Collection("ticket_log")
+	_, err = coll.InsertOne(context.TODO(), ticketLog)
+	if err != nil {
+		http.Error(w, "Failed to insert document into MongoDB", http.StatusInternalServerError)
+		return
+	}
 
   jsonBytes = []byte(r.FormValue("userIDs"))
   userIDs := []string{}
   json.Unmarshal(jsonBytes, &userIDs)
   coll = db1.Collection("session")
-  filter = bson.D{{
-    "user_id", bson.D{{"$in", userIDs}}}}
+	filter = primitive.M{
+	    "user_id": primitive.M{
+	        "$in": userIDs,
+	    },
+	}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
@@ -168,7 +176,7 @@ func TicketEdit(w http.ResponseWriter, r *http.Request) {
     arr = append(arr, pushID)
     arr = append(arr, "ticketEdit")
     arr = append(arr, ticketID)
-    arr = append(arr, title)
+    arr = append(arr, tk["title"].(string))
     jsonData, err := json.Marshal(arr)
     if err != nil {
       fmt.Println("JSON変換エラー:", err)
@@ -207,3 +215,4 @@ func TicketEdit(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(response)
 }
+

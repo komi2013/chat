@@ -1,5 +1,4 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 export async function rookie(pushData) {
   const pushID = pushData[0];
@@ -37,7 +36,7 @@ function addAliases (channel, alias) {
   } else {
     channel.allAliases = [[alias.aliasName, alias.aliasImg, alias.userID]];
   }
-  upsertData(channel, 'channel', 'channelID', channel.channelID)
+  upsertIDB(channel, 'channel', 'channelID', channel.channelID)
     .catch((error) => {
       console.error(error);
     });

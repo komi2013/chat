@@ -1,6 +1,5 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData, updOne } from '../my/indexDB.js';
 import { getSubstring } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 export async function bookmark(pushData) {
@@ -17,7 +16,7 @@ export async function bookmark(pushData) {
   const idb = await getIDB('thread', messageID);
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
-  updOne('thread', messageID, 'bookmark', toggle)
+  updIDBone('thread', messageID, 'bookmark', toggle)
     .catch((error) => {
       console.error(error);
     });
@@ -32,13 +31,13 @@ export async function bookmark(pushData) {
   }
   messagesStore.upOne(messageID, 'bookmark', toggle);
   if (toggle) {
-    upsertData(bm, 'bookmark', 'messageID', messageID)
+    upsertIDB(bm, 'bookmark', 'messageID', messageID)
       .catch((error) => {
         console.error(error);
       });
     bookmarksStore.insert(bm);
   } else {
-    deleteData('bookmark', 'messageID', messageID)
+    deleteIDB('bookmark', 'messageID', messageID)
       .catch((error) => {
         console.error(error);
       });

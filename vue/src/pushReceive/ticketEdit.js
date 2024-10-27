@@ -1,6 +1,4 @@
-import { getIDB, upsertData } from '../my/indexDB.js';
-
-export async function ticketAdd(pushData) {
+export async function ticketEdit(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
   fd.append('pushID', pushID);
@@ -9,13 +7,11 @@ export async function ticketAdd(pushData) {
     body: fd,
   });
   fetch(request);
-  const ID = pushData[2];
-  const title = pushData[3];
-  const ticket {
+  const ticket = {
     ticketID: pushData[2],
     title: pushData[3]
   }
-  upsertData(ticket, 'ticketAdd', 'ticketID', ticket.ticketID)
+  upsertIDB(ticket, 'ticket', 'ticketID', ticket.ticketID)
     .catch((error) => {
       console.error(error);
     });

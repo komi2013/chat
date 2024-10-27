@@ -9,7 +9,6 @@ import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getIDBs, upsertData, updOne } from '../my/indexDB.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { removeMark } from '../my/markdown.js';
 
@@ -50,7 +49,7 @@ async function fetchChannel() {
 //   try {
 //     const ch = await getIDB('channel', channelId);
 //     ch.groupAliases = newGroupAliases;
-//     await upsertData(ch, 'channel', 'channelID', channelId);
+//     await upsertIDB(ch, 'channel', 'channelID', channelId);
 //     console.log('Channel updated successfully');
 //   } catch (error) {
 //     console.error('Error updating channel:', error);
@@ -128,7 +127,7 @@ async function fetchThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updOne('threadHead', props.channel_id + props.message_id, 'displayStatus', 0)
+    updIDBone('threadHead', props.channel_id + props.message_id, 'displayStatus', 0)
       .catch((error) => {
         console.error(error);
       });

@@ -35,8 +35,9 @@ const preMonth = getRelativeMonth(thisMonth, -1);
 const nextMonth = getRelativeMonth(thisMonth, 1);
 
 let userIDs = [];
+let names = [];
 function makeUserIDs() {
-  let names = [channel.value.aliasName];
+  names = [channel.value.aliasName];
   if (Array.isArray(channel.value.groupAliases)) {
     for (const d of channel.value.groupAliases) {
       if (props.admin == d[0]) {
@@ -52,6 +53,7 @@ function makeUserIDs() {
     }
   }
   userIDs = [...new Set(userIDs)];
+  names =  [...new Set(names)];
 }
 const channel = ref('');
 async function fetchChannel() {
@@ -59,7 +61,6 @@ async function fetchChannel() {
     const data = await getIDB('channel', localStorage.channelID);
     channel.value = data;
     makeUserIDs();
-    // console.log('props', props);
     const aliasName = data.aliasName;
     const allAliases = data.allAliases;
     if (props.admin == '_') {
@@ -258,22 +259,6 @@ function manualPost(changedRecords) {
     return;
   }
   const fd = new FormData();
-  let userIDs = [];
-  let names = [channel.value.aliasName];
-  if (Array.isArray(channel.value.groupAliases)) {
-    for (const d of channel.value.groupAliases) {
-      if (props.admin == d[0]) {
-        for (const d2 of d[2]) {
-          names.push(d2);
-        }
-      }
-    }
-  }
-  for (const d of channel.value.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
-    }
-  }
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
@@ -296,14 +281,19 @@ function submitReport() {
   const fd = new FormData();
   fd.append('userIDs', JSON.stringify(userIDs));
   const aliasName = channel.value.aliasName;
-  fd.append('status', 2);
-  fd.append('title', aliasName + thisMonth + '勤務表');
-  fd.append('assignee', props.admin);
-  fd.append('approver1', props.admin);
-  fd.append('contents', JSON.stringify(thisMonthEntries));
-  fd.append('contents_type', 2);
   fd.append('aliasName', aliasName);
   fd.append('channelID', localStorage.channelID);
+
+  const ticket = {
+    status: 2,
+    title: aliasName + thisMonth + '勤務表',
+    assignee: props.admin,
+    approver1: props.admin,
+    contents: thisMonthEntries,  // 既に配列であると仮定
+    contentsType: 2,
+    accessNames: names
+  };
+  fd.append('ticket', JSON.stringify(ticket));
   const request = new Request('/TicketAdd/', {
     method: 'POST',
     body: fd,
@@ -311,7 +301,6 @@ function submitReport() {
   fetch(request)
     .then(response => {
       if (response.ok) {
-        delReportedTimestamps();
         return response.json();
       } else {
         console.log(`submitReport: ${response.status} - ${response.statusText}`);
@@ -319,6 +308,7 @@ function submitReport() {
     })
     .then(data => {
       ticketURI = data.TicketID;
+      delReportedTimestamps();
     })
     .catch(reason => {
       console.log('submitReport:', reason);

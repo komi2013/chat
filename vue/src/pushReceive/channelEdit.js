@@ -1,5 +1,3 @@
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
-
 // if bad guy change userIDs and post?
 // create userIDs from session
 // update check from aliasName and session
@@ -35,7 +33,7 @@ export async function channelEdit(pushData) {
     console.log('channel', channel);
     // channel.groupAliases = pushData[8];
     // channel.displayStatus = 1
-    upsertData(channel, 'channel', 'channelID', channelID)
+    upsertIDB(channel, 'channel', 'channelID', channelID)
       .catch((error) => {
         console.error(error);
       });

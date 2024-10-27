@@ -1,4 +1,4 @@
-import { getIDB, upsertData, getByMulti } from '../my/indexDB.js';
+import { getIDB, upsertIDB, getByMulti } from '../my/indexDB.js';
 import { get_formated_time } from '../my/get_formated_time.js';
 
 let channel;
@@ -64,7 +64,7 @@ async function fetchTimestampCode() {
 
 async function fetchTimestamp() {
   try {
-    tts = await getByMulti('timestamp', ['channelID', 'aliasName'], 
+    tts = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
       [channelID, aliasName], 30, 0, 'desc');
     const latestEntry = tts.reduce((max, obj) => 
       obj.timestampID > max.timestampID ? obj : max, tts[0]);
@@ -135,7 +135,7 @@ function stampTime() {
         tt.breaks[lastLine] = lastBreak;
         break;
     }
-    upsertData(tt, 'timestamp', 'timestampID', tt.timestampID)
+    upsertIDB(tt, 'timestamp', 'timestampID', tt.timestampID)
       .catch((error) => {
         console.error(error);
       });

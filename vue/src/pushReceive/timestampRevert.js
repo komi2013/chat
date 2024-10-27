@@ -1,5 +1,3 @@
-import { getIDB, upsertData, deleteData, getByMulti } from '../my/indexDB.js';
-
 export async function timestampRevert(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
@@ -18,18 +16,18 @@ export async function timestampRevert(pushData) {
   const timestampID = now + aliasName;
   switch (action) {
     case 'startWork':
-      deleteData('timestamp', 'timestampID', timestampID);
+      deleteIDB('timestamp', 'timestampID', timestampID);
       break;
     case 'endWork':
       timestamp = getIDB('timestamp', timestampID);
       delete timestamp.timeOut;
-      upsertData(timestamp, 'timestamp', 'timestampID', timestampID)
+      upsertIDB(timestamp, 'timestamp', 'timestampID', timestampID)
         .catch((error) => {
           console.error(error);
         });
     case 'deletePrevious':
       const timeIn = pushData[4][0];
-      const timestamps = await getByMulti('timestamp', ['channelID', 'aliasName'], 
+      const timestamps = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
         [channelID, aliasName], 60, 0, 'desc');
       timestamps.forEach(timestamp => {
         if (timestamp.timeIn <= timeIn) {
@@ -39,7 +37,7 @@ export async function timestampRevert(pushData) {
           } else {
             timestamp.stampStatus = 20;
           }
-          upsertData(timestamp, 'timestamp', 'timestampID', timestamp.timestampID)
+          upsertIDB(timestamp, 'timestamp', 'timestampID', timestamp.timestampID)
             .catch((error) => {
               console.error(error);
             });

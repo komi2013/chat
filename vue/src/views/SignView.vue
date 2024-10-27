@@ -5,7 +5,6 @@ import {subscription_post} from '../my/subscription_post.js'
 import { useChannelsStore } from '../stores/channels.js'
 import { useMessagesStore } from '../stores/messages.js'
 import {subscriptionRegister} from '../my/subscribe.js'
-import { upsertData } from '../my/indexDB.js'
 
 // const count = ref(0)
 const userID = ref('')
@@ -37,7 +36,7 @@ const props = defineProps({
 //       aliasImg: d[1],
 //       groupFlg: d[2],
 //     };
-//     upsertData(alias, 'alias', 'aliasName', alias.aliasName)
+//     upsertIDB(alias, 'alias', 'aliasName', alias.aliasName)
 //       .then((message) => {
 //         console.log(message);
 //       })
@@ -55,7 +54,7 @@ const props = defineProps({
 //       aliasName: d[5],
 //       displayStatus: 1
 //     };
-//     upsertData(channel, 'channel', 'channelID', channel.channelID)
+//     upsertIDB(channel, 'channel', 'channelID', channel.channelID)
 //       .then((message) => {
 //         console.log(message);
 //       })

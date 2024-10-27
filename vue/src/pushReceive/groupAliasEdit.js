@@ -1,5 +1,3 @@
-import { getIDB, upsertData } from '../my/indexDB.js';
-
 export async function groupAliasEdit(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
@@ -16,8 +14,7 @@ export async function groupAliasEdit(pushData) {
     channel.updatedBy = pushData[4];
     // channel.updatedAt = pushData[6];
     // channel.displayStatus = 1
-    console.log('channel', channel);
-    upsertData(channel, 'channel', 'channelID', channelID)
+    upsertIDB(channel, 'channel', 'channelID', channelID)
       .catch((error) => {
         console.error(error);
       });

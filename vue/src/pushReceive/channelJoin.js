@@ -1,5 +1,4 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 export async function channelJoin(pushData) {
   const pushID = pushData[0];
@@ -22,8 +21,7 @@ export async function channelJoin(pushData) {
     }
   }
   await fetchAlias();
-  console.log(alias);
-  upsertData(alias, 'alias', 'aliasName', alias.aliasName)
+  upsertIDB(alias, 'alias', 'aliasName', alias.aliasName)
     .catch((error) => {
       console.error(error);
     });
@@ -47,7 +45,7 @@ export async function channelJoin(pushData) {
       alias.aliasName, alias.aliasImg, alias.userID
     ];
     channel.allAliases.push(aliases);
-    upsertData(channel, 'channel', 'channelID', channel.channelID)
+    upsertIDB(channel, 'channel', 'channelID', channel.channelID)
       .catch((error) => {
         console.error(error);
       });

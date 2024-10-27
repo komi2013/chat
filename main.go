@@ -25,7 +25,6 @@ func main() {
 		// http.HandleFunc("/HubPush/", controller.HubPush)
 		// http.HandleFunc("/MessageEdit/", controller.MessageEdit)
 		// http.HandleFunc("/MessagePost/", controller.MessagePost)
-		http.HandleFunc("/PrivateAdd/", controller.PrivateAdd)
 		http.HandleFunc("/PushGet/", controller.PushGet)
 		http.HandleFunc("/PushResponse/", controller.PushResponse)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
@@ -37,6 +36,7 @@ func main() {
 		http.HandleFunc("/TicketGet/", controller.TicketGet)
 		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
 		http.HandleFunc("/upload/", controller.Upload)
+		http.HandleFunc("/WindowAdd/", controller.WindowAdd)
 
 		http.HandleFunc("/", controller.Top)
 

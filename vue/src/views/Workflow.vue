@@ -1,135 +1,83 @@
-<template>
-  <div class="ticket-edit-page" v-if="ticket">
-    <h1>Ticket #{{ ticket.id }}</h1>
-
-    <div class="ticket-form">
-      <label>Status</label>
-      <select v-model="editableTicket.status">
-        <option v-for="(statusText, index) in statusOptions" :key="index" :value="index">
-          {{ statusText }}
-        </option>
-      </select>
-
-      <label>Title</label>
-      <input v-model="editableTicket.title" type="text" />
-
-      <label>Assignee</label>
-      <select v-model="editableTicket.assignee">
-        <option v-for="(assigneeText, index) in assigneeOptions" :key="index" :value="index">
-          {{ assigneeText }}
-        </option>
-      </select>
-
-      <label>Description</label>
-      <textarea v-model="editableTicket.description"></textarea>
-
-      <button @click="saveChanges">Save Changes</button>
-    </div>
-  </div>
-  <div v-else>
-    <p>Loading ticket data...</p>
-  </div>
-</template>
-
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
+import { getAllIDBs } from '../my/indexDB.js';
 
-// Props definition
-const props = defineProps({
-  ticketID: String // Assuming the ticket ID is passed as a prop
-});
+// Define a ref for storing the ticket list
+const tickets = ref([]);
 
-const ticket = ref(null); // Will hold the ticket data after fetching
-const editableTicket = reactive({}); // Editable copy of the ticket data
-
-// Status and Assignee options
-const statusOptions = ref(['Open', 'In Progress', 'Closed', 'Resolved']);
-const assigneeOptions = ref(['John Doe', 'Jane Smith', 'Mike Johnson', 'Alice Green']);
-
-// Function to fetch ticket data using fetch and ticketID
-async function fetchTicket() {
-  const fd = new FormData();
-  fd.append('ticketID', props.ticketID);
-
-  const request = new Request('/TicketGet/', {
-    method: 'POST',
-    body: fd,
-  });
-
+// Function to open IndexedDB and fetch all tickets
+async function fetchTickets() {
   try {
-    const response = await fetch(request);
-
-    if (response.ok) {
-      const ticketData = await response.json();
-      ticket.value = ticketData; // Assign the fetched data to ticket
-      // Make a reactive copy for editing
-      Object.assign(editableTicket, ticketData);
-    } else {
-      console.error('Failed to fetch ticket data', response.status);
-    }
+    tickets.value = await getAllIDBs('ticket'); // Assuming 'tickets' is the table name
   } catch (error) {
-    console.error('Error fetching ticket data:', error);
+    console.error('Error fetching tickets:', error);
   }
 }
 
-// Method to save changes
-function saveChanges() {
-  console.log('Saving changes:', editableTicket);
-  // Here you would submit the updated ticket data via an API request
-  // Example:
-  // axios.post('/api/ticketUpdate', editableTicket)
-  //   .then(response => console.log('Ticket updated successfully', response))
-  //   .catch(error => console.error('Error updating ticket', error));
-}
-
-// Fetch ticket data when the component is mounted
+// Fetch tickets when the component is mounted
 onMounted(() => {
-  fetchTicket();
+  fetchTickets();
 });
+
+// Placeholder openDatabase function - replace this with your actual implementation
+async function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('workflowDB', 1);
+
+    request.onerror = (event) => {
+      reject(`Error opening database: ${event.target.error}`);
+    };
+
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      resolve(db);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      db.createObjectStore('tickets', { keyPath: 'ticketID' });
+    };
+  });
+}
 </script>
 
+<template>
+  <div>
+    <h1>チケット一覧</h1>
+    
+    <!-- Link to the workflow page -->
+    <a href="/ticket/">作成</a>
+
+    <!-- Display list of tickets -->
+    <ul>
+      <li v-for="ticket in tickets" :key="ticket.ticketID">
+        <!-- Make the ticket title clickable -->
+        <a :href="'/ticket/' + ticket.ticketID">{{ ticket.title }}</a>
+      </li>
+    </ul>
+
+    <!-- Show a message if there are no tickets -->
+    <p v-if="!tickets.length">チケットがありません</p>
+  </div>
+</template>
+
 <style scoped>
-.ticket-edit-page {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* Add some basic styling */
+ul {
+  list-style-type: none;
+  padding: 0;
 }
 
-.ticket-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+li {
+  margin-bottom: 10px;
 }
 
-label {
-  font-weight: bold;
+a {
+  color: #007bff;
+  text-decoration: none;
 }
 
-input, select, textarea {
-  padding: 8px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-textarea {
-  resize: vertical;
-  height: 100px;
-}
-
-button {
-  padding: 10px 15px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #0056b3;
+a:hover {
+  text-decoration: underline;
 }
 </style>

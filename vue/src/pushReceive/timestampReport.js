@@ -1,5 +1,3 @@
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
-
 export async function timestampReport(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
@@ -25,7 +23,7 @@ export async function timestampReport(pushData) {
     if (d.timestampID == null) {
       d.timestampID = `${d.timeIn}${d.aliasName}`;
     }
-    upsertData(d, 'timestamp', 'timestampID', d.timestampID)
+    upsertIDB(d, 'timestamp', 'timestampID', d.timestampID)
       .catch((error) => {
         console.error(error);
       });

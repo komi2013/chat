@@ -1,6 +1,5 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 import { getSubstring } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 
@@ -13,7 +12,7 @@ export async function threadEdit(pushData) {
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
   if(rcv.messageTxt == ''){
-    deleteData('thread', 'messageID', rcv.messageID);
+    deleteIDB('thread', 'messageID', rcv.messageID);
     messagesStore.delete(rcv.messageID);
   } else {
     const idb = await getIDB('thread', rcv.messageID);
@@ -77,12 +76,12 @@ export async function threadEdit(pushData) {
         title: getSubstring(removeMark(rcv.messageTxt), 0, 20),
         displayStatus: 1
       };
-      upsertData(bm, 'bookmark', 'messageID', idb.messageID);
+      upsertIDB(bm, 'bookmark', 'messageID', idb.messageID);
       bookmarksStore.insert(bm);
       obj.bookmark = 1;
     }
-    upsertData(obj, 'thread', 'messageID', idb.messageID);
-    upsertData(threadHead, 'threadHead', 'parentID', obj.parentID);
+    upsertIDB(obj, 'thread', 'messageID', idb.messageID);
+    upsertIDB(threadHead, 'threadHead', 'parentID', obj.parentID);
     if (notify) {
       new Notification(threadHead.title, {
         body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg

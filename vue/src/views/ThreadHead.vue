@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
 import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
-import { getIDB, getIDBs, upsertData } from '../my/indexDB.js';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 

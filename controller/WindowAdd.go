@@ -17,7 +17,7 @@ import (
   "chat/collection"
 )
 
-func PrivateAdd(w http.ResponseWriter, r *http.Request) {
+func WindowAdd(w http.ResponseWriter, r *http.Request) {
 	session, err := common.Session(w,r)
 	if err != nil {
   	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
@@ -65,10 +65,14 @@ func PrivateAdd(w http.ResponseWriter, r *http.Request) {
 		  subscriptions = append(subscriptions, result.Subscription)
 		}
 	}
-	rand := common.StringRand(4)
-	coll := db1.Collection("private")
-  private := collection.PrivateStruct{
-  	ID: rand,
+	windowID := r.FormValue("windowID")
+	if windowID == "" {
+		windowID = common.StringRand(4)
+	}
+	
+	coll := db1.Collection("window")
+  window := collection.WindowStruct{
+  	ID: windowID,
 		ChannelID: r.FormValue("channelID"),
 		CreatorAlias: verifiedName,
 		CreatorUser: session.UserID,
@@ -77,14 +81,14 @@ func PrivateAdd(w http.ResponseWriter, r *http.Request) {
 		Subscriptions: subscriptions,
 		Contents2: r.FormValue("contents2"),
 	}
-	_, err = coll.InsertOne(context.TODO(), private)
+	_, err = coll.InsertOne(context.TODO(), window)
 	if err != nil {
 		log.Print(err)
 	}
 
 	var jsonArr []interface{}
 	jsonArr = append(jsonArr, 1)
-	jsonArr = append(jsonArr, rand)
+	jsonArr = append(jsonArr, windowID)
 	jsonData, _ := json.Marshal(jsonArr)
   fmt.Fprint(w, string(jsonData))
 }

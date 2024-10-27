@@ -4,6 +4,23 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/book/:id/',
+      name: 'book',
+      component: () => import('../views/Book.vue'),
+      props: route => ({id: route.params.id}),
+    },
+    {
+      path: '/bookPattern/:id?/',
+      name: 'bookPattern',
+      component: () => import('../views/BookPattern.vue'),
+      props: route => ({id: route.params.id}),
+    },
+    {
+      path: '/calendar/',
+      name: 'calendar',
+      component: () => import('../views/Calendar.vue')
+    },
+    {
       path: '/channelAdd/',
       name: 'channelAdd',
       component: () => import('../views/ChannelAdd.vue')
@@ -48,6 +65,12 @@ const router = createRouter({
       component: () => import('../views/Redirect.vue')
     },
     {
+      path: '/shift/:id/',
+      name: 'shift',
+      component: () => import('../views/Shift.vue'),
+      props: route => ({id: route.params.id}),
+    },
+    {
       path: '/sign/',
       name: 'sign',
       component: () => import('../views/SignView.vue')
@@ -70,7 +93,7 @@ const router = createRouter({
       })
     },
     {
-      path: '/ticket/:ticketID/',
+      path: '/ticket/:ticketID?/',
       name: 'ticket',
       component: () => import('../views/Ticket.vue'),
       props: route => ({
@@ -107,12 +130,9 @@ const router = createRouter({
       component: () => import('../views/Top.vue')
     },
     {
-      path: '/workflow/:ticketID/',
+      path: '/workflow/',
       name: 'workflow',
-      component: () => import('../views/Workflow.vue'),
-      props: route => ({
-        ticketID: route.params.ticketID
-      })
+      component: () => import('../views/Workflow.vue')
     }
   ]
 })

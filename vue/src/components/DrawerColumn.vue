@@ -3,7 +3,6 @@ import { ref, computed, onBeforeMount } from 'vue'
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
-import { getIDB, getIDBs, getAllIDBs, upsertData } from '../my/indexDB.js';
 
 const threadHeadsStore = useThreadHeadsStore()
 const threadHeads = computed(() => {

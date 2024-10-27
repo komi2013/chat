@@ -1,5 +1,4 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData, updOne } from '../my/indexDB.js';
 
 export async function emoji(pushData) {
   const messageID = pushData[2];
@@ -30,7 +29,7 @@ export async function emoji(pushData) {
     const is = emojis.findIndex(d => d[0] === aliasName && d[1] === emojiValue);
     emojis.splice(is, 1);
   }
-  updOne(table, messageID, 'emojis', emojis)
+  updIDBone(table, messageID, 'emojis', emojis)
     .catch((error) => {
       console.error(error);
     });

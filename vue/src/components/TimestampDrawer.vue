@@ -1,8 +1,6 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
 
-import { getIDB, getIDBs, getAllIDBs, upsertData } from '../my/indexDB.js';
-
 onBeforeMount(async () => {
 
 });

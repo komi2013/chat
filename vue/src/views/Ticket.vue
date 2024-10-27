@@ -25,16 +25,30 @@ let assigneeOptions = ref('');
 async function fetchChannel() {
   try {
     channel = await getIDB('channel', localStorage.channelID);
-    findTicket();
+    if (props.ticketID) {
+      findTicket();
+    }
     const individualAliases = channel.allAliases.map(alias => alias[0]);
     const groupAliases = channel.groupAliases.map(group => group[0]);
-    assigneeOptions.value = [...individualAliases, ...groupAliases];
+    assigneeOptions.value = [...new Set([...individualAliases, ...groupAliases])];
   } catch (error) {
     console.log('channel error', error);
   }
 }
 
-const ticket = ref(null);
+// const ticket = ref(null);
+const ticket = ref({
+  title: '',           // Default empty title
+  status: 0,           // Default status (e.g., 0 might mean "Draft")
+  assignee: '',        // Default assignee (empty)
+  description: '',     // Default empty description
+  createdBy: '',// Default createdBy value
+  createdAt: new Date().toISOString(),  // Set to current date by default
+  updatedAt: null,     // Default no updated date
+  contentsType: 1,     // Example default contentsType, set to 1 or whatever your use case is
+  contents: []         // Empty array for contents, assuming this might hold timestamp data
+});
+const ticketLogs = ref(null);
 let selectedStatus = ref('');
 let selectedAssignee = ref('');
 async function findTicket() {
@@ -51,6 +65,7 @@ async function findTicket() {
     if (response.ok) {
       const data = await response.json();
       ticket.value = data.ticket;
+      ticketLogs.value = data.ticketLogs;
       selectedStatus.value = statusOptions.value.find(option => option.value === ticket.value.status)?.value || 0
       selectedAssignee.value = assigneeOptions.value.includes(ticket.value.assignee) ? ticket.value.assignee : assigneeOptions.value[0];
       if (ticket.value.contentsType == 2) {
@@ -81,10 +96,10 @@ function saveChanges() {
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.aliasName);
   // fd.append('ticketID', props.ticketID);
-  fd.append('status', 2);
   fd.append('ticket', JSON.stringify(ticket.value));
   fd.append('newComment', newComment.value);
-  const request = new Request('/TicketEdit/', {
+  const uri = props.ticketID ? '/TicketEdit/' : '/TicketAdd/';
+  const request = new Request(uri, {
     method: 'POST',
     body: fd,
   });
@@ -191,8 +206,7 @@ function formatBreaksTotal(breaks) {
 
 <div id="content">
 
-  <div v-if="ticket" class="ticket-edit-page">
-
+  <div class="ticket-edit-page">
     <div class="ticket-form">
       <input v-model="ticket.title" type="text" />
       <div class="form-row">
@@ -215,46 +229,57 @@ function formatBreaksTotal(breaks) {
       <label>文書</label>
       <textarea v-model="ticket.description"></textarea>
 
-      <div class="timestamps">
+      <div>
         <p>作成者: {{ ticket.createdBy }}</p>
         <p>発行日: {{ get_formated_time('YYYY-MM-DD', ticket.createdAt) }}</p>
         <p v-if="ticket.updatedAt">更新日: {{ get_formated_time('YYYY-MM-DD', ticket.updatedAt) }}</p>
       </div>
-  <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
-  <table v-if="ticket.contentsType == 2" class="timestamp-table">
-    <thead>
-      <tr>
-        <th>日</th>
-        <th>開始</th>
-        <th>終了</th>
-        <th>休憩</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
-        <td>{{ day.day }}</td>
-        <td>
-          {{ day.timeIn ? get_formated_time('hh:mm', day.timeIn) : '--:--' }}
-          <p v-if="day.error"> {{day.error}} </p>
-        </td>
-        <td>
-          {{ day.timeOut ? get_formated_time('hh:mm', day.timeOut) : '--:--' }}
-        </td>
-        <td>
-          {{ formatBreaksTotal(day.breaks) }}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-      <label>コメント</label>
-      <textarea v-model="newComment"></textarea>
-
+      <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
+      <table v-if="ticket.contentsType == 2" class="timestamp-table">
+        <thead>
+          <tr>
+            <th>日</th>
+            <th>開始</th>
+            <th>終了</th>
+            <th>休憩</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
+            <td>{{ day.day }}</td>
+            <td>
+              {{ day.timeIn ? get_formated_time('hh:mm', day.timeIn) : '--:--' }}
+              <p v-if="day.error"> {{day.error}} </p>
+            </td>
+            <td>
+              {{ day.timeOut ? get_formated_time('hh:mm', day.timeOut) : '--:--' }}
+            </td>
+            <td>
+              {{ formatBreaksTotal(day.breaks) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        閲覧者: <span v-for="name in ticket.accessNames"> {{name}} </span>
+      </p>
+      <div>
+        <p v-for="d in ticketLogs">
+          <span>{{get_formated_time('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
+          <span>{{d.createdBy}}</span>
+          <p v-for="d2 in d.changed_texts">
+            <span v-if="d2.title">以前のタイトル: {{d2.title}}</span>
+            <span v-if="d2.description">以前の文書: {{d2.description}}</span>
+          </p>
+          <div><hr></div>
+        </p>
+      </div>
+      <div v-if="props.ticketID">
+        <label>コメント</label>
+        <textarea v-model="newComment"></textarea>
+      </div>
       <button @click="saveChanges">変更を保存</button>
     </div>
-  </div>
-  <div v-else>
-    <p>チケットデータを読み込み中...</p>
   </div>
 </div>
 </template>
@@ -287,6 +312,12 @@ function formatBreaksTotal(breaks) {
   background-color: #e6c7f0;
 }
 
+hr {
+  border: none;
+  border-top: 1px solid black;
+  margin: 20px 0;
+}
+
 label {
   font-weight: bold;
   padding-top: 10px;
@@ -303,6 +334,7 @@ input, select, textarea {
 textarea {
   resize: vertical;
   height: 100px;
+  width: 96%;
 }
 
 .timestamps-page {

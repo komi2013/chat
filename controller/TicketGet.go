@@ -50,13 +50,7 @@ func TicketGet(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-	ticketIDStr := r.FormValue("ticket_id")
-	if ticketIDStr == "" {
-		http.Error(w, "ticket_id is required", http.StatusBadRequest)
-		return
-	}
-
-	ticketID, err := primitive.ObjectIDFromHex(ticketIDStr)
+	ticketID, err := primitive.ObjectIDFromHex(r.FormValue("ticket_id"))
 	if err != nil {
 		http.Error(w, "Invalid ticket_id format", http.StatusBadRequest)
 		return
@@ -71,49 +65,32 @@ func TicketGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ticket not found", http.StatusNotFound)
 		return
 	}
-	fmt.Printf(" ticket %s\n", ticket)
-	var childObjectIDs []primitive.ObjectID
-	var children [][]interface{}
-	for _, childIDStr := range ticket.ChildrenIDs {
-		childObjectID, err := primitive.ObjectIDFromHex(childIDStr)
-		if err == nil {
-			childObjectIDs = append(childObjectIDs, childObjectID)
-		}
+	coll = db1.Collection("ticket_log")
+	var ticketLogs []collection.TicketLog
+	filter = bson.M{"ticket_id": ticketID}
+	cursor, err := coll.Find(ctx, filter)
+	if err != nil {
+	    log.Printf("Error querying MongoDB: %v", err)
+	    http.Error(w, "Error querying ticket logs", http.StatusInternalServerError)
+	    return
 	}
+	defer cursor.Close(ctx)
 
-	var childTickets []collection.Ticket
-
-	if len(childObjectIDs) > 0 {
-		filter = bson.M{"_id": bson.M{"$in": childObjectIDs}}
-		cursor, err := coll.Find(ctx, filter)
-		if err != nil {
-			http.Error(w, "Failed to fetch child tickets", http.StatusInternalServerError)
-			return
-		}
-
-		// Decode all the child tickets into the slice
-		if err = cursor.All(ctx, &childTickets); err != nil {
-			http.Error(w, "Failed to decode child tickets", http.StatusInternalServerError)
-			return
-		}
-
-		// Build the children response with ID and Title if child tickets exist
-		for _, childTicket := range childTickets {
-			children = append(children, []interface{}{childTicket.TicketID.Hex(), childTicket.Title})
-		}
+	if err := cursor.All(ctx, &ticketLogs); err != nil {
+	    log.Printf("Error decoding ticket logs: %v", err)
+	    http.Error(w, "Error decoding ticket logs", http.StatusInternalServerError)
+	    return
 	}
 
 	response := struct {
-		Ticket   collection.Ticket `json:"ticket"`
-		Children [][]interface{}   `json:"children"`
+	    Ticket     collection.Ticket      `json:"ticket"`
+	    TicketLogs []collection.TicketLog `json:"ticketLogs"`
 	}{
-		Ticket:   ticket,
-		Children: children,
+	    Ticket:    ticket,
+	    TicketLogs: ticketLogs, // this could be an empty slice if no logs were found
 	}
 
-	// Respond with the ticket and children in JSON format
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-
 
 }

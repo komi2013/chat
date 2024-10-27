@@ -1,5 +1,4 @@
 import { useMessagesStore } from '../stores/messages.js';
-import { getIDB, upsertData, deleteData } from '../my/indexDB.js';
 
 // if bad guy change userIDs and post?
 // create userIDs from session
@@ -34,7 +33,7 @@ export async function channelAdd(pushData) {
   } else {
     obj.allAliases = pushData[5];
   }
-  upsertData(obj, 'channel', 'channelID', obj.channelID)
+  upsertIDB(obj, 'channel', 'channelID', obj.channelID)
     .catch((error) => {
       console.error(error);
     });
@@ -62,7 +61,7 @@ function addAliasIfNotExists(newAlias, channelID) {
     alias = obj;
     alias.channelIDs = [channelID];
   }
-  upsertData(alias, 'alias', 'aliasName', obj.aliasName)
+  upsertIDB(alias, 'alias', 'aliasName', obj.aliasName)
     .catch((error) => {
       console.error(error);
     });

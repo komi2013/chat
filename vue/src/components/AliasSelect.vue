@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 // import { useMessagesStore } from '../stores/messages.js';
 // import { useChannelsStore } from '../stores/channels.js';
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getAllIDBs } from '../my/indexDB.js';
 
 const props = defineProps({
   channel_id: ''

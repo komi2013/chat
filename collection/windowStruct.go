@@ -4,7 +4,7 @@ import (
   "time"
 )
 
-type PrivateStruct struct {
+type WindowStruct struct {
   ID     string    `bson:"_id"`
   ChannelID     string    `bson:"channel_id"`
   CreatorAlias     string    `bson:"creator_alias"`

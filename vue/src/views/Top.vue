@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, upsertData, deleteData, getAllIDBs } from '../my/indexDB.js';
 const props = defineProps({
   id: '',
 })
@@ -43,15 +42,15 @@ const props = defineProps({
   // バッチごとにIndexedDBにデータを挿入
   async function insertBatch(batch) {
     const promises = batch.map(data => {
-      // 非同期の upsertData 呼び出しを処理
+      // 非同期の upsertIDB 呼び出しを処理
       console.log(data);
-      return upsertData(data, 'thread', 'messageID', data.messageID)
+      return upsertIDB(data, 'thread', 'messageID', data.messageID)
         .catch((error) => {
           console.error('Error inserting data:', data, error);
         });
     });
 
-    // すべての upsertData 処理が終わるまで待機
+    // すべての upsertIDB 処理が終わるまで待機
     await Promise.all(promises);
   }
 
@@ -102,7 +101,9 @@ const props = defineProps({
 <h2>ホーム</h2>
   <div class="block"><a href="/">チャット</a></div>
   <div class="block"><a href="/timestampCodeIssue/">タイムスタンプ</a></div>
-  <div class="block">チャット</div>
+  <div class="block"><a href="/workflow/">ワークフロー</a></div>
+  <div class="block"><a href="/calendar/">カレンダー</a></div>
+  <div class="block"><a href="/bookPattern/">bookPattern</a></div>
 </div>
 </template>
 

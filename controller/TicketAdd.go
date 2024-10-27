@@ -9,7 +9,7 @@ import (
   "log"
   "net/http"
   // "os"
-  "strconv"
+  // "strconv"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -41,38 +41,6 @@ func TicketAdd(w http.ResponseWriter, r *http.Request) {
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
 
-  // need
-	status, _ := strconv.Atoi(r.FormValue("status"))
-	title := r.FormValue("title")
-	assignee := r.FormValue("assignee")
-	// createdBy := r.FormValue("created_by")
-	description := r.FormValue("text")
-
-	// option
-	jsonBytes := []byte(r.FormValue("contents"))
-	var contents []bson.M
-	err = json.Unmarshal(jsonBytes, &contents)
-	if err != nil && r.FormValue("contents") != "" {
-    log.Print(err)
-    log.Print("contents: ", err)
-  }
-	contentsType, _ := strconv.Atoi(r.FormValue("contents_type"))
-	// progress, _ := strconv.Atoi(r.FormValue("progress"))
-	priority, _ := strconv.Atoi(r.FormValue("priority"))
-	startDate := r.FormValue("start_date")
-	deadline := r.FormValue("deadline")
-	category, _ := strconv.Atoi(r.FormValue("category"))
-	approver1 := r.FormValue("approver1")
-	approver2 := r.FormValue("approver2")
-	approver3 := r.FormValue("approver3")
-	parentID := r.FormValue("parent_id")
-
-	jsonBytes = []byte(r.FormValue("children_ids"))
-	var childrenIDs []string
-	err = json.Unmarshal(jsonBytes, &childrenIDs)
-	if err != nil && r.FormValue("children_ids") != "" {
-    log.Print("childrenIDs: ", err)
-  }
   trueAccess := false
   for _, arrayData := range session.AliasArray {
     if arrayData[0] == aliasName && arrayData[1] == channelID {
@@ -83,55 +51,52 @@ func TicketAdd(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
-	ticket := collection.Ticket{
-		Status:      status,
-		Title:       title,
-		Assignee:    assignee,
-		CreatedBy:   aliasName,
-		Description: description,
-		CreatedAt:   time.Now(),
-		ChannelID:   channelID,
-		AccessNames: []string{assignee, aliasName},
+
+  jsonBytes := []byte(r.FormValue("ticket"))
+  var tk bson.M
+  err = json.Unmarshal(jsonBytes, &tk)
+  var ticket collection.Ticket
+	ticket.Status, err = collection.ValidateTicketStatus(tk["status"].(float64))
+	if common.ResponseErrorStatus(w, err) { return }
+
+	ticket.Title, err = collection.ValidateTicketTitle(tk["title"].(string))
+	if common.ResponseErrorStatus(w, err) { return }
+
+	ticket.CreatedAt = time.Now()
+	ticket.ContentsType, err = collection.ValidateTicketContentsType(tk["contentsType"].(float64))
+	if common.ResponseErrorStatus(w, err) { return }
+
+	jsonInterface, ok := tk["contents"].([]interface{})
+	if !ok {
+	    log.Println("Type assertion failed: tk['contents'] is not of type []interface{}")
+	    return
+	}
+	var contents []primitive.M
+	for _, item := range jsonInterface {
+	    if contentMap, ok := item.(map[string]interface{}); ok {
+	        contents = append(contents, contentMap)
+	    } else {
+	        log.Println("Failed to cast an element of contents to primitive.M")
+	        return
+	    }
+	}
+	ticket.Contents = contents
+	jsonInterface, ok = tk["accessNames"].([]interface{})
+	if !ok {
+	    log.Println("Type assertion failed: tk['accessNames'] is not of type []interface{}")
+	    return
 	}
 
-	if r.FormValue("contents") != "" {
-		ticket.Contents = contents
+	var accessNames []string
+	for _, item := range jsonInterface {
+	    if itemStr, ok := item.(string); ok {  // Cast each item to string
+	        accessNames = append(accessNames, itemStr)
+	    } else {
+	        log.Println("Failed to cast an element of accessNames to string")
+	        return
+	    }
 	}
-	if contentsType != 0 {
-		ticket.ContentsType = contentsType
-	}
-	if priority != 0 {
-		ticket.Priority = priority
-	}
-	if startDate != "" {
-		ticket.StartDate = startDate
-	}
-	if deadline != "" {
-		ticket.Deadline = deadline
-	}
-	if category != 0 {
-		ticket.Category = category
-	}
-	if approver1 != "" {
-		ticket.Approver1 = approver1
-		ticket.AccessNames = append(ticket.AccessNames, approver1)
-	}
-	if approver2 != "" {
-		ticket.Approver2 = approver2
-		ticket.AccessNames = append(ticket.AccessNames, approver2)
-	}
-	if approver3 != "" {
-		ticket.Approver3 = approver3
-		ticket.AccessNames = append(ticket.AccessNames, approver3)
-	}
-	if parentID != "" {
-		ticket.ParentID = parentID
-	}
-	if r.FormValue("children_ids") != "" {
-		ticket.ChildrenIDs = childrenIDs
-	}
-
-	ticket.AccessNames = common.UniqueStrings(ticket.AccessNames)
+	ticket.AccessNames = accessNames
 
 	coll := db1.Collection("ticket")
 	insertResult, err := coll.InsertOne(context.TODO(), ticket)
@@ -161,9 +126,9 @@ func TicketAdd(w http.ResponseWriter, r *http.Request) {
 	  pushID := common.StringRand(12)
 	  var arr []interface{}
 	  arr = append(arr, pushID)
-	  arr = append(arr, "ticketAdd")
+	  arr = append(arr, "ticketEdit")
 	  arr = append(arr, insertedID.Hex())
-	  arr = append(arr, title)
+	  arr = append(arr, ticket.Title)
 	  jsonData, err := json.Marshal(arr)
 	  if err != nil {
 	    fmt.Println("JSON変換エラー:", err)

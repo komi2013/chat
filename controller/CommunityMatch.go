@@ -65,25 +65,21 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 	  aliasImg = "/aliasImg/" + randPath + r.FormValue("aliasName") + ".png"
 	}
 
-	coll := db1.Collection("private")
+	coll := db1.Collection("window")
 	filter := bson.M{"_id": r.FormValue("code")}
 
-	var private collection.PrivateStruct
-	err = coll.FindOne(context.TODO(), filter).Decode(&private)
+	var window collection.WindowStruct
+	err = coll.FindOne(context.TODO(), filter).Decode(&window)
 	if err != nil {
-		log.Print(err, "private", r.FormValue("privateID"))
+		log.Print(err, "window", r.FormValue("windowID"))
 	}
-	fmt.Printf("Subscription: %v\n", private.Subscriptions)
+	fmt.Printf("Subscription: %v\n", window.Subscriptions)
 
-  // jsonBytes := []byte(private.Subscriptions)
-  // var subscriptions []string
-  // json.Unmarshal(jsonBytes, &private.Subscriptions)
-
-  for _, subscription := range private.Subscriptions {
+  for _, subscription := range window.Subscriptions {
 		var arr []interface{}
 		arr = append(arr, common.StringRand(12))
 		arr = append(arr, "rookie")
-		arr = append(arr, private.ChannelID)
+		arr = append(arr, window.ChannelID)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, aliasImg)
 		arr = append(arr, session.UserID)
@@ -114,9 +110,9 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 	coll = db1.Collection("session")
 	filter = bson.M{"user_id": session.UserID}
 
-	err = coll.FindOne(context.TODO(), filter).Decode(&private)
+	err = coll.FindOne(context.TODO(), filter).Decode(&window)
 	if err != nil {
-		log.Print(err, "private", r.FormValue("privateID"))
+		log.Print(err, "window", r.FormValue("windowID"))
 	}
 
   coll = db1.Collection("session")
@@ -137,7 +133,7 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 	  var arr []interface{}
 		arr = append(arr, pushID)
 		arr = append(arr, "channelJoin")
-		arr = append(arr, private.ChannelID)
+		arr = append(arr, window.ChannelID)
 		arr = append(arr, r.FormValue("aliasName"))
 		arr = append(arr, aliasImg)
 		arr = append(arr, session.UserID)
@@ -151,7 +147,7 @@ func CommunityMatch (w http.ResponseWriter, r *http.Request) {
 		coll = db1.Collection("push")
 		document := bson.M{
 	    "_id": pushID,
-	    "contents": private.Contents,
+	    "contents": window.Contents,
 	    "pushJson": string(jsonData),
 	    "created_at": time.Now().Format("2006-01-02 15:04:05"),
 		}

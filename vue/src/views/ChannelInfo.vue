@@ -7,7 +7,6 @@ import "quill/dist/quill.snow.css";
 
 import DrawerColumn from '../components/DrawerColumn.vue'
 import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getIDBs, upsertData, getAllIDBs } from '../my/indexDB.js';
 import { generateRandomCode } from '../my/strings.js';
 import { markdownToHtml, htmlToMarkdown } from '../my/markdown.js';
 

@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 74);
+    const request = indexedDB.open('chat', 75);
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -159,7 +159,7 @@ async function getByMulti(table, keys, values, limit = 5, offset = 0, sortOrder 
   });
 }
 
-async function upsertData(data, table, key, objKey) {
+async function upsertIDB(data, table, key, objKey) {
   const db = await openDatabase(table, key);
   const objectStore = db.transaction([table], 'readwrite').objectStore(table);
   return new Promise((resolve, reject) => {
@@ -261,4 +261,4 @@ async function updOne(table, key, columnName, columnValue) {
   };
 }
 
-export { openDatabase, getIDB, getIDBs, upsertData, deleteData, getAllIDBs, updOne, getByMulti };
+export { openDatabase, getIDB, getIDBs, upsertIDB, deleteData, getAllIDBs, updOne, getByMulti };
