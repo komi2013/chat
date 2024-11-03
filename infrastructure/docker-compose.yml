@@ -34,8 +34,8 @@ services:
     volumes:
       - ../public:/usr/share/nginx/html
       - ./nginx_local.conf:/etc/nginx/conf.d/nginx_local.conf
-      - ./fullchain.pem:/etc/nginx/conf.d/fullchain.pem
-      - ./privkey.pem:/etc/nginx/conf.d/privkey.pem
+      - ./server.crt:/etc/nginx/conf.d/server.crt
+      - ./server.key:/etc/nginx/conf.d/server.key
 
   node:
     image: node:lts-alpine3.18

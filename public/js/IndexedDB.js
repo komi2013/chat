@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 77);
+    const request = indexedDB.open('chat', 79 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -20,14 +20,15 @@ const openDatabase = () => {
         console.log('Upgrade transaction completed');
       };
       const tables = [
+        ['bookmark','messageID'],
         ['bookPattern', 'bookPatternID'],
         ['channel', 'channelID'],
         ['chunk', 'chunkID'],
+        ['shiftStaff', 'shiftStaffID'],
         ['thread', 'messageID'],
         ['threadHead', 'parentID'],
-        ['bookmark','messageID'],
-        ['timestampCode','code'],
         ['timestamp','timestampID'],
+        ['timestampCode','code'],
         ['ticket','ticketID'],        
       ];
       tables.forEach(([tableName, keyPath]) => {
@@ -43,8 +44,8 @@ const openDatabase = () => {
         if (tableName === 'chunk' && !objectStore.indexNames.contains('chunkPassIndex')) {
           objectStore.createIndex('chunkPassIndex', 'chunkPass', { unique: false });
         }
-        if (tableName === 'message' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        if (tableName === 'shiftStaff' && !objectStore.indexNames.contains('bookPatternIDIndex')) {
+          objectStore.createIndex('bookPatternIDIndex', 'bookPatternID', { unique: false });
         }
         if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
           objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });

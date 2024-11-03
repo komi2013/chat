@@ -36,15 +36,7 @@ async function fetchBookPattern() {
     selectedGroup.value = [bookPattern.value.adminGroup];
   } catch (error) {
     console.log('error', error);
-    bookPattern.value = null;
-  }
-}
-
-onMounted(() => {
-  fetchChannel();
-  fetchBookPattern();
-});
-
+    // bookPattern.value = null;
 
 
 // food staff 
@@ -86,25 +78,25 @@ onMounted(() => {
   // });
 
 // shift salon staff
-    // const bookPattern = ref({
-    //   "adminGroup": "2kaime",
-    //   "joinNames": ["sei1", "asd"],
-    //   "parentID": "XE7r",
-    //   "times": [
-    //     {
-    //       "bookTitle": "フルタイム、スタイリスト設定",
-    //       "date": "2024-10-19",
-    //         "start": "10:00",
-    //         "end": "15:00",
-    //         "staffs" : [
-    //           [1, "stylist"]
-    //         ]
-    //     }
-    //   ]
-    // });
+    bookPattern.value = {
+      "adminGroup": "2kaime",
+      "joinNames": ["sei1", "asd"],
+      "parentID": "A67h",
+      "times": [
+        {
+          "bookTitle": "フルタイム、スタイリスト設定",
+          "date": "2024-11-01",
+            "start": "10:00",
+            "end": "15:00",
+            "staffs" : [
+              [1, "stylist", ["staffA"]]
+            ]
+        }
+      ]
+    };
 
 // salon booking
-  // const bookPattern = ref({
+  // bookPattern.value = {
   //   "adminGroup": "2kaime",
   //   "windowID": "", // channelID + bookPatternID
   //   "needFacilities": [
@@ -119,18 +111,73 @@ onMounted(() => {
   //       "limitStart": "10:00",
   //       "limitEnd": "20:00",
   //       "needRoles": [ // case of massage, salon, dental
-  //         [2, 'cheff'],
-  //         [3, 'cashier'],
-  //         [1, 'manager']
-  //       ],
-  //       "manualStaffs" : [ // book
-  //         ["スタッフA", "10:00", "14:00"]
+  //         // [2, 'cheff'],
+  //         // [3, 'cashier'],
+  //         // [1, 'manager']
+  //         [3, 'stylist']
   //       ]
   //     }
   //   ]
-  // });
 
-// 現在の月を基準としたカレンダーの表示
+  //   // "openTimes": [ // from shift salon staff times
+  //   //   [3, "2024-10-19T10:00", "2024-10-19T15:00"],
+  //   //   [2, "2024-10-19T10:00", "2024-10-19T15:00"]
+  //   // ],
+  //   // "specifyNames": [ // goes to menu function? > no, salon, massage service only
+  //   //   ["staffA", "2024-10-19T12:00", "2024-10-19T13:00"]
+  //   // ],
+  //   // "menu" : [ // menu and askMultiChoices are same? > no 
+  //   // {
+  //   //   "name": "パーマ", "price": 10000, "needRole": "perm", "needFacility": "perm"
+  //   // },
+  //   // {
+  //   //   "name": "カット", "price": 3000
+  //   // }
+  //   // ],
+  //   // "menuOrderPass" : [
+  //   //   ["Zi", "table12", "2024-10-19T12:00", "2024-10-19T13:00"],
+  //   //   ["jx", "table12", "2024-10-19T12:30", "2024-10-19T13:30"]
+  //   // ] // customer come 12:40 Zi is selected, once access with this pass, session can keep 2 hours
+  // };
+
+// {
+//     "adminGroup": "2kaime",
+//     "needFacilities": [
+//         [
+//             2,
+//             "perm"
+//         ]
+//     ],
+//     "maxFacility": "30",
+//     "times": [
+//         {
+//             "bookTitle": "飲食店の公開用予約リンク",
+//             "date": "2024-11-01",
+//             "limitStart": "10:00",
+//             "limitEnd": "20:00",
+//             "needRoles": [
+//                 [
+//                     3,
+//                     "stylist"
+//                 ]
+//             ]
+//         }
+//     ],
+//     "bookPatternID": "A67h",
+//     "openTimes": [
+//       ["sei1", "2024-11-01T10:00", "2024-10-19T15:00", "stylist"],
+//       ["sei1", "2024-11-02T10:00", "2024-10-19T15:00", "stylist"]
+//     ]
+// }
+
+  }
+}
+
+onMounted(() => {
+  fetchChannel();
+  fetchBookPattern();
+});
+
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
 
