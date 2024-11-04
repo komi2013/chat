@@ -6,7 +6,6 @@ const props = defineProps({
 })
 
 const channel = ref('');
-// const bookPattern = ref('');
 async function fetchChannel() {
   try {
     channel.value = await getIDB('channel', localStorage.channelID);
@@ -19,15 +18,10 @@ const bookPattern = ref('');
 async function fetchBookPattern() {
   try {
     bookPattern.value = await getIDB('bookPattern', props.id);
-    bookPattern.value.times.forEach((time) => {
-      if (!time.manualStaffs) {
-        time.manualStaffs = [["", time.limitStart, time.limitEnd]];
-      } else {
-        time.manualStaffs.unshift(["", time.limitStart, time.limitEnd]);
-      }
-    });
     if (bookPattern.value.parentID) {
       findBookParent();
+    } else {
+      fetchShiftStaff();
     }
   } catch (error) {
     console.log('error', error);
@@ -35,35 +29,50 @@ async function fetchBookPattern() {
   }
 }
 
-const shiftStaff = ref('');
+const shiftStaff = ref([]);
 let initialStaffs = [];
 async function fetchShiftStaff() {
   try {
-    shiftStaff.value = await getIDB('shiftStaff', props.id);
+    shiftStaff.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
     initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
   } catch (error) {
     console.log('error', error);
-    shiftStaff.value = [];
+    // shiftStaff.value = [];
   }
 }
 
-// function extractStaffs(bookPattern) {
-//   const staffs = [];
-//   bookPattern.times.forEach((time, timeIndex) => {
-//     if (time.staffs !== undefined) {
-//       time.staffs.forEach((staff) => {
-//         const role = staff[1];
-//         const staffNames = staff[2];
-//         staffs.push({
-//           start: time.start,
-//           role: role,
-//           name: staffNames
-//         });
-//       });
-//     }
-//   });
-//   return staffs
-// }
+async function findBookParent() {
+  const fd = new FormData();
+  fd.append('channelID', localStorage.channelID);
+  fd.append('aliasName', channel.value.aliasName);
+  fd.append('bookPatternID', props.id);
+  const request = new Request('/ShiftStaffGet/', {
+    method: 'POST',
+    body: fd,
+  });
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const contentLength = response.headers.get("Content-Length");
+      if (contentLength === "0" || contentLength === null) {
+        console.log('no data');
+      } else {
+        // return response.json();
+        const data = await response.json();
+        if (data && Object.keys(data).length > 0) {
+          shiftStaff.value = data;
+          initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
+        } else {
+          console.log('データが存在しませんが、レスポンスは成功しました');
+        }
+      }
+    } else {
+      console.error('Failed to findBookParent data', response.status);
+    }
+  } catch (error) {
+    console.error('Error findBookParent data:', error);
+  }
+}
 
 const IamAdmin = () => {
   let iamAdmin = true;
@@ -82,9 +91,6 @@ const IamAdmin = () => {
 }
 
 const getShiftStaffByDate = (timeSlot) => {
-  // if (!Array.isArray(shiftStaff.value)) {
-  //   return []
-  // }
   const { date, start } = timeSlot;
   const result = (shiftStaff.value || []).filter(shiftStaff => {
       const shiftDate = shiftStaff.shiftStart.slice(0, 10);
@@ -99,9 +105,7 @@ const getShiftStaffByDate = (timeSlot) => {
 };
 
 const myNameInclude = (timeSlot) => {
-  // if (!shiftStaff.value) {
-  //   return
-  // }
+
   const { date, start } = timeSlot;
   return (shiftStaff.value || []).some(shiftStaff => {
     const shiftDate = shiftStaff.shiftStart.slice(0, 10);
@@ -115,64 +119,12 @@ const myNameInclude = (timeSlot) => {
   });
 };
 
-// manual data
-    // const shiftStaffs = ref([
-    // {
-    //   shiftStaffID: props.id + "202411011000" + "staffA",
-    //   bookPatternID: props.id,
-    //   aliasName: "staffA",
-    //   shiftStart: "2024-11-01T10:00",
-    //   shiftEnd: "2024-11-01T15:00",
-    //   role: "stylist",
-    //   seq: 2
-    // },
-    // {
-    //   shiftStaffID: props.id + "202411011000" + "staffB",
-    //   bookPatternID: props.id,
-    //   aliasName: "staffB",
-    //   shiftStart: "2024-11-01T10:00",
-    //   shiftEnd: "2024-11-01T15:00",
-    //   role: "stylist",
-    //   seq: 1
-    // }
-    // ]);
-
-
 onMounted(() => {
   fetchChannel();
   fetchBookPattern();
-  fetchShiftStaff();
 });
 
-let parent;
-async function findBookParent() {
-  const fd = new FormData();
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
-  fd.append('windowID', localStorage.channelID + bookPattern.value.parentID);
-  const request = new Request('/WindowGet/', {
-    method: 'POST',
-    body: fd,
-  });
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      parent = await response.json();
-    } else {
-      console.error('Failed to findBookParent data', response.status);
-    }
-  } catch (error) {
-    console.error('Error findBookParent data:', error);
-  }
-}
-
-const bookPatternID = ref(props.id);
-
 const moveStaffToTop = (timeSlot, name) => {
-  // console.log(shiftStaff.value);
-  // if (!Array.isArray(shiftStaff.value)) {
-  //   return
-  // }
   const { date, start } = timeSlot;
   const shiftStart = date + 'T' + start;
   const staffs = (shiftStaff.value || []).filter(staff => staff.shiftStart === shiftStart);
@@ -186,16 +138,14 @@ const moveStaffToTop = (timeSlot, name) => {
   });
 };
 
-function editOK(timeSlot, role, seq) {
-  // if (!shiftStaff.value) {
-  //   return
-  // }
+function editOK(timeSlot, role) {
   const { date, start, end } = timeSlot;
   const shiftStaffID = props.id + date.replace(/-/g, "") + start.replace(":", "") + channel.value.aliasName;
   const existingIndex = shiftStaff.value.findIndex(staff => staff.shiftStaffID === shiftStaffID);
   if (existingIndex !== -1) {
-    shiftStaff.value.splice(existingIndex, 1); // 同じIDが存在すれば削除
+    shiftStaff.value.splice(existingIndex, 1);
   } else {
+    const count = shiftStaff.value.filter(staff => staff.shiftStart === date + "T" + start).length + 1;
     const staff = {
       shiftStaffID: shiftStaffID,
       bookPatternID: props.id,
@@ -203,13 +153,17 @@ function editOK(timeSlot, role, seq) {
       shiftStart: date + "T" + start,
       shiftEnd: date + "T" + end,
       role: role,
-      seq: seq
+      seq: count
     }
     shiftStaff.value.push(staff);    
   }
 }
 
 function submitOK() {
+  const changedData = compareAndUpdateStaffs(initialStaffs, shiftStaff.value);
+  if (changedData.length < 1) {
+    return
+  }
   if (!confirm("実行▶️")) {
     return;
   }
@@ -242,28 +196,8 @@ function submitOK() {
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
-  const changedData = compareAndUpdateStaffs(initialStaffs, shiftStaff.value);
-  console.log(changedData.length);
-  if (changedData.length < 1) {
-    return
-  }
   fd.append('contents', JSON.stringify(changedData));
-    // if (iamAdmin) {
-    //   // const updatedStaffs = extractStaffs(bookPattern.value);
-    //   // console.log(initialStaffs);
-    //   // console.log(updatedStaffs);
-
-    //   console.log('contents', changedData);
-    // } else {
-    //   const okStaffs = processOkStaffs();
-    //   if (okStaffs.length < 1) {
-    //     return
-    //   }
-    //   fd.append('contents', JSON.stringify(okStaffs));
-    // }
-
   if (bookPattern.value.parentID) {
-    fd.append('windowID', localStorage.channelID + bookPattern.value.parentID);
     const request = new Request('/ShiftStaffEdit/', {
       method: 'POST',
       body: fd,
@@ -273,7 +207,7 @@ function submitOK() {
         console.log(reason);
       })
   } else {
-    fd.append('pushTitle', 'shiftStaff');
+    fd.append('pushTitle', 'shiftStaffEdit');
     const request = new Request('/ContentsPush/', {
       method: 'POST',
       body: fd,
@@ -282,119 +216,48 @@ function submitOK() {
       .catch((reason)=>{
         console.log(reason);
       })
-
-
   }
-
 }
 
 function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
   const changedRecords = [];
-
-  // updatedStaffs をループして、追加や変更があれば changedRecords に追加
   updatedStaffs.forEach((updatedRecord) => {
     const initialRecord = initialStaffs.find(
       (initial) =>
         initial.aliasName === updatedRecord.aliasName &&
         initial.shiftStart === updatedRecord.shiftStart
     );
-
-    // initialRecord が存在しない場合は追加とみなす
     if (!initialRecord) {
       changedRecords.push({
         ...updatedRecord,
-        // type: "added",
       });
     } else if (initialRecord.seq !== updatedRecord.seq) {
-      // seq に変更がある場合は変更として記録
       changedRecords.push({
         ...updatedRecord,
-        // type: "modified",
-        // changedField: "seq",
-        // previousSeq: initialRecord.seq,
-        // newSeq: updatedRecord.seq,
       });
     }
   });
-
-  // initialStaffs にあるが updatedStaffs にないレコードを削除フラグ付きで changedRecords に追加
-
   initialStaffs.forEach((initialRecord) => {
     const existsInUpdated = (updatedStaffs || []).some(
       (updatedRecord) =>
         updatedRecord.aliasName === initialRecord.aliasName &&
         updatedRecord.shiftStart === initialRecord.shiftStart
     );
-
     if (!existsInUpdated) {
       changedRecords.push({
-        shiftStaffID: updatedRecord.shiftStaffID,
+        shiftStaffID: initialRecord.shiftStaffID,
         delete: 1,
       });
     }
   });
-
   return changedRecords;
 }
-
-// const processOkStaffs = () => {
-//   // bookPattern.value.times[index].staffs[i1][2]
-//   const okStaffs = [];
-//   bookPattern.value.times.forEach((time) => {
-//     time.staffs.forEach((staff) => {
-//       if (staff[3] !== undefined) {
-//         okStaffs.push([time.date, time.start, channel.value.aliasName, staff[1], staff[3], time.end]);
-//       }
-//     });
-//   });
-//   if (okStaffs.length > 0) {
-//     return ['okStaff', bookPattern.value.bookPatternID, okStaffs];
-//   } else {
-//     return [];
-//   }
-// };
-
-// function updateOpenTimes(parent, okStaffs) {
-//   const currentTime = new Date().toISOString();
-
-//   // openTimesが存在しない場合は新しく配列を作成
-//   if (!parent.openTimes) {
-//     parent.openTimes = [];
-//   }
-
-//   // okStaffsのデータから必要な情報を追加または削除
-//   okStaffs[2].forEach(([date, time, name, role, flag]) => {
-//     const entry = [name, `${date}T${time}`, currentTime];
-
-//     if (flag === 1) {
-//       // 追加処理: flagが1の場合にopenTimesに追加
-//       parent.openTimes.push(entry);
-//     } else if (flag === -1) {
-//       // 削除処理: flagが-1の場合に一致するエントリを削除
-//       parent.openTimes = parent.openTimes.filter(
-//         ([existingName, existingDateTime]) => !(existingName === name && existingDateTime === `${date}T${time}`)
-//       );
-//     }
-//   });
-// }
-
-
-// const copyTimes = (startTime, endTime) => {
-//   bookPattern.value.times.forEach((timeSlot, i1) => {
-//     timeSlot.manualStaffs.forEach((staff, index) => {
-//       if (index !== 0) {
-//         staff[1] = startTime;
-//         staff[2] = endTime;
-//       }
-//     });
-//   });
-// };
 
 </script>
 
 <template>
   <div class="book-pattern-page">
-    <h1>{{ bookPattern.bookTitle }} ({{ bookPatternID }})</h1>
+    <h1>{{ bookPattern.bookTitle }}</h1>
 
     <div v-for="(timeSlot, index) in bookPattern.times" :key="index" class="time-slot">
       <p>{{ timeSlot.date }} {{ timeSlot.start }} {{ timeSlot.limitStart }} - {{ timeSlot.end }} {{ timeSlot.limitEnd }}</p>
@@ -412,22 +275,11 @@ function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
         </button>
         <br>
         <button 
-          @click="editOK(timeSlot, staff[1], i2)" 
+          @click="editOK(timeSlot, staff[1])" 
           :style="{ backgroundColor: myNameInclude(timeSlot) ? 'blue' : 'silver' }">
           ◯
         </button>        
       </p>
-<!--       <p v-for="(staff, i1) in timeSlot.manualStaffs" >
-        <template v-if="staff[0] == channel.aliasName || staff[0] == ''">
-          <input v-model="staff[1]" type="time" /> ~ <input v-model="staff[2]" type="time" />
-          <span v-if="index === 0">
-            <button @click="copyTimes(staff[1], staff[2])">コピー</button>
-          </span>
-        </template>
-        <template v-else>
-          <p> {{staff[0]}} {{staff[1]}} ~ {{staff[2]}} </p>
-        </template>
-      </p> -->
     </div>
     <button @click="submitOK">提出</button>
   </div>

@@ -31,7 +31,7 @@ func WindowGet(w http.ResponseWriter, r *http.Request) {
   filter := bson.M{"_id": r.FormValue("windowID")}
   err = coll.FindOne(context.TODO(), filter).Decode(&window)
   if err != nil {
-    log.Print(err, "window", r.FormValue("windowID"))
+    log.Print(err, " window ", r.FormValue("windowID"))
   }
   fmt.Fprint(w, window.Contents)
 }

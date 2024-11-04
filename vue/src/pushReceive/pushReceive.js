@@ -7,6 +7,7 @@ import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
 import { groupAliasEdit } from './groupAliasEdit.js';
 import { rookie } from './rookie.js';
+import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { thread } from './thread.js';
 import { threadEdit } from './threadEdit.js';
 import { ticketEdit } from './ticketEdit.js';
@@ -28,6 +29,7 @@ export function pushReceive(notificationData) {
     emoji: emoji,
     groupAliasEdit: groupAliasEdit,
     rookie: rookie,
+    shiftStaffEdit: shiftStaffEdit,
     thread: thread,
     threadEdit: threadEdit,
     ticketEdit: ticketEdit,
