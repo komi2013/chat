@@ -28,8 +28,7 @@ func ShiftStaffGet(w http.ResponseWriter, r *http.Request) {
 
   coll := db1.Collection("shift_staff")
   filter := bson.M{
-  	"channel_id": r.FormValue("channelID"),
-  	"book_pattern_id": r.FormValue("bookPatternID"),
+  	"window_id": r.FormValue("windowID"),
   }
   project := bson.D{
   	{"_id", 1},
@@ -54,6 +53,7 @@ func ShiftStaffGet(w http.ResponseWriter, r *http.Request) {
   }
 
 	if len(shiftStaffs) == 0 {
+
 		w.WriteHeader(http.StatusOK)
 		return
 	}

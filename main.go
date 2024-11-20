@@ -14,7 +14,9 @@ import (
 func main() {
 
 	if len(os.Args) == 1 {
+		http.HandleFunc("/BookGet/", controller.BookGet)
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
+		http.HandleFunc("/BookPatternGet/", controller.BookPatternGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)

@@ -10,6 +10,7 @@ type WindowStruct struct {
   CreatorAlias     string    `bson:"creator_alias"`
   CreatorUser        string    `bson:"creator_user"`
   Contents      string    `bson:"contents"`
+  ContentsTitle      string    `bson:"contents_title"`
   UpdatedAt     time.Time    `bson:"updated_at"`
   Subscriptions      []string    `bson:"subscriptions"`
   Contents2      string    `bson:"contents2"`

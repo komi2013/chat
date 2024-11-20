@@ -7,7 +7,7 @@ import { generateRandomCode } from '../my/strings.js';
 const props = defineProps({
   id: '',
 })
-
+console.log(props.id);
 const channel = ref('');
 const groups = ref([]);
 const selectedGroup = ref('');
@@ -37,8 +37,6 @@ async function fetchBookPattern() {
   } catch (error) {
     console.log('error', error);
     // bookPattern.value = null;
-
-
 // food staff 
   // const bookPattern = ref({
   //   "adminGroup": "2kaime",
@@ -78,27 +76,28 @@ async function fetchBookPattern() {
   // });
 
 // shift salon staff
-    bookPattern.value = {
-      "adminGroup": "2kaime",
-      "joinNames": ["sei1", "asd"],
-      "parentID": "A67h",
-      "times": [
-        {
-          "bookTitle": "フルタイム、スタイリスト設定",
-          "date": "2024-11-01",
-            "start": "10:00",
-            "end": "15:00",
-            "staffs" : [
-              [1, "stylist", ["staffA"]]
-            ]
-        }
-      ]
-    };
+    // bookPattern.value = {
+    //   "adminGroup": "2kaime",
+    //   "joinNames": ["sei1", "asd"],
+    //   "parentID": "A67h",
+    //   "times": [
+    //     {
+    //       "bookTitle": "フルタイム、スタイリスト設定",
+    //       "date": "2024-11-01",
+    //         "start": "10:00",
+    //         "end": "15:00",
+    //         "staffs" : [
+    //           [1, "stylist", ["staffA"]]
+    //         ]
+    //     }
+    //   ]
+    // };
 
 // salon booking
   // bookPattern.value = {
   //   "adminGroup": "2kaime",
-  //   "windowID": "", // channelID + bookPatternID
+  //   "joinNames": ['sei1', 'asd'],
+  //   // "windowID": "", // channelID + bookPatternID
   //   "needFacilities": [
   //        [2, "perm"]
   //        // [5, "VIP-B"]
@@ -106,76 +105,89 @@ async function fetchBookPattern() {
   //   "maxFacility" : "30",
   //   "times": [
   //     {
-  //       "bookTitle": "飲食店の公開用予約リンク",
-  //       "date": "2024-10-19",
+  //       "date": "2024-11-19",
+  //       "bookTitle": "サロンの公開用予約リンク",
+  //       "needFacilities": [
+  //          [1, "perm"]
+  //       ],
+  //       "needRoles": [ // case of massage, salon, dental
+  //         [3, 'stylist']
+  //       ],
   //       "limitStart": "10:00",
   //       "limitEnd": "20:00",
-  //       "needRoles": [ // case of massage, salon, dental
-  //         // [2, 'cheff'],
-  //         // [3, 'cashier'],
-  //         // [1, 'manager']
-  //         [3, 'stylist']
+  //       "askChoices": [
+  //         ["性別は？", "男", "女", "その他"],
+  //         ["何歳ですか？", "~ 15", "16 ~ 18", "19 ~ 25", "26 ~ 35", "35 ~"]
   //       ]
   //     }
+  //   ],
+  //   "menu" : [
+  //     {
+  //       "name": "パーマ", "price": 10000, "needRole": "perm", "needFacility": "perm"
+  //     },
+  //     {
+  //       "name": "カット", "price": 3000
+  //     }
   //   ]
-
-  //   // "openTimes": [ // from shift salon staff times
-  //   //   [3, "2024-10-19T10:00", "2024-10-19T15:00"],
-  //   //   [2, "2024-10-19T10:00", "2024-10-19T15:00"]
-  //   // ],
   //   // "specifyNames": [ // goes to menu function? > no, salon, massage service only
   //   //   ["staffA", "2024-10-19T12:00", "2024-10-19T13:00"]
-  //   // ],
-  //   // "menu" : [ // menu and askMultiChoices are same? > no 
-  //   // {
-  //   //   "name": "パーマ", "price": 10000, "needRole": "perm", "needFacility": "perm"
-  //   // },
-  //   // {
-  //   //   "name": "カット", "price": 3000
-  //   // }
   //   // ],
   //   // "menuOrderPass" : [
   //   //   ["Zi", "table12", "2024-10-19T12:00", "2024-10-19T13:00"],
   //   //   ["jx", "table12", "2024-10-19T12:30", "2024-10-19T13:30"]
   //   // ] // customer come 12:40 Zi is selected, once access with this pass, session can keep 2 hours
   // };
-
-// {
-//     "adminGroup": "2kaime",
-//     "needFacilities": [
-//         [
-//             2,
-//             "perm"
-//         ]
-//     ],
-//     "maxFacility": "30",
-//     "times": [
-//         {
-//             "bookTitle": "飲食店の公開用予約リンク",
-//             "date": "2024-11-01",
-//             "limitStart": "10:00",
-//             "limitEnd": "20:00",
-//             "needRoles": [
-//                 [
-//                     3,
-//                     "stylist"
-//                 ]
-//             ]
-//         }
-//     ],
-//     "bookPatternID": "A67h",
-//     "openTimes": [
-//       ["sei1", "2024-11-01T10:00", "2024-10-19T15:00", "stylist"],
-//       ["sei1", "2024-11-02T10:00", "2024-10-19T15:00", "stylist"]
-//     ]
-// }
+//
+  // {
+  //     "adminGroup": "2kaime",
+  //     "needFacilities": [
+  //         [
+  //             2,
+  //             "perm"
+  //         ]
+  //     ],
+  //     "maxFacility": "30",
+  //     "times": [
+  //         {
+  //             "bookTitle": "飲食店の公開用予約リンク",
+  //             "date": "2024-11-01",
+  //             "limitStart": "10:00",
+  //             "limitEnd": "20:00",
+  //             "needRoles": [
+  //                 [
+  //                     3,
+  //                     "stylist"
+  //                 ]
+  //             ]
+  //         }
+  //     ],
+  //     "bookPatternID": "A67h",
+  //     "openTimes": [
+  //       ["sei1", "2024-11-01T10:00", "2024-10-19T15:00", "stylist"],
+  //       ["sei1", "2024-11-02T10:00", "2024-10-19T15:00", "stylist"]
+  //     ]
+  // }
 
   }
 }
 
+async function findBookPattern() {
+  const fd = new FormData();
+  fd.append('bookPatternID', props.id);
+  const data = await sendRequest('/BookPatternGet/', fd);
+  if (data) {
+    bookPattern.value = data;
+  }
+}
+
+
 onMounted(() => {
   fetchChannel();
-  fetchBookPattern();
+  if (props.id.length > 4) {
+    findBookPattern();
+  } else if (props.id.length > 0) {
+    fetchBookPattern();
+  }
 });
 
 const currentMonth = ref(new Date().getMonth());
@@ -206,7 +218,6 @@ const calculateNewEndTime = (start, end) => {
     difference += 24 * 60;
   }
   const newEndTotalMinutes = endTotalMinutes + difference;
-  console.log(endTotalMinutes, difference);
   const adjustedMinutes = newEndTotalMinutes % (24 * 60);
   const newHours = Math.floor(adjustedMinutes / 60);
   const newMinutes = adjustedMinutes % 60;
@@ -257,13 +268,9 @@ const toggleDateSelection = (date) => {
 };
 
 
-const publicWindow = ref(true);
-const submit = () => {
-  if (!bookPattern.value.bookPatternID) {
-    bookPattern.value.bookPatternID = generateRandomCode(4);
-  }
+const publicWindow = ref(false);
+const submit = async () => {
   bookPattern.value.adminGroup = selectedGroup.value[0];
-
   if (!confirm("実行▶️")) {
     return;
   }
@@ -290,27 +297,23 @@ const submit = () => {
   fd.append('contents', JSON.stringify(removeEmptyElements(bookPattern.value)));
   // console.log( removeEmptyElements(bookPattern.value) );
   fd.append('pushTitle', 'bookPattern');
-  const request = new Request('/ContentsPush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason);
-    })
-  console.log(publicWindow.value);
+  let uri = '/ContentsPush/';
   if (publicWindow.value) {
-    bookPattern.value.windowID = localStorage.channelID + bookPattern.value.bookPatternID;
-    fd.append('windowID', bookPattern.value.windowID);
-    fd.contents = JSON.stringify(removeEmptyElements(bookPattern.value));
-    const request = new Request('/WindowAdd/', {
-      method: 'POST',
-      body: fd,
-    });
-    fetch(request)
-      .catch((reason)=>{
-        console.log(reason);
-      })    
+    if (bookPattern.value.bookPatternID) {
+      uri = '/WindowEdit/';
+    } else {
+      uri = '/WindowAdd/';
+    }
+    fd.delete('pushTitle');
+    fd.append('contentsTitle', 'bookPattern');
+  } else {
+    if (!bookPattern.value.bookPatternID) {
+      bookPattern.value.bookPatternID = generateRandomCode(4);
+    }
+  }
+  const data = await sendRequest(uri, fd);
+  if (data) {
+    location.href = '/bookpattern/' + data[0];
   }
 };
 
@@ -408,17 +411,15 @@ function removeEmptyElements(obj) {
 
       <!-- 質問と選択肢 -->
       <div v-if="time.asks && time.asks.length > 0" v-for="(ask, askIndex) in time.asks" class="inline-form">
-        <label>質問:</label>
         <input v-model="time.asks[askIndex]" type="text" placeholder="質問内容" />
       </div>
 
-      <div v-if="time.askChoices" v-for="(choice, choiceIndex) in time.askChoices" :key="choiceIndex" class="inline-choice">
-        <label>質問:</label>
+      <div v-if="time.askChoices" v-for="(choice, choiceIndex) in time.askChoices" :key="choiceIndex">
         <input v-model="time.askChoices[choiceIndex][0]" type="text" placeholder="質問" />
-        <label>選択肢{{ choiceIndex + 1 }}:</label>
         <template v-for="(c, ci) in time.askChoices[choiceIndex]">
-          <input v-if="ci > 0" v-model="time.askChoices[choiceIndex][ci]" type="text" placeholder="選択肢" />
+          <input v-if="ci > 0" v-model="time.askChoices[choiceIndex][ci]" type="text" placeholder="選択肢" /><br>
         </template>
+        <br>
       </div>
 
       <!-- 複数回答の選択肢 -->

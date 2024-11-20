@@ -67,9 +67,9 @@ func WindowAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	windowID := r.FormValue("windowID")
 	if windowID == "" {
-		windowID = common.StringRand(4)
+		windowID = common.StringRand(40)
 	}
-	
+
 	coll := db1.Collection("window")
   window := collection.WindowStruct{
   	ID: windowID,
@@ -77,6 +77,7 @@ func WindowAdd(w http.ResponseWriter, r *http.Request) {
 		CreatorAlias: verifiedName,
 		CreatorUser: session.UserID,
 		Contents: r.FormValue("contents"),
+		ContentsTitle: r.FormValue("contents_title"),
     UpdatedAt: time.Now(),
 		Subscriptions: subscriptions,
 		Contents2: r.FormValue("contents2"),
@@ -87,7 +88,6 @@ func WindowAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var jsonArr []interface{}
-	jsonArr = append(jsonArr, 1)
 	jsonArr = append(jsonArr, windowID)
 	jsonData, _ := json.Marshal(jsonArr)
   fmt.Fprint(w, string(jsonData))

@@ -15,11 +15,13 @@ async function fetchChannel() {
   }
 }
 const bookPattern = ref('');
+const availableSkills = ref([]);
 async function fetchBookPattern() {
   try {
     bookPattern.value = await getIDB('bookPattern', props.id);
+    console.log(bookPattern.value);
     if (bookPattern.value.parentID) {
-      findBookParent();
+      findParent(bookPattern.value.parentID);
     } else {
       fetchShiftStaff();
     }
@@ -41,37 +43,28 @@ async function fetchShiftStaff() {
   }
 }
 
-async function findBookParent() {
+async function findParent(parentID) {
   const fd = new FormData();
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
-  fd.append('bookPatternID', props.id);
-  const request = new Request('/ShiftStaffGet/', {
-    method: 'POST',
-    body: fd,
-  });
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const contentLength = response.headers.get("Content-Length");
-      if (contentLength === "0" || contentLength === null) {
-        console.log('no data');
-      } else {
-        // return response.json();
-        const data = await response.json();
-        if (data && Object.keys(data).length > 0) {
-          shiftStaff.value = data;
-          initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
-        } else {
-          console.log('データが存在しませんが、レスポンスは成功しました');
-        }
-      }
-    } else {
-      console.error('Failed to findBookParent data', response.status);
+  // fd.append('channelID', localStorage.channelID);
+  // fd.append('aliasName', channel.value.aliasName);
+  fd.append('bookPatternID', parentID);
+  const res = await sendRequest('/BookPatternGet/', fd);
+  res.times.forEach((time) => {
+    if (time.shiftStaff) {
+      time.shiftStaff.forEach((staff) => {
+        shiftStaff.value.push({
+          shiftStaffID: props.id + time.date.replace(/-/g, "") + staff.shiftStart.replace(":", "") + staff.aliasName,
+          aliasName: staff.aliasName,
+          shiftStart: `${time.date}T${staff.shiftStart}`, // 日付と時間を結合
+          shiftEnd: `${time.date}T${staff.shiftEnd}`, // 日付と時間を結合
+          skills: staff.skills,
+          seq: staff.seq,
+        });
+      });
     }
-  } catch (error) {
-    console.error('Error findBookParent data:', error);
-  }
+  });
+  console.log('/BookPatternGet/', res);
+  initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
 }
 
 const IamAdmin = () => {
@@ -138,9 +131,10 @@ const moveStaffToTop = (timeSlot, name) => {
   });
 };
 
-function editOK(timeSlot, role) {
+function onOffOK(timeSlot) {
   const { date, start, end } = timeSlot;
   const shiftStaffID = props.id + date.replace(/-/g, "") + start.replace(":", "") + channel.value.aliasName;
+  console.log(shiftStaff.value, shiftStaffID);
   const existingIndex = shiftStaff.value.findIndex(staff => staff.shiftStaffID === shiftStaffID);
   if (existingIndex !== -1) {
     shiftStaff.value.splice(existingIndex, 1);
@@ -150,9 +144,9 @@ function editOK(timeSlot, role) {
       shiftStaffID: shiftStaffID,
       bookPatternID: props.id,
       aliasName: channel.value.aliasName,
-      shiftStart: date + "T" + start,
-      shiftEnd: date + "T" + end,
-      role: role,
+      shiftStart: date + 'T' + start,
+      shiftEnd: date + 'T' + end,
+      skills: availableSkills.value,
       seq: count
     }
     shiftStaff.value.push(staff);    
@@ -196,7 +190,7 @@ function submitOK() {
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
-  fd.append('contents', JSON.stringify(changedData));
+  fd.append('shiftStaffs', JSON.stringify(changedData));
   if (bookPattern.value.parentID) {
     const request = new Request('/ShiftStaffEdit/', {
       method: 'POST',
@@ -220,6 +214,7 @@ function submitOK() {
 }
 
 function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
+  console.log('initialStaffs, updatedStaffs', initialStaffs, updatedStaffs);
   const changedRecords = [];
   updatedStaffs.forEach((updatedRecord) => {
     const initialRecord = initialStaffs.find(
@@ -238,19 +233,31 @@ function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
     }
   });
   initialStaffs.forEach((initialRecord) => {
+
     const existsInUpdated = (updatedStaffs || []).some(
       (updatedRecord) =>
         updatedRecord.aliasName === initialRecord.aliasName &&
         updatedRecord.shiftStart === initialRecord.shiftStart
     );
+    console.log('existsInUpdated', existsInUpdated);
     if (!existsInUpdated) {
       changedRecords.push({
+        ...initialRecord,
         shiftStaffID: initialRecord.shiftStaffID,
-        delete: 1,
+        delete: true,
       });
     }
   });
-  return changedRecords;
+  console.log('changedRecords', changedRecords);
+  const submitData = changedRecords.map(staff => {
+    const { shiftStaffID, bookPatternID, ...rest } = staff;
+    return {
+      ...rest,
+      bookPatternID: bookPattern.value.parentID,
+      shiftStaffID: shiftStaffID
+    };
+  });
+  return submitData;
 }
 
 </script>
@@ -258,6 +265,22 @@ function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
 <template>
   <div class="book-pattern-page">
     <h1>{{ bookPattern.bookTitle }}</h1>
+
+  <div>
+    <h3>スキルを選択:</h3>
+    <div v-for="(skill, index) in bookPattern.skills" :key="index">
+      <label>
+        <input
+          type="checkbox"
+          :value="skill"
+          v-model="availableSkills"
+        />
+        {{ skill }}
+      </label>
+    </div>
+
+    <p>選択されたスキル: {{ availableSkills }}</p>
+  </div>
 
     <div v-for="(timeSlot, index) in bookPattern.times" :key="index" class="time-slot">
       <p>{{ timeSlot.date }} {{ timeSlot.start }} {{ timeSlot.limitStart }} - {{ timeSlot.end }} {{ timeSlot.limitEnd }}</p>
@@ -275,7 +298,7 @@ function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
         </button>
         <br>
         <button 
-          @click="editOK(timeSlot, staff[1])" 
+          @click="onOffOK(timeSlot)" 
           :style="{ backgroundColor: myNameInclude(timeSlot) ? 'blue' : 'silver' }">
           ◯
         </button>        
