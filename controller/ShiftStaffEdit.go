@@ -13,7 +13,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo/options"
   "go.mongodb.org/mongo-driver/bson/primitive"
 
-  // webpush "github.com/SherClockHolmes/webpush-go"
+  // "github.com/mitchellh/mapstructure"
 
   "chat/collection"
   "chat/common"
@@ -47,7 +47,7 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
     fmt.Printf(" err %s\n", session.AliasArray, aliasName)
     return
   }
-	coll := db1.Collection("book_pattern")
+
 	var shiftStaffs []struct {
 		BookPatternID string   `json:"bookPatternID,omitempty"`
 		AliasName     string   `json:"aliasName,omitempty"`
@@ -73,81 +73,117 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
 		return
 	}
-	filter := bson.M{
-		"_id": bookPatternID,
-	}
+
+	coll := db1.Collection("book_pattern")
 	var bookPattern collection.BookPatternStruct
-	err = coll.FindOne(ctx, filter).Decode(&bookPattern)
-	if err != nil {
-		http.Error(w, "No matching document found", http.StatusNotFound)
-		return
+	filter := bson.M{"_id": bookPatternID}
+
+	// Retry logic to attempt acquiring the lock
+	for attempt := 0; attempt < 3; attempt++ {
+		// Atomic update to check and acquire lock
+		update := bson.M{
+			"$set": bson.M{"lock": true}, // Set the lock
+		}
+		options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+		// Try to find and lock the document
+		err := coll.FindOneAndUpdate(ctx, bson.M{
+			"$and": []bson.M{
+				filter,
+				{"lock": bson.M{"$ne": true}}, // Ensure the document is not already locked
+			},
+		}, update, options).Decode(&bookPattern)
+
+		if err == nil {
+			// Successfully acquired the lock and decoded the document
+			break
+		} else if err == mongo.ErrNoDocuments {
+			// Document is already locked; retry after 1 second
+			log.Printf("Attempt %d: Document is locked, retrying...", attempt+1)
+			time.Sleep(1 * time.Second)
+			continue
+		} else {
+			// Other errors, log and return
+			log.Printf("Failed to lock and retrieve document: %v", err)
+			return
+		}
+
+		// If retries are exhausted, log and return
+		if attempt == 2 {
+			log.Println("Failed to acquire lock after 3 attempts")
+			return
+		}
 	}
 
-	// Prepare a map to track existing TimeSlots by date for quick lookup
+	// Successfully locked and retrieved the document
+	log.Printf("Locked and retrieved bookPattern: %+v", bookPattern)
+
+
 	timeSlotMap := make(map[string]*collection.TimeSlot)
-	for _, slot := range bookPattern.Times {
-		timeSlotMap[slot.Date] = &slot
+	for i := range bookPattern.Times {
+		slot := &bookPattern.Times[i] // Reference the actual TimeSlot in bookPattern.Times
+		timeSlotMap[slot.Date] = slot
 	}
 
-	for date, slot := range timeSlotMap {
-		log.Printf("スタートDate: %s, TimeSlot: %+v", date, *slot)
-	}
 	for _, staff := range shiftStaffs {
 		date := staff.ShiftStart[:10]
 		slot, exists := timeSlotMap[date]
-		log.Printf("slot begin: %v", slot)
 		if !exists {
-			slot = &collection.TimeSlot{
+			newSlot := &collection.TimeSlot{
 				Date:        date,
-				LimitStart:  "", // Set default values if needed
+				LimitStart:  "",
 				LimitEnd:    "",
 				ShiftStaff:  []collection.ShiftStaff{},
 				Book:        []collection.Book{},
 			}
+			timeSlotMap[date] = newSlot
+			slot = newSlot
 		}
-		existingMap := make(map[string]collection.ShiftStaff)
+		updatedShiftStaff := []collection.ShiftStaff{}
 		for _, s := range slot.ShiftStaff {
 			key := fmt.Sprintf("%s|%s", s.AliasName, s.ShiftStart)
 			reqKey := fmt.Sprintf("%s|%s", staff.AliasName, staff.ShiftStart[11:])
 			if key == reqKey && staff.Delete {
-				log.Printf("Skipping staff %s on date %s due to delete flag", staff.AliasName, date)
 				continue
 			}
-			existingMap[key] = s
-		}
-		key := fmt.Sprintf("%s|%s", staff.AliasName, staff.ShiftStart[11:])
-		existingMap[key] = collection.ShiftStaff{
-			AliasName:  staff.AliasName,
-			ShiftStart: staff.ShiftStart[11:], // Extract only the HH:MM part
-			ShiftEnd:   staff.ShiftEnd[11:],   // Extract only the HH:MM part
-			Skills:     staff.Skills,
-			Seq:        staff.Seq,
-		}
-		updatedShiftStaff := make([]collection.ShiftStaff, 0, len(existingMap))
-		for _, s := range existingMap {
 			updatedShiftStaff = append(updatedShiftStaff, s)
 		}
+		if !staff.Delete {
+			updatedShiftStaff = append(updatedShiftStaff, collection.ShiftStaff{
+				AliasName:  staff.AliasName,
+				ShiftStart: staff.ShiftStart[11:], // Extract only the HH:MM part
+				ShiftEnd:   staff.ShiftEnd[11:],   // Extract only the HH:MM part
+				Skills:     staff.Skills,
+				Seq:        staff.Seq,
+			})
+		}
 		slot.ShiftStaff = updatedShiftStaff
-		log.Printf("slot end: %v", slot)
+		log.Printf("Updated slot: %+v", *slot)
 	}
-	for date, slot := range timeSlotMap {
-		log.Printf("エンドDate: %s, TimeSlot: %+v", date, *slot)
-	}
-	// Rebuild bookPattern.Times from the updated map
 	updatedTimes := make([]collection.TimeSlot, 0, len(timeSlotMap))
 	for _, slot := range timeSlotMap {
 		updatedTimes = append(updatedTimes, *slot)
 	}
 
-	// Assign updatedTimes back to bookPattern
 	bookPattern.Times = updatedTimes
 
 	update := bson.M{
 		"$set": bson.M{
 			"times": updatedTimes,
 		},
+		"$unset": bson.M{"lock": ""},
 	}
-	_, err = coll.UpdateOne(ctx, filter, update)
+
+	// filter := bson.D{{"_id", cookie.Value}}
+
+	// lockUpdate := bson.M{"$unset": bson.M{"lock": ""}}
+
+	// update := bson.D{{"$set", bson.D{
+	// 	{"subscription", r.FormValue("subscription")},
+	// 	{"updated_at", time.Now()}}}}
+	opts := options.Update().SetUpsert(false)
+	// _, err = coll.UpdateOne(context.TODO(), filter, update, opts)
+	_, err = coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		http.Error(w, "Failed to update shift staff", http.StatusInternalServerError)
 		log.Printf("Update error: %v", err)
@@ -157,19 +193,106 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Shift staffs updated successfully")
 }
 
-func toStringSlice(input interface{}) []string {
-	if input == nil {
-		return nil
+// CheckAndLock attempts to acquire a lock on a document.
+// It retries for up to 3 seconds if the document is already locked.
+func CheckAndLock(coll *mongo.Collection, filter bson.M, ctx context.Context) (bson.M, error) {
+	// Define the update to acquire the lock
+	update := bson.M{
+		"$set": bson.M{"lock": true}, // Set the lock
 	}
-	if items, ok := input.([]interface{}); ok {
-		result := make([]string, len(items))
-		for i, v := range items {
-			result[i] = v.(string)
+	options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	var result bson.M
+
+	// Retry logic: Try up to 3 times to acquire the lock
+	for attempt := 0; attempt < 3; attempt++ {
+		// Perform an atomic FindOneAndUpdate operation
+		err := coll.FindOneAndUpdate(ctx, bson.M{
+			"$and": []bson.M{
+				filter,
+				{"lock": bson.M{"$ne": true}}, // Ensure the document is not already locked
+			},
+		}, update, options).Decode(&result)
+
+		if err == nil {
+			// Successfully locked the document
+			return result, nil
+		} else if err == mongo.ErrNoDocuments {
+			// Document is locked, retry after 1 second
+			log.Printf("Attempt %d: Document is locked, retrying...", attempt+1)
+			time.Sleep(1 * time.Second)
+			continue
+		} else {
+			// Other errors, return immediately
+			log.Printf("Failed to acquire lock: %v", err)
+			return nil, fmt.Errorf("failed to lock document: %w", err)
 		}
-		return result
 	}
-	return nil
+
+	// If retries are exhausted, return an error
+	log.Println("Failed to acquire lock after 3 attempts")
+	return nil, fmt.Errorf("document is locked after 3 attempts")
 }
+
+// func ProcessDocument(coll *mongo.Collection, bookPatternID string, ctx context.Context) error {
+// 	// Filter to identify the document by ID
+// 	filter := bson.M{"_id": bookPatternID}
+
+// 	// Atomic update to check for lock and acquire it if not already locked
+// 	update := bson.M{
+// 		"$set": bson.M{"lock": true}, // Set the lock
+// 	}
+// 	options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+// 	// Attempt to acquire the lock
+// 	var bookPattern collection.BookPatternStruct
+// 	err := coll.FindOneAndUpdate(ctx, bson.M{
+// 		"$and": []bson.M{
+// 			filter,
+// 			{"lock": bson.M{"$ne": true}}, // Ensure the document is not already locked
+// 		},
+// 	}, update, options).Decode(&bookPattern)
+
+// 	if err != nil {
+// 		if err == mongo.ErrNoDocuments {
+// 			// Document is already locked
+// 			log.Println("Document is already locked by another process")
+// 			return fmt.Errorf("document is locked")
+// 		}
+// 		// Other errors
+// 		log.Fatalf("Failed to lock document: %v", err)
+// 		return fmt.Errorf("failed to lock document: %w", err)
+// 	}
+
+// 	// Log that the document is locked and being processed
+// 	log.Printf("Processing document: %+v", bookPattern)
+
+// 	// Perform your processing logic here
+// 	time.Sleep(2 * time.Second) // Simulated processing
+
+// 	// Unlock the document after processing
+// 	_, err = coll.UpdateOne(ctx, filter, bson.M{"$unset": bson.M{"lock": ""}})
+// 	if err != nil {
+// 		log.Printf("Failed to unlock document: %v", err)
+// 		return fmt.Errorf("failed to unlock document: %w", err)
+// 	}
+
+// 	// Log that the document was successfully processed and unlocked
+// 	log.Println("Document processed and unlocked successfully")
+// 	return nil
+// }
+
+
+// Unlock removes the lock from the document.
+// func Unlock(coll *mongo.Collection, filter bson.M, ctx context.Context) error {
+// 	lockUpdate := bson.M{"$unset": bson.M{"lock": ""}}
+// 	_, err := coll.UpdateOne(ctx, filter, lockUpdate)
+// 	if err != nil {
+// 		log.Printf("Failed to remove lock: %v", err)
+// 		return fmt.Errorf("failed to unlock document: %w", err)
+// 	}
+// 	return nil
+// }
 
 // Define the structs for the parent structure
 // type TimeEntry struct {

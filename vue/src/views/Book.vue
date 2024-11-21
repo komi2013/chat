@@ -23,12 +23,14 @@ async function fetchChannel() {
 let bookPattern = null;
 async function findBookPattern() {
   const fd = new FormData();
-  fd.append('windowID', props.id);
-  const data = await sendRequest('/WindowGet/', fd);
+  fd.append('bookPatternID', props.id);
+  const data = await sendRequest('/BookPatternGet/', fd);
   bookPattern = data;
-  const hasNeedRoles = data.times.some(time => time.needRoles && time.needRoles.length > 0);
+  const hasNeedRoles = data.menu.some(m => m.needRole && m.needRole.length > 0);
   if (hasNeedRoles) {
-    findShiftStaff();
+    generateOpenTimes();
+    
+    console.log(openTimes.value);
   }
 }
 let shiftStaff = null;
@@ -105,46 +107,50 @@ function generateOpenTimes() {
   const limitStart = bookPattern.times[0].limitStart;
   const limitEnd = bookPattern.times[0].limitEnd;
 
-  shiftStaff.forEach(staff => {
-    const staffStart = new Date(staff.shiftStart);
-    const staffEnd = new Date(staff.shiftEnd);
+  bookPattern.times.forEach(slot => {
+    slot.shiftStaff.forEach(staff => {
+      const staffStart = new Date(`${slot.date}T${staff.shiftStart}`);
+      const staffEnd = new Date(`${slot.date}T${staff.shiftEnd}`);
+      let currentTime = new Date(`${slot.date}T${staff.shiftStart}`);
+      console.log(`${slot.date}T${staff.shiftStart}`, staffStart);
+      while (currentTime < staffEnd) {
 
-    // Shift内の時間を分割して1時間単位で作成
-    let currentTime = new Date(staff.shiftStart);
-    while (currentTime < staffEnd) {
-      const nextTime = new Date(currentTime);
-      nextTime.setHours(currentTime.getHours() + 1);
+        const nextTime = new Date(currentTime);
+        nextTime.setHours(currentTime.getHours() + 1);
 
-      // 時間内チェック
-      const startTimeStr = `${staff.shiftStart.slice(0, 10)}T${limitStart}`;
-      const endTimeStr = `${staff.shiftStart.slice(0, 10)}T${limitEnd}`;
-      const timeStart = new Date(startTimeStr);
-      const timeEnd = new Date(endTimeStr);
+        // 時間内チェック
+        const startTimeStr = `${slot.date}T${limitStart}`;
+        const endTimeStr = `${slot.date}T${limitEnd}`;
+        const timeStart = new Date(startTimeStr);
+        const timeEnd = new Date(endTimeStr);
 
-      // 条件を満たしているかの確認
-      const roleMatch = book.every(b => !b.useRole || staff.roles.includes(b.useRole));
-      const facilityMatch = book.every(b => !b.useFacility || 
-        bookPattern.needFacilities.some(([count, facility]) => facility === b.useFacility && count >= book.length)
-      );
+        // 条件を満たしているかの確認
+        const roleMatch = !slot.book || slot.book.length === 0 || slot.book.every(b => !b.useRole || staff.skills.includes(b.useRole));
+        const facilityMatch = !slot.book || slot.book.length === 0 || slot.book.every(b => !b.useFacility || 
+          bookPattern.needFacilities.some(([count, facility]) => facility === b.useFacility && count >= slot.book.length)
+        );
+        console.log(currentTime, currentTime.toISOString().slice(0, 16));
 
-      if (roleMatch && facilityMatch && currentTime >= timeStart && currentTime < timeEnd) {
-        openTimes.value.push({
-          timeStart: currentTime.toISOString().slice(0, 16),
-          timeEnd: nextTime.toISOString().slice(0, 16),
-          answers: book[0].answers,
-          menuID: book[0].menuID
-        });
+        if (roleMatch && facilityMatch && currentTime >= timeStart && currentTime < timeEnd) {
+          openTimes.value.push({
+            timeStart: currentTime,
+            timeEnd: nextTime
+            // answers: slot.book[0].answers,
+            // menuID: slot.book[0].menuID
+          });
+          console.log('timeStart', currentTime.toISOString().slice(0, 16));
+        }
+        // console.log('openTimes.value', openTimes.value);
+        currentTime = nextTime;
       }
-
-      currentTime = nextTime;
-    }
+    });
   });
 }
 
 onMounted(() => {
   fetchChannel();
   findBookPattern();
-  findBook();
+  // findBook();
   console.log(openTimes.value);
 });
 
@@ -169,6 +175,7 @@ const weekDates = computed(() => {
 });
 
 const getEventsForDayAndHour = (day, hour) => {
+  // console.log(openTimes.value, 'openTimes.value');
   return openTimes.value.filter((d) => {
     const start = new Date(d.timeStart);
     const end = new Date(d.timeEnd);
