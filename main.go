@@ -14,7 +14,7 @@ import (
 func main() {
 
 	if len(os.Args) == 1 {
-		http.HandleFunc("/BookGet/", controller.BookGet)
+		// http.HandleFunc("/BookAdd/", controller.BookAdd)
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
 		http.HandleFunc("/BookPatternGet/", controller.BookPatternGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
@@ -32,7 +32,6 @@ func main() {
 		http.HandleFunc("/PushResponse/", controller.PushResponse)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
 		http.HandleFunc("/ShiftStaffEdit/", controller.ShiftStaffEdit)
-		http.HandleFunc("/ShiftStaffGet/", controller.ShiftStaffGet)
 		http.HandleFunc("/ThreadEdit/", controller.ThreadEdit)
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
 		http.HandleFunc("/TicketAdd/", controller.TicketAdd)

@@ -8,7 +8,7 @@ const props = defineProps({
   id: '',
 })
 
-const windowID = ref(props.id);
+const bookPatternID = ref(props.id);
 
 const channel = ref('');
 async function fetchChannel() {
@@ -21,131 +21,86 @@ async function fetchChannel() {
   }
 }
 let bookPattern = null;
+const menus = ref('');
 async function findBookPattern() {
   const fd = new FormData();
   fd.append('bookPatternID', props.id);
   const data = await sendRequest('/BookPatternGet/', fd);
   bookPattern = data;
-  const hasNeedRoles = data.menu.some(m => m.needRole && m.needRole.length > 0);
-  if (hasNeedRoles) {
+  menus.value = data.menus;
+  const hasNeedSkills = data.menus.some(m => m.needSkill && m.needSkill.length > 0);
+  if (hasNeedSkills) {
     generateOpenTimes();
     
     console.log(openTimes.value);
   }
 }
-let shiftStaff = null;
-async function findShiftStaff() {
-  const fd = new FormData();
-  fd.append('windowID', props.id);
-  const data = await sendRequest('/ShiftStaffGet/', fd);
-  shiftStaff = data;
-  generateOpenTimes();
-  console.log('/ShiftStaffGet/', data);
-}
-let book = null;
-async function findBook() {
-  const fd = new FormData();
-  fd.append('windowID', props.id);
-  const data = await sendRequest('/BookGet/', fd);
-  book = data;
-  console.log('/BookGet/', data);
-}
-
-// pseudo data
-  // const bookPattern = {
-  //   adminGroup: "2kaime",
-  //   joinNames: ["sei1", "asd"],
-  //   needFacilities: [[2, "perm"]],
-  //   maxFacility: "30",
-  //   times: [{
-  //     date: "2024-11-13",
-  //     bookTitle: "サロンの公開用予約リンク",
-  //     needFacilities: [[1, "perm"]],
-  //     needRoles: [[3, "stylist"]],
-  //     limitStart: "10:00",
-  //     limitEnd: "20:00",
-  //     askChoices: [["性別は？", "男", "女", "その他"], ["何歳ですか？", "~ 15", "16 ~ 18", "19 ~ 25", "26 ~ 35", "35 ~"]]
-  //   }],
-  //   menu: [{
-  //     name: "パーマ",
-  //     price: 10000,
-  //     needRole: "perm",
-  //     needFacility: "perm"
-  //   }, {
-  //     name: "カット",
-  //     price: 3000
-  //   }]
-  // };
-  // const book = [{
-  //   bookStart: "2024/11/13 12:00:00",
-  //   bookEnd: "2024/11/13 13:00:00",
-  //   answers: ["小松", "35", "2"],
-  //   menuID: 2,
-  //   useRole: "perm",
-  //   useFacility: "perm"
-  // }];
-
-  // const shiftStaff = [{
-  //   shiftStaffID: "ncsW202411031500sei1",
-  //   aliasName: "sei1",
-  //   shiftStart: "2024-11-13T15:00",
-  //   shiftEnd: "2024-11-13T20:00",
-  //   roles: ["perm", "cut"],
-  //   seq: 1
-  // }, {
-  //   shiftStaffID: "ncsW202411011000sei1",
-  //   aliasName: "sei1",
-  //   shiftStart: "2024-11-11T10:00",
-  //   shiftEnd: "2024-11-11T15:00",
-  //   roles: ["perm", "cut"],
-  //   seq: 1
-  // }];
 
 // openTimesの作成
 const openTimes = ref([]);
-function generateOpenTimes() {
+function generateOpenTimes(menu = null) {
   const limitStart = bookPattern.times[0].limitStart;
   const limitEnd = bookPattern.times[0].limitEnd;
-
+  const intervalMinutes = menu?.spendMinute || 60;
+  if (menu) {
+    openTimes.value = [];
+  }
   bookPattern.times.forEach(slot => {
-    slot.shiftStaff.forEach(staff => {
-      const staffStart = new Date(`${slot.date}T${staff.shiftStart}`);
-      const staffEnd = new Date(`${slot.date}T${staff.shiftEnd}`);
-      let currentTime = new Date(`${slot.date}T${staff.shiftStart}`);
-      console.log(`${slot.date}T${staff.shiftStart}`, staffStart);
-      while (currentTime < staffEnd) {
-
-        const nextTime = new Date(currentTime);
-        nextTime.setHours(currentTime.getHours() + 1);
-
-        // 時間内チェック
-        const startTimeStr = `${slot.date}T${limitStart}`;
-        const endTimeStr = `${slot.date}T${limitEnd}`;
-        const timeStart = new Date(startTimeStr);
-        const timeEnd = new Date(endTimeStr);
-
-        // 条件を満たしているかの確認
-        const roleMatch = !slot.book || slot.book.length === 0 || slot.book.every(b => !b.useRole || staff.skills.includes(b.useRole));
-        const facilityMatch = !slot.book || slot.book.length === 0 || slot.book.every(b => !b.useFacility || 
-          bookPattern.needFacilities.some(([count, facility]) => facility === b.useFacility && count >= slot.book.length)
-        );
-        console.log(currentTime, currentTime.toISOString().slice(0, 16));
-
-        if (roleMatch && facilityMatch && currentTime >= timeStart && currentTime < timeEnd) {
-          openTimes.value.push({
-            timeStart: currentTime,
-            timeEnd: nextTime
-            // answers: slot.book[0].answers,
-            // menuID: slot.book[0].menuID
-          });
-          console.log('timeStart', currentTime.toISOString().slice(0, 16));
+    let facilities = [...bookPattern.facilities];
+    let staffOpenTimes = [];
+    if (slot.shiftStaffs) {
+      slot.shiftStaffs.forEach(staff => {
+        const staffStart = new Date(`${slot.date}T${staff.shiftStart}`);
+        const staffEnd = new Date(`${slot.date}T${staff.shiftEnd}`);
+        let currentTime = new Date(staffStart);
+        while (currentTime < staffEnd) {
+          const nextTime = new Date(currentTime);
+          nextTime.setMinutes(currentTime.getMinutes() + intervalMinutes);
+          const existingTime = staffOpenTimes.find(
+            time => time.timeStart.getTime() === currentTime.getTime()
+          );
+          if (!menu || !menu.needSkill || (staff.skills && staff.skills.includes(menu.needSkill)) ) {
+            if (existingTime) {
+              existingTime.count += 1;
+            } else {
+              staffOpenTimes.push({
+                timeStart: new Date(currentTime),
+                timeEnd: new Date(nextTime),
+                count: 1
+              });
+            }
+          }
+          currentTime = nextTime;
         }
-        // console.log('openTimes.value', openTimes.value);
-        currentTime = nextTime;
-      }
-    });
+      });
+    }
+    if (slot.books) {
+      slot.books.forEach(booked => {
+        const bookStart = new Date(`${slot.date}T${booked.bookStart}`);
+        const bookEnd = new Date(`${slot.date}T${booked.bookEnd}`);
+        const bookedMenu = bookPattern.menus.find(menu => menu.id === booked.menuID);
+        staffOpenTimes = staffOpenTimes.filter(openTime => {
+          const overlaps = openTime.timeStart < bookEnd && openTime.timeEnd > bookStart;
+          const needsFacility = menu && menu.needFacility && bookedMenu?.needFacility === menu?.needFacility;
+          if (overlaps && needsFacility) {
+            const facilityIndex = bookPattern.facilities.findIndex(
+              facility => facility === menu.needFacility
+            );
+            if (facilityIndex !== -1 && facilities[facilityIndex - 1] > 0) {
+              facilities[facilityIndex - 1] -= 1;
+            }
+            return false;
+          }
+          return true;
+        });
+      });
+    }
+    const validOpenTimes = staffOpenTimes.filter(time => time.count > 0);
+    openTimes.value = [...openTimes.value, ...validOpenTimes];
   });
+  console.log(openTimes.value);
 }
+
 
 onMounted(() => {
   fetchChannel();
@@ -176,6 +131,7 @@ const weekDates = computed(() => {
 
 const getEventsForDayAndHour = (day, hour) => {
   // console.log(openTimes.value, 'openTimes.value');
+  if (!openTimes.value) { return false };
   return openTimes.value.filter((d) => {
     const start = new Date(d.timeStart);
     const end = new Date(d.timeEnd);
@@ -238,6 +194,17 @@ const closeModal = () => {
   showModal.value = false;
 };
 
+const selectedMenuId = ref("");
+// const selectedMenu = computed(() => {
+//   return bookPattern.menus.find(menu => menu.id === selectedMenuId.value);
+// });
+
+function handleMenuChange(menuId) {
+  // console.log('Selected Menu ID:', menuId);
+  const selected = bookPattern.menus.find(menu => menu.id === menuId);
+  // console.log('Selected Menu:', selected);
+  generateOpenTimes(selected);
+}
 </script>
 
 <template>
@@ -268,12 +235,19 @@ const closeModal = () => {
         </div>
       </div>
     </div>
+
+    <select id="menu-select" class="menu" v-model="selectedMenuId" @change="handleMenuChange(selectedMenuId)">
+      <option disabled value="">メニュー</option>
+      <option v-for="menu in menus" :key="menu.id" :value="menu.id">
+        {{ menu.name }} - {{ menu.price }}円
+      </option>
+    </select>
+
     <!-- モーダルを表示 -->
     <BookModal
       v-if="showModal"
       :time="selectedEvent"
       :bookPattern="bookPattern"
-      :windowID="windowID"
       @close="closeModal"
       @submit="submitEvent"
     />
@@ -347,6 +321,15 @@ const closeModal = () => {
   background-color: white;
   z-index: 1;
   width: 60px;
+}
+
+.menu {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: white;
+  font-size: 0.8rem;
+  z-index: 5;
 }
 
 </style>
