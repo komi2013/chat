@@ -55,9 +55,24 @@ const router = createRouter({
       })
     },
     {
+      path: '/menu/:id/:code?/',
+      name: 'menu',
+      component: () => import('../views/Menu.vue'),
+      props: route => ({
+        id: route.params.id,
+        code: route.params.code
+      })
+    },
+    {
       path: '/mypage/',
       name: 'mypage',
       component: () => import('../views/mypage.vue')
+    },
+    {
+      path: '/reception/:id?/',
+      name: 'reception',
+      component: () => import('../views/Reception.vue'),
+      props: route => ({id: route.params.id}),
     },
     {
       path: '/redirect/',

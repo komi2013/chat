@@ -36,138 +36,6 @@ async function fetchBookPattern() {
     selectedGroup.value = [bookPattern.value.adminGroup];
   } catch (error) {
     console.log('error', error);
-    // bookPattern.value = null;
-// food staff 
-  // const bookPattern = ref({
-  //   "adminGroup": "2kaime",
-  //   "joinNames": ["sei1", "asd"],
-  //   "times": [
-  //     {
-  //       "bookTitle": "title 1",
-  //       "date": "2024-10-19",
-  //       "start": "17:25",
-  //       "end": "18:25",
-  //       "staffs" : [
-  //         [2, "cashier", ["スタッフA", "スタッフB"]],
-  //         [2, "waiter"]
-  //       ]
-  //     },
-  //     {
-  //       "bookTitle": "title 2",
-  //       "date": "2024-10-19",
-  //       "start": "18:25",
-  //       "end": "19:25",
-  //       "staffs" : [
-  //         [2, "", ["スタッフA", "スタッフB"]]
-  //       ],
-  //       "maxCustomer": 30,
-  //       "asks": ["how many people", "age"],
-  //       "askChoices": [
-  //         ["how many people", "1", "2 ~ 3", "4 ~5"],
-  //         ["age", "~10", "11 ~ 18", "19 ~ 25"]
-  //       ],
-  //       "askMultiChoices": [
-  //         ["how many people", "1", "2 ~ 3", "4 ~5"],
-  //         ["age", "~10", "11 ~ 18", "19 ~ 25"]
-  //       ],
-
-  //     }
-  //   ]
-  // });
-
-// shift salon staff
-    // bookPattern.value = {
-    //   "adminGroup": "2kaime",
-    //   "joinNames": ["sei1", "asd"],
-    //   "parentID": "A67h",
-    //   "times": [
-    //     {
-    //       "bookTitle": "フルタイム、スタイリスト設定",
-    //       "date": "2024-11-01",
-    //         "start": "10:00",
-    //         "end": "15:00",
-    //         "staffs" : [
-    //           [1, "stylist", ["staffA"]]
-    //         ]
-    //     }
-    //   ]
-    // };
-
-// salon booking
-  // bookPattern.value = {
-  //   "adminGroup": "2kaime",
-  //   "joinNames": ['sei1', 'asd'],
-  //   // "windowID": "", // channelID + bookPatternID
-  //   "needFacilities": [
-  //        [2, "perm"]
-  //        // [5, "VIP-B"]
-  //   ],
-  //   "maxFacility" : "30",
-  //   "times": [
-  //     {
-  //       "date": "2024-11-19",
-  //       "bookTitle": "サロンの公開用予約リンク",
-  //       "needFacilities": [
-  //          [1, "perm"]
-  //       ],
-  //       "needRoles": [ // case of massage, salon, dental
-  //         [3, 'stylist']
-  //       ],
-  //       "limitStart": "10:00",
-  //       "limitEnd": "20:00",
-  //       "askChoices": [
-  //         ["性別は？", "男", "女", "その他"],
-  //         ["何歳ですか？", "~ 15", "16 ~ 18", "19 ~ 25", "26 ~ 35", "35 ~"]
-  //       ]
-  //     }
-  //   ],
-  //   "menu" : [
-  //     {
-  //       "name": "パーマ", "price": 10000, "needRole": "perm", "needFacility": "perm"
-  //     },
-  //     {
-  //       "name": "カット", "price": 3000
-  //     }
-  //   ]
-  //   // "specifyNames": [ // goes to menu function? > no, salon, massage service only
-  //   //   ["staffA", "2024-10-19T12:00", "2024-10-19T13:00"]
-  //   // ],
-  //   // "menuOrderPass" : [
-  //   //   ["Zi", "table12", "2024-10-19T12:00", "2024-10-19T13:00"],
-  //   //   ["jx", "table12", "2024-10-19T12:30", "2024-10-19T13:30"]
-  //   // ] // customer come 12:40 Zi is selected, once access with this pass, session can keep 2 hours
-  // };
-//
-  // {
-  //     "adminGroup": "2kaime",
-  //     "needFacilities": [
-  //         [
-  //             2,
-  //             "perm"
-  //         ]
-  //     ],
-  //     "maxFacility": "30",
-  //     "times": [
-  //         {
-  //             "bookTitle": "飲食店の公開用予約リンク",
-  //             "date": "2024-11-01",
-  //             "limitStart": "10:00",
-  //             "limitEnd": "20:00",
-  //             "needRoles": [
-  //                 [
-  //                     3,
-  //                     "stylist"
-  //                 ]
-  //             ]
-  //         }
-  //     ],
-  //     "bookPatternID": "A67h",
-  //     "openTimes": [
-  //       ["sei1", "2024-11-01T10:00", "2024-10-19T15:00", "stylist"],
-  //       ["sei1", "2024-11-02T10:00", "2024-10-19T15:00", "stylist"]
-  //     ]
-  // }
-
   }
 }
 
@@ -177,9 +45,9 @@ async function findBookPattern() {
   const data = await sendRequest('/BookPatternGet/', fd);
   if (data) {
     bookPattern.value = data;
+    selectedGroup.value = [bookPattern.value.adminGroup];
   }
 }
-
 
 onMounted(() => {
   fetchChannel();
@@ -193,12 +61,10 @@ onMounted(() => {
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
 
-// カレンダーで選択された日付
 const selectedDates = ref([]);
 
-// `times` に新しい項目を追加（データもコピー）
 const addTime = () => {
-  const lastTime = bookPattern.value.times[bookPattern.value.times.length - 1]; // 最後のtimeを取得
+  const lastTime = bookPattern.value.times[bookPattern.value.times.length - 1];
   const newTime = {
     ...lastTime,
   };
@@ -235,35 +101,33 @@ const applyFormToSelectedDates = () => {
     const existingTime = bookPattern.value.times.find(time => time.date === selectedDate);
 
     if (!existingTime) {
-      const lastTime = bookPattern.value.times[bookPattern.value.times.length - 1]; // 最後のデータを取得
+      const lastTime = bookPattern.value.times[bookPattern.value.times.length - 1];
       const newTime = {
         ...lastTime,
-        date: selectedDate, // 日付を選択した日付に変更
+        date: selectedDate,
       };
 
-      bookPattern.value.times.push(newTime); // 新しいデータを追加
+      bookPattern.value.times.push(newTime);
     }
   });
 };
 
-// 現在の月のカレンダーを生成する
 const getDaysInMonth = (month, year) => {
   const date = new Date(year, month, 1);
   const days = [];
   while (date.getMonth() === month) {
-    days.push(new Date(date).toISOString().split('T')[0]); // YYYY-MM-DD形式の日付
+    days.push(new Date(date).toISOString().split('T')[0]);
     date.setDate(date.getDate() + 1);
   }
   return days;
 };
 
-// 日付がカレンダーで選択された場合、その日付を `selectedDates` に追加
 const toggleDateSelection = (date) => {
   const index = selectedDates.value.indexOf(date);
   if (index === -1) {
-    selectedDates.value.push(date); // 選択された日付を追加
+    selectedDates.value.push(date);
   } else {
-    selectedDates.value.splice(index, 1); // もう一度クリックした場合は選択を解除
+    selectedDates.value.splice(index, 1);
   }
 };
 
@@ -295,14 +159,13 @@ const submit = async () => {
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
   fd.append('contents', JSON.stringify(removeEmptyElements(bookPattern.value)));
-  // console.log( removeEmptyElements(bookPattern.value) );
   fd.append('pushTitle', 'bookPattern');
   let uri = '/ContentsPush/';
   if (publicWindow.value) {
     if (bookPattern.value.bookPatternID) {
-      uri = '/WindowEdit/';
+      uri = '/BookPatternEdit/';
     } else {
-      uri = '/WindowAdd/';
+      uri = '/BookPatternAdd/';
     }
     fd.delete('pushTitle');
     fd.append('contentsTitle', 'bookPattern');
@@ -340,18 +203,18 @@ function removeEmptyElements(obj) {
 </script>
 
 <template>
+  <br><br>
   <div>
-    <h1>Book Pattern 入力ページ</h1>
+    <template v-if="bookPattern.bookTitle">
+      <input v-model="bookPattern.bookTitle" type="text" placeholder="予約設定" style="width: 96%;" />      
+    </template>
+    <template v-if="!bookPattern.bookTitle">
+      <span>予約設定ページ</span>
+    </template>
 
-      <!-- 設備情報の入力 -->
-    <div v-if="bookPattern.needFacilities" v-for="(facility, facilityIndex) in bookPattern.needFacilities" :key="facilityIndex" class="inline-form">
-
-      <label>Facility Number:</label>
-      <input v-model="facility[0]" type="number" placeholder="施設数" />
-
-      <label>Facility Name:</label>
-      <input v-model="facility[1]" type="text" placeholder="施設名" />
-
+    <div v-if="bookPattern.facilities" class="inline-form">
+      <input v-model="bookPattern.facilities[0]" type="number" placeholder="施設・道具の数" />
+      <input v-model="bookPattern.facilities[1]" type="text" placeholder="施設・道具の名称" />
     </div>
 
     <div v-if="bookPattern.maxFacility" class="inline-form">
@@ -373,8 +236,7 @@ function removeEmptyElements(obj) {
 
     <hr />
 
-    <div v-for="(time, index) in bookPattern.times" :key="index" class="time-form">
-      <!-- bookTitleをtimeから取得 -->
+    <div v-for="time in bookPattern.times" class="time-form">
       <div class="inline-form">
         <label>Book Title:</label>
         <input v-model="time.bookTitle" type="text" />
@@ -409,25 +271,6 @@ function removeEmptyElements(obj) {
         </div> -->
       </div>
 
-      <!-- 質問と選択肢 -->
-      <div v-if="time.asks && time.asks.length > 0" v-for="(ask, askIndex) in time.asks" class="inline-form">
-        <input v-model="time.asks[askIndex]" type="text" placeholder="質問内容" />
-      </div>
-
-      <div v-if="time.askChoices" v-for="(choice, choiceIndex) in time.askChoices" :key="choiceIndex">
-        <input v-model="time.askChoices[choiceIndex][0]" type="text" placeholder="質問" />
-        <template v-for="(c, ci) in time.askChoices[choiceIndex]">
-          <input v-if="ci > 0" v-model="time.askChoices[choiceIndex][ci]" type="text" placeholder="選択肢" /><br>
-        </template>
-        <br>
-      </div>
-
-      <!-- 複数回答の選択肢 -->
-      <div v-if="time.askMultiChoices" v-for="(multiChoice, multiChoiceIndex) in time.askMultiChoices" :key="multiChoiceIndex" class="inline-choice">
-        <label>複数回答{{ multiChoiceIndex + 1 }}:</label>
-        <input v-model="time.askMultiChoices[multiChoiceIndex][1]" type="text" placeholder="複数回答" />
-      </div>
-
       <button @click="removeTime(index)">この日付を削除</button>
       <hr />
 
@@ -452,7 +295,30 @@ function removeEmptyElements(obj) {
     </div>
 
     <button @click="applyFormToSelectedDates">選択した日にちに適用</button>
-    <button @click="submit">送信</button>
+    <div style="margin-left: 10px;">
+      <span>質問内容</span>
+      <div v-if="bookPattern.asks" v-for="(ask, askIndex) in bookPattern.asks" class="inline-form">
+        <input v-model="bookPattern.asks[askIndex]" type="text" />
+      </div>
+
+      <span>単一選択の質問</span>
+      <div v-if="bookPattern.askChoices" v-for="(choice, choiceIndex) in bookPattern.askChoices" :key="choiceIndex">
+        <input v-model="bookPattern.askChoices[choiceIndex][0]" type="text" />
+        <template v-for="(c, ci) in bookPattern.askChoices[choiceIndex]">
+          <input v-if="ci > 0" v-model="bookPattern.askChoices[choiceIndex][ci]" type="text" /><br>
+        </template>
+        <br>
+      </div>
+
+      <span>複数選択の質問</span>
+      <div v-if="bookPattern.askMultiChoices" v-for="(multiChoice, index) in bookPattern.askMultiChoices" :key="index" >
+        <input v-model="bookPattern.askMultiChoices[index][0]" type="text" />
+        <template v-for="(c, ci) in bookPattern.askMultiChoices[index]">
+          <input v-if="ci > 0" v-model="bookPattern.askMultiChoices[index][ci]" type="text" /><br>
+        </template>
+        <br>
+      </div>
+    </div>
     <div class="dropdown-menu">
       <div 
         v-for="group in groups"
@@ -464,7 +330,9 @@ function removeEmptyElements(obj) {
         {{ group[0] }}
       </div>
     </div>
-
+    <div style="text-align: center;">
+      <button @click="submit" style="width: 80%;">送信</button>
+    </div>
   </div>
 </template>
 
@@ -483,19 +351,23 @@ function removeEmptyElements(obj) {
   width: 120px;
 }
 
-.inline-choice {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 5px;
-}
-
 .selected {
   background-color: #f0f0f0;
 }
 
 button {
-  margin-top: 10px;
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
+
+button:hover {
+  background-color: #0056b3;
+}
+
 
 /* カレンダーのスタイル */
 .calendar {

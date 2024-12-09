@@ -4,10 +4,6 @@
       <h2>イベントを追加</h2>
       <label for="timeStart">開始時間:</label>
       <input type="datetime-local" v-model="localEvent.timeStart" />
-
-<!--       <label for="timeEnd">終了時間:</label>
-      <input type="datetime-local" v-model="localEvent.timeEnd" />
- -->
       <div v-for="(question, index) in bookPattern.times[0].askChoices" :key="index">
         <label>{{ question[0] }}</label>
         <select v-model="localEvent.answers[index]">
@@ -19,9 +15,9 @@
 
       <div>
         <label>メニュー:</label>
-        <select v-model="localEvent.menuID">
-          <option v-for="(menuItem, menuIndex) in bookPattern.menus" :key="menuIndex" :value="menuIndex">
-            {{ menuItem.name }} - {{ menuItem.price }}円
+        <select v-model="localEvent.serviceID">
+          <option v-for="(serviceItem, serviceIndex) in bookPattern.services" :key="serviceItem.id" :value="serviceItem.id">
+            {{ serviceItem.serviceName }} - {{ serviceItem.price }}円
           </option>
         </select>
       </div>
@@ -36,7 +32,8 @@
 import { ref, computed } from 'vue';
 const props = defineProps({
   time: Object,
-  bookPattern: Object
+  bookPattern: Object,
+  serviceID: Number
 });
 const emit = defineEmits(['submit', 'close']);
 
@@ -44,13 +41,13 @@ const localEvent = ref({
   ...props.time,
   bookPatternID: props.bookPattern.id,
   answers: [],   // askChoicesの回答を格納する配列
-  menuID: null   // 選択されたmenuのIDを格納
+  serviceID: props.serviceID   // 選択されたmenuのIDを格納
 });
 
 const bookPattern = props.bookPattern;
 
-console.log('props.time', props.time);
-console.log('props.bookPattern', props.bookPattern);
+console.log('props', props);
+// console.log('props.bookPattern', props.bookPattern);
 
 const submit = () => {
   console.log('localEvent.value', localEvent.value);
@@ -59,7 +56,7 @@ const submit = () => {
   fd.append('bookStart', localEvent.value.timeStart);
   fd.append('bookEnd', localEvent.value.timeEnd);
   fd.append('answers', JSON.stringify(localEvent.value.answers));
-  fd.append('menuID', localEvent.value.menuID);
+  fd.append('serviceID', localEvent.value.serviceID);
   sendRequest('/BookAdd/', fd);
   emit('close');
 };

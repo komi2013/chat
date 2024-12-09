@@ -9,7 +9,7 @@ type Books struct {
 	BookStart    string   `bson:"book_start" json:"bookStart"`
 	BookEnd      string   `bson:"book_end" json:"bookEnd"`
 	Answers      []string `bson:"answers" json:"answers"`
-	MenuID       int      `bson:"menu_id" json:"menuID"`
+	ServiceID    int      `bson:"service_id,omitempty" json:"serviceID,omitempty"`
 }
 
 type ShiftStaffs struct {
@@ -29,9 +29,9 @@ type TimeSlot struct {
 	Books       []Books        `bson:"books,omitempty" json:"books,omitempty"`
 }
 
-type MenuItem struct {
+type Service struct {
 	ID           int    `bson:"id" json:"id"`
-	Name         string `bson:"name" json:"name"`
+	ServiceName  string `bson:"service_name" json:"serviceName"`
 	Price        int    `bson:"price" json:"price"`
 	NeedSkill    string `bson:"need_skill,omitempty" json:"needSkill,omitempty"`
 	NeedFacility string `bson:"need_facility,omitempty" json:"needFacility,omitempty"`
@@ -40,13 +40,14 @@ type MenuItem struct {
 
 // BookPatternStruct represents the overall booking pattern structure
 type BookPatternStruct struct {
-	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	AdminGroup    string             `bson:"admin_group" json:"adminGroup"`
-	JoinNames     []string           `bson:"join_names" json:"joinNames"`
-	BookTitle     string             `bson:"book_title,omitempty" json:"bookTitle,omitempty"`
-	Asks          []string           `bson:"asks,omitempty" json:"asks,omitempty"`
-	AskChoices    [][]string         `bson:"ask_choices,omitempty" json:"askChoices,omitempty"`
-	Facilities    []interface{}      `bson:"facilities,omitempty" json:"facilities,omitempty"` // Mixed types require interface{}
-	Times         []TimeSlot         `bson:"times,omitempty" json:"times,omitempty"`
-	Menus         []MenuItem         `bson:"menus,omitempty" json:"menus,omitempty"`
+	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	AdminGroup       string             `bson:"admin_group" json:"adminGroup"`
+	JoinNames        []string           `bson:"join_names" json:"joinNames"`
+	BookTitle        string             `bson:"book_title,omitempty" json:"bookTitle,omitempty"`
+	Asks             []string           `bson:"asks,omitempty" json:"asks,omitempty"`
+	AskChoices       [][]string         `bson:"ask_choices,omitempty" json:"askChoices,omitempty"`
+	AskMultiChoices  [][]string         `bson:"ask_multi_choices,omitempty" json:"askMultiChoices,omitempty"`
+	Facilities       []interface{}      `bson:"facilities,omitempty" json:"facilities,omitempty"` // Mixed types require interface{}
+	Times            []TimeSlot         `bson:"times,omitempty" json:"times,omitempty"`
+	Services         []Service         `bson:"services,omitempty" json:"services,omitempty"`
 }

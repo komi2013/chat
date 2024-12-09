@@ -21,14 +21,14 @@ async function fetchChannel() {
   }
 }
 let bookPattern = null;
-const menus = ref('');
+const services = ref('');
 async function findBookPattern() {
   const fd = new FormData();
   fd.append('bookPatternID', props.id);
   const data = await sendRequest('/BookPatternGet/', fd);
   bookPattern = data;
-  menus.value = data.menus;
-  const hasNeedSkills = data.menus.some(m => m.needSkill && m.needSkill.length > 0);
+  services.value = data.services;
+  const hasNeedSkills = data.services.some(m => m.needSkill && m.needSkill.length > 0);
   if (hasNeedSkills) {
     generateOpenTimes();
     
@@ -38,11 +38,11 @@ async function findBookPattern() {
 
 // openTimesの作成
 const openTimes = ref([]);
-function generateOpenTimes(menu = null) {
+function generateOpenTimes(service = null) {
   const limitStart = bookPattern.times[0].limitStart;
   const limitEnd = bookPattern.times[0].limitEnd;
-  const intervalMinutes = menu?.spendMinute || 60;
-  if (menu) {
+  const intervalMinutes = service?.spendMinute || 60;
+  if (service) {
     openTimes.value = [];
   }
   bookPattern.times.forEach(slot => {
@@ -59,7 +59,7 @@ function generateOpenTimes(menu = null) {
           const existingTime = staffOpenTimes.find(
             time => time.timeStart.getTime() === currentTime.getTime()
           );
-          if (!menu || !menu.needSkill || (staff.skills && staff.skills.includes(menu.needSkill)) ) {
+          if (!service || !service.needSkill || (staff.skills && staff.skills.includes(service.needSkill)) ) {
             if (existingTime) {
               existingTime.count += 1;
             } else {
@@ -78,13 +78,13 @@ function generateOpenTimes(menu = null) {
       slot.books.forEach(booked => {
         const bookStart = new Date(`${slot.date}T${booked.bookStart}`);
         const bookEnd = new Date(`${slot.date}T${booked.bookEnd}`);
-        const bookedMenu = bookPattern.menus.find(menu => menu.id === booked.menuID);
+        const bookedService = bookPattern.services.find(service => service.id === booked.serviceID);
         staffOpenTimes = staffOpenTimes.filter(openTime => {
           const overlaps = openTime.timeStart < bookEnd && openTime.timeEnd > bookStart;
-          const needsFacility = menu && menu.needFacility && bookedMenu?.needFacility === menu?.needFacility;
+          const needsFacility = service && service.needFacility && bookedService?.needFacility === service?.needFacility;
           if (overlaps && needsFacility) {
             const facilityIndex = bookPattern.facilities.findIndex(
-              facility => facility === menu.needFacility
+              facility => facility === service.needFacility
             );
             if (facilityIndex !== -1 && facilities[facilityIndex - 1] > 0) {
               facilities[facilityIndex - 1] -= 1;
@@ -194,15 +194,10 @@ const closeModal = () => {
   showModal.value = false;
 };
 
-const selectedMenuId = ref("");
-// const selectedMenu = computed(() => {
-//   return bookPattern.menus.find(menu => menu.id === selectedMenuId.value);
-// });
+const selectedServiceId = ref("");
 
-function handleMenuChange(menuId) {
-  // console.log('Selected Menu ID:', menuId);
-  const selected = bookPattern.menus.find(menu => menu.id === menuId);
-  // console.log('Selected Menu:', selected);
+function handleServiceChange(serviceId) {
+  const selected = bookPattern.services.find(service => service.id === serviceId);
   generateOpenTimes(selected);
 }
 </script>
@@ -236,10 +231,10 @@ function handleMenuChange(menuId) {
       </div>
     </div>
 
-    <select id="menu-select" class="menu" v-model="selectedMenuId" @change="handleMenuChange(selectedMenuId)">
+    <select id="menu-select" class="menu" v-model="selectedServiceId" @change="handleServiceChange(selectedServiceId)">
       <option disabled value="">メニュー</option>
-      <option v-for="menu in menus" :key="menu.id" :value="menu.id">
-        {{ menu.name }} - {{ menu.price }}円
+      <option v-for="service in services" :key="service.id" :value="service.id">
+        {{ service.serviceName }} - {{ service.price }}円
       </option>
     </select>
 
@@ -248,6 +243,7 @@ function handleMenuChange(menuId) {
       v-if="showModal"
       :time="selectedEvent"
       :bookPattern="bookPattern"
+      :serviceID="selectedServiceId"
       @close="closeModal"
       @submit="submitEvent"
     />

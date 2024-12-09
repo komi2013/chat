@@ -31,12 +31,12 @@ async function fetchBookPattern() {
   }
 }
 
-const shiftStaff = ref([]);
+const shiftStaffs = ref([]);
 let initialStaffs = [];
 async function fetchShiftStaff() {
   try {
-    shiftStaff.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
-    initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
+    shiftStaffs.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
+    initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
   } catch (error) {
     console.log('error', error);
     // shiftStaff.value = [];
@@ -45,14 +45,12 @@ async function fetchShiftStaff() {
 
 async function findParent(parentID) {
   const fd = new FormData();
-  // fd.append('channelID', localStorage.channelID);
-  // fd.append('aliasName', channel.value.aliasName);
   fd.append('bookPatternID', parentID);
   const res = await sendRequest('/BookPatternGet/', fd);
   res.times.forEach((time) => {
-    if (time.shiftStaff) {
-      time.shiftStaff.forEach((staff) => {
-        shiftStaff.value.push({
+    if (time.shiftStaffs) {
+      time.shiftStaffs.forEach((staff) => {
+        shiftStaffs.value.push({
           shiftStaffID: props.id + time.date.replace(/-/g, "") + staff.shiftStart.replace(":", "") + staff.aliasName,
           aliasName: staff.aliasName,
           shiftStart: `${time.date}T${staff.shiftStart}`, // 日付と時間を結合
@@ -63,8 +61,7 @@ async function findParent(parentID) {
       });
     }
   });
-  console.log('/BookPatternGet/', res);
-  initialStaffs = JSON.parse(JSON.stringify(shiftStaff.value));
+  initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
 }
 
 const IamAdmin = () => {
@@ -84,10 +81,13 @@ const IamAdmin = () => {
 }
 
 const getShiftStaffByDate = (timeSlot) => {
+  // console.log(timeSlot);
   const { date, start } = timeSlot;
-  const result = (shiftStaff.value || []).filter(shiftStaff => {
+  const result = (shiftStaffs.value || []).filter(shiftStaff => {
       const shiftDate = shiftStaff.shiftStart.slice(0, 10);
       const shiftTime = shiftStaff.shiftStart.slice(11);
+      console.log(shiftDate, date);
+      console.log(shiftTime, start);
       return (
         shiftDate === date &&
         shiftTime === start
@@ -100,7 +100,7 @@ const getShiftStaffByDate = (timeSlot) => {
 const myNameInclude = (timeSlot) => {
 
   const { date, start } = timeSlot;
-  return (shiftStaff.value || []).some(shiftStaff => {
+  return (shiftStaffs.value || []).some(shiftStaff => {
     const shiftDate = shiftStaff.shiftStart.slice(0, 10);
     const shiftTime = shiftStaff.shiftStart.slice(11);
 
@@ -120,7 +120,7 @@ onMounted(() => {
 const moveStaffToTop = (timeSlot, name) => {
   const { date, start } = timeSlot;
   const shiftStart = date + 'T' + start;
-  const staffs = (shiftStaff.value || []).filter(staff => staff.shiftStart === shiftStart);
+  const staffs = (shiftStaffs.value || []).filter(staff => staff.shiftStart === shiftStart);
   staffs.sort((a, b) => {
     if (a.aliasName === name) return -1;
     if (b.aliasName === name) return 1;
@@ -134,12 +134,11 @@ const moveStaffToTop = (timeSlot, name) => {
 function onOffOK(timeSlot) {
   const { date, start, end } = timeSlot;
   const shiftStaffID = props.id + date.replace(/-/g, "") + start.replace(":", "") + channel.value.aliasName;
-  console.log(shiftStaff.value, shiftStaffID);
-  const existingIndex = shiftStaff.value.findIndex(staff => staff.shiftStaffID === shiftStaffID);
+  const existingIndex = shiftStaffs.value.findIndex(staff => staff.shiftStaffID === shiftStaffID);
   if (existingIndex !== -1) {
-    shiftStaff.value.splice(existingIndex, 1);
+    shiftStaffs.value.splice(existingIndex, 1);
   } else {
-    const count = shiftStaff.value.filter(staff => staff.shiftStart === date + "T" + start).length + 1;
+    const count = shiftStaffs.value.filter(staff => staff.shiftStart === date + "T" + start).length + 1;
     const staff = {
       shiftStaffID: shiftStaffID,
       bookPatternID: props.id,
@@ -149,12 +148,12 @@ function onOffOK(timeSlot) {
       skills: availableSkills.value,
       seq: count
     }
-    shiftStaff.value.push(staff);    
+    shiftStaffs.value.push(staff);    
   }
 }
 
 function submitOK() {
-  const changedData = compareAndUpdateStaffs(initialStaffs, shiftStaff.value);
+  const changedData = compareAndUpdateStaffs(initialStaffs, shiftStaffs.value);
   if (changedData.length < 1) {
     return
   }

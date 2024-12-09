@@ -1,0 +1,84 @@
+
+{
+    "_id":  "", // ObjectId('6736d3fd24a8745b9c9f4112'),
+    "admin_group": "2kaime",
+    "join_names": [ "sei1", "asd"],
+    "book_title": "サロンの公開用予約リンク",
+    "asks": ["名前は？"],
+    "ask_choices": [
+        [
+            "性別は？",
+            "男",
+            "女",
+            "その他"
+        ],
+        [
+            "何歳ですか？",
+            "~ 15",
+            "16 ~ 18",
+            "19 ~ 25",
+            "26 ~ 35",
+            "35 ~"
+        ]
+    ],
+    "facilities": [2, "perm"],
+    "times": [
+        {
+            "date": "2024-11-19",
+            "limit_start": "10:00",
+            "limit_end": "20:00",
+            "shift_staffs": [
+              {
+                "alias_name": "staffA",
+                "shift_start": "15:00",
+                "shift_end": "21:00",
+                "skills": ["cut", "perm"],
+                "seq": 1
+              },
+              {
+                "alias_name": "staffB",
+                "shift_start": "10:00",
+                "shift_end": "15:00",
+                "skills": ["cut", "perm"],
+                "seq": 1
+              },
+            ],
+            "books": [
+              {
+                "book_start": "12:00",
+                "book_end": "13:00",
+                "answers": [ "小松", "35", "2"],
+                "service_id": 2
+              },
+              {
+                "book_start": "13:00",
+                "book_end": "14:00",
+                "answers": [ "小松", "35", "2"],
+                "service_id": 2
+              },
+            ]
+        },
+        {
+            "date": "2024-11-20",
+            "limit_start": "10:00",
+            "limit_end": "20:00"
+        }
+    ],
+    "services": [
+        {
+            "id": 1,
+            "service_name": "パーマ",
+            "price": 10000,
+            "need_skill": "perm",
+            "need_facility": "perm",
+            "spend_minute": 60
+        },
+        {
+            "id": 2,
+            "service_name": "カット",
+            "need_skill": "cut",
+            "price": 3000,
+            "spend_minute": 60
+        }
+    ]
+}
