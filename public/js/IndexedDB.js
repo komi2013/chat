@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 79 );
+    const request = indexedDB.open('chat', 80 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -20,16 +20,17 @@ const openDatabase = () => {
         console.log('Upgrade transaction completed');
       };
       const tables = [
-        ['bookmark','messageID'],
+        ['bookmark', 'messageID'],
         ['bookPattern', 'bookPatternID'],
         ['channel', 'channelID'],
         ['chunk', 'chunkID'],
+        ['receptionOrder', 'receptionOrderID'],
         ['shiftStaff', 'shiftStaffID'],
         ['thread', 'messageID'],
         ['threadHead', 'parentID'],
-        ['timestamp','timestampID'],
-        ['timestampCode','code'],
-        ['ticket','ticketID'],        
+        ['timestamp', 'timestampID'],
+        ['timestampCode', 'code'],
+        ['ticket', 'ticketID'],
       ];
       tables.forEach(([tableName, keyPath]) => {
         let objectStore;

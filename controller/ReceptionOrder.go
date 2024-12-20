@@ -6,6 +6,7 @@ import (
   "fmt"
   "log"
   "net/http"
+  "strconv"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -79,14 +80,108 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+  menuID, err := strconv.Atoi(r.FormValue("menuID"))
+  if err != nil {
+    http.Error(w, "menuID is not correct", http.StatusNotFound)
+    return
+  }
+
+	// Find the requested menu
+	var selectedMenu *collection.Menu
+	for _, menu := range reception.Menus {
+		if menu.ID == menuID {
+			selectedMenu = &menu
+			break
+		}
+	}
+	// if selectedMenu == nil {
+	// 	return nil, fmt.Errorf("menuID %d not found", menuID)
+	// }
+
+	// if menuPrice == 0 {
+	// 	http.Error(w, "Menu not found or price unavailable", http.StatusNotFound)
+	// 	return
+	// }
+
+	var freeOptions []int
+  if err := json.Unmarshal([]byte(r.FormValue("freeOptions")), &freeOptions); err != nil {
+    http.Error(w, "Invalid JSON freeOptions", http.StatusBadRequest)
+    return
+  }
+
+  var freeMultiOptions []int
+  if err := json.Unmarshal([]byte(r.FormValue("freeMultiOptions")), &freeMultiOptions); err != nil {
+    http.Error(w, "Invalid JSON freeMultiOptions", http.StatusBadRequest)
+    return
+  }
+
+  var paidOptions []int
+  if err := json.Unmarshal([]byte(r.FormValue("paidOptions")), &paidOptions); err != nil {
+    http.Error(w, "Invalid JSON paidOptions", http.StatusBadRequest)
+    return
+  }
+
+	var itemIDs []int
+	var paidOptionSum int
+
+	for _, freeID := range freeOptions {
+		for _, IDs := range selectedMenu.FreeOptions {
+			for _, ID := range IDs {
+				// fmt.Printf("freeID == ID %s\n", freeID, ID)
+				// log.Print("freeID == ID", freeID, ID)
+				if freeID == ID {
+					for _, item := range reception.ItemDetails {
+						// log.Print("item.ItemID == freeID", item.ItemID, freeID)
+						if item.ItemID == freeID {
+							itemIDs = append(itemIDs, item.ItemID)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for _, freeID := range freeMultiOptions {
+		for _, ID := range selectedMenu.FreeMultiOptions {
+			if freeID == ID {
+				for _, item := range reception.ItemDetails {
+					if item.ItemID == freeID {
+						itemIDs = append(itemIDs, item.ItemID)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Calculate the sum of paidOptions
+	for _, paidID := range paidOptions {
+		// found := false
+		for _, option := range selectedMenu.PaidOptions {
+			if option[0] == paidID {
+				for _, item := range reception.ItemDetails {
+					if item.ItemID == paidID {
+						itemIDs = append(itemIDs, item.ItemID)
+						paidOptionSum += option[1]
+						break
+					}
+				}
+			}
+		}
+	}
+	menuPrice := selectedMenu.Price + paidOptionSum
+  var arr []interface{}
+  arr = append(arr, "receptionOrder")
+  arr = append(arr, tableName)
+  arr = append(arr, r.FormValue("menuID"))
+  arr = append(arr, itemIDs)
+  arr = append(arr, menuPrice)
+  arr = append(arr, common.StringRand(4))
   for _, subscription := range reception.Subscription {
 	  pushID := common.StringRand(12)
-	  var arr []interface{}
-	  arr = append(arr, pushID)
-	  arr = append(arr, "receptionOrder")
-	  arr = append(arr, r.FormValue("menuID"))
-	  arr = append(arr, tableName)
-	  jsonData, err := json.Marshal(arr)
+	  arrForPush := append([]interface{}{pushID}, arr...)
+	  jsonData, err := json.Marshal(arrForPush)
 	  if err != nil {
 	    fmt.Println("JSON変換エラー:", err)
 	  }
@@ -119,7 +214,7 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
   }
 
   w.Header().Set("Content-Type", "application/json")
-  if err := json.NewEncoder(w).Encode(reception); err != nil {
+  if err := json.NewEncoder(w).Encode(arr); err != nil {
     http.Error(w, "Failed to encode reception to JSON", http.StatusInternalServerError)
   }
 }

@@ -4,8 +4,9 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type ReceptionStruct struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ApiKey    string             `bson:"api_key" json:"apiKey"`
 	AdminGroup    string             `bson:"admin_group" json:"adminGroup"`
-	JoinNames     []string           `bson:"join_names" json:"joinNames"`
+	JoinGroups    []string           `bson:"join_groups" json:"joinGroups"`
 	ReceptTitle   string             `bson:"recept_title,omitempty" json:"receptTitle,omitempty"`
 	Asks          []string           `bson:"asks,omitempty" json:"asks,omitempty"`
 	// Rooms         [][]interface{}    `bson:"rooms,omitempty" json:"rooms,omitempty"`             // [[capacity, room_name], ...]

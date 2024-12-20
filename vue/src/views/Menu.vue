@@ -8,12 +8,7 @@ const props = defineProps({
 });
 
 const reception = ref(null); // Reception データ
-const cart = ref([]); // カート内のメニュー
-
-// メニューごとの選択状態を管理するオブジェクト
 const selectedOptions = reactive({});
-
-// データ取得関数
 async function fetchReception() {
   try {
     const fd = new FormData();
@@ -25,7 +20,7 @@ async function fetchReception() {
       data.menus.forEach(menu => {
         selectedOptions[menu.id] = {
           paidOptions: [],
-          freeOption: null,
+          freeOptions: menu.freeOptions ? Array(menu.freeOptions.length).fill(null) : [],
           freeMultiOptions: []
         };
       });
@@ -37,46 +32,64 @@ async function fetchReception() {
   }
 }
 
-// アイテム名を取得する関数
 function getItemName(itemId) {
   const item = reception.value.itemDetails.find(item => item.itemId === itemId);
   return item ? item.itemName : '不明なアイテム';
 }
-
-function order(menu) {
-  const cartItem = {
-    ...menu,
-    selectedPaidOptions: [...selectedOptions[menu.id].paidOptions],
-    selectedFreeOption: selectedOptions[menu.id].freeOption,
-    selectedFreeMultiOptions: [...selectedOptions[menu.id].freeMultiOptions],
-  };
-
+const orderHistories = ref([]);
+async function order(menu) {
   const fd = new FormData();
   fd.append('receptionID', props.id);
   fd.append('code', props.code);
-  fd.append('freeOptions', selectedOptions[menu.id].freeOption);
-  fd.append('paidOptions', selectedOptions[menu.id].paidOptions);
-  fd.append('freeMultiOptions', selectedOptions[menu.id].freeMultiOptions);
-  const data = sendRequest('/ReceptionOrder/', fd);
-  console.log(data);
-  // cart.value.push(cartItem);
+  fd.append('menuID', menu.id);
+  fd.append('freeOptions', JSON.stringify(selectedOptions[menu.id].freeOptions));
+  fd.append('paidOptions', JSON.stringify(selectedOptions[menu.id].paidOptions));
+  fd.append('freeMultiOptions', JSON.stringify(selectedOptions[menu.id].freeMultiOptions));
+  const data = await sendRequest('/ReceptionOrder/', fd);
+  const receptionOrder = {
+    receptionOrderID: data[1] + '_' + data[2] + '_' + data[5],
+    tableName: data[1],
+    menuID: data[2],
+    itemDetailIDs: data[3],
+    price: data[4]
+  }
+  upsertIDB(receptionOrder, 'receptionOrder', 'receptionOrderID', receptionOrder.receptionOrderID)
+    .catch((error) => {
+      console.error(error);
+    });
 
-  // 選択状態をリセット
-  selectedOptions[menu.id] = {
-    paidOptions: [],
-    freeOption: null,
-    freeMultiOptions: []
+  const orderHistory = {
+    menuName: getMenuName(data[1], reception.value.menus),
+    totalPrice: data[4],
+    itemNames: getItemNames(data[3], reception.value.itemDetails)
   };
 
-  console.log('Cart updated:', cart.value);
+
+  orderHistories.value.push(orderHistory);
+  selectedOptions[menu.id] = {
+    paidOptions: [],
+    freeOptions: Array(menu.freeOptions?.length).fill(null),
+    freeMultiOptions: []
+  };
 }
 
-// カートから削除する関数
-function removeFromCart(index) {
-  cart.value.splice(index, 1);
+// メニュー名を取得する関数
+function getMenuName(menuId, menus) {
+  const menu = menus.find(m => m.id === menuId);
+  return menu ? menu.menuName : "不明なメニュー";
 }
 
-// 初期化処理
+function getItemNames(itemIds, itemDetails) {
+  console.log(itemIds);
+  if (Array.isArray(itemIds) && itemIds.length > 0) {
+    return itemIds.map(itemId => {
+      const item = itemDetails.find(detail => detail.itemId === itemId);
+      return item ? item.itemName : `不明なアイテム (${itemId})`;
+    });
+  }
+  return ['データがありません'];
+}
+
 onMounted(() => {
   fetchReception();
 });
@@ -114,16 +127,18 @@ onMounted(() => {
           </li>
         </ul>
 
-        <!-- 無料オプション (単一選択) -->
+        <!-- 無料オプション (複数パターンで単一選択) -->
         <h3>無料オプション:</h3>
         <ul v-if="menu.freeOptions?.length">
-          <li v-for="(optionArray, index) in menu.freeOptions" :key="index">
+          <li v-for="(optionArray, patternIndex) in menu.freeOptions" :key="patternIndex">
+            <h4>パターン {{ patternIndex + 1 }}</h4>
             <label v-for="optionId in optionArray" :key="optionId">
               <input
                 type="radio"
                 :value="optionId"
-                name="freeOption-{{ menu.id }}"
-                v-model="selectedOptions[menu.id].freeOption"
+                :name="`freeOption-${menu.id}-pattern-${patternIndex}`"
+                v-model="selectedOptions[menu.id].freeOptions[patternIndex]"
+                @click="handleMenuSelect(menu)"
               />
               {{ getItemName(optionId) }}
             </label>
@@ -153,35 +168,17 @@ onMounted(() => {
       <p>メニューが見つかりません。</p>
     </div>
 
-    <!-- カート表示 -->
-    <h1>カート</h1>
-    <div v-if="cart.length">
-      <div v-for="(cartItem, index) in cart" :key="index" class="cart-item">
-        <h2>{{ cartItem.menuName }}</h2>
-        <p>価格: {{ cartItem.price }}円</p>
-
-        <h3>選択された有料オプション:</h3>
-        <ul>
-          <li v-for="option in cartItem.selectedPaidOptions" :key="option">
-            {{ getItemName(option) }}
-          </li>
-        </ul>
-
-        <h3>選択された無料オプション:</h3>
-        <p>{{ getItemName(cartItem.selectedFreeOption) || '未選択' }}</p>
-
-        <h3>選択された無料複数選択オプション:</h3>
-        <ul>
-          <li v-for="option in cartItem.selectedFreeMultiOptions" :key="option">
-            {{ getItemName(option) }}
-          </li>
-        </ul>
-
-        <button @click="removeFromCart(index)">削除</button>
-      </div>
-    </div>
-    <div v-else>
-      <p>カートが空です。</p>
+    <h1>履歴</h1>
+    <div v-for="(order, index) in orderHistories" :key="index" class="order">
+      <h2>注文 {{ index + 1 }}</h2>
+      <p>メニュー名: {{ order.menuName }}</p>
+      <p>合計価格: {{ order.totalPrice }}円</p>
+      <h3>選択されたアイテム:</h3>
+      <ul>
+        <li v-for="item in order.itemNames" :key="item">
+          {{ item }}
+        </li>
+      </ul>
     </div>
   </div>
 </template>

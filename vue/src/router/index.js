@@ -64,6 +64,14 @@ const router = createRouter({
       })
     },
     {
+      path: '/menuOrder/:id/:apiKey',
+      component: () => import('../views/MenuOrder.vue'),
+      props: route => ({
+        id: route.params.id,
+        apiKey: route.params.apiKey,
+      })
+    },
+    {
       path: '/mypage/',
       name: 'mypage',
       component: () => import('../views/mypage.vue')

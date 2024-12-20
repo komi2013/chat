@@ -1,6 +1,7 @@
 
 {
     "_id":  "", // ObjectId('6736d3fd24a8745b9c9f4112'),
+    "api_key": "6736d3fd24a8745b9c9f4112",
     "admin_group": "2kaime",
     "join_gruops": [ "3kaime", "4kaime"],
     "recept_title": "受付の公開用データ",
