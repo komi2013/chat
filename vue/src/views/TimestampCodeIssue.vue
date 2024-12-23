@@ -4,16 +4,13 @@ import { ref, onMounted, watchEffect } from 'vue';
 import QRCode from 'qrcode';
 
 import TimestampDrawer from '../components/TimestampDrawer.vue';
-import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getIDBs, getAllIDBs, deleteData } from '../my/indexDB.js';
-import { generateRandomCode } from '../my/strings.js';
 
 const stampCodes = ref([]);
 let currents;
 function createEmptyStampCode() {
   return {
     code: generateRandomCode(4),
-    planDate: get_formated_time('YYYY-MM-DDT12:00'),
+    planDate: timeFormat('YYYY-MM-DDT12:00'),
     until: 12,
   };
 }
@@ -169,7 +166,7 @@ async function generateQRCodes() {
     const qrCode = await generateQR(stampCode);
     qrlist.value[i] = [
         qrCode, 
-        get_formated_time('YYYY-MM-DD', stampCode.planDate),
+        timeFormat('YYYY-MM-DD', stampCode.planDate),
         stampCode
       ];
   }

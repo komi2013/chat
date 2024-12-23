@@ -1,12 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-
 import QRCode from 'qrcode';
-
 import TimestampDrawer from '../components/TimestampDrawer.vue';
-import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getAllIDBs, deleteData, getIDBs, getByMulti } from '../my/indexDB.js';
-import { generateRandomCode } from '../my/strings.js';
 
 const props = defineProps({
   name: '',
@@ -35,7 +30,7 @@ const timestamps = ref('');
 let timestampID;
 async function fetchTimestamp() {
   try {
-    timestamps.value = await getByMulti('timestamp', ['channelID', 'aliasName'], 
+    timestamps.value = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
       [localStorage.channelID, channel.value.aliasName], 30, 0, 'desc');
     const latestEntry = timestamps.value.reduce((max, obj) => 
       obj.timestampID > max.timestampID ? obj : max, timestamps.value[0]);
@@ -69,7 +64,7 @@ function stamp(action) {
       userIDs.push(d[2]);
     }
   }
-  const now = get_formated_time('YYYY-MM-DDThh:mm');
+  const now = timeFormat('YYYY-MM-DDThh:mm');
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
@@ -96,7 +91,7 @@ function formatDateTime(dateTime) {
   if (dateTime == null) {
     return '';
   }
-  return get_formated_time('MM/DD hh:mm', dateTime);
+  return timeFormat('MM/DD hh:mm', dateTime);
 }
 
 onMounted(() => {

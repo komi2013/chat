@@ -1,10 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-
 import TimestampDrawer from '../components/TimestampDrawer.vue';
-import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB, getAllIDBs, deleteData, getIDBs, getByMulti } from '../my/indexDB.js';
-import { generateRandomCode } from '../my/strings.js';
 
 const props = defineProps({
   admin: String,
@@ -15,7 +11,7 @@ const props = defineProps({
   stamper: String
 });
 
-const thisMonth = props.month == '_' ? get_formated_time('YYYY-MM') : props.month;
+const thisMonth = props.month == '_' ? timeFormat('YYYY-MM') : props.month;
 const [year, month] = thisMonth.split('-').map(Number);
 function getRelativeMonth(month, offset) {
   const [year, monthNum] = month.split('-').map(Number);
@@ -110,7 +106,7 @@ let latestEntryThisMonth;
 let thisMonthEntries;
 async function fetchTimestamp(aliasName) {
   try {
-    timestamps.value = await getByMulti('timestamp', ['channelID', 'aliasName'], 
+    timestamps.value = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
       [localStorage.channelID, aliasName], 60, 0, 'desc');
     thisMonthEntries = timestamps.value.filter(entry => {
       const entryMonth = entry.timeIn.slice(0, 7);
@@ -121,7 +117,7 @@ async function fetchTimestamp(aliasName) {
       obj.timeIn > max.timeIn ? obj : max, thisMonthEntries[0]);
     daysInMonth.value = generateDaysInMonth();
   } catch (error) {
-    console.log('getByMulti timestamp no record:', error);
+    console.log('getIDBbyMulti timestamp no record:', error);
     timestamps.value = null;
   }
 }
@@ -169,7 +165,7 @@ function manualEdit() {
       daysInMonth.value[index].error.timeIn = false;
       if (timeInStr !== originalTimeIn) {
         const dateStr = `${thisMonth}-${String(daysInMonth.value[index].day).padStart(2, '0')}`;
-        daysInMonth.value[index].timeIn = timeInStr === '--:--' ? null : get_formated_time('YYYY-MM-DDThh:mm', `${dateStr}T${timeInStr}`);
+        daysInMonth.value[index].timeIn = timeInStr === '--:--' ? null : timeFormat('YYYY-MM-DDThh:mm', `${dateStr}T${timeInStr}`);
         daysInMonth.value[index].stampStatus = 1;
       }
     }
@@ -184,7 +180,7 @@ function manualEdit() {
       daysInMonth.value[index].error.timeOut = false;
       if (timeOutStr !== originalTimeOut) {  // Compare with original value
         const dateStr = `${thisMonth}-${String(daysInMonth.value[index].day).padStart(2, '0')}`;
-        daysInMonth.value[index].timeOut = timeOutStr === '--:--' ? null : get_formated_time('YYYY-MM-DDThh:mm', `${dateStr}T${timeOutStr}`);
+        daysInMonth.value[index].timeOut = timeOutStr === '--:--' ? null : timeFormat('YYYY-MM-DDThh:mm', `${dateStr}T${timeOutStr}`);
         daysInMonth.value[index].stampStatus = 1;
       }
     }
@@ -238,7 +234,7 @@ function parseTime(date, timeStr) {
 }
 
 function formatTime(dateTime) {
-  return dateTime ? get_formated_time('hh:mm', dateTime) : '--:--';
+  return dateTime ? timeFormat('hh:mm', dateTime) : '--:--';
 }
 
 function formatBreaksTotal(breaks) {
@@ -467,7 +463,7 @@ function formatBreaks(breaks) {
 
 <div v-if="showBreaksModal" class="modal-overlay">
   <div class="modal">
-    <h3>{{ get_formated_time('MM/DD', currentDay.timeIn) }}</h3>
+    <h3>{{ timeFormat('MM/DD', currentDay.timeIn) }}</h3>
     <div v-for="(breakItem, breakIndex) in breakTimes" :key="breakIndex">
       <input v-model="breakTimes[breakIndex][0]" type="time">
       <input v-model="breakTimes[breakIndex][1]" type="time">

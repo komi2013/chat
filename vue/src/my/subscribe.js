@@ -1,6 +1,3 @@
-// import {urlBase64ToUint8Array} from './urlBase64ToUint8Array.js'
-// import {subscription_post} from './subscription_post.js'
-
 export function subscriptionRegister() {
   navigator.serviceWorker.register('/service-worker.js');
   navigator.serviceWorker.ready
@@ -8,15 +5,10 @@ export function subscriptionRegister() {
       return registration.pushManager.getSubscription();
     })
     .then(function(subscription) {
-      // console.log('userID, alias value', userID.value, alias.value)
-      // console.log('userID, alias', userID, alias)
       if (!subscription) {
         subscribe()
       } else {
-        // console.log(JSON.stringify(subscription))
         localStorage.setItem('subscription', JSON.stringify(subscription))
-        // subscription_post(JSON.stringify(subscription),
-        //   'seijiro', 'sei1')
       }
     });
 }
@@ -33,7 +25,6 @@ export function subscribe() {
     .then(function(subscription) {
       console.log(JSON.stringify(subscription))
       localStorage.setItem('subscription', JSON.stringify(subscription))
-      // subscription_post(JSON.stringify(subscription), userID, alias)
     })
     .catch(err => console.error(err));
 }

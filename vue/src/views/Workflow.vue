@@ -1,8 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getAllIDBs } from '../my/indexDB.js';
 
-// Define a ref for storing the ticket list
 const tickets = ref([]);
 
 // Function to open IndexedDB and fetch all tickets

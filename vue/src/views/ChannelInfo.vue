@@ -1,13 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-
 import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
-
 import DrawerColumn from '../components/DrawerColumn.vue'
-import { get_formated_time } from '../my/get_formated_time.js';
-import { generateRandomCode } from '../my/strings.js';
 import { markdownToHtml, htmlToMarkdown } from '../my/markdown.js';
 
 const props = defineProps({

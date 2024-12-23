@@ -1,8 +1,6 @@
 <script setup>
 import { ref } from 'vue';
 import DrawerColumn from '../components/DrawerColumn.vue';
-// import { generateRandomCode } from '../my/strings.js';
-import { getAllIDBs } from '../my/indexDB.js';
 
 const channelName = ref('')
 const channelDescription = ref('')

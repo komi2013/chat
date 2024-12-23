@@ -1,10 +1,4 @@
 <script setup>
-// import { ref, computed, onMounted } from 'vue'
-
-// import { get_formated_time } from '../my/get_formated_time.js';
-import { getIDB } from '../my/indexDB.js';
-import { getSubstring, getParam } from '../my/strings.js';
-
 
 switch (localStorage.getItem("TO")) {
   case 'dm':

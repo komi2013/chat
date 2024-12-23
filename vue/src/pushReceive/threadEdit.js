@@ -1,6 +1,5 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
-import { getSubstring } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
 
 export async function threadEdit(pushData) {

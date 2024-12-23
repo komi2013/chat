@@ -1,8 +1,7 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
-import { getSubstring, removeHtmlTags, base62Decode } from '../my/strings.js';
 import { removeMark } from '../my/markdown.js';
-import { get_formated_time } from '../my/get_formated_time.js';
+
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
-import { get_formated_time } from '../my/get_formated_time.js';
+
 const props = defineProps({
   id: '',
 })

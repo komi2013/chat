@@ -1,8 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import TimestampDrawer from '../components/TimestampDrawer.vue';
-// import { getIDB, getIDBs, getAllIDBs, deleteData } from '../my/indexDB.js';
-import { generateRandomCode } from '../my/strings.js';
 
 const props = defineProps({
   id: '',

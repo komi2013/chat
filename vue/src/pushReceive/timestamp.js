@@ -1,6 +1,3 @@
-import { getIDB, upsertIDB, getByMulti } from '../my/indexDB.js';
-import { get_formated_time } from '../my/get_formated_time.js';
-
 let channel;
 let channelID;
 let aliasName;

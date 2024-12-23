@@ -5,8 +5,6 @@ import EditBox from '../components/EditBox.vue'
 import Messages from '../components/Messages.vue'
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
-import { get_formated_time } from '../my/get_formated_time.js';
-import { generateRandomCode } from '../my/strings.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/other.js';
 

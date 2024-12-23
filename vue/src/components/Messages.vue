@@ -6,7 +6,6 @@ import EmojiModal from '../components/EmojiModal.vue';
 import EmojiedModal from '../components/EmojiedModal.vue';
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
-import { get_formated_time } from '../my/get_formated_time.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath, isEmojiedOpen, openEmojied, closeEmojied } from '../my/emoji.js';
 import { toggleEdit, toggleBookmark } from '../my/other.js';
 import { markdownToHtml } from '../my/markdown.js';
@@ -138,7 +137,7 @@ onBeforeMount(async () => {
         </td>
         <td>
           <span class="aliasName">{{ message.aliasName }}</span>
-          <span class="dateTime" :id="'msg_'+message.messageID">{{ get_formated_time('MM-DD hh:mm', message.createdAt) }}</span>
+          <span class="dateTime" :id="'msg_'+message.messageID">{{ timeFormat('MM-DD hh:mm', message.createdAt) }}</span>
         </td>
         <td class="setting">
           <span

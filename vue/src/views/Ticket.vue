@@ -1,7 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { getIDB, getAllIDBs, deleteData, getIDBs, getByMulti } from '../my/indexDB.js';
-import { get_formated_time } from '../my/get_formated_time.js';
 import TimestampDrawer from '../components/TimestampDrawer.vue';
 import { takeUserIDs } from '../my/channelFunc.js';
 
@@ -25,6 +23,7 @@ let assigneeOptions = ref('');
 async function fetchChannel() {
   try {
     channel = await getIDB('channel', localStorage.channelID);
+    console.log(channel);
     if (props.ticketID) {
       findTicket();
     }
@@ -73,9 +72,9 @@ async function findTicket() {
         await fetchTimestamp(timestamps);
         const latestEntry = timestamps.reduce((max, obj) => 
           obj.timeIn > max.timeIn ? obj : max, timestamps[0]);
-        const year = get_formated_time('YYYY', latestEntry.timeIn);
-        const month = get_formated_time('MM', latestEntry.timeIn);
-        thisMonth.value = get_formated_time('YYYY年MM月', latestEntry.timeIn);
+        const year = timeFormat('YYYY', latestEntry.timeIn);
+        const month = timeFormat('MM', latestEntry.timeIn);
+        thisMonth.value = timeFormat('YYYY年MM月', latestEntry.timeIn);
         daysInMonth.value = generateDaysInMonth(year, month);
       }
     } else {
@@ -122,7 +121,7 @@ function saveChanges() {
 
 async function fetchTimestamp(timestamps) {
   try {
-    const ts = await getByMulti('timestamp', ['channelID', 'aliasName'], 
+    const ts = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
       [localStorage.channelID, ticket.value.createdBy], 60, 0, 'desc');
     const checkMonth = ts.filter(entry => {
       return entry.stampStatus >= 20;
@@ -131,7 +130,7 @@ async function fetchTimestamp(timestamps) {
     compareRecords(timestamps, checkMonth);
     console.log(timestamps);
   } catch (error) {
-    console.log('getByMulti timestamp no record:', error);
+    console.log('getIDBbyMulti timestamp no record:', error);
   }
 }
 
@@ -231,8 +230,8 @@ function formatBreaksTotal(breaks) {
 
       <div>
         <p>作成者: {{ ticket.createdBy }}</p>
-        <p>発行日: {{ get_formated_time('YYYY-MM-DD', ticket.createdAt) }}</p>
-        <p v-if="ticket.updatedAt">更新日: {{ get_formated_time('YYYY-MM-DD', ticket.updatedAt) }}</p>
+        <p>発行日: {{ timeFormat('YYYY-MM-DD', ticket.createdAt) }}</p>
+        <p v-if="ticket.updatedAt">更新日: {{ timeFormat('YYYY-MM-DD', ticket.updatedAt) }}</p>
       </div>
       <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
       <table v-if="ticket.contentsType == 2" class="timestamp-table">
@@ -248,11 +247,11 @@ function formatBreaksTotal(breaks) {
           <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
             <td>{{ day.day }}</td>
             <td>
-              {{ day.timeIn ? get_formated_time('hh:mm', day.timeIn) : '--:--' }}
+              {{ day.timeIn ? timeFormat('hh:mm', day.timeIn) : '--:--' }}
               <p v-if="day.error"> {{day.error}} </p>
             </td>
             <td>
-              {{ day.timeOut ? get_formated_time('hh:mm', day.timeOut) : '--:--' }}
+              {{ day.timeOut ? timeFormat('hh:mm', day.timeOut) : '--:--' }}
             </td>
             <td>
               {{ formatBreaksTotal(day.breaks) }}
@@ -265,7 +264,7 @@ function formatBreaksTotal(breaks) {
       </p>
       <div>
         <p v-for="d in ticketLogs">
-          <span>{{get_formated_time('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
+          <span>{{timeFormat('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
           <span>{{d.createdBy}}</span>
           <p v-for="d2 in d.changed_texts">
             <span v-if="d2.title">以前のタイトル: {{d2.title}}</span>

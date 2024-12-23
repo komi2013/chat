@@ -8,11 +8,8 @@ import Messages from '../components/Messages.vue';
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 
-import { get_formated_time } from '../my/get_formated_time.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { removeMark } from '../my/markdown.js';
-
-import { getSubstring, getParam } from '../my/strings.js';
 
 const props = defineProps({
   message_id: '',
