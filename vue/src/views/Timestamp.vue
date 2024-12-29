@@ -94,6 +94,8 @@ function formatDateTime(dateTime) {
   return timeFormat('MM/DD hh:mm', dateTime);
 }
 
+function tF(a, b = null){ return timeFormat(a, b) }
+
 onMounted(() => {
   fetchChannel();
 });
@@ -136,6 +138,11 @@ onMounted(() => {
     <div v-else>
       <p>No timestamp data available</p>
     </div>
+  </div>
+
+  <div>
+    <a :href="'/timestampReport/' + props.name + `/${tF('YYYY-MM')}/` + '_/'">
+    {{ '/timestampReport/' + props.name + `/${tF('YYYY-MM')}/` + '_/' }} </a>
   </div>
 
 </div>

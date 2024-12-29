@@ -1,8 +1,6 @@
 <script setup>
 import { ref, onMounted, watchEffect } from 'vue';
-
 import QRCode from 'qrcode';
-
 import TimestampDrawer from '../components/TimestampDrawer.vue';
 
 const stampCodes = ref([]);
@@ -41,9 +39,9 @@ async function fetchCodes() {
   try {
     stampCodes.value = await getIDBs('timestampCode', 'channelIDIndex', localStorage.channelID);
     currents = JSON.parse(JSON.stringify(stampCodes.value));
-    const stampCode = stampCodes.value.find(sc => sc.name);
+    const stampCode = stampCodes.value.find(sc => sc.adminName);
     for (let d of options.value) {
-      if (stampCode && stampCode.name && d[0] == stampCode.name) {
+      if (stampCode && stampCode.adminName && d[0] == stampCode.adminName) {
         selectedOption.value = d;
       }      
     }
@@ -56,7 +54,7 @@ async function handleSubmit(event) {
   const recordsToPost = [];
   for (let stampCode of stampCodes.value) {
     stampCode.channelID = localStorage.channelID;
-    stampCode.name = selectedOption.value[0];
+    stampCode.adminName = selectedOption.value[0];
     const dataToStore = JSON.parse(JSON.stringify(stampCode));
 
     if (currents) {
@@ -183,6 +181,7 @@ watchEffect(() => {
   }
 });
 
+function tF(a, b = null){ return timeFormat(a, b) }
 
 onMounted(() => {
   fetchChannel();
@@ -199,17 +198,11 @@ onMounted(() => {
     <form @submit.prevent="handleSubmit">
       <div v-for="(stampCode, index) in stampCodes" :key="index">
         <div>
-          <label>ランダムコード:</label>
-          <input v-model="stampCode.code" type="text" required />
-        </div>
-        <div>
-          <label>予定時刻:</label>
+          <span>予定時刻:</span>
           <input v-model="stampCode.planDate" type="datetime-local" required />
-        </div>
-        <div>
           <span> ~ </span>
           <input v-model="stampCode.until" type="number" required class="until" />
-          <span>時間後まで有効</span>
+          <span>時間後まで</span>
         </div>
         <div class="button">
           <button type="button" @click="removeStampCode(index)"> 🗑 </button>
@@ -237,8 +230,8 @@ onMounted(() => {
     </form>
     <br>
     <div v-if="selectedOption">
-      <a :href="'/timestampReport/' + selectedOption[0] + '/_/'">
-      {{ '/timestampReport/' + selectedOption[0] + '/_/' }} </a>
+      <a :href="'/timestampReport/' + selectedOption[0] + `/${tF('YYYY-MM')}/` + '_/'">
+      {{ '/timestampReport/' + selectedOption[0] + `/${tF('YYYY-MM')}/` + '_/' }} </a>
     </div>
   </div>
   <br>

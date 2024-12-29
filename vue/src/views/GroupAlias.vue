@@ -6,7 +6,7 @@ import Messages from '../components/Messages.vue';
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/other.js';
+import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/toggle.js';
 
 const props = defineProps({
   id: '',

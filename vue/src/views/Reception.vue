@@ -42,10 +42,6 @@ async function fetchReception() {
   }
 }
 
-// function selectGroup(group) {
-//   selectedGroup.value = group;
-// }
-
 function selectMenu(menu) {
   selectedMenu.value = menu;
   console.log('Selected menu:', selectedMenu.value);

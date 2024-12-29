@@ -25,24 +25,6 @@ export async function timestampRevert(pushData) {
         .catch((error) => {
           console.error(error);
         });
-    case 'deletePrevious':
-      const timeIn = pushData[4][0];
-      const timestamps = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
-        [channelID, aliasName], 60, 0, 'desc');
-      timestamps.forEach(timestamp => {
-        if (timestamp.timeIn <= timeIn) {
-          // deleteData('timestamp', 'timestampID', timestamp.timestampID);
-          if (timestamp.stampStatus) {
-            timestamp.stampStatus += 20;
-          } else {
-            timestamp.stampStatus = 20;
-          }
-          upsertIDB(timestamp, 'timestamp', 'timestampID', timestamp.timestampID)
-            .catch((error) => {
-              console.error(error);
-            });
-        }
-      });
       break;
   }
 }

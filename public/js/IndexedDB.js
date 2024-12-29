@@ -60,9 +60,6 @@ const openDatabase = () => {
         if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelID_aliasName')) {
           objectStore.createIndex('channelID_aliasName', ['channelID', 'aliasName'], { unique: false });
         }
-        if (tableName === 'ticket' && !objectStore.indexNames.contains('ticketIDIndex')) {
-          objectStore.createIndex('ticketIDIndex', 'ticketID', { unique: false });
-        }
       });
     };
 

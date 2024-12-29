@@ -38,34 +38,3 @@ export const toggleBookmark = (message) => {
       alert(reason)
     })
 };
-
-
-// export const isOtherOpen = ref(false);
-
-// export const selectedOther = ref('');
-
-// export const otherMessageId = ref(null);
-
-// const openOther = (messageId) => {
-//   otherMessageId.value = messageId;
-//   isOtherOpen.value = true;
-// };
-
-// const closeOther = () => {
-//   isOtherOpen.value = false;
-//   otherMessageId.value = null;
-// };
-
-// const selectOther = (emoji) => {
-//   selectedOther.value = emoji;
-//   console.log(selectedOther.value);
-//   closeOther();
-// };
-
-// const adjustHeight = () => {
-//   const textarea = document.querySelector('.chgble');
-//   textarea.style.height = 'auto';
-//   textarea.style.height = `${textarea.scrollHeight}px`;
-// };
-
-// export { toggleEdit };

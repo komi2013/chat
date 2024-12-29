@@ -1,8 +1,5 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-// import { useMessagesStore } from '../stores/messages.js';
-// import { useChannelsStore } from '../stores/channels.js';
-import { timeFormat } from '../my/timeFormat.js';
 
 const props = defineProps({
   channel_id: ''

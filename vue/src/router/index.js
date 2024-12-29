@@ -138,7 +138,7 @@ const router = createRouter({
       component: () => import('../views/TimestampCodeIssue.vue')
     },
     {
-      path: '/timestampReport/:admin/:month/:stamper?/',
+      path: '/timestampReport/:admin/:month/:stamper/',
       name: 'timestampReport',
       component: () => import('../views/TimestampReport.vue'),
       props: route => ({

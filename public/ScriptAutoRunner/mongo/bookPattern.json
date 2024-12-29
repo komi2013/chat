@@ -69,6 +69,7 @@
             "id": 1,
             "service_name": "パーマ",
             "price": 10000,
+            "prepaid_price": 10000,
             "need_skill": "perm",
             "need_facility": "perm",
             "spend_minute": 60
@@ -78,6 +79,7 @@
             "service_name": "カット",
             "need_skill": "cut",
             "price": 3000,
+            "prepaid_price": 3000,
             "spend_minute": 60
         }
     ]

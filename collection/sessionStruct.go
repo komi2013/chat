@@ -10,6 +10,7 @@ type SessionStruct struct {
   CreatedAt  time.Time `bson:"created_at,omitempty"`
   AliasArray  [][]string      `bson:"alias_array,omitempty"`
   Subscription  string      `bson:"subscription,omitempty"`
+  Yen  int      `bson:"yen,omitempty"`
 }
 
 // session_id

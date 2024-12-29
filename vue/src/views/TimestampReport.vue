@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import TimestampDrawer from '../components/TimestampDrawer.vue';
+import SelectGroup from '../components/SelectGroup.vue';
+import { takeUserIDs } from '../my/channelFunc.js';
 
 const props = defineProps({
   admin: String,
@@ -25,13 +27,37 @@ function getRelativeMonth(month, offset) {
     newYear += 1;
   }
   const prevNext = `${newYear}-${String(newMonth).padStart(2, '0')}`;
-  return `/timestampReport/${props.admin}/${prevNext}/${props.stamper}/`;
+  // return `/timestampReport/${props.admin}/${prevNext}/${props.stamper}/`;
+  return prevNext;
 }
 const preMonth = getRelativeMonth(thisMonth, -1);
 const nextMonth = getRelativeMonth(thisMonth, 1);
+const channel = ref('');
+const groups = ref([]);
+let targetName;
+async function fetchChannel() {
+  try {
+    const data = await getIDB('channel', localStorage.channelID);
+    channel.value = data;
+    makeUserIDs();
+    targetName = props.stamper === '_' ? data.aliasName : props.stamper;
+    const allAliases = data.allAliases;
+    if (iamAdmin.value) {
+      fetchStamperList();
+    }
+    fetchTimestamp();
+    for (let i = 0; i < data.groupAliases.length; i++) {
+      groups.value.push([data.groupAliases[i][0], data.groupAliases[i][1]]);
+    }
+  } catch (error) {
+    console.error('channel error', error);
+    channel.value = null;
+  }
+}
 
 let userIDs = [];
 let names = [];
+let iamAdmin = ref(false);
 function makeUserIDs() {
   names = [channel.value.aliasName];
   if (Array.isArray(channel.value.groupAliases)) {
@@ -39,6 +65,9 @@ function makeUserIDs() {
       if (props.admin == d[0]) {
         for (const d2 of d[2]) {
           names.push(d2);
+          if (channel.value.aliasName === d2) {
+            iamAdmin.value = true;
+          }
         }
       }
     }
@@ -51,73 +80,52 @@ function makeUserIDs() {
   userIDs = [...new Set(userIDs)];
   names =  [...new Set(names)];
 }
-const channel = ref('');
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', localStorage.channelID);
-    channel.value = data;
-    makeUserIDs();
-    const aliasName = data.aliasName;
-    const allAliases = data.allAliases;
-    if (props.admin == '_') {
-      fetchStamperList();
-      if (props.stamper != '_') {
-        fetchTimestamp(props.stamper);
-      }
-    } else {
-      fetchTimestamp(aliasName);
-    }
-  } catch (error) {
-    console.log('channel error', error);
-    channel.value = null;
-  }
-}
 
 const stampers = ref('');
 async function fetchStamperList() {
   try {
     const data = await getIDBs('timestamp', 'channelIDIndex', localStorage.channelID);
     stampers.value = [...new Set(data.map(item => item.aliasName))];
-    console.log('stampers', stampers.value);
   } catch (error) {
-    console.log('stampers error', error);
+    console.error('stampers error', error);
     stampers.value = null;
   }
 }
-const selectedStamper = ref("");
-const placeholder = ref("選択");
-if (props.stamper == '_') {
-  selectedStamper.value = "";
-} else {
-  selectedStamper.value = props.stamper;
-}
-
+const selectedStamper = ref( props.stamper === '_' ? "" : props.stamper );
 function onStamperChange() {
   if (selectedStamper.value) {
     const stamper = selectedStamper.value;
-    // If a stamper is selected, navigate to the new URI
-    // router.push(`/timestampReport/_/_/${selectedStamper.value}/`);
     location.href =  `/timestampReport/${props.admin}/${thisMonth}/${stamper}/`;
   }
 }
 
 const timestamps = ref('');
-let latestEntryThisMonth;
 let thisMonthEntries;
-async function fetchTimestamp(aliasName) {
+const approveds = ref(null);
+async function fetchTimestamp() {
   try {
     timestamps.value = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
-      [localStorage.channelID, aliasName], 60, 0, 'desc');
+      [localStorage.channelID, targetName], 60, 0, 'desc');
     thisMonthEntries = timestamps.value.filter(entry => {
       const entryMonth = entry.timeIn.slice(0, 7);
-      return entryMonth === thisMonth;
+      if (iamAdmin.value) {
+        return entryMonth === thisMonth || entryMonth === nextMonth;;
+      } else {
+        return entryMonth === thisMonth;
+      }
     });
-
-    latestEntryThisMonth = thisMonthEntries.reduce((max, obj) =>
-      obj.timeIn > max.timeIn ? obj : max, thisMonthEntries[0]);
+    const uniqueApproveds = new Set();
+    for (const record of thisMonthEntries) {
+      if (record.approveds && Array.isArray(record.approveds)) {
+        for (const approver of record.approveds) {
+          uniqueApproveds.add(approver);
+        }
+      }
+    }
+    approveds.value = uniqueApproveds.size > 0 ? Array.from(uniqueApproveds) : null;
     daysInMonth.value = generateDaysInMonth();
   } catch (error) {
-    console.log('getIDBbyMulti timestamp no record:', error);
+    console.error('getIDBbyMulti timestamp no record:', error);
     timestamps.value = null;
   }
 }
@@ -125,21 +133,128 @@ async function fetchTimestamp(aliasName) {
 const daysInMonth = ref('');
 function generateDaysInMonth() {
   const days = [];
-  const daysCount = new Date(year, month, 0).getDate();
-  for (let day = 1; day <= daysCount; day++) {
-    const dateStr = `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const daysCount = iamAdmin.value ? new Date(year, month, 0).getDate() + 31 : new Date(year, month, 0).getDate();
+  for (let day = 0; day <= daysCount; day++) {
+    const baseDate = new Date(year, month - 1, 1);
+    baseDate.setDate(baseDate.getDate() + day);
+    const dateStr = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
     const timestamp = thisMonthEntries.find(ts => ts.timeIn.startsWith(dateStr));
-    days.push({
-      day: day,
-      timestampID: timestamp ? timestamp.timestampID : null,
-      timeIn: timestamp ? timestamp.timeIn : null,
-      timeOut: timestamp ? timestamp.timeOut : null,
-      breaks: timestamp ? timestamp.breaks : null,
-      stampStatus: timestamp ? timestamp.stampStatus : null,
-      error: { timeIn: false, timeOut: false, breaks: false }
-    });
+    if (iamAdmin.value) {
+      if (timestamp) {
+        days.push({
+          day: day,
+          timestampID: timestamp.timestampID,
+          timeIn: timestamp.timeIn,
+          timeOut: timestamp.timeOut,
+          breaks: timestamp.breaks,
+          stampStatus: timestamp.stampStatus,
+          approveds: timestamp.approveds,
+          submit: timestamp.submit,
+          error: { timeIn: false, timeOut: false, breaks: false }
+        });        
+      }
+    } else {
+      days.push({
+        day: day,
+        timestampID: timestamp ? timestamp.timestampID : null,
+        timeIn: timestamp ? timestamp.timeIn : null,
+        timeOut: timestamp ? timestamp.timeOut : null,
+        breaks: timestamp ? timestamp.breaks : null,
+        stampStatus: timestamp ? timestamp.stampStatus : null,
+        approveds: timestamp ? timestamp.approveds : null,
+        submit: timestamp ? timestamp.submit : null,
+        error: { timeIn: false, timeOut: false, breaks: false }
+      });
+    }
+
   }
   return days;
+}
+
+function formatBreaksTotal(breaks, status) {
+  if ((!breaks || breaks.length === 0) && status === 2) return '';
+  if (!breaks || iamAdmin.value) return '';
+  if (!breaks || breaks.length === 0) return '✏️';
+  const totalMinutes = breaks.reduce((total, [start, end]) => {
+    const breakDuration = new Date(end) - new Date(start);
+    return total + Math.floor(breakDuration / (1000 * 60)); // Convert milliseconds to minutes
+  }, 0);
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function formatTime(dateTime) {
+  return dateTime ? timeFormat('hh:mm', dateTime) : '--:--';
+}
+
+function tF(a, b = null){ return timeFormat(a, b) }
+
+onMounted(() => {
+  fetchChannel();
+});
+
+const allSubmit = ref(false);
+function toggleAllSubmit() {
+  allSubmit.value = !allSubmit.value;
+  daysInMonth.value.forEach(day => {
+    day.submit = allSubmit.value;
+  });
+}
+
+const showBreaksModal = ref(false);
+const breakTimes = ref([]);
+const currentDay = ref(null);
+const currentDayIndex = ref(null);
+
+function openBreaksModal(day, index) {
+  if (day.stampStatus == 2) return
+  currentDay.value = day;
+  currentDayIndex.value = index;
+  if (day.breaks) {
+    breakTimes.value = day.breaks.map(b => [
+      b[0].split('T')[1].substring(0, 5),
+      b[1].split('T')[1].substring(0, 5)
+    ]);    
+  }
+
+  showBreaksModal.value = true;
+}
+
+function closeBreaksModal() {
+  showBreaksModal.value = false;
+}
+
+function addBreak() {
+  breakTimes.value.push(['', '']);
+}
+
+function removeBreak(index) {
+  breakTimes.value.splice(index, 1);
+}
+
+function saveBreaks() {
+  const timeInDate = currentDay.value.timeIn.split('T')[0];
+  currentDay.value.breaks = breakTimes.value.map(b => [
+    `${timeInDate}T${b[0]}`,
+    `${timeInDate}T${b[1]}`
+  ]);
+  daysInMonth.value[currentDayIndex.value].stampStatus = 1;
+  closeBreaksModal();
+}
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function formatBreaks(breaks) {
+  return breaks.map(b => `${b[0].split('T')[1].substring(0, 5)} - ${b[1].split('T')[1].substring(0, 5)}`).join(', ');
 }
 
 function manualEdit() {
@@ -200,7 +315,7 @@ function manualEdit() {
   });
 
   if (hasErrors) {
-    console.log("Errors found, not posting data.");
+    console.error("Errors found, not posting data.");
     return;
   }
 
@@ -229,27 +344,6 @@ function isValidTime(timeStr) {
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(timeStr);
 }
 
-function parseTime(date, timeStr) {
-  return new Date(`${date}T${timeStr}`);
-}
-
-function formatTime(dateTime) {
-  return dateTime ? timeFormat('hh:mm', dateTime) : '--:--';
-}
-
-function formatBreaksTotal(breaks) {
-  if (!breaks || breaks.length === 0) return '✏️';
-
-  const totalMinutes = breaks.reduce((total, [start, end]) => {
-    const breakDuration = new Date(end) - new Date(start);
-    return total + Math.floor(breakDuration / (1000 * 60)); // Convert milliseconds to minutes
-  }, 0);
-
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
 function manualPost(changedRecords) {
   if (!confirm("実行▶️")) {
     return;
@@ -266,7 +360,7 @@ function manualPost(changedRecords) {
   });
   fetch(request)
     .catch((reason)=>{
-      console.log(reason);
+      console.error(reason);
     })
 }
 let ticketURI;
@@ -276,63 +370,22 @@ function submitReport() {
   }
   const fd = new FormData();
   fd.append('userIDs', JSON.stringify(userIDs));
-  const aliasName = channel.value.aliasName;
-  fd.append('aliasName', aliasName);
-  fd.append('channelID', localStorage.channelID);
-
-  const ticket = {
-    status: 2,
-    title: aliasName + thisMonth + '勤務表',
-    assignee: props.admin,
-    approver1: props.admin,
-    contents: thisMonthEntries,  // 既に配列であると仮定
-    contentsType: 2,
-    accessNames: names
-  };
-  fd.append('ticket', JSON.stringify(ticket));
-  const request = new Request('/TicketAdd/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .then(response => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        console.log(`submitReport: ${response.status} - ${response.statusText}`);
-      }
-    })
-    .then(data => {
-      ticketURI = data.TicketID;
-      delReportedTimestamps();
-    })
-    .catch(reason => {
-      console.log('submitReport:', reason);
-    });
-}
-
-function delReportedTimestamps() {
-  const fd = new FormData();
   fd.append('channelID', localStorage.channelID);
   fd.append('aliasName', channel.value.aliasName);
-  fd.append('userIDs', JSON.stringify(userIDs));
-  fd.append('contents', JSON.stringify([latestEntryThisMonth.timeIn, 'deletePrevious']));
-  fd.append('pushTitle', 'timestampRevert');
+  const timestampIDs = thisMonthEntries.map(entry => entry.timestampID);
+  const minTimestampID = timestampIDs.reduce((min, current) => current < min ? current : min);
+  const maxTimestampID = timestampIDs.reduce((max, current) => current > max ? current : max);
+  fd.append('contents', JSON.stringify([channel.value.aliasName, minTimestampID, maxTimestampID]));
+  fd.append('pushTitle', 'timestampReport');
   const request = new Request('/ContentsPush/', {
     method: 'POST',
     body: fd,
   });
   fetch(request)
-    .then(response => {
-      if (response.ok) {
-        location.href = `/ticket/${ticketURI}/`;
-      } else {
-        console.log(`delReportedTimestams: ${response.status} - ${response.statusText}`);
-      }
+    .catch((reason)=>{
+      console.error(reason);
     })
-    .catch(reason => {
-      console.log('delReportedTimestams:', reason);
-    });
+  // location.href = '';
 }
 
 function copyToClipboard() {
@@ -352,62 +405,47 @@ function copyToClipboard() {
   });
 }
 
-onMounted(() => {
-  fetchChannel();
-});
+const selectedGroup = ref(localStorage.nextApprover ? [localStorage.nextApprover] : []);
 
-const showBreaksModal = ref(false);
-const breakTimes = ref([]);
-const currentDay = ref(null);
-const currentDayIndex = ref(null);
-
-function openBreaksModal(day, index) {
-  currentDay.value = day;
-  currentDayIndex.value = index;
-  if (day.breaks) {
-    breakTimes.value = day.breaks.map(b => [
-      b[0].split('T')[1].substring(0, 5),
-      b[1].split('T')[1].substring(0, 5)
-    ]);    
+function approve() {
+  if (!confirm("実行▶️")) {
+    return;
   }
-
-  showBreaksModal.value = true;
-}
-
-function closeBreaksModal() {
-  showBreaksModal.value = false;
-}
-
-function addBreak() {
-  breakTimes.value.push(['', '']);
-}
-
-function removeBreak(index) {
-  breakTimes.value.splice(index, 1);
-}
-
-function saveBreaks() {
-  const timeInDate = currentDay.value.timeIn.split('T')[0];
-  currentDay.value.breaks = breakTimes.value.map(b => [
-    `${timeInDate}T${b[0]}`,
-    `${timeInDate}T${b[1]}`
-  ]);
-  daysInMonth.value[currentDayIndex.value].stampStatus = 1;
-  closeBreaksModal();
-}
-
-function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const fd = new FormData();
+  localStorage.nextApprover = selectedGroup.value[0];
+  const nextApproverIDs = takeUserIDs(channel.value, selectedGroup.value[0]);
+  fd.append('userIDs', JSON.stringify([...new Set([...userIDs, ...nextApproverIDs])]));
+  fd.append('channelID', localStorage.channelID);
+  fd.append('aliasName', channel.value.aliasName);
+  fd.append('contents', JSON.stringify([1, thisMonthEntries, props.stamper, selectedGroup.value[0]]));
+  fd.append('pushTitle', 'timestampReport');
+  const request = new Request('/ContentsPush/', {
+    method: 'POST',
+    body: fd,
   });
+  fetch(request)
+    .catch((reason)=>{
+      console.error(reason);
+    })
 }
 
-function formatBreaks(breaks) {
-  return breaks.map(b => `${b[0].split('T')[1].substring(0, 5)} - ${b[1].split('T')[1].substring(0, 5)}`).join(', ');
+function deleteReport() {
+  const fd = new FormData();
+  fd.append('channelID', localStorage.channelID);
+  fd.append('aliasName', channel.value.aliasName);
+  fd.append('userIDs', JSON.stringify(takeUserIDs(channel.value, props.admin)));
+  fd.append('contents', JSON.stringify([2, targetName]));
+  fd.append('pushTitle', 'timestampReport');
+  const request = new Request('/ContentsPush/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request)
+    .catch((reason)=>{
+      console.error(reason);
+    })
 }
+
 
 </script>
 
@@ -418,10 +456,14 @@ function formatBreaks(breaks) {
 <div id="content">
 
 <div>
-  <h2> <a :href="preMonth">&lt;&lt;</a> {{month}} <a :href="nextMonth">&gt;&gt;</a> </h2>
+  <h2>
+    <a :href="`/timestampReport/${props.admin}/${preMonth}/${props.stamper}/`">&lt;&lt;</a>
+    {{month}}
+    <a :href="`/timestampReport/${props.admin}/${nextMonth}/${props.stamper}/`">&gt;&gt;</a>
+  </h2>
   <template v-if="stampers">
     <select v-model="selectedStamper" @change="onStamperChange">
-      <option value="">{{ placeholder }}</option>
+      <option value="">選択</option>
       <option v-for="stamper in stampers" :key="stamper" :value="stamper">
         {{ stamper }}
       </option>
@@ -436,6 +478,10 @@ function formatBreaks(breaks) {
           <th>開始</th>
           <th>終了</th>
           <th>休憩</th>
+          <th v-if="!iamAdmin">
+            提出<br>
+            <input type="checkbox" @change="toggleAllSubmit" />
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -448,22 +494,37 @@ function formatBreaks(breaks) {
             {{ day.timeOut ? formatTime(day.timeOut) : '--:--' }}
           </td>
           <td contenteditable="true" @click="openBreaksModal(day, index)" :class="{'error': day.error.breaks}">
-            {{ formatBreaksTotal(day.breaks) }}
+            {{ formatBreaksTotal(day.breaks, day.stampStatus) }}
+          </td>
+          <td v-if="!iamAdmin">
+            <input type="checkbox" v-model="day.submit" />
           </td>
         </tr>
       </tbody>
     </table>
-    <button @click="manualEdit">修正</button>
-    <button @click="submitReport">提出</button>
-    <button @click="copyToClipboard">コピー</button>
-    
+
+    <div v-if="iamAdmin" class="approval">
+      <div v-if="approveds">
+        <span>承認者:</span>
+        <span v-for="approver in approveds" class="approver">
+          {{approver}}
+        </span>
+      </div>
+      <div>次の承認グループ</div>
+      <SelectGroup :groups="groups" v-model="selectedGroup"/>
+    </div>
+
+    <button v-if="!iamAdmin" @click="manualEdit">修正</button>
+    <button v-if="!iamAdmin" @click="submitReport">提出</button>
+    <button v-if="iamAdmin" @click="approve">承認</button>
+    <button v-if="iamAdmin" @click="copyToClipboard">コピー</button>
+    <button v-if="approveds" @click="deleteReport">削除</button>
   </div>
 </div>
 
-
 <div v-if="showBreaksModal" class="modal-overlay">
   <div class="modal">
-    <h3>{{ timeFormat('MM/DD', currentDay.timeIn) }}</h3>
+    <h3>{{ tF('MM/DD', currentDay.timeIn) }}</h3>
     <div v-for="(breakItem, breakIndex) in breakTimes" :key="breakIndex">
       <input v-model="breakTimes[breakIndex][0]" type="time">
       <input v-model="breakTimes[breakIndex][1]" type="time">
@@ -540,6 +601,18 @@ button:hover {
 
 .status1 {
   background-color: #e6c7f0;
+}
+
+.status2 {
+  background-color: silver;
+}
+
+.approval {
+  padding: 6px;
+}
+
+.approver {
+  margin-left:  6px;
 }
 
 .modal-overlay {

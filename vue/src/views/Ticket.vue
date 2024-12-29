@@ -14,6 +14,8 @@ const statusOptions = ref([
   { label: '完了', value: 3 }
 ]);
 
+function tF(a, b = null){ return timeFormat(a, b) }
+
 onMounted(() => {
   fetchChannel();
 });
@@ -23,9 +25,8 @@ let assigneeOptions = ref('');
 async function fetchChannel() {
   try {
     channel = await getIDB('channel', localStorage.channelID);
-    console.log(channel);
     if (props.ticketID) {
-      findTicket();
+      fetchTicket();
     }
     const individualAliases = channel.allAliases.map(alias => alias[0]);
     const groupAliases = channel.groupAliases.map(group => group[0]);
@@ -35,8 +36,32 @@ async function fetchChannel() {
   }
 }
 
-// const ticket = ref(null);
+async function fetchTicket() {
+  try {
+    ticket.value = await getIDB('ticket', props.ticketID);
+    console.log(ticket.value);
+
+    // ticket.value = data.ticket;
+    // ticketLogs.value = data.ticketLogs;
+    selectedStatus.value = statusOptions.value.find(option => option.value === ticket.value.status)?.value || 0
+    selectedAssignee.value = assigneeOptions.value.includes(ticket.value.assignee) ? ticket.value.assignee : assigneeOptions.value[0];
+    if (ticket.value.contentsType == 2) {
+      timestamps = ticket.value.contents;
+      await fetchTimestamp(timestamps);
+      const latestEntry = timestamps.reduce((max, obj) => 
+        obj.timeIn > max.timeIn ? obj : max, timestamps[0]);
+      const year = tF('YYYY', latestEntry.timeIn);
+      const month = tF('MM', latestEntry.timeIn);
+      thisMonth.value = tF('YYYY年MM月', latestEntry.timeIn);
+      daysInMonth.value = generateDaysInMonth(year, month);
+    }
+  } catch (error) {
+    console.log('channel error', error);
+  }
+}
+
 const ticket = ref({
+  ticketID: localStorage.channelID + generateRandomCode(4),
   title: '',           // Default empty title
   status: 0,           // Default status (e.g., 0 might mean "Draft")
   assignee: '',        // Default assignee (empty)
@@ -47,43 +72,10 @@ const ticket = ref({
   contentsType: 1,     // Example default contentsType, set to 1 or whatever your use case is
   contents: []         // Empty array for contents, assuming this might hold timestamp data
 });
-const ticketLogs = ref(null);
+// const ticketLogs = ref(null);
 let selectedStatus = ref('');
 let selectedAssignee = ref('');
-async function findTicket() {
-  const fd = new FormData();
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.aliasName);
-  fd.append('ticket_id', props.ticketID);
-  const request = new Request('/TicketGet/', {
-    method: 'POST',
-    body: fd,
-  });
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const data = await response.json();
-      ticket.value = data.ticket;
-      ticketLogs.value = data.ticketLogs;
-      selectedStatus.value = statusOptions.value.find(option => option.value === ticket.value.status)?.value || 0
-      selectedAssignee.value = assigneeOptions.value.includes(ticket.value.assignee) ? ticket.value.assignee : assigneeOptions.value[0];
-      if (ticket.value.contentsType == 2) {
-        timestamps = ticket.value.contents;
-        await fetchTimestamp(timestamps);
-        const latestEntry = timestamps.reduce((max, obj) => 
-          obj.timeIn > max.timeIn ? obj : max, timestamps[0]);
-        const year = timeFormat('YYYY', latestEntry.timeIn);
-        const month = timeFormat('MM', latestEntry.timeIn);
-        thisMonth.value = timeFormat('YYYY年MM月', latestEntry.timeIn);
-        daysInMonth.value = generateDaysInMonth(year, month);
-      }
-    } else {
-      console.error('Failed to fetch ticket data', response.status);
-    }
-  } catch (error) {
-    console.error('Error fetching ticket data:', error);
-  }
-}
+
 const newComment = ref('');
 function saveChanges() {
   if (!confirm("実行▶️")) {
@@ -93,29 +85,29 @@ function saveChanges() {
   const userIDs = takeUserIDs(channel);
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', localStorage.channelID);
+  ticket.value.channelID = localStorage.channelID;
   fd.append('aliasName', channel.aliasName);
-  // fd.append('ticketID', props.ticketID);
-  fd.append('ticket', JSON.stringify(ticket.value));
-  fd.append('newComment', newComment.value);
-  const uri = props.ticketID ? '/TicketEdit/' : '/TicketAdd/';
-  const request = new Request(uri, {
+  ticket.value.aliasName = channel.aliasName;
+  const newLog = {
+    createdAt: new Date().toISOString(),
+    createdBy: channel.aliasName,
+    changedTexts: [{ title: 'コメント', description: newComment.value }]
+  };
+  if (ticket.value.ticketLogs) {
+    ticket.value.ticketLogs.push({ ...newLog });    
+  } else if (newComment.value) {
+    ticket.value.ticketLogs = [newLog];
+  }
+  fd.append('contents', JSON.stringify(ticket.value));
+  fd.append('pushTitle', 'ticket');
+  const request = new Request('/ContentsPush/', {
     method: 'POST',
     body: fd,
   });
   fetch(request)
-    .then(response => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        console.log(`ticket.saveChanges: ${response.status} - ${response.statusText}`);
-      }
+    .catch((reason)=>{
+      console.log(reason)
     })
-    .then(data => {
-      console.log('ticket.saveChanges:');
-    })
-    .catch(reason => {
-      console.log('ticket.saveChanges:', reason);
-    });
 }
 
 
@@ -197,15 +189,14 @@ function formatBreaksTotal(breaks) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-
 </script>
 
 <template>
 <TimestampDrawer />
 
 <div id="content">
-
   <div class="ticket-edit-page">
+    <br>
     <div class="ticket-form">
       <input v-model="ticket.title" type="text" />
       <div class="form-row">
@@ -229,9 +220,9 @@ function formatBreaksTotal(breaks) {
       <textarea v-model="ticket.description"></textarea>
 
       <div>
-        <p>作成者: {{ ticket.createdBy }}</p>
-        <p>発行日: {{ timeFormat('YYYY-MM-DD', ticket.createdAt) }}</p>
-        <p v-if="ticket.updatedAt">更新日: {{ timeFormat('YYYY-MM-DD', ticket.updatedAt) }}</p>
+        <p>作成者: {{ ticket.aliasName }}</p>
+        <p>発行日: {{ tF('YYYY-MM-DD', ticket.createdAt) }}</p>
+        <p v-if="ticket.updatedAt">更新日: {{ tF('YYYY-MM-DD', ticket.updatedAt) }}</p>
       </div>
       <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
       <table v-if="ticket.contentsType == 2" class="timestamp-table">
@@ -247,11 +238,11 @@ function formatBreaksTotal(breaks) {
           <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
             <td>{{ day.day }}</td>
             <td>
-              {{ day.timeIn ? timeFormat('hh:mm', day.timeIn) : '--:--' }}
+              {{ day.timeIn ? tF('hh:mm', day.timeIn) : '--:--' }}
               <p v-if="day.error"> {{day.error}} </p>
             </td>
             <td>
-              {{ day.timeOut ? timeFormat('hh:mm', day.timeOut) : '--:--' }}
+              {{ day.timeOut ? tF('hh:mm', day.timeOut) : '--:--' }}
             </td>
             <td>
               {{ formatBreaksTotal(day.breaks) }}
@@ -263,12 +254,13 @@ function formatBreaksTotal(breaks) {
         閲覧者: <span v-for="name in ticket.accessNames"> {{name}} </span>
       </p>
       <div>
-        <p v-for="d in ticketLogs">
-          <span>{{timeFormat('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
+        <p v-for="d in ticket.ticketLogs">
+          <span>{{tF('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
+          &nbsp;
           <span>{{d.createdBy}}</span>
-          <p v-for="d2 in d.changed_texts">
-            <span v-if="d2.title">以前のタイトル: {{d2.title}}</span>
-            <span v-if="d2.description">以前の文書: {{d2.description}}</span>
+          <p v-for="d2 in d.changedTexts">
+            <span v-if="d2.title">{{d2.title}}:</span>
+            <span v-if="d2.description">{{d2.description}}</span>
           </p>
           <div><hr></div>
         </p>

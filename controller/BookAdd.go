@@ -21,7 +21,7 @@ import (
 )
 
 func BookAdd(w http.ResponseWriter, r *http.Request) {
-  _, err := common.Session(w,r)
+  ss, err := common.Session(w,r)
   if err != nil {
     http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
     return
@@ -162,16 +162,24 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !bookingAdded {
+	if bookingAdded {
+		if requestedService.PrepaidPrice == 0 {
+			if requestedService.PrepaidPrice > ss.Yen {
+				bookingAdded = false
+			}
+		}
+	} else {
 		log.Printf("bookingAdded: %v", bookingAdded)
-		// return
 	}
 
 	update := bson.M{
-		"$set": bson.M{
-			"times": updatedTimes,
-		},
 		"$unset": bson.M{"lock": ""},
+	}
+
+	if bookingAdded {
+		update["$set"] = bson.M{
+			"times": updatedTimes,
+		}
 	}
 	opts := options.Update().SetUpsert(false)
 

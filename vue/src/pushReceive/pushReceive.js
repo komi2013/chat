@@ -11,7 +11,7 @@ import { rookie } from './rookie.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { thread } from './thread.js';
 import { threadEdit } from './threadEdit.js';
-import { ticketEdit } from './ticketEdit.js';
+import { ticket } from './ticket.js';
 import { timestamp } from './timestamp.js';
 import { timestampCode } from './timestampCode.js';
 import { timestampReport } from './timestampReport.js';
@@ -34,7 +34,7 @@ export function pushReceive(notificationData) {
     shiftStaffEdit: shiftStaffEdit,
     thread: thread,
     threadEdit: threadEdit,
-    ticketEdit: ticketEdit,
+    ticket: ticket,
     timestamp: timestamp,
     timestampCode: timestampCode,
     timestampReport: timestampReport,

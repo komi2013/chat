@@ -1,0 +1,123 @@
+
+{
+    "_id":  "", // ObjectId('6736d3fd24a8745b9c9f4112'),
+    "api_key": "6736d3fd24a8745b9c9f4112",
+    "admin_group": "2kaime",
+    "join_gruops": [ "3kaime", "4kaime"],
+    "recept_title": "受付の公開用データ",
+    "asks": ["お名前は？"],
+    // "rooms": [
+    //   [4, "roomA"], [4, "roomB"], [4, "roomB"]
+    // ],
+    "ask_child": true, //option
+    // "spend_minute": 60,
+    "wait_ratio": 10, // wait minutes per waiting list row
+    "tables": [
+        {
+            "table_name": "table_1",
+            "capacity": 4,
+            "passcodes": [
+              "AAA", "BBB", "CCC"
+            ],
+            "current_code": "BBB", // 1 = using
+        },
+        {
+            "table_name": "table_2",
+            "capacity": 4,
+            "passcodes": [
+              "DDD", "EEE", "FFF"
+            ]
+        }
+    ],
+    "subscription": [
+      "", ""
+    ],
+    "menus": [
+        {
+            "id": 1,
+            "menu_name": "味噌ラーメン",
+            "price": 1000,
+            "items": [
+              2
+            ]
+        },
+        {
+            "id": 2,
+            "menu_name": "豚骨ラーメン",
+            "price": 1100,
+            "items": [
+              4
+            ], 
+            "paid_options": [
+              [7, 500], [8, 100], [9, 400]
+            ],
+            "free_options": [
+              [3, 4]
+            ],
+        },
+        {
+            "id": 3,
+            "menu_name": "お子様ランチ",
+            "price": 2000,
+            "items": [
+              4
+            ], 
+            "paid_options": [
+              [7, 500], //item_id, price
+              [8, 200],
+              [9, 400]
+            ],
+            "free_options": [
+              [3, 4], // item_ids
+              [10, 11] // item_ids
+            ],
+            "free_multi_options": [
+              5, 6 // item_ids
+            ],
+        }
+    ],
+    "item_details": [
+      {
+          "item_id": 1,
+          "item_name": "豚骨ラーメン",
+          "choices": ["硬い", "普通", "柔らかい"]
+      },
+      {
+          "item_id": 2,
+          "item_name": "みそラーメン",
+          "choices": ["硬い", "普通", "柔らかい"]
+      },
+      {
+          "item_id": 3,
+          "item_name": "コーラ"
+      },
+      {
+          "item_id": 4,
+          "item_name": "ジンジャーエール"
+      },
+      {
+          "item_id": 10,
+          "item_name": "ライス"
+      },
+      {
+          "item_id": 11,
+          "item_name": "パン"
+      },
+      {
+          "item_id": 5,
+          "item_name": "砂糖"
+      },
+      {
+          "item_id": 6,
+          "item_name": "塩"
+      },
+      {
+          "item_id": 7,
+          "item_name": "ハム"
+      },
+      {
+          "item_id": 8,
+          "item_name": "ソーセージ"
+      },
+    ]
+}

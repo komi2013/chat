@@ -22,7 +22,7 @@ export async function thread(pushData) {
     messageTxt: pushData[4],
     aliasName: pushData[5],
     aliasImg: pushData[6],
-    createdAt: get_formated_time('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
+    createdAt: timeFormat('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
     channelID: channelID,
     threadType: pushData[7] ?? '',
     aliasNames: pushData[8],

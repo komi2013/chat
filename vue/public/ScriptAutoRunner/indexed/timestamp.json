@@ -1,0 +1,82 @@
+[
+  {
+    "key": "2024-09-02T09:58sei1",
+    "value": {
+      "aliasName": "sei1",
+      "channelID": "hQKP",
+      "stampStatus": 2,
+      "timeIn": "2024-09-02T09:58",
+      "timeOut": "2024-09-02T17:00",
+      "timestampID": "2024-09-02T09:58sei1",
+      "approveds": [
+        "sei1",
+        "承認者A"
+      ]
+    }
+  },
+  {
+    "key": "2024-09-03T14:12sei1",
+    "value": {
+      "aliasName": "sei1",
+      "breaks": [
+        [
+          "2024-09-03T13:10",
+          "2024-09-03T13:42"
+        ]
+      ],
+      "channelID": "hQKP",
+      "stampStatus": 2,
+      "timeIn": "2024-09-03T10:12",
+      "timeOut": "2024-09-03T15:13",
+      "timestampID": "2024-09-03T14:12sei1",
+      "approveds": [
+        "sei1"
+      ]
+    }
+  },
+  {
+    "key": "2024-09-04T10:00sei1",
+    "value": {
+      "aliasName": "sei1",
+      "breaks": [
+        [
+          "2024-09-04T18:41",
+          "2024-09-04T18:44"
+        ]
+      ],
+      "channelID": "hQKP",
+      "stampStatus": 2,
+      "timeIn": "2024-09-04T09:00",
+      "timeOut": "2024-09-04T18:00",
+      "timestampID": "2024-09-04T10:00sei1",
+      "approveds": [
+        "sei1"
+      ]
+    }
+  },
+  {
+    "key": "2024-09-05T09:00sei1",
+    "value": {
+      "aliasName": "sei1",
+      "breaks": null,
+      "channelID": "hQKP",
+      "stampStatus": 2,
+      "timeIn": "2024-09-05T09:10",
+      "timeOut": "2024-09-05T18:00",
+      "timestampID": "2024-09-05T09:00sei1",
+      "approveds": [
+        "sei1"
+      ]
+    }
+  },
+  {
+    "key": "2024-09-17T10:05sei1",
+    "value": {
+      "timeIn": "2024-09-17T10:05",
+      "timeOut": "2024-09-17T18:00",
+      "timestampID": "2024-09-17T10:05sei1",
+      "channelID": "hQKP",
+      "aliasName": "いけるか"
+    }
+  }
+]

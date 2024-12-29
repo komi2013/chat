@@ -25,17 +25,17 @@ export async function timestamp(pushData) {
   action = pushData[4][1];
   now = pushData[4][2];
   name = pushData[4][3];
-  // timestampID = pushData[4][4];
-  // channel = getIDB('channel', channelID);
   await fetchChannel();
   await fetchTimestampCode();
   await fetchTimestamp();
   let date = new Date(planDate);
   date.setHours(date.getHours() + timestampCode.until);
-  const until = get_formated_time('YYYY-MM-DDThh:mm', date.toISOString());
+  const until = timeFormat('YYYY-MM-DDThh:mm', date.toISOString());
   if (planDate && (now < planDate || until < now)) {
+    console.log('revert');
     revertTimestamp();
   } else {
+    console.log('stamp');
     stampTime();
   }
 }
@@ -65,9 +65,7 @@ async function fetchTimestamp() {
       [channelID, aliasName], 30, 0, 'desc');
     const latestEntry = tts.reduce((max, obj) => 
       obj.timestampID > max.timestampID ? obj : max, tts[0]);
-    // timestampID = latestEntry.timestampID;
     tt = latestEntry;
-    console.log(tt);
   } catch (error) {
     console.log('error', error);
     tts = null;
@@ -99,7 +97,6 @@ function revertTimestamp() {
 }
 
 function stampTime() {
-    // let timestamp;
     switch (action) {
       case 'startWork':
         tt = {
@@ -107,18 +104,13 @@ function stampTime() {
           channelID: channelID,
           aliasName: aliasName,
           timeIn: now
-          // breaks: pushData[6],
-          // geos: pushData[6]
-          // ips:
         };
-        // tt.timeIn = now;
         break;
       case 'endWork':
-        // timestamp = getIDB('timestamp', timestampID);
         tt.timeOut = now;
+        console.log(tt);
         break;
       case 'startBreak':
-        // timestamp = getIDB('timestamp', timestampID);
         if (tt.breaks) {
           tt.breaks.push([now, null]);
         } else {

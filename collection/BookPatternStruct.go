@@ -33,6 +33,7 @@ type Service struct {
 	ID           int    `bson:"id" json:"id"`
 	ServiceName  string `bson:"service_name" json:"serviceName"`
 	Price        int    `bson:"price" json:"price"`
+	PrepaidPrice int    `bson:"prepaid_price" json:"prepaidPrice"`
 	NeedSkill    string `bson:"need_skill,omitempty" json:"needSkill,omitempty"`
 	NeedFacility string `bson:"need_facility,omitempty" json:"needFacility,omitempty"`
 	SpendMinute  int    `bson:"spend_minute,omitempty" json:"spendMinute,omitempty"`
