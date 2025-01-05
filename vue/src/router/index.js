@@ -5,20 +5,28 @@ const router = createRouter({
   routes: [
     {
       path: '/book/:id/',
-      name: 'book',
       component: () => import('../views/Book.vue'),
       props: route => ({id: route.params.id}),
     },
     {
       path: '/bookPattern/:id?/',
-      name: 'bookPattern',
       component: () => import('../views/BookPattern.vue'),
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/calendar/',
-      name: 'calendar',
-      component: () => import('../views/Calendar.vue')
+      path: '/calendar/:date?/',
+      component: () => import('../views/Calendar.vue'),
+      props: route => ({
+        date: route.params.date
+      })
+    },
+    {
+      path: '/calendarEdit/:id/:start?/',
+      component: () => import('../views/CalendarEdit.vue'),
+      props: route => ({
+        id: route.params.id,
+        start: route.params.start
+      })
     },
     {
       path: '/channelAdd/',

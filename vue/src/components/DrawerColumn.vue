@@ -283,14 +283,14 @@ onBeforeMount(async () => {
   border-radius: 50%;
 }
 
-@media screen and (min-width : 901px) {
+@media screen and (min-width : 701px) {
   #drawer {
     margin-top : -1px;
     background-color: white;
   }
 }
 
-@media screen and (max-width : 900px) {
+@media screen and (max-width : 700px) {
   #drawer {
     width: 80%;
     overflow: scroll;

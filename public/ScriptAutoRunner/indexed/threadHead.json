@@ -1,0 +1,58 @@
+[
+  {
+    "key": "hQKPMch",
+    "value": {
+      "parentID": "hQKPMch",
+      "messageTxt": "＊p＊＠＠asd・＠＠ ＠＠sei1・＠＠ yowasugiru・＊p＊",
+      "channelID": "hQKP",
+      "displayStatus": 0,
+      "emojis": [
+        [
+          "asd",
+          "😂"
+        ],
+        [
+          "sei1",
+          "😂"
+        ],
+        [
+          "sei1",
+          "/me.jpg"
+        ]
+      ],
+      "title": "asd sei1 yowasugiru",
+      "aliasName": "sei1",
+      "aliasImg": "/me.jpg",
+      "createdAt": "2024/07/20 19:04:56",
+      "updatedAt": "2024/12/13 22:36:04",
+      "threadCount": 1,
+      "aliasNames": [
+        "sei1",
+        "asd"
+      ],
+      "backID": "",
+      "threadType": ""
+    }
+  },
+  {
+    "key": "hQKPasd@sei1",
+    "value": {
+      "parentID": "hQKPasd@sei1",
+      "messageTxt": "＊p＊ここでメッセージ・＊p＊",
+      "channelID": "hQKP",
+      "displayStatus": 0,
+      "backID": "undefined",
+      "title": "asd@sei1",
+      "aliasName": "sei1",
+      "aliasImg": "/me.jpg",
+      "createdAt": "2024/07/20 19:07:18",
+      "updatedAt": "2024/10/18 19:57:20",
+      "threadCount": 1,
+      "aliasNames": [
+        "asd",
+        "sei1"
+      ],
+      "threadType": "1"
+    }
+  }
+]

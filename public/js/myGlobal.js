@@ -108,3 +108,16 @@ async function sendRequest(uri, fd) {
     return null;
   }
 }
+function editIDBLogging(title, channelID, aliasName, contents) {
+  obj = {
+    editLogID: generateRandomCode(8),
+    title: title,
+    channelID: channelID,
+    aliasName: aliasName,
+    contents: contents
+  };
+  upsertIDB(obj, 'editLog', 'editLogID', obj.editLogID)
+    .catch((error) => {
+      console.error(error);
+    });
+}

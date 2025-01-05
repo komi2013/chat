@@ -1,0 +1,67 @@
+[
+  {
+    "key": "ncsW",
+    "value": {
+      "adminGroup": "いけるか",
+      "bookPatternID": "ncsW",
+      "joinNames": [
+        "sei1",
+        "asd"
+      ],
+      "parentID": "6736d3fd24a8745b9c9f4112",
+      "skills": [
+        "cut",
+        "perm"
+      ],
+      "times": [
+        {
+          "bookTitle": "フルタイム、スタイリスト設定",
+          "date": "2024-11-29",
+          "end": "15:00",
+          "staffs": [
+            [
+              1,
+              "stylist",
+              [
+                "staffA"
+              ]
+            ]
+          ],
+          "start": "10:00"
+        },
+        {
+          "bookTitle": "フルタイム、スタイリスト設定",
+          "date": "2024-11-29",
+          "end": "20:00",
+          "staffs": [
+            [
+              1,
+              "stylist",
+              [
+                "sei1",
+                "staffA"
+              ]
+            ]
+          ],
+          "start": "15:00"
+        },
+        {
+          "bookTitle": "フルタイム、スタイリスト設定",
+          "date": "2024-11-30",
+          "end": "20:00",
+          "staffs": [
+            [
+              1,
+              "stylist",
+              [
+                "sei1",
+                "staffA"
+              ]
+            ]
+          ],
+          "start": "15:00"
+        }
+      ]
+    }
+  }
+]

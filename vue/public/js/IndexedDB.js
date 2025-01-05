@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 80 );
+    const request = indexedDB.open('chat', 84 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -8,9 +8,9 @@ const openDatabase = () => {
       const db = event.target.result;
 
       // オブジェクトストアを削除
-      // if (db.objectStoreNames.contains('stampCode')) {
-      //   db.deleteObjectStore('stampCode');
-      // }
+      if (db.objectStoreNames.contains('schedule')) {
+        db.deleteObjectStore('schedule');
+      }
 
       const transaction = event.target.transaction;
       transaction.onerror = (event) => {
@@ -19,9 +19,11 @@ const openDatabase = () => {
       transaction.oncomplete = (event) => {
         console.log('Upgrade transaction completed');
       };
+
       const tables = [
         ['bookmark', 'messageID'],
         ['bookPattern', 'bookPatternID'],
+        ['calendar', 'calendarID'],
         ['channel', 'channelID'],
         ['chunk', 'chunkID'],
         ['receptionOrder', 'receptionOrderID'],

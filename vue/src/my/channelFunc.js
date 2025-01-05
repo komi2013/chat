@@ -22,3 +22,13 @@ export function takeUserIDs(channel, groupName = null) {
   }
   return [...new Set(userIDs)];
 }
+
+export function userIDsByName(channel, names) {
+  let userIDs = [];
+  for (const d of channel.allAliases) {
+    if (names.includes(d[0])) {
+      userIDs.push(d[2]);
+    }
+  }
+  return [...new Set(userIDs)];
+}

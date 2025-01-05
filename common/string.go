@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 )
 
@@ -23,26 +24,6 @@ func stringWithCharset(length int, charset string) string {
 func StringRand(length int) string {
 	return stringWithCharset(length, charset)
 }
-
-// StringReverse random step 3
-// func StringReverse(s string) string {
-// 	rs := []rune(s)
-// 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-// 		rs[i], rs[j] = rs[j], rs[i]
-// 	}
-// 	return string(rs)
-// }
-
-// func SliceUnique(target []int) (unique []int) {
-// 	m := map[int]bool{}
-// 	for _, v := range target {
-// 		if !m[v] {
-// 			m[v] = true
-// 			unique = append(unique, v)
-// 		}
-// 	}
-// 	return unique
-// }
 
 func Base62Decode(s string) int64 {
 	var result int64
@@ -89,3 +70,28 @@ func UniqueStrings(input []string) []string {
 
 	return uniqueList
 }
+
+func SplitIntoByteChunks(data string, maxBytes int) []string {
+	var chunks []string
+	var currentChunk string
+	currentBytes := 0
+
+	for _, r := range data {
+		runeBytes := utf8.RuneLen(r) // Get the byte length of the current rune
+		if currentBytes+runeBytes > maxBytes {
+			chunks = append(chunks, currentChunk)
+			currentChunk = ""
+			currentBytes = 0
+		}
+		currentChunk += string(r)
+		currentBytes += runeBytes
+	}
+
+	// Append the last chunk if any
+	if currentChunk != "" {
+		chunks = append(chunks, currentChunk)
+	}
+
+	return chunks
+}
+

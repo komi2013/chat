@@ -1,5 +1,6 @@
 import { bookmark } from './bookmark.js';
 import { bookPattern } from './bookPattern.js';
+import { calendar } from './calendar.js';
 import { channelAdd } from './channelAdd.js';
 import { channelEdit } from './channelEdit.js';
 import { channelJoin } from './channelJoin.js';
@@ -9,6 +10,7 @@ import { groupAliasEdit } from './groupAliasEdit.js';
 import { receptionOrder } from './receptionOrder.js';
 import { rookie } from './rookie.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
+import { storeSelect } from './storeSelect.js';
 import { thread } from './thread.js';
 import { threadEdit } from './threadEdit.js';
 import { ticket } from './ticket.js';
@@ -23,6 +25,7 @@ export function pushReceive(notificationData) {
   const actions = {
     bookmark: bookmark,
     bookPattern: bookPattern,
+    calendar: calendar,
     channelAdd: channelAdd,
     channelEdit: channelEdit,
     channelJoin: channelJoin,
@@ -32,6 +35,8 @@ export function pushReceive(notificationData) {
     receptionOrder: receptionOrder,
     rookie: rookie,
     shiftStaffEdit: shiftStaffEdit,
+    storeSelect: storeSelect,
+    schedule: shiftStaffEdit,
     thread: thread,
     threadEdit: threadEdit,
     ticket: ticket,

@@ -1,0 +1,32 @@
+[
+  {
+    "key": "G51D",
+    "value": {
+      "adminName": "2kaime",
+      "channelID": "hQKP",
+      "code": "G51D",
+      "planDate": "2024-12-28T12:00",
+      "until": 12
+    }
+  },
+  {
+    "key": "gSQb",
+    "value": {
+      "adminName": "2kaime",
+      "channelID": "hQKP",
+      "code": "gSQb",
+      "planDate": "2025-01-02T09:00",
+      "until": 12
+    }
+  },
+  {
+    "key": "ps96",
+    "value": {
+      "adminName": "2kaime",
+      "channelID": "hQKP",
+      "code": "ps96",
+      "planDate": "2025-01-02T05:00",
+      "until": 12
+    }
+  }
+]

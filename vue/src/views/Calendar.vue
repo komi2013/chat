@@ -1,87 +1,97 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
+
 import DrawerColumn from '../components/DrawerColumn.vue'
-import EventModal from '../components/EventModal.vue';
+// import CalendarModal from '../components/CalendarModal.vue';
+import SelectPeople from '../components/SelectPeople.vue';
+import { useCalendarsStore } from '../stores/calendars.js';
 
-// 時間のリストを生成（0時〜23時）
+const props = defineProps({
+  date: String, // 文字列形式の日付（例: '2025-02-01'）
+});
+
+let channel;
+async function fetchChannel() {
+  try {
+    channel = await getIDB('channel', localStorage.channelID);
+    fetchCalendar();
+  } catch (error) {
+    console.error('channel error', error);
+  }
+}
+fetchChannel();
+
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
+const calendarsStore = useCalendarsStore();
 
-// サンプルスケジュールデータ
-const schedules = ref([
-  {
-    id: 1,
-    timeStart: '2024-10-07T09:30',
-    timeEnd: '2024-10-07T10:30',
-    title: 'Meeting',
-    todo: '',
-    scheduleType: 1,
-  },
-  {
-    id: 2,
-    timeStart: '2024-10-07T14:00',
-    timeEnd: '2024-10-07T15:00',
-    title: 'Lunch with team Lunch with team 小松清次郎',
-    todo: '',
-    scheduleType: 2,
-  },
-  {
-    id: 3,
-    timeStart: '2024-10-08T16:00',
-    timeEnd: '2024-10-08T18:00',
-    title: 'Project Work',
-    todo: '',
-    scheduleType: 3,
-  },
-]);
+const schedules = computed(() => {
+  return calendarsStore.calendars;
+});
 
-// 今週の開始日を取得（月曜日から）
+async function fetchCalendar() {
+  try {
+    const data = await getAllIDBs('calendar');
+    data.forEach((d) => {
+      calendarsStore.upsert(d);
+    });
+  } catch (error) {
+    console.error('channel error', error);
+  }
+}
+
 const getStartOfWeek = (date) => {
   const start = new Date(date);
   const day = start.getDay();
-  const diff = (day === 0 ? 6 : day - 1); // 日曜日を最終日に設定
+  const diff = (day === 0 ? 6 : day - 1);
   start.setDate(start.getDate() - diff);
-  start.setHours(0, 0, 0, 0); // 時間をリセット
+  start.setHours(0, 0, 0, 0);
   return start;
 };
 
-// 今週の月曜日から日曜日までの日付を取得
-const weekDates = computed(() => {
-  const startOfWeek = getStartOfWeek(new Date());
+const today = props.date || timeFormat('YYYY-MM-DD');
+function calculateDate(days) {
+  const date = new Date(today);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+}
+
+const nextWeek = calculateDate(7);
+const preWeek = calculateDate(-7);
+
+const weekDates = getWeekDates();
+function getWeekDates() {
+  const startOfWeek = getStartOfWeek(new Date(today));
   return Array.from({ length: 7 }, (_, i) => {
     const newDate = new Date(startOfWeek);
     newDate.setDate(startOfWeek.getDate() + i);
     return newDate;
   });
-});
+}
 
-// 指定された日と時間帯に該当するイベントを取得
 const getEventsForDayAndHour = (day, hour) => {
-  return schedules.value.filter((d) => {
-    const start = new Date(d.timeStart);
-    const end = new Date(d.timeEnd);
-    // ローカル時間に基づいてイベントの時間を比較する
+  return schedules.value.filter((event) => {
+    const start = new Date(event.timeStart);
+    const end = new Date(event.timeEnd);
     return (
       start.getFullYear() === day.getFullYear() &&
       start.getMonth() === day.getMonth() &&
       start.getDate() === day.getDate() &&
-      start.getHours() <= hour && // ローカル時間の時間を使用
-      start.getHours() >= hour // ローカル時間の時間を使用
+      start.getHours() <= hour &&
+      end.getHours() >= hour
     );
   });
 };
 
-// 日付を DD フォーマットに変換
 const formatDate = (date) => {
   return timeFormat('DD', date);
 };
 
-// 曜日をフォーマット
 const formatDay = (date) => {
   const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
   return daysOfWeek[date.getDay()];
 };
 
-const decideHeightTop = (schedule) => {
+const decideHeightTop = (schedule, index) => {
   const start = new Date(schedule.timeStart);
   const end = new Date(schedule.timeEnd);
   const startMinutes = start.getHours() * 60 + start.getMinutes();
@@ -89,63 +99,125 @@ const decideHeightTop = (schedule) => {
   const minuteHeight = 1;
   const top = start.getMinutes() * minuteHeight;
   const height = (endMinutes - startMinutes) * minuteHeight;
+  const opacity = (index === 1) ? 1 : Math.random() * 0.8 + 0.1;
+  const zindex = opacity * 10;
   return {
     height: `${height}px`,
     top: `${top}px`,
+    opacity: `${opacity}`,
+    "z-index": `${zindex}`,
   };
 };
 
-const timeStartString = '2024-10-07T09:20';
-const timeStartDate = new Date(timeStartString);
-
-console.log(timeStartDate); 
-
-
-const showModal = ref(false);
-const selectedEvent = ref({
-  timeStart: '',
-  timeEnd: '',
-  title: '',
-  todo: '',
-  scheduleType: 0,
+onMounted(() => {
+  const container = document.getElementById('calendar-container-move');
+  if (container) {
+    setupPCEvents(container);
+    setupTouchEvents(container);
+    container.scrollTo({ top: 600 });
+  }
 });
 
-// モーダルを開く関数（新規追加）
-const openModal = (day, hour) => {
-  showModal.value = true;
+let startX = 0;
+function setupPCEvents(container) {
+  container.addEventListener('dragstart', (event) => {
+    startX = event.clientX;
+  });
 
-  // クリックされた時間をもとにデフォルト値を設定
-  console.log(day, hour);
+  container.addEventListener('dragend', (event) => {
+    const endX = event.clientX;
+    handleDragOrSwipe(endX);
+  });
+}
+
+function setupTouchEvents(container) {
+  container.addEventListener('touchstart', (event) => {
+    startX = event.touches[0].clientX;
+  });
+
+  container.addEventListener('touchend', (event) => {
+    const endX = event.changedTouches[0].clientX;
+    handleDragOrSwipe(endX);
+  });
+}
+
+function handleDragOrSwipe(endX) {
+  const deltaX = endX - startX;
+  if (Math.abs(deltaX) > 50) {
+    if (deltaX > 0) {
+      location.href = '/calendar/' + preWeek + '/';
+    } else {
+      location.href = '/calendar/' + nextWeek + '/';
+    }
+  }
+}
+
+const newSchedule = (day, hour) => {
   const start = new Date(day);
   start.setHours(hour, 0);
   const end = new Date(start);
   end.setMinutes(start.getMinutes() + 30);
-
-  selectedEvent.value.timeStart = timeFormat('YYYY-MM-DDThh:mm', start);
-  selectedEvent.value.timeEnd = timeFormat('YYYY-MM-DDThh:mm', end);
-  selectedEvent.value.title = '';
-  selectedEvent.value.todo = '';
-  selectedEvent.value.scheduleType = 0;
+  const timeStart = timeFormat('YYYY-MM-DDThh:mm', start);
+  location.href = `/calendarEdit/_/${timeStart}/`;
 };
 
-// モーダルを開く関数（編集）
-const openModalForEdit = (event) => {
-  showModal.value = true;
-  selectedEvent.value = { ...event };
+const handleSelectedItemsChange = (change) => {
+  const { diff, item } = change;
+  if (diff === 1) {
+    console.log("Item added:", item);
+    let userIDs = [];
+    for (const d of channel.allAliases) {
+      if (d[0] === item.name) {
+        userIDs.push(d[2]);
+      }
+    }
+    const fd = new FormData();
+    fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
+    fd.append('channelID', localStorage.channelID);
+    fd.append('aliasName', channel.aliasName);
+    fd.append('targetStore', 'calendar');
+    console.log(today);
+    const param = {
+      date: today
+    }
+    fd.append('param', JSON.stringify(param));
+    // fd.append('pushTitle', 'pushSelect');
+    const request = new Request('/StoreSelect/', {
+      method: 'POST',
+      body: fd,
+    });
+    fetch(request)
+      .catch((reason)=>{
+        console.error(reason);
+      })
+  } else if (diff === -1) {
+    console.log("Item removed:", item);
+  }
 };
-
-// モーダルを閉じる
-const closeModal = () => {
-  showModal.value = false;
-};
-
 
 </script>
 
 <template>
-  <div class="calendar-container">
+<div id="drawer_column">
+  <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
+  <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
+  <table id="drawer">
+    <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+    <tr>
+      <td>
+        <SelectPeople v-if="channel"
+          @update:selectedItems="handleSelectedItemsChange"
+          :channel="channel"
+          />
+      </td>
+    </tr>
+    <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+  </table>
+</div>
+<div id="content">
+  <div class="calendar-container" id="calendar-container-move" draggable="true">
     <div class="header">
-      <div class="time-slot"></div>
+      <div class="time-slot" style="align-items: center;">≡</div>
       <div v-for="(day, index) in weekDates" :key="index" class="day-header">
         <div>{{ formatDate(day) }}</div>
         <div>{{ formatDay(day) }}</div>
@@ -158,26 +230,20 @@ const closeModal = () => {
         </div>
       </div>
       <div class="day-column" v-for="(day, index) in weekDates" :key="index">
-        <div v-for="hour in hours" :key="hour" class="day-slot" @click="openModal(day, hour)">
+        <div v-for="hour in hours" :key="hour" class="day-slot" @click="newSchedule(day, hour)">
           <div
-            v-for="d in getEventsForDayAndHour(day, hour)"
+            v-for="d, in getEventsForDayAndHour(day, hour)"
             :key="d.id"
-            :class="['event', `type-${d.scheduleType}`]"
-            :style="decideHeightTop(d)"
+            :style="decideHeightTop(d, getEventsForDayAndHour(day, hour).length)"
+            class="event"
           >
-            {{ d.title }}
+            <a :href="`/calendarEdit/${d.calendarID}/`"> {{ d.title }} </a>
           </div>
         </div>
       </div>
     </div>
-    <!-- モーダルを表示 -->
-    <EventModal
-      v-if="showModal"
-      :time="selectedEvent"
-      @close="closeModal"
-      @submit="submitEvent"
-    />
   </div>
+</div>
 </template>
 
 <style scoped>
@@ -188,20 +254,26 @@ const closeModal = () => {
   max-width: 1000px;
   margin: 0 auto;
   box-sizing: border-box;
-  position: relative; /* 親を基準に要素の配置 */
+  position: relative;
+  overflow-x: auto; /* 水平スクロールを許可 */
+  overflow-y: visible; /* 垂直方向のスクロールを許可 */
+  height: 100vh; /* ビューポート全体の高さ */
 }
 
 .header {
   display: grid;
-  grid-template-columns: 20px repeat(7, 1fr); /* 左の時間軸の幅を20pxに設定 */
+  grid-template-columns: 20px repeat(7, 1fr); /* 左の時間軸の幅 */
   background-color: #f0f0f0;
   border-bottom: 1px solid #ccc;
-  position: fixed; /* ヘッダーを固定 */
+  position: sticky; /* 上部に固定 */
   top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  width: 100%;
+  z-index: 5;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 20px repeat(7, 1fr);
+  grid-auto-rows: 60px; /* 各行の高さ */
 }
 
 .time-slot {
@@ -210,7 +282,11 @@ const closeModal = () => {
   justify-content: center;
   /*align-items: center;*/
   font-size: 10px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.time-slot span {
+  padding-top: 2px;
 }
 
 .day-header {
@@ -219,12 +295,6 @@ const closeModal = () => {
   padding: 5px 0;
 }
 
-.calendar-grid {
-  padding-top: 60px;
-  display: grid;
-  grid-template-columns: 20px repeat(7, 1fr); /* 左の時間軸の幅を20pxに設定 */
-  grid-auto-rows: 59px;
-}
 
 .day-column {
   /*border-left: 1px solid #ccc;*/
@@ -233,35 +303,83 @@ const closeModal = () => {
 
 .day-slot {
   border-bottom: 1px solid #ccc;
+  border-left: 1px solid #ccc;
   position: relative;
   height: 59px;
 }
 
 .event {
   position: absolute;
-  /*width: 90%;*/
-  /*left: 5%;*/
-  /*padding: 5px;*/
+  background-color: #ff7979;
   border-radius: 4px;
-  color: #fff;
   font-size: 0.8rem;
   word-break: break-word;
 }
 
-.type-1 {
-  background-color: #ff7979;
+#drawer td {
+  background-color: #EEEEEE;
 }
 
-.type-2 {
-  background-color: #badc58;
+@media screen and (min-width : 701px) {
+  #drawer {
+    margin-top : -1px;
+    background-color: white;
+  }
 }
 
-.type-3 {
-  background-color: #f9ca24;
+@media screen and (max-width : 700px) {
+  #drawer {
+    width: 80%;
+    overflow: scroll;
+    position: absolute;
+    z-index: 10;
+    margin: 0;
+    background-color: white;
+    left: -100%;
+    top : 63px;
+    float: left;
+  }
+  .pulling {
+    position: absolute;
+    top: 0px;
+    height: 59px;
+    width: 50px;
+    opacity: 0;
+    z-index: 10;
+  }
+  .pulling:checked ~ #drawer{
+    left: 0px;
+  }
+  .for_drawer {
+    position: absolute;
+    font-size: 40px;
+    top: -10px;
+    width: 50px;
+    text-align: center;
+  }
 }
 
-.type-4 {
-  background-color: #9b59b6;
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.selected-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+img {
+  margin-right: 10px;
 }
 
 </style>

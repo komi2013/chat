@@ -38,6 +38,7 @@ export async function timestamp(pushData) {
     console.log('stamp');
     stampTime();
   }
+  editIDBLogging(pushData[1], pushData[2], pushData[3], pushData[4]);
 }
 
 async function fetchChannel() {
