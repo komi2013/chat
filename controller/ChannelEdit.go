@@ -22,7 +22,7 @@ import (
 )
 
 func ChannelEdit(w http.ResponseWriter, r *http.Request) {
-	_, err := common.Session(w,r)
+	session, err := common.Session(w,r)
 	if err != nil {
   	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
     return
@@ -36,6 +36,9 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
   channelID := r.FormValue("channelID")
+  if r.FormValue("channelID") == "" {
+  	channelID = common.StringRand(4)
+  }
 	aliasImg := common.AliasImgSave(r.FormValue("aliasImg"), channelID, 0)
 
 	fileLinks := ""
@@ -65,6 +68,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
   jsonBytes := []byte(r.FormValue("userIDs"))
   var userIDs []interface{}
   json.Unmarshal(jsonBytes, &userIDs)
+  userIDs = append(userIDs, session.UserID)
   fmt.Printf("userIDs %s\n", userIDs)
 	coll := db1.Collection("session")
   filter := bson.D{{
@@ -85,7 +89,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		var arr []interface{}
 		arr = append(arr, pushID)
 		arr = append(arr, "channelEdit")
-		arr = append(arr, r.FormValue("channelID"))
+		arr = append(arr, channelID)
 		arr = append(arr, r.FormValue("channelName"))
 		arr = append(arr, r.FormValue("description") + fileLinks)
 		arr = append(arr, aliasImg)

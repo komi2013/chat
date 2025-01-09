@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
 import { onBeforeRouteUpdate, useRouter } from 'vue-router';
-import DrawerColumn from '../components/DrawerColumn.vue';
+import DrawerThread from '../components/DrawerThread.vue';
 import EditBox from '../components/EditBox.vue';
 import Messages from '../components/Messages.vue';
 
@@ -161,7 +161,7 @@ function backTo(backID) {
 </script>
 
 <template>
-<DrawerColumn />
+<DrawerThread />
 <div id="content">
 <div class="headTitle">
   <div style="width: 90%;" >

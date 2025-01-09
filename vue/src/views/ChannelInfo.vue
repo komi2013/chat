@@ -14,7 +14,20 @@ let aliass;
 const aliasName = ref(null);
 const aliasImg = ref(null);
 
-const channel = ref('');
+const channel = ref({
+  channelDescription: '',
+  channelName: ''
+});
+
+const channels = ref(null);
+async function fetchAllChannel() {
+  try {
+    channels.value = await getAllIDBs('channel');
+  } catch (error) {
+    channels.value = [];
+  }
+}
+
 async function fetchChannel() {
   if (props.id) {
     try {
@@ -23,6 +36,14 @@ async function fetchChannel() {
       for (let i = 0; i < channel.value.allAliases.length; i++) {
         if (channel.value.allAliases[i][0] == channel.value.aliasName) {
           aliasImg.value = channel.value.allAliases[i][1];
+          console.log(aliasImg.value);
+          if (aliasImg.value.charAt(0) === ',') {
+              const parts = aliasImg.value.split(',');
+              selectedEmoji.value = parts[1];
+              selectedColor.value = parts[2];
+          } else {
+            emojiImg.value = false;
+          }
         }
       }
     } catch (error) {
@@ -31,19 +52,6 @@ async function fetchChannel() {
     }    
   }
 }
-
-// let inputFile = false;
-// function showInputFile () {
-//   inputFile = true;
-// }
-
-// const updatePreview = () => {
-//   const selectedAlias = aliass.value.find(alias => alias.aliasName === aliasName.value);
-//   console.log(selectedAlias);
-//   if (selectedAlias) {
-//     aliasImg.value = selectedAlias.aliasImg;
-//   }
-// };
 
 const fileInputRef = ref(null);
 function triggerFileInput() {
@@ -134,11 +142,15 @@ const channelPost = () => {
   fd.append('channelName', channel.value.channelName);
   fd.append('description', htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, '')));
   fd.append('aliasName', aliasName.value);
+  registerCombination();
   fd.append('aliasImg', aliasImg.value);
   let userIDS = [];
-  channel.value.allAliases.forEach(item => {
-    userIDS.push(item[2]);
-  });
+  if (channel.value.allAliases) {
+    channel.value.allAliases.forEach(item => {
+      userIDS.push(item[2]);
+    });    
+  }
+
   fd.append('userIDs', JSON.stringify(userIDS));
   const fileInput = document.getElementById('fileInput');
   if (fileInput && fileInput.files.length > 10) {
@@ -187,10 +199,47 @@ const invite = async () => {
   }
 };
 
+const getRandomEmoji = () => {
+  const emojiRanges = [
+    [0x1F300, 0x1F5FF], // 自然、物体
+    [0x1F600, 0x1F64F], // 顔文字
+    [0x1F680, 0x1F6FF], // 乗り物、交通
+    [0x1F900, 0x1F9FF], // サプリメント
+    [0x1FA70, 0x1FAFF], // オブジェクト
+    [0x2600, 0x26FF],   // その他シンボル (絵文字以外を除外)
+    [0x2702, 0x27B0],   // 絵文字記号 (一部)
+  ];
+  const validCodePoints = emojiRanges.flatMap(([min, max]) =>
+    Array.from({ length: max - min + 1 }, (_, i) => min + i)
+  );
+  const randomCodePoint =
+    validCodePoints[Math.floor(Math.random() * validCodePoints.length)];
+  console.log(randomCodePoint);
+  return String.fromCodePoint(randomCodePoint);
+};
+
+// テスト
+// console.log(getRandomEmoji());
+
+const getRandomColor = () => {
+  const randomValue = () => Math.floor(Math.random() * 256);
+  const r = randomValue();
+  const g = randomValue();
+  const b = randomValue();
+  return rgbToHex(r, g, b);
+};
+
+const rgbToHex = (r, g, b) => {
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b)
+    .toString(16)
+    .slice(1)}`;
+};
+
+const selectedEmoji = ref(getRandomEmoji());
+const selectedColor = ref(getRandomColor());
 
 let quill;
 onMounted(() => {
-  console.log('fileInputRef onMounted', fileInputRef.value);
   quill = new Quill('#description', {
     modules: {
       toolbar: '#toolbar',
@@ -200,7 +249,41 @@ onMounted(() => {
   fetchChannel().then(() => {
     quill.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
   });
+  // setRandomDefaults();
+  fetchAllChannel();
 });
+
+// ランダムデフォルトの設定
+// const setRandomDefaults = () => {
+//   selectedEmoji.value = getRandomEmoji();
+//   selectedColor.value = getRandomColor();
+// };
+
+const validateEmoji = () => {
+  // if (selectedEmoji.value.length > 1) {
+  //   selectedEmoji.value = selectedEmoji.value.slice(0, 1);
+  // }
+};
+
+// 絵文字と背景色の登録処理
+const registerCombination = () => {
+  if (emojiImg.value) {
+    const emoji = selectedEmoji.value || getRandomEmoji();
+    const color = selectedColor.value || getRandomColor();
+    aliasImg.value = `,${emoji},${color}`;
+  }
+  // registrationResult.value = `,${emoji},${color}`;
+};
+
+const emojiImg = ref(true);
+
+const toggleEmojiImg = () => {
+  if (emojiImg.value) {
+    emojiImg.value = false;
+  } else {
+    emojiImg.value = true;
+  }
+};
 
 </script>
 
@@ -214,7 +297,7 @@ onMounted(() => {
 <br><br>
 
 <div class="form-container">
-  <input type="text" v-model="channel.channelName" placeholder="グループ名">
+  <input type="text" v-model="channel.channelName" placeholder="グループ名" class="name">
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
     <button class="ql-strike"></button>
@@ -225,26 +308,74 @@ onMounted(() => {
       <option value="red">Red</option>
       <option value=""></option>
     </select>
-    <button class="attachment" @click="attach">
-      🌄
-    </button>
+    <!--     <button class="attachment" @click="attach">
+          🌄
+        </button> -->
   </div>
   <div id="description" markdownToHtml></div>
   <div class="files" v-if="fileInfo[0]" v-html="fileInfo"></div>
-  <br>
-  <img v-if="aliasImg" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">
-  <span v-if="!aliasImg" @click="triggerFileInput" class="new-alias-img" > 🌄 </span>
-  <input type="file" ref="fileInputRef" @change="previewAndUpload" accept="image/*" style="display: none;">
-  <span> {{ aliasName }} </span>
+  <div></div>
+    <span
+      @click="emojiImg = true"
+      :style="{ backgroundColor: !emojiImg ? 'silver' : 'transparent' }"
+      class="toggleEmoji"
+    >
+      😃
+    </span>
+    <span
+      @click="emojiImg = false"
+      :style="{ backgroundColor: emojiImg ? 'silver' : 'transparent' }"
+      class="toggleEmoji"
+    >
+      🌄
+    </span>
+  <div v-if="emojiImg">
+    <input 
+      type="text" 
+      v-model="selectedEmoji" 
+      maxlength="2" 
+      class="emoji-input"
+    />
+    <input 
+      id="color-picker"
+      type="color" 
+      v-model="selectedColor" 
+      class="color-picker"
+    />
+    <div class="emojiDisplay">
+      <span :style="'background-color:' + selectedColor ">&nbsp;{{selectedEmoji}}&nbsp;</span>
+    </div>
+    
+  </div>
+
+  <div v-if="!emojiImg">
+    
+    <img v-if="aliasImg && aliasImg.charAt(0) != ','" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">
+    <span v-else @click="triggerFileInput" class="new-alias-img" > 🌄 </span>
+    <input type="file" ref="fileInputRef" @change="previewAndUpload" accept="image/*" style="display: none;">
+  </div>
+  <div v-if="props.id">{{aliasName}}</div>
+  <div v-else>
+    <div>名前の変更はできません</div>
+    <input type="text" v-model="aliasName" placeholder="グループ内の名前" class="name">
+  </div>
 
   <button @click="channelPost">▶️</button><br>
   <button @click="invite"> <span>✉️</span> <span>招待URL</span> </button>
   <div> {{invitationCode}} </div>
   <div> <img :src="invitationQR"></div>
-  <div> <a :href="'/groupAlias/' + props.id + '/'"><button> 👥 ✏️ </button></a> </div>
+  <div> <a :href="'/groupAlias/' + props.id + '/'">
+    <button> グループアカウント作成・編集 </button>
+  </a> </div>
 </div>
 <input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
 
+<ul v-if="channels">
+  <li>全てのチャネルチーム一覧</li>
+  <li v-for="d in channels" :key="d.channelID" class="channel_menu">
+    <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
+  </li>
+</ul>
 
 </div>
 </template>
@@ -333,7 +464,7 @@ onMounted(() => {
   padding-top: 0px;
 }
 
-input[type="text"] {
+.name {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
@@ -356,6 +487,59 @@ button {
 
 button:hover {
   background-color: #0056b3;
+}
+
+.toggleEmoji {
+  display: inline-block;
+  text-align: center;
+  width: 50%;
+  padding: 6px 0px 6px 0px;
+}
+
+.emojiDisplay {
+  width: 50%;
+  text-align: right;
+  display: inline-block;
+}
+
+.emojiDisplay span {
+  display: inline-block;
+}
+
+.emoji-input {
+  width: 26px;
+  padding: 5px;
+  font-size: 18px;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.color-picker {
+  width: 50px;
+  height: 30px;
+  border: none;
+  cursor: pointer;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+p {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
 }
 
 </style>

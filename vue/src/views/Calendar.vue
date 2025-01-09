@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue';
 
-import DrawerColumn from '../components/DrawerColumn.vue'
-// import CalendarModal from '../components/CalendarModal.vue';
+import NoticePopup from '../components/NoticePopup.vue';
 import SelectPeople from '../components/SelectPeople.vue';
 import { useCalendarsStore } from '../stores/calendars.js';
 
@@ -101,11 +100,26 @@ const decideHeightTop = (schedule, index) => {
   const height = (endMinutes - startMinutes) * minuteHeight;
   const opacity = (index === 1) ? 1 : Math.random() * 0.8 + 0.1;
   const zindex = opacity * 10;
+  let backgroundColor;
+  switch (schedule.nameCount) {
+    case 1:
+      backgroundColor = "rgba(255, 0, 0, 0.25)"; // 赤の25%
+      break;
+    case 2:
+      backgroundColor = "rgba(255, 255, 0, 0.25)"; // 黄の25%
+      break;
+    case 3:
+      backgroundColor = "rgba(128, 0, 128, 0.25)"; // 紫の25%
+      break;
+    default:
+      backgroundColor = "rgba(0, 0, 255, 0.25)"; // 青の25%
+  }
   return {
     height: `${height}px`,
     top: `${top}px`,
     opacity: `${opacity}`,
     "z-index": `${zindex}`,
+    "background-color": `${backgroundColor}`,
   };
 };
 
@@ -237,12 +251,18 @@ const handleSelectedItemsChange = (change) => {
             :style="decideHeightTop(d, getEventsForDayAndHour(day, hour).length)"
             class="event"
           >
-            <a :href="`/calendarEdit/${d.calendarID}/`"> {{ d.title }} </a>
+            <template v-if="d.nameCount">
+              xxx
+            </template>
+            <template v-if="!d.nameCount">
+              <a :href="`/calendarEdit/${d.calendarID}/`"> {{ d.title }} </a>
+            </template>
           </div>
         </div>
       </div>
     </div>
   </div>
+  <NoticePopup />
 </div>
 </template>
 
@@ -310,7 +330,6 @@ const handleSelectedItemsChange = (change) => {
 
 .event {
   position: absolute;
-  background-color: #ff7979;
   border-radius: 4px;
   font-size: 0.8rem;
   word-break: break-word;
@@ -332,7 +351,7 @@ const handleSelectedItemsChange = (change) => {
     width: 80%;
     overflow: scroll;
     position: absolute;
-    z-index: 10;
+    z-index: 30;
     margin: 0;
     background-color: white;
     left: -100%;
@@ -345,7 +364,7 @@ const handleSelectedItemsChange = (change) => {
     height: 59px;
     width: 50px;
     opacity: 0;
-    z-index: 10;
+    z-index: 30;
   }
   .pulling:checked ~ #drawer{
     left: 0px;

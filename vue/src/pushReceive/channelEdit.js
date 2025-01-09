@@ -4,6 +4,7 @@
 // only write alias group aliasName
 // when community join, decide alias
 // aliasImg is changeble
+// aliasName is not changeble
 
 export async function channelEdit(pushData) {
   const pushID = pushData[0];
@@ -37,10 +38,21 @@ export async function channelEdit(pushData) {
       .catch((error) => {
         console.error(error);
       });
-
-
   } catch (error) {
-    console.log('channel not', error);
+    const channel = {
+      channelID: channelID,
+      channelName: pushData[3],
+      channelDescription: pushData[4],
+      updatedBy: updatedBy,
+      updatedAt: pushData[7],
+      displayStatus: 1,
+      aliasName: updatedBy,
+      allAliases: [[updatedBy, aliasImg, localStorage.userID]]
+    };
+    upsertIDB(channel, 'channel', 'channelID', channelID)
+      .catch((error) => {
+        console.error(error);
+      });
   }
 }
 

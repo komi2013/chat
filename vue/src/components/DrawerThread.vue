@@ -102,7 +102,6 @@ const fetchBookmarks = () => {
   });
 };
 
-
 const mentionChannel = () => {
   return new Promise((resolve, reject) => {
     getIDBs('channel', 'displayStatusIndex', 2)
@@ -234,7 +233,6 @@ onBeforeMount(async () => {
         </td>
       </tr>
     </template>
-
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>

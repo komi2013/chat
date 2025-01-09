@@ -72,8 +72,8 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
   var contents interface{}
   json.Unmarshal(jsonBytes, &contents)
   fmt.Println("contents:", contents)
-  coll := db1.Collection("session")
-  filter := bson.D{{
+  coll = db1.Collection("session")
+  filter = bson.D{{
     "user_id", bson.D{{"$in", userIDs}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
@@ -87,10 +87,11 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
   }
 
   var arr []interface{}
-  arr = append(arr, r.FormValue("storePush"))
+  arr = append(arr, "storePush")
   arr = append(arr, channelID)
   arr = append(arr, aliasName)
   arr = append(arr, contents)
+  arr = append(arr, r.FormValue("targetStore"))
   jsonData, err := json.Marshal(arr)
   if err != nil {
     fmt.Println("JSON変換エラー:", err)
@@ -122,7 +123,7 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
 	    } else {
 		    arrForJson = append([]interface{}{pushID}, arr...)
 	    }
-
+	    fmt.Printf(" arrForJson %s\n", arrForJson)
 	    jsonD, err := json.Marshal(arrForJson)
 	    if err != nil {
 	      fmt.Println("JSON変換エラー:", err)
