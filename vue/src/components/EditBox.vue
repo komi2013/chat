@@ -39,9 +39,11 @@ import "quill-mention";
 import "quill/dist/quill.snow.css";
 
 const props = defineProps({
-  message: Object,
   channel: Object,
-  threadHead: Object
+  aliases: Array,
+  groups: Array,
+  message: Object,
+  threadHead: Object,
 });
 
 const message = props.message;
@@ -105,7 +107,6 @@ const msgUpsert = (messageID, delMessage) => {
   const uri = messageID ? '/ThreadEdit/' : '/ThreadPost/';
   const fd = new FormData();
   console.log(messageData);
-  // fd.append('allAliases', JSON.stringify(props.channel.allAliases));
   fd.append('parentID', props.message.parentID);
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);
@@ -121,12 +122,12 @@ const msgUpsert = (messageID, delMessage) => {
     if (dm) {
       names = props.threadHead.parentID.split('@');
     }
-    userIDs = props.channel.allAliases
-      .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
-      .map(alias => alias[2]);
+    userIDs = props.aliases
+      .filter(alias => props.threadHead.aliasNames.includes(alias.aliasName))
+      .map(alias => alias.userID);
   }
-  if (Array.isArray(props.channel.groupAliases) && !dm) {
-    for (const d of props.channel.groupAliases) {
+  if (Array.isArray(props.groups) && !dm) {
+    for (const d of props.groups) {
       const atName = `＠＠${d[0]}・＠＠`;
       if (messageData.includes(atName)) {
         for (const d2 of d[2]) {
@@ -136,15 +137,15 @@ const msgUpsert = (messageID, delMessage) => {
     }
   }
   let yets = [];
-  for (const d of props.channel.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
+  for (const d of props.aliases) {
+    if (names.includes(d.aliasName)) {
+      userIDs.push(d.userID);
     }
-    const atName = `＠＠${d[0]}・＠＠`;
+    const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
-      userIDs.push(d[2]);
-      names.push(d[0]);
-      yets.push([d[0], '/img/yet.png']);
+      userIDs.push(d.userID);
+      names.push(d.aliasName);
+      yets.push([d.aliasName, '/img/yet.png']);
     }
   }
   fd.append('names', JSON.stringify([...new Set(names)]));
@@ -174,23 +175,19 @@ const msgUpsert = (messageID, delMessage) => {
     .then(function(response) {
       clicked = false;
     })
-    // .catch((reason)=>{
-    //   alert(reason)
-    // })
 }
 
 function getAliasImg(props) {
   let aliasImg = null;
-  const { allAliases, aliasName } = props.channel;
-  for (let i = 0; i < allAliases.length; i++) {
-    if (allAliases[i][0] === aliasName) {
-      aliasImg = allAliases[i][1];
+  const aliasName = props.channel.aliasName;
+  for (let i = 0; i < props.aliases.length; i++) {
+    if (props.aliases[i].aliasName === aliasName) {
+      aliasImg = props.aliases[i].aliasImg;
       break;
     }
   }
   return aliasImg;
 }
-
 
 let quill;
 onMounted(() => {
@@ -204,20 +201,22 @@ onMounted(() => {
         source: function(searchTerm, renderList, mentionChar) {
           let values;
           if (mentionChar === "@") {
-            console.log(props.channel.allAliases);
-            console.log(props.channel.groupAliases);
-            let aliasForMention = props.channel.allAliases
-            if (Array.isArray(props.channel.groupAliases)) {
-              aliasForMention = props.channel.allAliases.concat(
-                props.channel.groupAliases.map(group => [group[0], group[1]])
+            let aliasForMention = props.aliases
+            if (Array.isArray(props.groups)) {
+              aliasForMention = props.aliases.concat(
+                props.groups.map(group => ({
+                  aliasID: group.groupID,
+                  aliasName: group.groupName,
+                  aliasImg: group.groupImg, // 必要に応じてプロパティ名を調整
+                }))
               );
             }
 
             values = aliasForMention.map((alias, index) => {
               return {
-                id: index + 1,
-                value: alias[0],
-                imageUrl: alias[1]
+                id: alias.aliasID,
+                value: alias.aliasName,
+                imageUrl: alias.aliasImg
               };
             });
           }

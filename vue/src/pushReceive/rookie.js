@@ -9,36 +9,48 @@ export async function rookie(pushData) {
     body: fd,
   });
   fetch(request);
-  const obj = {
-    channelID: pushData[2],
-    aliasName: pushData[3],
-    aliasImg: pushData[4],
-    userID: pushData[5]
-  };
-  let channel;
-  async function fetchChannel() {
-    try {
-      channel =　await getIDB('channel', obj.channelID);
-      console.log('channel', channel);
-      addAliases(channel, obj);
-    } catch (error) {
-      channel = null;
-      console.log('channel not found', error);
-    }
-  }
-  fetchChannel();
-  // console.log('channel after wait', channel);
-}
 
-function addAliases (channel, alias) {
-  if (channel.allAliases && Array.isArray(channel.allAliases)) {
-    channel.allAliases.push([alias.aliasName, alias.aliasImg, alias.userID]);
-  } else {
-    channel.allAliases = [[alias.aliasName, alias.aliasImg, alias.userID]];
+  const channelID = pushData[2];
+  const aliasName = pushData[3];
+  const aliasImg = pushData[4];
+  const userID = pushData[5];
+
+  const alias = {
+    aliasID: channelID + aliasName, // should be userID for unique per
+    channelID: channelID,
+    aliasName: aliasName,
+    aliasImg: aliasImg,
+    userID: userID
   }
-  upsertIDB(channel, 'channel', 'channelID', channel.channelID)
+  upsertIDB(alias, 'alias', 'aliasID', alias.aliasID)
     .catch((error) => {
       console.error(error);
     });
+
+  // let channel;
+  // async function fetchChannel() {
+  //   try {
+  //     channel =　await getIDB('channel', obj.channelID);
+  //     console.log('channel', channel);
+  //     addAliases(channel, obj);
+  //   } catch (error) {
+  //     channel = null;
+  //     console.log('channel not found', error);
+  //   }
+  // }
+  // fetchChannel();
+  // console.log('channel after wait', channel);
 }
+
+// function addAliases (channel, alias) {
+//   if (channel.allAliases && Array.isArray(channel.allAliases)) {
+//     channel.allAliases.push([alias.aliasName, alias.aliasImg, alias.userID]);
+//   } else {
+//     channel.allAliases = [[alias.aliasName, alias.aliasImg, alias.userID]];
+//   }
+//   upsertIDB(channel, 'channel', 'channelID', channel.channelID)
+//     .catch((error) => {
+//       console.error(error);
+//     });
+// }
 

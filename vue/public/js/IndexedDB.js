@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 84 );
+    const request = indexedDB.open('chat', 88 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -21,11 +21,13 @@ const openDatabase = () => {
       };
 
       const tables = [
+        ['alias', 'aliasID'],
         ['bookmark', 'messageID'],
         ['bookPattern', 'bookPatternID'],
         ['calendar', 'calendarID'],
         ['channel', 'channelID'],
         ['chunk', 'chunkID'],
+        ['group', 'groupID'],
         ['receptionOrder', 'receptionOrderID'],
         ['shiftStaff', 'shiftStaffID'],
         ['thread', 'messageID'],
@@ -41,11 +43,17 @@ const openDatabase = () => {
         } else {
           objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
         }
+        if (tableName === 'alias' && !objectStore.indexNames.contains('channelIDIndex')) {
+          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+        }
         if (tableName === 'channel' && !objectStore.indexNames.contains('displayStatusIndex')) {
           objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
         }
         if (tableName === 'chunk' && !objectStore.indexNames.contains('chunkPassIndex')) {
           objectStore.createIndex('chunkPassIndex', 'chunkPass', { unique: false });
+        }
+        if (tableName === 'group' && !objectStore.indexNames.contains('channelIDIndex')) {
+          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
         }
         if (tableName === 'shiftStaff' && !objectStore.indexNames.contains('bookPatternIDIndex')) {
           objectStore.createIndex('bookPatternIDIndex', 'bookPatternID', { unique: false });

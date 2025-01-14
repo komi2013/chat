@@ -126,5 +126,5 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 	}
-  http.Redirect(w, r, "/pushSubscribe.html", http.StatusSeeOther)
+  http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
 }

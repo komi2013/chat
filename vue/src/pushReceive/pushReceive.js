@@ -26,7 +26,7 @@ export function pushReceive(notificationData) {
     bookmark: bookmark,
     bookPattern: bookPattern,
     calendar: calendar,
-    channelAdd: channelAdd,
+    // channelAdd: channelAdd,
     channelEdit: channelEdit,
     channelJoin: channelJoin,
     chunk: chunk,

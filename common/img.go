@@ -27,6 +27,13 @@ func AliasImgSave(aliasImg string, channelID string, i int ) string {
         log.Println(err)
     }
     log.Println("PNG image file saved successfully.")
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			log.Println("Error getting file size:", err)
+			return imgPath
+		}
+		fileSize := fileInfo.Size() // ファイルサイズを取得
+		log.Println("fileSize", fileSize)
     // imgPath = ""
   }
   return imgPath

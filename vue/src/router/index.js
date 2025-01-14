@@ -75,9 +75,13 @@ const router = createRouter({
       })
     },
     {
-      path: '/mypage/',
-      name: 'mypage',
-      component: () => import('../views/mypage.vue')
+      path: '/profile/:id/:name/:code?/',
+      component: () => import('../views/Profile.vue'),
+      props: route => ({
+        id: route.params.id,
+        name: route.params.name,
+        code: route.params.code
+      }),
     },
     {
       path: '/reception/:id?/',

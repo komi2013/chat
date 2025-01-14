@@ -2,8 +2,7 @@ package common
 
 import (
   "context"
-  // "encoding/json"
-  // "fmt"
+  // "errors"
   "log"
   "net/http"
   "time"
@@ -11,9 +10,6 @@ import (
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  // "go.mongodb.org/mongo-driver/bson/primitive"
-
-  // webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
 )
@@ -24,10 +20,6 @@ func Session(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, 
   if err != nil {
     return session, err
   }
-  // if len(cookie.Value) != 16 {
- //    http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
- //    return
-  // }
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(Mongo1))
@@ -36,7 +28,6 @@ func Session(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, 
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(MongoDb1)
-
 
   coll := db1.Collection("session")
   filter := bson.D{{"_id", cookie.Value}}
@@ -47,3 +38,55 @@ func Session(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, 
   }
   return session, nil
 }
+
+func SessionGet(db1 *mongo.Database, w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
+  var session collection.SessionStruct
+  cookie, err := r.Cookie("ss")
+  if err != nil {
+    return session, err
+  }
+  coll := db1.Collection("session")
+  filter := bson.D{{"_id", cookie.Value}}
+  opts := options.FindOne().SetProjection(bson.D{})
+  err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
+  return session, err
+}
+
+
+func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, token string) (collection.SessionStruct, error) {
+  var session collection.SessionStruct
+  cookie, err := r.Cookie("ss")
+  if err != nil {
+    return session, err
+  }
+  coll := db1.Collection("session")
+  filter := bson.D{{"_id", cookie.Value}}
+  opts := options.FindOne().SetProjection(bson.D{})
+  err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
+  if err != nil {
+    return session, err
+  }
+  session, err = CheckMakeCSRFToken(db1, session, token)
+  return session, err
+}
+
+func CheckMakeCSRFToken(db1 *mongo.Database, session collection.SessionStruct, token string) (collection.SessionStruct, error) {
+	// if session.Csrf != token {
+	// 	return session, errors.New("token error ")
+	// }
+	session, err := GenerateCSRFToken(db1, session)
+	return session, err
+}
+
+func GenerateCSRFToken(db1 *mongo.Database, session collection.SessionStruct) (collection.SessionStruct, error) {
+	coll := db1.Collection("session")
+	token := StringRand(16)
+	session.Csrf = token
+	session.UpdatedAt = time.Now()
+	filter := bson.D{{"_id", session.SessionID}}
+	update := bson.D{{"$set", session}}
+	opts := options.Update().SetUpsert(false)
+	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
+	return session, err
+}
+

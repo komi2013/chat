@@ -1,13 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
-import { useMessagesStore } from '../stores/messages.js';
-import { useChannelsStore } from '../stores/channels.js';
 
-if (!localStorage.csrf) {
-  localStorage.setItem('TO', window.location.href);
-  location.href = '/sign.html';
-}
+// if (!localStorage.csrf) {
+//   localStorage.setItem('TO', window.location.href);
+//   location.href = '/sign.html';
+// }
 
 const props = defineProps({
   channel_id: '',
@@ -15,17 +13,17 @@ const props = defineProps({
   toAliasName: ''
 })
 
-const aliass = ref('');
+const aliases = ref('');
 const aliasName = ref(null);
 const aliasImg = ref(null);
 async function fetchAlias() {
   try {
-    aliass.value = await getAllIDBs('alias');
+    aliases.value = await getAllIDBs('alias');
   } catch (error) {
-    aliass.value = [];
+    aliases.value = [];
   }
 }
-fetchAlias();
+// fetchAlias();
 
 // const channel = ref('');
 const channel = ref({
@@ -50,7 +48,7 @@ function showInputFile () {
 }
 
 const updatePreview = () => {
-  const selectedAlias = aliass.value.find(alias => alias.aliasName === aliasName.value);
+  const selectedAlias = aliases.value.find(alias => alias.aliasName === aliasName.value);
   console.log(selectedAlias);
   if (selectedAlias) {
     aliasImg.value = selectedAlias.aliasImg;
@@ -141,21 +139,40 @@ const updateAliasArray = (name, image) => {
 };
 
 
-const join = () => {
+async function join() {
 // `${window.location.origin}/communityJoin/${props.id}/${aliasName.value}/${json[1]}`;
   const fd = new FormData()
   fd.append('code', props.code);
   fd.append('aliasName', aliasName.value);
   fd.append('aliasImg', aliasImg.value);
   fd.append('userID', localStorage.userID);
-  const request = new Request('/CommunityMatch/', {
-      method: 'POST',
-      body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
+  const channel = await sendRequest('/CommunityMatch/', fd);
+  channel.aliasName = aliasName.value;
+
+  console.log(channel);
+  upsertIDB(channel, 'channel', 'channelID', channel.channelID)
+    .catch((error) => {
+      console.error(error);
     });
+  const alias = {
+    aliasID: channel.channelID + aliasName.value,
+    channelID: channel.channelID,
+    aliasName: aliasName.value,
+    aliasImg: aliasImg.value,
+    userID: localStorage.getItem("userID")
+  }
+  upsertIDB(alias, 'alias', 'aliasID', alias.aliasID)
+    .catch((error) => {
+      console.error(error);
+    });
+  // const request = new Request('/CommunityMatch/', {
+  //     method: 'POST',
+  //     body: fd,
+  // });
+  // fetch(request)
+  //   .catch((reason)=>{
+  //     console.log(reason)
+  //   });
 
 //     .then((response) => response.json())
 //     .then((json)=>{
@@ -189,7 +206,7 @@ const join = () => {
     <input type="file" @change="previewAndUpload" accept="image/*">
   </template>
   <div class="alias-list">
-    <label v-for="alias in aliass" :key="alias.aliasName" 
+    <label v-for="alias in aliases" :key="alias.aliasName" 
       :class="{ 'alias-item': true, 'selected': aliasName === alias.aliasName }">
       <input type="radio" 
         v-model="aliasName"

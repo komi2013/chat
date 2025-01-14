@@ -1,122 +1,94 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
 import DrawerColumn from '../components/DrawerColumn.vue';
-import EditBox from '../components/EditBox.vue';
-import Messages from '../components/Messages.vue';
+import SelectAlias from '@/components/SelectAlias.vue';
+
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/toggle.js';
+import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
+// import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/toggle.js';
 
 const props = defineProps({
   id: '',
   groupAliasName: ''
 })
 
-const channel = ref('');
-const groupAliases = ref('');
+const channel = ref(null);
+const aliases = ref([]);
+const groups = ref([]);
 const groupAliasName = ref(props.groupAliasName);
-const groupAliasNames = ref([]);
-const postable = ref(false);
-
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', props.id);
-    channel.value = data;
-    console.log('channel.value', channel.value);
-    groupAliases.value = data.groupAliases;
-    // for (let i = 0; i < data.groupAliases.length; i++) {
-    //   groupAliasNames.value.push(data.groupAliases[i][0]);
-    // }
-    groupAliasNames.value = (data.groupAliases || []).map(alias => alias[0]);
-  } catch (error) {
-    channel.value = null;
-  }
-}
 
 function isEditable(groupAlias) {
+  // const mynames = [channel.value.aliasName, ''];
+  // if (Array.isArray(channel.value.groupAliases)) {
+  console.log(groupAlias.aliasNames);
+  // if (!groupAlias.aliasNames) {
+  //   return true;
+  // }
+  // const names = groupAlias.aliasNames;
+  if ( groupAlias.aliasNames.includes(channel.value.aliasName) ) {
+    return true;
+  }
   if (groupAliasName.value) {
     return false;
-  }
-  if (groupAlias[3]) {
-    return true;
-  }
-  if (groupAlias[2].includes(channel.value.aliasName)) {
-    return true;
   }
   return false;
 }
 
-function updateGroupAliasName(event, groupAlias) {
-  groupAlias[0] = event.target.innerText;
-}
+// function updateGroupAliasName(event, groupAlias) {
+//   groupAlias[0] = event.target.innerText;
+// }
 
-function getImagePath(member) {
-  const alias = channel.value.allAliases.find(alias => alias[0] === member);
-  return alias ? alias[1] : '';
-}
+// function getImagePath(aliasName) {
+//   const alias = aliases.value.find(alias => alias.aliasName === aliasName);
+//   return alias.aliasImg ? alias.aliasImg : '';
+// }
 
-function addName(suggestion, i) {
-  if (!groupAliases.value[i][2].includes(suggestion[0])) {
-    groupAliases.value[i][2].push(suggestion[0]);
-  }
-  memberInput.value[i] = '';
-  suggestions.value[i] = [];
-}
-
-function removeName(i2, i) {
-  groupAliases.value[i][2].splice(i2, 1);
-}
-
-const memberInput = ref([]);
-const suggestions = ref([]);
-
-function updateSuggestions(i) {
-  console.log('channel.value', channel.value);
-  const input = memberInput.value[i];
-  
-  suggestions.value[i] = channel.value.allAliases.filter(alias =>
-    alias[0].toLowerCase().includes(input)
-  );
-}
+// function removeName(groupIndex, aliasName) {
+//   const group = groups.value[groupIndex];
+//   if (!group) {
+//     console.warn(`Group at index ${groupIndex} not found.`);
+//     return;
+//   }
+//   const aliasIndex = group.aliasNames.findIndex(
+//     (name) => name === aliasName
+//   );
+//   group.aliasNames.splice(aliasIndex, 1);
+//   console.log(groups.value);
+// }
 
 function newGroup() {
-  if (groupAliases.value && groupAliases.value[0]) {
-    groupAliases.value.unshift(['', '', [], true]);
-  } else {
-    groupAliases.value = [['', '', [], true]];
+  const group = {
+    groupID: '',
+    channelID: props.id,
+    groupName: '',
+    groupImg: '',
+    aliasNames: [channel.value.aliasName]
   }
+  groups.value.push(group);
 }
 
 function removeGroup(i) {
-  groupAliases.value.splice(i, 1);
+  groups.value.splice(i, 1);
 }
 
-function editGroup() {
+function editGroup(group) {
+  console.log('group', group);
   if (!confirm("▶️")) {
     return;
   }
   const fd = new FormData();
   fd.append('channelID', channel.value.channelID);
-  let userIDS = [];
-  channel.value.allAliases.forEach(item => {
-    userIDS.push(item[2]);
-  });
-  fd.append('userIDs', JSON.stringify(userIDS));
+  const userIDs = userIDsByName(channel, aliases);
+  fd.append('userIDs', JSON.stringify(userIDs));
   fd.append('aliasName', channel.value.aliasName);
-  fd.append('groupAliases', JSON.stringify(groupAliases.value));
-  const request = new Request('/GroupAliasEdit/', {
+  fd.append('contents', JSON.stringify(group));
+  const request = new Request('/ContentsPush/', {
     method: 'POST',
     body: fd,
-  })
-  fetch(request)
-    .then((response) => response.json())
-    .then((json)=>{
-      // when status not 1
-    })
-    .catch((reason)=>{
-      console.log(reason)
-    })
+  });
+  fetch(request);
 }
 
 const fileInfo = ref({});
@@ -143,7 +115,7 @@ const handleFileInputChange = (event, i) => {
     reader.onload = (e) => {
       const base64Image = e.target.result;
       resizeImage(base64Image, 50, 50, (resizedBase64Image) => {
-        groupAliases.value[i][1] = resizedBase64Image;
+        groups.value[i].groupImg = resizedBase64Image;
 
         const image = document.createElement('img');
         image.src = resizedBase64Image;
@@ -187,19 +159,42 @@ const resizeImage = (base64Str, maxWidth, maxHeight, callback) => {
   img.src = base64Str;
 }
 
+function getAliasesByNames(aliasNames) {
+  return aliasNames
+    .map((name) => {
+      const match = aliases.value.find((entry) => entry.aliasName === name);
+      if (match) {
+        return {
+          id: match.aliasID,
+          name: match.aliasName,
+          image: match.aliasImg,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean); // null 値を除外
+}
 
+const fetched = ref(false);
 onBeforeMount(async () => {
-  await fetchChannel();
+  channel.value = await fetchChannel(props.id);
+  aliases.value = await fetchAliases(props.id);
+  groups.value = await fetchGroups(props.id);
+  fetched.value = true;
+  // fetchAlias();
 });
 
+const updateSelectedAlias = (change) => {
+  console.log('change', change);
+}
 
 </script>
 
 <template>
 <DrawerColumn />
-<div id="content">
+<div id="content" v-if="fetched">
   <div class="headTitle">
-    <div v-if="channel">
+    <div>
       <a :href="'/channelInfo/' + channel.channelID"> {{ channel.channelName }} </a>
     </div>
     <div style="line-height: 50px;">
@@ -213,63 +208,47 @@ onBeforeMount(async () => {
 </div>
 
 <table>
-  <template v-for="(groupAlias, i) in groupAliases">
-    <template v-if="!groupAliasName || (groupAliasName === groupAliasNames[i])">
-    <tr>
-      <td @click="attach(i, isEditable(groupAlias))">
-        <img v-if="groupAlias[1]" :src="groupAlias[1]">
-        <span v-if="!groupAlias[1]">🖼️</span>
-        <input type="file" style="position: fixed; left: -300px;" :id="'fileInput_' + i">
-      </td>
-      <td>
-        <input v-if="isEditable(groupAlias)" v-model="groupAlias[0]" />
-        <div v-if="!isEditable(groupAlias)">
-          {{ groupAlias[0] }}
-        </div>
-      </td>
-      <td> <a v-if="!groupAliasName" :href="'/groupAlias/' + props.id + '/' + groupAlias[0] + '/' "> ⏭️ </a> </td>
-      <td> <a v-if="isEditable(groupAlias)" @click="removeGroup(i)"> 🗑 </a> </td>
-    </tr>
-    <tr v-if="isEditable(groupAlias)" >
-      <td colspan="3">
-        <input v-model="memberInput[i]" @input="updateSuggestions(i)" />
-        <table v-if="suggestions[i] && memberInput[i]" class="dropdown">
-          <tr v-for="suggestion in suggestions[i]" @click="addName(suggestion, i)">
-            <td><img :src="suggestion[1]"></td>
-            <td>{{ suggestion[0] }}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr v-for="(member, i2) in groupAlias[2]">
-      <td>
-        <button v-if="isEditable(groupAlias)"
-          @click="removeName(i2, i)"> 🗑 </button>
-      </td>
-      <td colspan="2">
-        <img :src="getImagePath(member)">
-        {{ member }}
-      </td>
-    </tr>
-    <tr><td colspan="3"><hr></td></tr>
+  <template v-for="(groupAlias, i) in groups">
+    <template v-if="!groupAliasName || (groupAliasName === groupAlias.groupName)">
+      <tr>
+        <td @click="attach(i, isEditable(groupAlias))">
+          <img v-if="groupAlias.groupImg" :src="groupAlias.groupImg">
+          <span v-else>🖼️</span>
+          <input type="file" style="position: fixed; left: -300px;" :id="'fileInput_' + i">
+        </td>
+        <td>
+          <input v-if="isEditable(groupAlias)" v-model="groupAlias.groupName" />
+          <div v-if="!isEditable(groupAlias)">
+            {{ groupAlias.groupName }}
+          </div>
+        </td>
+        <td> <a v-if="!groupAliasName" :href="'/groupAlias/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> </td>
+        <td> <a v-if="isEditable(groupAlias)" @click="removeGroup(i)"> 🗑 </a> </td>
+      </tr>
+      <tr>
+        <td colspan="3">
+          <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="isEditable(groupAlias)" />
+        </td>
+      </tr>
+      <div v-if="isEditable(groupAlias)" class="editButton">
+        <button @click="editGroup(groupAlias)">▶️</button>
+      </div>
+      <tr><td colspan="3"><hr></td></tr>
     </template>
   </template>
 </table>
 
-<div v-if="!groupAliasName" class="editButton">
-  <button @click="editGroup">▶️</button>
 </div>
-
-</div>
+<div v-if="!fetched"> Loading... or Something Went </div>
 </template>
 
 <style>
 
-#content {
+/*#content {
   height: 100%;
   overflow-y: auto;
 }
-
+*/
 img {
   max-width: 50px;
   max-height: 50px;
@@ -281,10 +260,6 @@ hr {
   margin: 20px 0;
 }
 
-.member {
-  padding-left: 50px;
-}
-
 .editButton {
   text-align: center;
   width: 100%;
@@ -293,32 +268,6 @@ hr {
 .editButton button {
   width: 80%;
   height: 30px;
-}
-
-
-.dropdown {
-  padding: 10px;
-  border: 1px solid #ccc;
-  position: absolute;
-  background: white;
-  z-index: 1000;
-  max-width: 200px;
-  overflow-y: auto;
-}
-
-.dropdown ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-}
-
-.dropdown li {
-  padding: 8px;
-  cursor: pointer;
-}
-
-.dropdown li:hover {
-  background-color: #f0f0f0;
 }
 
 @media screen and (min-width : 701px) { 

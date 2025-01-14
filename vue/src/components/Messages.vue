@@ -13,6 +13,8 @@ import { markdownToHtml } from '../my/markdown.js';
 const props = defineProps({
   messages: Object,
   channel: Object,
+  aliases: Array,
+  groups: Array,
   threadHead: Object
 });
 const channel = props.channel;

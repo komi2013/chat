@@ -44,7 +44,7 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
   filter3 := bson.D{{"user_id", userID}}
   opts3 := options.FindOne().SetProjection(bson.D{
     {"user_id", 1},
-    {"alias_array", 1},
+    {"alias_channels", 1},
   }).SetSort(bson.D{
     {"created_at", -1},
   })
@@ -73,7 +73,7 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
     session := collection.SessionStruct{
       SessionID: sessionID,
       UserID: userID,
-      AliasArray: ssAlready.AliasArray,
+      AliasChannels: ssAlready.AliasChannels,
       CreatedAt: time.Now(),
     }
     _, err := coll.InsertOne(context.TODO(), session)
@@ -81,5 +81,5 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
       log.Fatal(err)
     }
   }
-  http.Redirect(w, r, "/pushSubscribe.html", http.StatusSeeOther)
+  http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
 }

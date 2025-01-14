@@ -1,12 +1,9 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
 import DrawerColumn from '../components/DrawerColumn.vue'
-import EditBox from '../components/EditBox.vue'
-import Messages from '../components/Messages.vue'
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit, adjustHeight, textareaRefs } from '../my/toggle.js';
 
 const props = defineProps({
   id: '',

@@ -18,6 +18,7 @@ func main() {
 		http.HandleFunc("/BookmarkToggle/", controller.BookmarkToggle)
 		http.HandleFunc("/BookPatternGet/", controller.BookPatternGet)
 		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
+		http.HandleFunc("/ChannelInvite/", controller.ChannelInvite)
 		http.HandleFunc("/CommunityMatch/", controller.CommunityMatch)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)
 		http.HandleFunc("/EmojiToggle/", controller.EmojiToggle)
@@ -41,7 +42,6 @@ func main() {
 		http.HandleFunc("/ThreadPost/", controller.ThreadPost)
 		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
 		http.HandleFunc("/upload/", controller.Upload)
-		http.HandleFunc("/WindowAdd/", controller.WindowAdd)
 		http.HandleFunc("/WindowGet/", controller.WindowGet)
 
 		http.HandleFunc("/", controller.Top)

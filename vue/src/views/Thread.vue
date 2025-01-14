@@ -8,13 +8,29 @@ import Messages from '../components/Messages.vue';
 import { useMessagesStore } from '../stores/messages.js';
 import { useChannelsStore } from '../stores/channels.js';
 
+import { fetchChannel, fetchAliases, fetchGroups } from '@/my/channelFunc';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { removeMark } from '../my/markdown.js';
+
 
 const props = defineProps({
   message_id: '',
   channel_id: ''
 })
+
+const channel = ref(null);
+const aliases = ref(null);
+const groups = ref(null);
+onBeforeMount(async () => {
+  channel.value = await fetchChannel(props.channel_id);
+  aliases.value = await fetchAliases(props.channel_id);
+  groups.value = await fetchGroups(props.channel_id);
+  readStatus();
+  const content = document.getElementById('content');
+  content.scrollTop = content.scrollHeight;
+  window.scrollTo(0, content.scrollHeight);
+});
+
 
 const message = ref('');
 let threadHead = ref('');
@@ -30,36 +46,6 @@ const msg = {
   messageID: '',
   parentID: props.message_id
 };
-
-const channel = ref('');
-
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', props.channel_id);
-    channel.value = data;
-  } catch (error) {
-    channel.value = null;
-  }
-}
-
-// async function updateChannel(channelId, newGroupAliases) {
-//   try {
-//     const ch = await getIDB('channel', channelId);
-//     ch.groupAliases = newGroupAliases;
-//     await upsertIDB(ch, 'channel', 'channelID', channelId);
-//     console.log('Channel updated successfully');
-//   } catch (error) {
-//     console.error('Error updating channel:', error);
-//   }
-// }
-
-// // Example usage
-// const newGroupAliases = [
-//   ['groupname','/me.jpg', ['sei1']],
-//   ['gp1','/me.jpg', ['sei1','sei2']],
-//   ['gp2', '/group.png', ['abc']]
-// ];
-// updateChannel(props.channel_id, newGroupAliases);
 
 async function fetchThreadHead() {
   try {
@@ -133,16 +119,6 @@ function readStatus () {
   }
 }
 
-onBeforeMount(async () => {
-  await fetchChannel();
-  await fetchThreadHead();
-  readStatus();
-  const content = document.getElementById('content');
-  content.scrollTop = content.scrollHeight;
-  window.scrollTo(0, content.scrollHeight);
-});
-
-
 onBeforeRouteUpdate((to, from, next) => {
   if (from.path != to.path) {
     console.log('ページ遷移が検出されました:', from.path, to.path);
@@ -176,11 +152,21 @@ function backTo(backID) {
 </div>
 
   <template v-if="channel && messages && threadHead">
-    <Messages :channel="channel" :messages="messages" :threadHead="threadHead" />
+    <Messages 
+      :channel="channel"
+      :aliases="aliases"
+      :groups="groups"
+      :messages="messages"
+      :threadHead="threadHead" />
   </template>
 
 <div class="editText" v-if="channel">
-  <EditBox :channel="channel" :message="msg" :threadHead="threadHead" />
+  <EditBox 
+    :channel="channel"
+    :aliases="aliases"
+    :groups="groups"
+    :message="msg"
+    :threadHead="threadHead" />
 </div>
 <br>
 </div>
