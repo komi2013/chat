@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 88 );
+    const request = indexedDB.open('chat', 92 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };

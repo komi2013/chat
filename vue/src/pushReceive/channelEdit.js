@@ -6,6 +6,8 @@
 // aliasImg is changeble
 // aliasName is not changeble
 
+import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
+
 export async function channelEdit(pushData) {
   const pushID = pushData[0];
   const fd = new FormData();
@@ -16,43 +18,32 @@ export async function channelEdit(pushData) {
   });
   fetch(request);
   const channelID = pushData[2];
-  const updatedBy = pushData[6];
-  const aliasImg = pushData[5];
-  try {
-    const channel = await getIDB('channel', channelID);
-    let allAliases = channel.allAliases;
-    for (let i = 0; i < allAliases.length; i++) {
-      if (updatedBy == allAliases[i][0]) {
-        allAliases[i][1] = aliasImg;
-      }
-    }
-    channel.allAliases = allAliases;
-    channel.channelName = pushData[3];
-    channel.channelDescription = pushData[4];
-    channel.updatedBy = updatedBy;
-    channel.updatedAt = pushData[7];
-    console.log('channel', channel);
-    // channel.groupAliases = pushData[8];
-    // channel.displayStatus = 1
-    upsertIDB(channel, 'channel', 'channelID', channelID)
-      .catch((error) => {
-        console.error(error);
-      });
-  } catch (error) {
-    const channel = {
+  const updatedBy = pushData[3];
+  const channelName = pushData[4][0];
+  const channelDescription = pushData[4][1];
+  let channel = await fetchChannel(channelID);
+  if (channel) {
+    channel.channelName = channelName;
+    channel.myname = updatedBy;
+    channel.channelDescription = channelDescription;    
+  } else {
+    channel = {
       channelID: channelID,
-      channelName: pushData[3],
-      channelDescription: pushData[4],
-      updatedBy: updatedBy,
-      updatedAt: pushData[7],
-      displayStatus: 1,
-      aliasName: updatedBy,
-      allAliases: [[updatedBy, aliasImg, localStorage.userID]]
-    };
-    upsertIDB(channel, 'channel', 'channelID', channelID)
-      .catch((error) => {
-        console.error(error);
-      });
+      myname: updatedBy,
+      channelName: channelName,
+      channelDescription: channelDescription
+    }
   }
+  const editLogs = channel.editLogs ?? [];
+  const editLog = {
+    updatedBy: updatedBy,
+    updatedAt: timeFormat()
+  }
+  editLogs.push(editLog);
+  channel.editLogs = editLogs;
+  upsertIDB(channel, 'channel', 'channelID', channel.channelID)
+    .catch((error) => {
+      console.error(error);
+    });
 }
 

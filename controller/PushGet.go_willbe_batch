@@ -26,7 +26,7 @@ func PushGet(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  var push collection.WindowStruct
+  var push interface{}
 	coll := db1.Collection("push")
 	filter := bson.M{"_id": r.FormValue("pushID")}
 	err = coll.FindOne(context.TODO(), filter).Decode(&push)

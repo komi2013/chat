@@ -75,12 +75,12 @@ const router = createRouter({
       })
     },
     {
-      path: '/profile/:id/:name/:code?/',
+      path: '/profile/:id/:name?/',
       component: () => import('../views/Profile.vue'),
       props: route => ({
         id: route.params.id,
         name: route.params.name,
-        code: route.params.code
+        code: route.query.code
       }),
     },
     {

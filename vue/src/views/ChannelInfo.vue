@@ -1,185 +1,124 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onBeforeMount, onMounted } from 'vue'
 import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
+
 import DrawerColumn from '../components/DrawerColumn.vue'
+import PeopleImg from '../components/PeopleImg.vue'
 import { markdownToHtml, htmlToMarkdown } from '../my/markdown.js';
+import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
   id: '',
 })
 
-let aliass;
-const aliasName = ref(null);
-const aliasImg = ref(null);
-
 const channel = ref({
   channelDescription: '',
   channelName: ''
 });
-
+const myname = ref([]);
+const myimg = ref([]);
 const channels = ref(null);
+const aliases = ref([]);
 async function fetchAllChannel() {
   try {
     channels.value = await getAllIDBs('channel');
   } catch (error) {
-    channels.value = [];
+    console.warn('all channel:', error);
   }
 }
 
-async function fetchChannel() {
-  if (props.id) {
-    try {
-      channel.value = await getIDB('channel', props.id);
-      aliasName.value = channel.value.aliasName;
-      for (let i = 0; i < channel.value.allAliases.length; i++) {
-        if (channel.value.allAliases[i][0] == channel.value.aliasName) {
-          aliasImg.value = channel.value.allAliases[i][1];
-          console.log(aliasImg.value);
-          if (aliasImg.value.charAt(0) === ',') {
-              const parts = aliasImg.value.split(',');
-              selectedEmoji.value = parts[1];
-              selectedColor.value = parts[2];
-          } else {
-            emojiImg.value = false;
-          }
-        }
-      }
-    } catch (error) {
-      console.error(error);
-      channel.value = null;
-    }    
-  }
-}
-
-const attach = () => {
-  const fileInput = document.getElementById('fileInput');
-  if (fileInput) {
-    fileInput.click();
-  }
-  fileInput.addEventListener('change', handleFileInputChange);
-};
-const fileInfo = ref({});
-console.log(fileInfo.value);
-const handleFileInputChange = (event) => {
-  const files = event.target.files;
-  const newFileInfo = document.createElement('div');
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const fileContainer = document.createElement('div');
-    if (file.type.startsWith('image/')) {
-      const image = document.createElement('img');
-      image.src = URL.createObjectURL(file);
-      image.style.maxWidth = '50px';
-      image.style.maxHeight = '50px';
-      fileContainer.appendChild(image);
-    } else {
-      const fileName = document.createTextNode(file.name);
-      fileContainer.appendChild(fileName);
-    }
-    newFileInfo.appendChild(fileContainer);
-  }
-  
-  fileInfo.value = newFileInfo.outerHTML;
-};
-
-let clicked = false;
-const channelPost = () => {
-  if (clicked) {
+const channelPost = async () => {
+  if (!confirm("実行▶️")) {
     return;
   }
-  clicked = true;
+  if (props.id) { // edit
+    channelEdit();
+  } else {
+    channelAdd();
+  }
+}
+
+async function channelEdit () {
   const fd = new FormData();
   fd.append('channelID', props.id);
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('pushTitle', 'channelEdit');
+  let userIDs = userIDsByName(aliases.value);
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
+  const contents = [
+    channel.value.channelName,
+    htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
+  ];
+  fd.append('contents', JSON.stringify(contents));
+  sendRequest('/ContentsPush/', fd);
+}
+
+async function channelAdd () {
+  const fd = new FormData();
   fd.append('channelName', channel.value.channelName);
-  fd.append('description', htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, '')));
-  fd.append('aliasName', aliasName.value);
-  registerCombination();
-  fd.append('aliasImg', aliasImg.value);
-  let userIDS = [];
-  if (channel.value.allAliases) {
-    channel.value.allAliases.forEach(item => {
-      userIDS.push(item[2]);
-    });    
-  }
-
-  fd.append('userIDs', JSON.stringify(userIDS));
-  const fileInput = document.getElementById('fileInput');
-  if (fileInput && fileInput.files.length > 10) {
-    alert('too many files');
-    return;
-  }
-  if (fileInput && fileInput.files.length > 0) {
-    for (const file of fileInput.files) {
-      fd.append('files[]', file);
-    }
-  }
-
-  const request = new Request('/ChannelEdit/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .then(function(response) {
-      clicked = false;
-    })
-    .catch((reason)=>{
-      alert(reason)
-    })
+  fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
+  fd.append('myname', myname.value);
+  fd.append('myimg', myimg.value);
+  const res = await sendRequest('/ChannelAdd/', fd);
+  // location.href = res.channelID;
 }
 
 const invitationCode = ref('');
 const invitationQR = ref('');
+const mention = ref(true);
 const invite = async () => {
-  console.log(channel.value.allAliases);
+  console.log(aliases.value);
+  if (!confirm("実行▶️")) {
+    return;
+  }
   const fd = new FormData();
   fd.append('channelID', props.id);
-  fd.append('aliasName', aliasName.value);
-  fd.append('channel', JSON.stringify(channel.value));
-  const userIDs = channel.value.allAliases.map(entry => entry[2]);
-  fd.append('userIDs', JSON.stringify(userIDs));
-  try {
-    const response = await fetch('/ChannelInvite/', {
-      method: 'POST',
-      body: fd,
-    });
-    const json = await response.json();
-    invitationCode.value = `${window.location.origin}/communityJoin/${props.id}//${json[0]}/`;
-    invitationQR.value = await QRCode.toDataURL(invitationCode.value);
-  } catch (error) {
-    console.error(error);
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('channelName', channel.value.channelName);
+  fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
+  fd.append('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
+  if (!mention.value) {
+    fd.append('noRightMention', 1);
   }
+  const res = await sendRequest('/ChannelInvite/', fd);
+  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res[0]}`;
+  invitationQR.value = await QRCode.toDataURL(invitationCode.value);
 };
 
-let quill;
-onMounted(() => {
-  quill = new Quill('#description', {
+const quill = ref(null);
+function initQuill() {
+  quill.value = new Quill('#description', {
     modules: {
       toolbar: '#toolbar',
     },
     theme: 'snow'
   });
-  fetchChannel().then(() => {
-    quill.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
-  });
-  // setRandomDefaults();
-  fetchAllChannel();
+  quill.value.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
+}
+
+onMounted(async () => {
+  await fetchAllChannel();
+  aliases.value = await fetchAliases(props.id);
+  // groups.value = await fetchGroups(props.id);
+  if (props.id) {
+    channel.value = channels.value.find(d => d.channelID === props.id);
+  }
+  initQuill();
 });
 
 </script>
-
-
 
 <template>
 <DrawerColumn />
 
 <div id="content">
-
 <br><br>
 
-<div class="form-container">
-  <input type="text" v-model="channel.channelName" placeholder="グループ名" class="name">
+<div>
+  <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
     <button class="ql-strike"></button>
@@ -191,31 +130,37 @@ onMounted(() => {
       <option value=""></option>
     </select>
   </div>
-  <div id="description" markdownToHtml></div>
-  <div v-if="props.id">{{aliasName}}</div>
-  <div v-else>
-    <div>名前の変更はできません</div>
-    <input type="text" v-model="aliasName" placeholder="グループ内の名前" class="myname">
-  </div>
+  <div id="description" ></div><br>
+  <template v-if="!props.id">
+    <input type="text" v-model="myname" placeholder="このチャネルのニックネーム" class="inputText">
+    <PeopleImg v-model="myimg" />
+  </template>
 
-  <button @click="channelPost">▶️</button><br>
-  <button @click="invite"> <span>✉️</span> <span>招待URL</span> </button>
-  <div> {{invitationCode}} </div>
-  <div> <img :src="invitationQR"></div>
-  <div> <a :href="'/groupAlias/' + props.id + '/'">
-    <button> グループアカウント作成・編集 </button>
+  <button @click="channelPost" class="postButton">▶️</button><br>
+  <div v-if="props.id">
+    <button @click="invite" class="postButton"> <span>✉️</span> <span>招待URL</span> </button>
+    <div class="optionRight">
+      <input type="checkbox" id="mention" v-model="mention" />
+      <label for="mention">メンション権限</label>
+    </div>
+    <div> <a :href="invitationCode"> {{invitationCode}} </a> </div>
+    <div> <img :src="invitationQR"></div>    
+  </div>
+  <div v-if="props.id"> <a :href="'/groupAlias/' + props.id + '/'">
+    グループアカウント作成・編集 
   </a> </div>
 </div>
-<input type="file" style="position: fixed; left: -300px;" multiple id="fileInput">
 
+<h3>全てのチャネルチーム一覧</h3>
 <ul v-if="channels">
-  <li>全てのチャネルチーム一覧</li>
-  <li v-for="d in channels" :key="d.channelID" class="channel_menu">
-    <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
+  <li v-for="d in channels" :key="d.channelID">
+    <a :href="'/channelInfo/' + d.channelID + '/'">{{ d.channelName }}</a>
   </li>
+  <li><a href="/channelInfo/">新規チャネル作成</a></li>
 </ul>
 
 </div>
+<!-- <div v-if="!fetched"> <br><br> Loading... or Something Went </div> -->
 </template>
 
 <style>
@@ -228,7 +173,7 @@ onMounted(() => {
   padding-top: 0px;
 }
 
-.myname {
+.inputText {
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
@@ -237,7 +182,7 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-button {
+.postButton {
   display: block;
   width: 100%;
   padding: 10px;
@@ -249,9 +194,12 @@ button {
   transition: background-color 0.3s;
 }
 
-button:hover {
+.postButton:hover {
   background-color: #0056b3;
 }
 
+.optionRight {
+  padding: 4px;
+}
 </style>
 

@@ -7,14 +7,14 @@ import (
   "log"
   "net/http"
   "time"
-	"unicode/utf8"
+	// "unicode/utf8"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
-  webpush "github.com/SherClockHolmes/webpush-go"
+  // webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
   "chat/common"
@@ -22,9 +22,20 @@ import (
 )
 
 func ContentsPush(w http.ResponseWriter, r *http.Request) {
-  session, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Unauthorized: Session expired or login required", http.StatusUnauthorized)
+	var userIDs []string
+  if err := json.Unmarshal([]byte(r.FormValue("userIDs")), &userIDs); err != nil {
+  	log.Printf("userIDs: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON userIDs", http.StatusBadRequest)
+    return
+  }
+
+  updatedBy := r.FormValue("updatedBy")
+  channelID := r.FormValue("channelID")
+
+  var contents interface{}
+  if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); err != nil {
+  	log.Printf("contents: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON contents", http.StatusBadRequest)
     return
   }
 
@@ -32,33 +43,29 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  aliasName := r.FormValue("aliasName")
-  channelID := r.FormValue("channelID")
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
 
   trueAccess := false
-  for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName && arrayData[1] == channelID {
+  for _, d := range session.AliasChannels {
+    if d.Alias == updatedBy && d.ChannelID == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    log.Printf("AliasChannels !trueAccess: %v; Req: ", session.AliasChannels, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
 
-  jsonBytes := []byte(r.FormValue("userIDs"))
-  userIDs := []string{}
-  json.Unmarshal(jsonBytes, &userIDs)
-
-  jsonBytes = []byte(r.FormValue("contents"))
-  var contents interface{}
-  json.Unmarshal(jsonBytes, &contents)
-  fmt.Println("contents:", contents)
   coll := db1.Collection("session")
   filter := bson.D{{
     "user_id", bson.D{{"$in", userIDs}}}}
@@ -66,107 +73,19 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
   if err != nil {
-    fmt.Printf(" err %s\n", err)
+    log.Printf("Find session : %v; Req: ", err, userIDs, r.URL.Path, r.Form)
   }
-  var results4 []collection.SessionStruct
-  if err = cursor.All(context.TODO(), &results4); err != nil {
-    fmt.Printf(" err %s\n", err)
+  var sessions []collection.SessionStruct
+  if err = cursor.All(context.TODO(), &sessions); err != nil {
+    log.Printf("All session : %v; Req: ", err, userIDs, r.URL.Path, r.Form)
   }
 
   var arr []interface{}
   arr = append(arr, r.FormValue("pushTitle"))
   arr = append(arr, channelID)
-  arr = append(arr, aliasName)
+  arr = append(arr, updatedBy)
   arr = append(arr, contents)
-  jsonData, err := json.Marshal(arr)
-  if err != nil {
-    fmt.Println("JSON変換エラー:", err)
-  }
-  chunk := false
-  var chunks []string
-	if len(jsonData) > 2000 {
-	  // fmt.Println("JSON data exceeds 2000 bytes")
-	  chunk = true
-	  chunks = splitIntoByteChunks(string(jsonData), 2000 / utf8.UTFMax)
-	} else {
-		chunks = []string{"no chunk"}
-	}
-	chunkLength := len(chunks)
-	chunkPass := common.StringRand(2)
-	for chIndex, ch := range chunks {
-	  for _, r4 := range results4 {
-	    pushID := common.StringRand(12)
-	    var arrForJson []interface{}
-	    if chunk {
-	    	arrForJson = append(arrForJson, pushID)
-			  arrForJson = append(arrForJson, "chunk")
-			  // arr = append(arr, channelID)
-			  // arr = append(arr, aliasName)
-			  arrForJson = append(arrForJson, ch)
-			  arrForJson = append(arrForJson, chunkPass)
-			  arrForJson = append(arrForJson, chIndex)
-			  arrForJson = append(arrForJson, chunkLength)
-	    } else {
-		    arrForJson = append([]interface{}{pushID}, arr...)
-	    }
-
-	    jsonD, err := json.Marshal(arrForJson)
-	    if err != nil {
-	      fmt.Println("JSON変換エラー:", err)
-	    }
-	    coll = db1.Collection("push")
-	    document := bson.M{
-	      "_id": pushID,
-	      "pushJson": string(jsonD),
-	      "created_at": time.Now().Format("2006-01-02 15:04:05"),
-	    }
-	    _, err = coll.InsertOne(context.TODO(), document)
-	    if err != nil {
-	        fmt.Printf("err %s\n", err)
-	    }
-	    cursor.Decode(&r4)
-	    webpushSub := &webpush.Subscription{}
-	    json.Unmarshal([]byte(r4.Subscription), webpushSub)
-
-	    // Send Notification
-	    resp, err := webpush.SendNotification([]byte(string(jsonD)), webpushSub, &webpush.Options{
-	      Subscriber:      "example@example.com",
-	      VAPIDPublicKey:  common.VAPIDPublicKey,
-	      VAPIDPrivateKey: common.VAPIDPrivateKey,
-	      TTL:             30,
-	    })
-	    if err != nil {
-	      // TODO: Handle error
-	      fmt.Printf(" err %s\n", err)
-	    }
-	    defer resp.Body.Close()
-	  }
-	}
-
+	common.ChunkPush(sessions, db1, r, arr)
   fmt.Fprint(w, `{"Status":"1"}`)
-}
-
-func splitIntoByteChunks(data string, maxBytes int) []string {
-	var chunks []string
-	var currentChunk string
-	currentBytes := 0
-
-	for _, r := range data {
-		runeBytes := utf8.RuneLen(r) // Get the byte length of the current rune
-		if currentBytes+runeBytes > maxBytes {
-			chunks = append(chunks, currentChunk)
-			currentChunk = ""
-			currentBytes = 0
-		}
-		currentChunk += string(r)
-		currentBytes += runeBytes
-	}
-
-	// Append the last chunk if any
-	if currentChunk != "" {
-		chunks = append(chunks, currentChunk)
-	}
-
-	return chunks
 }
 

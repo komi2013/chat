@@ -1,3 +1,4 @@
+import { alias } from './alias.js';
 import { bookmark } from './bookmark.js';
 import { bookPattern } from './bookPattern.js';
 import { calendar } from './calendar.js';
@@ -7,7 +8,6 @@ import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
 import { groupAliasEdit } from './groupAliasEdit.js';
 import { receptionOrder } from './receptionOrder.js';
-import { rookie } from './rookie.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { storePush } from './storePush.js';
 import { storeSelect } from './storeSelect.js';
@@ -23,6 +23,7 @@ export function pushReceive(notificationData) {
   const data = JSON.parse(notificationData);
 
   const actions = {
+    alias: alias,
     bookmark: bookmark,
     bookPattern: bookPattern,
     calendar: calendar,
@@ -33,7 +34,6 @@ export function pushReceive(notificationData) {
     emoji: emoji,
     groupAliasEdit: groupAliasEdit,
     receptionOrder: receptionOrder,
-    rookie: rookie,
     shiftStaffEdit: shiftStaffEdit,
     storePush: storePush,
     storeSelect: storeSelect,

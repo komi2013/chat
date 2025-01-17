@@ -1,0 +1,119 @@
+package controller
+
+import (
+  "context"
+  // "encoding/base64"
+  // "encoding/json"
+  "fmt"
+  // "io/ioutil"
+  "log"
+  "net/http"
+  // "os"
+  // "strings"
+  "time"
+
+  "go.mongodb.org/mongo-driver/mongo"
+  "go.mongodb.org/mongo-driver/bson"
+  "go.mongodb.org/mongo-driver/mongo/options"
+
+  // "go.mongodb.org/mongo-driver/bson/primitive"
+
+  // webpush "github.com/SherClockHolmes/webpush-go"
+
+  "chat/collection"
+  "chat/common"
+)
+
+func ChannelJoin (w http.ResponseWriter, r *http.Request) {
+
+  channelID := r.FormValue("channelID")
+  myname := r.FormValue("myname")
+  myimg := r.FormValue("myimg")
+  code := r.FormValue("code")
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  if err != nil {
+    log.Print(err)
+  }
+  defer c.Disconnect(ctx)
+  db1 := c.Database(common.MongoDb1)
+
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck: %v; Request:", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
+
+	aliasImg := common.AliasImgSave(myimg, session.UserID, myname)
+
+	coll := db1.Collection("invitation")
+	filter := bson.M{"_id": code}
+	var invitation collection.InvitationStruct
+	err = coll.FindOne(context.TODO(), filter).Decode(&invitation)
+	if err != nil {
+		log.Printf("invitation FindOne: %v; Request:", err, r.URL.Path, r.Form)
+	}
+	if invitation.ChannelID != channelID {
+		log.Printf("invitation.ChannelID != channelID:; Request:", r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
+
+	coll = db1.Collection("session")
+  filter = bson.M{"user_id": session.UserID}
+	cursor, err := coll.Find(context.TODO(), filter)
+	if err != nil {
+	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
+	}
+	var mySessions []collection.SessionStruct
+	if err = cursor.All(context.TODO(), &mySessions); err != nil {
+	  log.Printf("cursor.All: %v; Req:", err, r.URL.Path, r.Form)
+	}
+
+	contents := []string{invitation.ChannelName, invitation.ChannelDescription}
+  var arr []interface{}
+  arr = append(arr, "channelEdit")
+  arr = append(arr, channelID)
+  arr = append(arr, myname)
+  arr = append(arr, contents)
+	common.ChunkPush(mySessions, db1, r, arr)
+
+  newAliasChannel := collection.AliasChannel{
+		ChannelID: channelID,
+		Alias:     myname,
+	}
+  for _, d := range mySessions {
+  	invitation.Subscriptions = append(invitation.Subscriptions, d.Subscription)
+		d.AliasChannels = append(d.AliasChannels, newAliasChannel)
+		coll := db1.Collection("session")
+		filter := bson.D{{"_id", d.SessionID}}
+		update := bson.D{{"$set", bson.D{
+			{"user_id", d.UserID},
+			{"updated_at", time.Now()},
+			{"alias_channels", d.AliasChannels},
+		}}}
+		_, err = coll.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+		}
+  }
+	contents = []string{aliasImg, session.UserID}
+  for _, subscription := range invitation.Subscriptions {
+	  pushID := common.StringRand(12)
+		var arr []interface{}
+		arr = append(arr, pushID)
+		arr = append(arr, "alias")
+		arr = append(arr, channelID)
+		arr = append(arr, myname)
+		arr = append(arr, contents)
+    resp, err := common.SendWebPushNotification(db1, arr, pushID, subscription)
+		if err != nil {
+	    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)
+		}
+		defer resp.Body.Close()
+  }
+  fmt.Fprint(w, `{"Status":"1"}`)
+}

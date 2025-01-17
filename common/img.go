@@ -5,11 +5,11 @@ import (
   "io/ioutil"
   "log"
   "os"
-  "strconv"
+  // "strconv"
   "strings"
 )
 
-func AliasImgSave(aliasImg string, channelID string, i int ) string {
+func AliasImgSave(aliasImg string, userID string, aliasName string ) string {
   imgPath := aliasImg
   if (strings.HasPrefix(aliasImg, "data:image")) {
     base64Data := strings.Split(aliasImg, ",")[1]
@@ -17,10 +17,10 @@ func AliasImgSave(aliasImg string, channelID string, i int ) string {
     if err != nil {
         log.Println(err)
     }
-    randPath := StringRand(4)
-    dirPath := "/img/group/" + channelID + "/"
+
+    dirPath := "/img/user/" + userID + "/"
     os.MkdirAll("." + dirPath, 0755)
-    imgPath = dirPath + strconv.Itoa(i) + "_" + randPath + ".png"
+    imgPath = dirPath + userID + "_" + aliasName + ".png"
     filePath := "." + imgPath
     err = ioutil.WriteFile(filePath, imageData, 0644)
     if err != nil {

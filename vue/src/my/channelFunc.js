@@ -46,16 +46,16 @@ export async function fetchChannel(channelId) {
   try {
     return await getIDB('channel', channelId);
   } catch (error) {
-    console.error('fetchChannel:', error);
+    console.log('fetchChannel:', error);
     return null;
   }
 }
 
 export async function fetchAliases(channelId) {
   try {
-    return await getIDBs('alias', 'channelIDIndex', channelId);
+    return await getIDBs('alias', 'channelIDIndex', channelId, 1000000);
   } catch (error) {
-    console.error('fetchAliases:', error);
+    console.log('fetchAliases:', error);
     return [];
   }
 }
@@ -79,13 +79,16 @@ export async function fetchGroups(channelId) {
 //   return [...new Set(userIDs)];
 // }
 
-export function userIDsByName(channel, aliases, names = null) {
+export function userIDsByName(aliases, names = []) {
   let userIDs = [];
   for (const d of aliases) {
-    if (names.includes(d.aliasName)) {
+    if (Array.isArray(names) && names.includes(d.aliasName)) {
+      userIDs.push(d.userID);
+    } else {
       userIDs.push(d.userID);
     }
   }
+  console.log(userIDs);
   return [...new Set(userIDs)];
 }
 

@@ -75,7 +75,6 @@ func SplitIntoByteChunks(data string, maxBytes int) []string {
 	var chunks []string
 	var currentChunk string
 	currentBytes := 0
-
 	for _, r := range data {
 		runeBytes := utf8.RuneLen(r) // Get the byte length of the current rune
 		if currentBytes+runeBytes > maxBytes {
@@ -86,12 +85,9 @@ func SplitIntoByteChunks(data string, maxBytes int) []string {
 		currentChunk += string(r)
 		currentBytes += runeBytes
 	}
-
-	// Append the last chunk if any
 	if currentChunk != "" {
 		chunks = append(chunks, currentChunk)
 	}
-
 	return chunks
 }
 
