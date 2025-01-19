@@ -25,12 +25,12 @@ onBeforeMount(async () => {
   channel.value = await fetchChannel(props.channel_id);
   aliases.value = await fetchAliases(props.channel_id);
   groups.value = await fetchGroups(props.channel_id);
+  await fetchThreadHead();
   readStatus();
   const content = document.getElementById('content');
   content.scrollTop = content.scrollHeight;
   window.scrollTo(0, content.scrollHeight);
 });
-
 
 const message = ref('');
 let threadHead = ref('');
@@ -50,9 +50,10 @@ const msg = {
 async function fetchThreadHead() {
   try {
     const data = await getIDB('threadHead', props.channel_id + props.message_id);
-    if (data.aliasName == channel.value.aliasName) {
+    if (data.aliasName == channel.value.myname) {
       data.edit = true;
     }
+    console.log('data', data);
     threadHead.value = data;
     let message = {};
     message.messageID = data.parentID;
@@ -64,30 +65,22 @@ async function fetchThreadHead() {
     message.emojis = data.emojis;
     messagesStore.insert(message);
   } catch (error) {
+    console.log('error', error);
     if (props.message_id.includes('@')) {
       const parts = props.message_id.split('@');
-      const toWhom = parts[0] === channel.value.aliasName ? parts[1] : parts[0];
+      const toWhom = parts[0] === channel.value.myname ? parts[1] : parts[0];
       const threadHeadValue = {
         channelID: channel.value.channelID,
         parentID: props.message_id,
         title: getSubstring(toWhom, 0, 12),
         messageTxt: toWhom,
-        aliasName: channel.value.aliasName,
+        aliasName: channel.value.myname,
         aliasImg: channel.value.aliasImg,
         threadType: 1,
         aliasNames: parts,
         displayStatus: 0
       }
       threadHead.value = threadHeadValue;
-    // } else if (getParam('backID')) {
-    //   const message = await getIDB('thread', props.message_id);
-    //   threadHead.value = message;
-    //   threadHead.value.parentID = props.message_id;
-    //   threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
-    //   threadHead.value.messageTxt = message.messageTxt;
-    //   threadHead.value.backID = getParam('backID');
-    //   threadHead.value.threadType = 0;
-    //   messagesStore.insert(message);
     } else {
       try {
         const message = await getIDB('thread', props.message_id);
@@ -99,6 +92,7 @@ async function fetchThreadHead() {
         if (getParam('backID')) {
           threadHead.value.backID = getParam('backID');
         }
+        console.log('message', message);
         messagesStore.insert(message);
       } catch (error) {
         console.log('new thread', error);

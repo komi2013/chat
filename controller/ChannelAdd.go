@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   // "io"
   "log"
   "net/http"
@@ -32,19 +32,19 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
 	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheck: %v; Request: %v", err, r.Form)
+		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
   channelID := common.StringRand(4)
-	aliasImg := common.AliasImgSave(myimg, session.UserID, myname)
+	aliasImg := common.ImgSave(myimg, session.UserID, myname, db1)
   var userIDs = []string{}
   userIDs = append(userIDs, session.UserID)
 
@@ -55,30 +55,22 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	opts4 := options.Find().SetProjection(project)
 	cursor, err := coll.Find(context.TODO(), filter, opts4)
 	if err != nil {
-	    fmt.Printf("err %s\n", err)
+	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
 	}
 	var sessions []collection.SessionStruct
 	if err = cursor.All(context.TODO(), &sessions); err != nil {
-	    fmt.Printf("err %s\n", err)
+	  log.Printf("cursor.All: %v; Req:", err, r.URL.Path, r.Form)
 	}
 	contents := []string{channelName, channelDescription}
-  for _, d := range sessions { // go to channelEdit
-	  pushID := common.StringRand(12)
-		var arr []interface{}
-		arr = append(arr, pushID)
-		arr = append(arr, "channelEdit")
-		arr = append(arr, channelID)
-		arr = append(arr, myname)
-		arr = append(arr, contents)
-    cursor.Decode(&d)
-    resp, err := common.SendWebPushNotification(db1, arr, pushID, d.Subscription)
-		if err != nil {
-	    fmt.Printf(" err %s\n", err)
-		}
-		defer resp.Body.Close()
-  }
-  contents = []string{aliasImg, session.UserID}
-  newAliasChannel := collection.AliasChannel{
+  var arr []interface{}
+  arr = append(arr, "channelEdit")
+  arr = append(arr, channelID)
+  arr = append(arr, myname)
+  arr = append(arr, contents)
+	common.ChunkPush(sessions, db1, r, arr)
+
+  contents = []string{session.UserID, ""}
+  newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
 	}
@@ -90,25 +82,21 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, channelID)
 		arr = append(arr, myname)
 		arr = append(arr, contents)
-		cursor.Decode(&d)
+		arr = append(arr, aliasImg)
+		// cursor.Decode(&d)
     resp, err := common.SendWebPushNotification(db1, arr, pushID, d.Subscription)
 		if err != nil {
-	    fmt.Printf(" err %s\n", err)
+	    log.Printf("resp SendWebPushNotification: %v; Req:", err, r.URL.Path, r.Form)
 		}
 		defer resp.Body.Close()
-		log.Printf("d: %v", d)
-		d.AliasChannels = append(d.AliasChannels, newAliasChannel)
+		d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
+		d.UpdatedAt = time.Now()
 		coll := db1.Collection("session")
 		filter := bson.D{{"_id", d.SessionID}}
-		update := bson.D{{"$set", bson.D{
-			{"user_id", d.UserID},
-			{"updated_at", time.Now()},
-			{"alias_channels", d.AliasChannels},
-		}}}
-		// opts := options.Update().SetUpsert(true)
+		update := bson.D{{"$set", d}}
 		_, err = coll.UpdateOne(context.TODO(), filter, update)
 		if err != nil {
-		    fmt.Printf("UpdateOne %s\n", err)
+		  log.Printf("coll.UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
   }
   response := map[string]string{"channelID": channelID}

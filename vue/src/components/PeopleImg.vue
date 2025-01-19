@@ -29,12 +29,15 @@
         type="color" 
         v-model="selectedColor" 
         class="emoji-input"
+        @change="validateEmoji"
       />
       <br>
       <span v-if="emojiValidErr" class="emoji-valid-err">絵文字か1文字にしてください</span>
     </div>
     <div class="emojiDisplay">
-      <span class="new-alias-img" :style="'background-color:' + selectedColor ">{{selectedEmoji}}</span>
+      <span class="people-img" :style="'background-color:' + selectedColor ">
+        <span>{{selectedEmoji}}</span>
+      </span>
     </div>
   </div>
   <div v-if="!emojiImg">
@@ -55,6 +58,7 @@ const props = defineProps({
   editable: Boolean
 });
 
+const emojiImg = ref(!props.modelValue || props.modelValue.charAt(0) == ',');
 
 const fileInputRef = ref(null);
 function triggerFileInput() {
@@ -120,6 +124,7 @@ function getAliasImg() {
 const selectedEmoji = ref(getRandomEmoji());
 const selectedColor = ref(getRandomColor());
 const aliasImg = ref(getAliasImg());
+emit("update:modelValue", aliasImg.value);
 
 const isEmojiInRange = (input) => {
   const codePoint = input.codePointAt(0);
@@ -138,25 +143,23 @@ const validateEmoji = () => {
   emit("update:modelValue", aliasImg.value);
 };
 
-const emojiImg = ref(true);
-
-// const toggleEmojiImg = () => {
-//   if (emojiImg.value) {
-//     emojiImg.value = false;
-//   } else {
-//     emojiImg.value = true;
-//   }
-// };
-
 </script>
 
 <style>
 
-.new-alias-img {
-  max-width: 50px;
-  max-height: 50px;
+.people-img {
+  width: 38px;
+  height: 38px;
   vertical-align: middle;
-  font-size: 30px;
+  font-size: 20px;
+  display: inline-table;
+  text-align: center;
+  border-radius: 5px;
+}
+
+.people-img span {
+  margin-top: 4px;
+  display: inline-block;
 }
 
 .toggleEmoji {
@@ -177,7 +180,7 @@ const emojiImg = ref(true);
   width: 40px;
   height: 40px;
   margin: 6px;
-  font-size: 18px;
+  font-size: 20px;
   text-align: center;
   border: 1px solid #ccc;
   border-radius: 4px;

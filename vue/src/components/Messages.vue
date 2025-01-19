@@ -129,7 +129,6 @@ function tF(a, b = null){ return timeFormat(a, b) }
 
 </script>
 
-
 <template>
   <div class="messages" >
     <div v-if="more" @click="moreMessages" class="more"> - - more - - </div>
@@ -137,7 +136,12 @@ function tF(a, b = null){ return timeFormat(a, b) }
     <table v-if="!more || k > 0">
       <tr>
         <td rowspan="2" class="icon_td">
-          <img v-if="message.aliasImg" :src="message.aliasImg" class="icon">
+          <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
+            :src="message.aliasImg" class="icon">
+          <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
+            class="icon" 
+            :style="'background-color:' + message.aliasImg.split(',')[2] ">
+            {{message.aliasImg.split(',')[1]}}</span>
         </td>
         <td>
           <span class="aliasName">{{ message.aliasName }}</span>

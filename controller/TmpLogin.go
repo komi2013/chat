@@ -73,7 +73,7 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
     session := collection.SessionStruct{
       SessionID: sessionID,
       UserID: userID,
-      AliasChannels: ssAlready.AliasChannels,
+      ChannelAliases: ssAlready.ChannelAliases,
       CreatedAt: time.Now(),
     }
     _, err := coll.InsertOne(context.TODO(), session)

@@ -24,32 +24,33 @@ import (
 )
 
 func ThreadPost(w http.ResponseWriter, r *http.Request) {
-	session, err := common.Session(w,r)
-	if err != nil {
-  	http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-    return
-	}
+  postedBy := r.FormValue("postedBy")
+  channelID := r.FormValue("channelID")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  aliasName := r.FormValue("aliasName")
-  channelID := r.FormValue("channelID")
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
 
   trueAccess := false
-  for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName && arrayData[1] == channelID {
+  for _, d := range session.ChannelAliases {
+    if d.Alias == postedBy && d.ChannelID == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, postedBy, channelID, r.URL.Path, r.Form)
     return
   }
 
@@ -118,7 +119,7 @@ func ThreadPost(w http.ResponseWriter, r *http.Request) {
 	  arr = append(arr, messageID)
 	  arr = append(arr, r.FormValue("parentID"))
 	  arr = append(arr, r.FormValue("messageTxt") + fileLinks)
-	  arr = append(arr, aliasName)
+	  arr = append(arr, postedBy)
 	  arr = append(arr, r.FormValue("aliasImg"))
 	  arr = append(arr, r.FormValue("type"))
 	  arr = append(arr, names)

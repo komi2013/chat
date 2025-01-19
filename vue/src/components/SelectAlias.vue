@@ -9,12 +9,27 @@
     /><br>
     <ul v-if="filteredResults.length > 0" class="dropdown-menu">
       <li v-for="item in filteredResults" :key="item.id" @click="addToSelection(item)">
-        <img v-if="item.image && item.image !== 'null'" :src="item.image" alt="icon" width="50" />
+<!--         <img v-if="item.image && item.image !== 'null'" :src="item.image" class="icon" />
+ -->
+        <img v-if="item.image && item.image.charAt(0) != ','" 
+          :src="item.image" class="people-img">
+        <span v-if="item.image && item.image.charAt(0) == ','"
+          class="people-img" 
+          :style="'background-color:' + item.image.split(',')[2] ">
+            <span>{{item.image.split(',')[1]}}</span>
+        </span>
+
         <span>{{ item.name }}</span>
       </li>
     </ul>
     <div v-for="item in selectedAlias" :key="item.id" class="selected-item">
-      <img v-if="item.image && item.image !== 'null'" :src="item.image"/>
+      <img v-if="item.image && item.image.charAt(0) != ','" 
+        :src="item.image" class="people-img">
+      <span v-if="item.image && item.image.charAt(0) == ','"
+        class="people-img" 
+        :style="'background-color:' + item.image.split(',')[2] ">
+          <span>{{item.image.split(',')[1]}}</span>
+      </span>
       <span>{{ item.name }}</span>
       <button v-if="editable" @click="removeFromSelection(item)" class="remove-btn">x</button>
     </div>
@@ -29,7 +44,7 @@ const props = defineProps({
   modelValue: Array,
   editable: Boolean
 });
-console.log('modelValue', props.modelValue);
+
 const emit = defineEmits(["update:modelValue"]);
 const searchTerm = ref("");
 const selectedAlias = ref([]);
@@ -83,7 +98,7 @@ const emitNames = () => {
 
 <style scoped>
 
-img {
+.icon {
   margin-right: 10px;
   max-width: 20px;
   max-height: 20px;
@@ -125,5 +140,9 @@ img {
   padding: 3px;
 }
 
+/*.user-search {
+  margin-top: 10px;
+  padding: 10px;
+}*/
 
 </style>

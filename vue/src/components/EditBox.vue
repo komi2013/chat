@@ -111,9 +111,11 @@ const msgUpsert = (messageID, delMessage) => {
   fd.append('channelID', props.channel.channelID);
   fd.append('messageID', messageID);
   fd.append('messageTxt', messageData);
-  fd.append('aliasName', props.channel.aliasName);
+  fd.append('postedBy', props.channel.myname);
+  const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
+  console.log('いいい', alias.aliasImg);
   fd.append('aliasImg', getAliasImg(props));
-  let userIDs = [localStorage.userID];
+  let userIDs = [];
   let names = [props.channel.aliasName];
   if (props.threadHead) {
     fd.append('backID', props.threadHead.backID);
@@ -126,6 +128,7 @@ const msgUpsert = (messageID, delMessage) => {
       .filter(alias => props.threadHead.aliasNames.includes(alias.aliasName))
       .map(alias => alias.userID);
   }
+  userIDs.push(localStorage.getItem("userID"));
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
       const atName = `＠＠${d[0]}・＠＠`;
@@ -179,9 +182,14 @@ const msgUpsert = (messageID, delMessage) => {
 
 function getAliasImg(props) {
   let aliasImg = null;
-  const aliasName = props.channel.aliasName;
+  const myname = props.channel.myname;
+  // props.aliases.forEach(d => {
+
+  // });
+  // const found = array1.find((element) => element > 10);
   for (let i = 0; i < props.aliases.length; i++) {
-    if (props.aliases[i].aliasName === aliasName) {
+    console.log(props.aliases[i].aliasName, '===', myname);
+    if (props.aliases[i].aliasName === myname) {
       aliasImg = props.aliases[i].aliasImg;
       break;
     }

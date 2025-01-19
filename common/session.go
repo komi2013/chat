@@ -90,3 +90,21 @@ func GenerateCSRFToken(db1 *mongo.Database, session collection.SessionStruct) (c
 	return session, err
 }
 
+func FilterSessionsByChannelID(sessions []collection.SessionStruct, channelID string) []collection.SessionStruct {
+	var filteredSessions []collection.SessionStruct
+	for _, session := range sessions {
+		var filteredAliases []collection.ChannelAlias
+		for _, alias := range session.ChannelAliases {
+			if alias.ChannelID == channelID {
+				filteredAliases = append(filteredAliases, alias)
+			}
+		}
+		if len(filteredAliases) > 0 {
+			session.ChannelAliases = filteredAliases
+			filteredSessions = append(filteredSessions, session)
+		}
+	}
+	return filteredSessions
+}
+
+

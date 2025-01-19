@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 92 );
+    const request = indexedDB.open('chat', 93 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -28,6 +28,7 @@ const openDatabase = () => {
         ['channel', 'channelID'],
         ['chunk', 'chunkID'],
         ['group', 'groupID'],
+        ['log', 'logID'],
         ['receptionOrder', 'receptionOrderID'],
         ['shiftStaff', 'shiftStaffID'],
         ['thread', 'messageID'],
@@ -87,24 +88,22 @@ async function getIDB(table, id) {
     const objectStore = transaction.objectStore(table);
     const getRequest = objectStore.get(id);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       getRequest.onsuccess = (event) => {
-        const data = event.target.result;
-        if (data) {
-          resolve(data); // データが存在する場合は解決
-        } else {
-          reject(`${table} by ${id} not found`); // データが存在しない場合は拒否
-        }
+        resolve(event.target.result);
       };
 
       getRequest.onerror = (event) => {
-        reject(`Error getting data: ${event.target.error}`);
+        console.error('Request error:', event.target.error, table, id);
+        resolve(null);
       };
     });
   } catch (error) {
-    return Promise.reject(error);
+    console.error('Unexpected error in getIDB:', error, table, id);
+    return null;
   }
 }
+
 // getIDBs('thread', 'parentIDIndex', props.message_id)
 async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc') {
   const db = await openDatabase();

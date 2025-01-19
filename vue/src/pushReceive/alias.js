@@ -9,8 +9,9 @@ export async function alias(pushData) {
   fetch(request);
   const channelID = pushData[2];
   const aliasName = pushData[3];
-  const aliasImg = pushData[4][0];
-  const userID = pushData[4][1];
+  const userID = pushData[4][0];
+  const bio = pushData[4][1];
+  const aliasImg = pushData[5];
 
   const alias = {
     aliasID: channelID + aliasName, // should not? be userID for unique per
@@ -18,8 +19,8 @@ export async function alias(pushData) {
     aliasName: aliasName,
     aliasImg: aliasImg,
     userID: userID,
+    bio: bio,
   }
-  console.log(alias);
   upsertIDB(alias, 'alias', 'aliasID', alias.aliasID)
     .catch((error) => {
       console.error(error);

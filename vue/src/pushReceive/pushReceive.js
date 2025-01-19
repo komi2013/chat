@@ -6,7 +6,7 @@ import { channelEdit } from './channelEdit.js';
 import { channelJoin } from './channelJoin.js';
 import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
-import { groupAliasEdit } from './groupAliasEdit.js';
+import { group } from './group.js';
 import { receptionOrder } from './receptionOrder.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { storePush } from './storePush.js';
@@ -32,7 +32,7 @@ export function pushReceive(notificationData) {
     channelJoin: channelJoin,
     chunk: chunk,
     emoji: emoji,
-    groupAliasEdit: groupAliasEdit,
+    group: group,
     receptionOrder: receptionOrder,
     shiftStaffEdit: shiftStaffEdit,
     storePush: storePush,

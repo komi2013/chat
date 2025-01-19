@@ -35,29 +35,29 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
 	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheck: %v; Request:", err, r.URL.Path, r.Form)
+		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
 
-	aliasImg := common.AliasImgSave(myimg, session.UserID, myname)
+	aliasImg := common.ImgSave(myimg, session.UserID, myname, db1)
 
 	coll := db1.Collection("invitation")
 	filter := bson.M{"_id": code}
 	var invitation collection.InvitationStruct
 	err = coll.FindOne(context.TODO(), filter).Decode(&invitation)
 	if err != nil {
-		log.Printf("invitation FindOne: %v; Request:", err, r.URL.Path, r.Form)
+		log.Printf("invitation FindOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
 	if invitation.ChannelID != channelID {
-		log.Printf("invitation.ChannelID != channelID:; Request:", r.URL.Path, r.Form)
+		log.Printf("invitation.ChannelID != channelID:; Req:", r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
@@ -81,26 +81,23 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   arr = append(arr, contents)
 	common.ChunkPush(mySessions, db1, r, arr)
 
-  newAliasChannel := collection.AliasChannel{
+  newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
 	}
   for _, d := range mySessions {
   	invitation.Subscriptions = append(invitation.Subscriptions, d.Subscription)
-		d.AliasChannels = append(d.AliasChannels, newAliasChannel)
+		d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
+		d.UpdatedAt = time.Now()
 		coll := db1.Collection("session")
 		filter := bson.D{{"_id", d.SessionID}}
-		update := bson.D{{"$set", bson.D{
-			{"user_id", d.UserID},
-			{"updated_at", time.Now()},
-			{"alias_channels", d.AliasChannels},
-		}}}
+		update := bson.D{{"$set", d}}
 		_, err = coll.UpdateOne(context.TODO(), filter, update)
 		if err != nil {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
   }
-	contents = []string{aliasImg, session.UserID}
+	contents = []string{session.UserID, ""}
   for _, subscription := range invitation.Subscriptions {
 	  pushID := common.StringRand(12)
 		var arr []interface{}
@@ -109,6 +106,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, channelID)
 		arr = append(arr, myname)
 		arr = append(arr, contents)
+		arr = append(arr, aliasImg)
     resp, err := common.SendWebPushNotification(db1, arr, pushID, subscription)
 		if err != nil {
 	    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)

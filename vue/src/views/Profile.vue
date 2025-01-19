@@ -59,11 +59,10 @@ function editAlias() {
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'alias');
   fd.append('userIDs', JSON.stringify(userIDsByName(aliases)));
-  const contents = [
-    aliasImg.value,
-    alias.value.userID
-  ];
+  const contents = [alias.value.userID, alias.value.bio];
   fd.append('contents', JSON.stringify(contents));
+  // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
+  fd.append('imgPath', aliasImg.value);
   sendRequest('/ContentsPush/', fd);
 }
 
@@ -86,11 +85,12 @@ async function join () {
   <div class="join">
     <template v-if="!isEditable">
       <img v-if="aliasImg && aliasImg.charAt(0) != ','" 
-        :src="aliasImg" class="new-alias-img">
+        :src="aliasImg" class="people-img">
       <span v-if="aliasImg && aliasImg.charAt(0) == ','"
-        class="new-alias-img" 
+        class="people-img" 
         :style="'background-color:' + aliasImg.split(',')[2] ">
-        {{aliasImg.split(',')[1]}}</span>
+          <span>{{aliasImg.split(',')[1]}}</span>
+      </span>
     </template>
 
     <input v-if="props.code" type="text" v-model="aliasName" placeholder="このチャネルのニックネーム" class="aliasName">
@@ -147,7 +147,7 @@ button:hover {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 5px;
-  cursor: pointer;
+  text-align: left;
   white-space: pre-wrap; /* 改行を反映 */
 }
 

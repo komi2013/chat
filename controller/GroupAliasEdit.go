@@ -49,7 +49,7 @@ func GroupAliasEdit(w http.ResponseWriter, r *http.Request) {
   json.Unmarshal(jsonBytes, &groupAliases)
 
   for i := range groupAliases {
-    groupAliases[i][1] = common.AliasImgSave(groupAliases[i][1].(string), r.FormValue("channelID"), "hii")
+    groupAliases[i][1] = common.ImgSave(groupAliases[i][1].(string), r.FormValue("channelID"), "hii", db1)
   }
 
   jsonBytes = []byte(r.FormValue("userIDs"))

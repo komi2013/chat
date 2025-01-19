@@ -31,6 +31,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 
   updatedBy := r.FormValue("updatedBy")
   channelID := r.FormValue("channelID")
+  pushTitle := r.FormValue("pushTitle")
 
   var contents interface{}
   if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); err != nil {
@@ -56,36 +57,38 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 	}
 
   trueAccess := false
-  for _, d := range session.AliasChannels {
+  for _, d := range session.ChannelAliases {
     if d.Alias == updatedBy && d.ChannelID == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    log.Printf("AliasChannels !trueAccess: %v; Req: ", session.AliasChannels, updatedBy, channelID, r.URL.Path, r.Form)
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
-
+  imgPath := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, db1)
   coll := db1.Collection("session")
-  filter := bson.D{{
-    "user_id", bson.D{{"$in", userIDs}}}}
-  project := bson.D{{"subscription", 1}}
-  opts4 := options.Find().SetProjection(project)
-  cursor, err := coll.Find(context.TODO(), filter, opts4)
+  filter := bson.D{{"user_id", bson.D{{"$in", userIDs}}}}
+  cursor, err := coll.Find(context.TODO(), filter)
   if err != nil {
-    log.Printf("Find session : %v; Req: ", err, userIDs, r.URL.Path, r.Form)
+    log.Printf("coll.Find: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
   }
   var sessions []collection.SessionStruct
   if err = cursor.All(context.TODO(), &sessions); err != nil {
-    log.Printf("All session : %v; Req: ", err, userIDs, r.URL.Path, r.Form)
+    log.Printf("cursor.All: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
   }
-
+  filteredSessions := common.FilterSessionsByChannelID(sessions, channelID)
   var arr []interface{}
-  arr = append(arr, r.FormValue("pushTitle"))
+  arr = append(arr, pushTitle)
   arr = append(arr, channelID)
   arr = append(arr, updatedBy)
   arr = append(arr, contents)
-	common.ChunkPush(sessions, db1, r, arr)
+  if imgPath != "" {
+  	arr = append(arr, imgPath)
+  }
+  
+
+	common.ChunkPush(filteredSessions, db1, r, arr)
   fmt.Fprint(w, `{"Status":"1"}`)
 }
 

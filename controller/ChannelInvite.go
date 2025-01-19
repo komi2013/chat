@@ -41,7 +41,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Request:", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
@@ -54,14 +54,14 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 	}
 
   trueAccess := false
-  for _, d := range session.AliasChannels {
+  for _, d := range session.ChannelAliases {
     if d.Alias == updatedBy && d.ChannelID == channelID {
       trueAccess = true
     }
   }
 
   if !trueAccess {
-    log.Printf("AliasChannels !trueAccess: %v; Request:", session.AliasChannels, updatedBy, channelID, r.URL.Path, r.Form)
+    log.Printf("ChannelAliases !trueAccess: %v; Request:", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
   var subscriptions []string
@@ -76,11 +76,11 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   }
   var sessions []collection.SessionStruct
   if err = cursor.All(context.TODO(), &sessions); err != nil {
-    log.Printf("sessions: %v; Request:%v;%v", err, r.URL.Path, r.Form)
+    log.Printf("sessions: %v; Request:", err, r.URL.Path, r.Form)
   }
 	for _, s := range sessions {
 	  trueAccess := false
-	  for _, d := range s.AliasChannels {
+	  for _, d := range s.ChannelAliases {
 	    if d.Alias == updatedBy && d.ChannelID == channelID {
 	      trueAccess = true
 	    }

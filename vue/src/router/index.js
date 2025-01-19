@@ -29,32 +29,16 @@ const router = createRouter({
       })
     },
     {
-      path: '/channelInfo/:id?/',
-      name: 'channelInfo',
-      component: () => import('../views/ChannelInfo.vue'),
-      props: route => ({id: route.params.id}),
-    },
-    {
-      path: '/channel/:id/',
-      name: 'channel',
+      path: '/channel/:id?/',
       component: () => import('../views/Channel.vue'),
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/communityJoin/:code/',
-      name: 'communityJoin',
-      component: () => import('../views/CommunityJoin.vue'),
-      props: route => ({
-        code: route.params.code
-      }),
-    },
-    {
-      path: '/groupAlias/:id/:groupAliasName?/',
-      name: 'groupAlias',
-      component: () => import('../views/GroupAlias.vue'),
+      path: '/group/:id/:groupName?/',
+      component: () => import('../views/Group.vue'),
       props: route => ({
         id: route.params.id,
-        groupAliasName: route.params.groupAliasName || null
+        groupName: route.params.groupName
       })
     },
     {

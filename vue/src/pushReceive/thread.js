@@ -1,6 +1,7 @@
 import { useBookmarksStore } from '../stores/bookmarks.js';
 import { useMessagesStore } from '../stores/messages.js';
 import { removeMark } from '../my/markdown.js';
+import { fetchChannel, fetchAliases, fetchGroups } from '@/my/channelFunc';
 
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
@@ -40,11 +41,13 @@ export async function thread(pushData) {
     threadHead.backID = obj.backID;
   }
   const channel = await getIDB('channel', channelID);
+  const aliases = await fetchAliases(channelID);
+  const groups = await fetchGroups(channelID);
   let title = getSubstring(removeMark(obj.messageTxt), 0, 30);
   // const dm = props.threadHead.parentID.includes('@');
   if (pushData[3].includes('@')) {
     const parts = pushData[3].split('@');
-    const toWhom = parts[0] === channel.aliasName ? parts[1] : parts[0];
+    const toWhom = parts[0] === channel.myname ? parts[1] : parts[0];
     title = getSubstring(toWhom, 0, 12);
   }
   let parent = {};
@@ -71,16 +74,21 @@ export async function thread(pushData) {
   }
   let displayStatus = 1;
   let notify = false;
-  channel.allAliases.forEach(d => {
-    const atName = '＠＠' + d[0] + '・＠＠';
-    if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
-      displayStatus = 2;
-    } else if (obj.messageTxt.includes(atName)) {
-      displayStatus = 2;
-      notify = true;
-      return;
-    }
-  });
+  if (obj.messageTxt.includes('＠＠' + channel.myname + '・＠＠')) {
+    displayStatus = 2;
+    notify = true;
+    return;
+  }
+  // channel.allAliases.forEach(d => {
+  //   const atName = '＠＠' + d[0] + '・＠＠';
+  //   if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
+  //     displayStatus = 2;
+  //   } else if (obj.messageTxt.includes(atName)) {
+  //     displayStatus = 2;
+  //     notify = true;
+  //     return;
+  //   }
+  // });
   let pushTitle = title;
   let newThread = false;
   try {
