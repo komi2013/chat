@@ -126,11 +126,6 @@ const selectedColor = ref(getRandomColor());
 const aliasImg = ref(getAliasImg());
 emit("update:modelValue", aliasImg.value);
 
-const isEmojiInRange = (input) => {
-  const codePoint = input.codePointAt(0);
-  return emojiRanges.some(([min, max]) => codePoint >= min && codePoint <= max);
-};
-
 const emit = defineEmits(["update:modelValue"]);
 const emojiValidErr = ref(false);
 const validateEmoji = () => {
@@ -148,18 +143,11 @@ const validateEmoji = () => {
 <style>
 
 .people-img {
-  width: 38px;
-  height: 38px;
-  vertical-align: middle;
-  font-size: 20px;
-  display: inline-table;
-  text-align: center;
-  border-radius: 5px;
-}
-
-.people-img span {
-  margin-top: 4px;
-  display: inline-block;
+	width: 24px;
+	vertical-align: middle;
+	display: inline-table;
+	text-align: center;
+	border-radius: 5px;
 }
 
 .toggleEmoji {

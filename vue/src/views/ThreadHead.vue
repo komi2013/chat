@@ -1,147 +1,161 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import DrawerColumn from '../components/DrawerColumn.vue'
-import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
+import { ref, computed, onBeforeMount, onMounted } from 'vue'
+
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
+
+import DrawerThread from '@/components/DrawerThread.vue';
+import SelectPeople from '@/components/SelectPeople.vue';
+import SelectAlias from '@/components/SelectAlias.vue';
+
+import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
+import { userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
   parent_id: ''
 })
+const channelID = localStorage.getItem("channelID");
+const channel = ref(null);
+const aliases = ref([]);
+const groups = ref([]);
+const threadHead = ref(null);
 
-const threadHead = ref({});
-let editTxt = ref({});
-editTxt.value = markdownToHtml(threadHead.value.description);
+// onBeforeMount(async () => {
+//   channel.value = await getIDB('channel', channelID);
+//   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+//   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+//   threadHead.value = await getIDB('threadHead', props.parent_id);
+//   console.log(threadHead.value);
+// });
 
-async function fetchThreadHead() {
-  try {
-    threadHead.value = await getIDB('threadHead', props.parent_id);
-  } catch (error) {
-    console.log('no threadHead', error);
-  }
-}
-
-const postThreadHead = () => {
-  console.log(quill.root.innerHTML);
-  const description = quill.root.innerHTML;
-  console.log(description);
-  const fd = new FormData();
-  fd.append('channelID', threadHead.value.channelID);
-  fd.append('parentID', threadHead.value.parentID);
-  fd.append('title', threadHead.value.title);
-  fd.append('description', description);
-  const request = new Request('/ThreadHeadPost/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .then((response) => response.json())
-    .catch((reason)=>{
-      console.log(reason)
-    })
-}
-const msgText = ref(null);
-let quill;
-onMounted(() => {
-  // msgText.value.addEventListener('input', function () {
-  //   this.style.height = 'auto';
-  //   this.style.height = (this.scrollHeight) + 'px';
-  // });
-  // fetchData();
-  fetchThreadHead();
-  quill = new Quill('#edit', {
+const quill = ref(null);
+async function initQuill() {
+  quill.value = await new Quill('#description', {
     modules: {
-      toolbar: '#toolbar'
+      toolbar: '#toolbar',
     },
     theme: 'snow'
   });
-})
+  quill.value.root.innerHTML = markdownToHtml(threadHead.value.description, channel.value);
+}
 
+onMounted(async () => {
+  channel.value = await getIDB('channel', channelID);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  threadHead.value = await getIDB('threadHead', props.parent_id);
+  console.log(threadHead.value);
+  await initQuill();
+});
 
-// function showNotification(title, body, icon) {
-//   // ブラウザが通知をサポートしているかを確認
-//   if (!("Notification" in window)) {
-//     console.error("このブラウザは通知をサポートしていません");
-//     return;
-//   }
-
-//   // ユーザーが通知を許可しているかを確認
-//   if (Notification.permission === "granted") {
-//     // 許可されている場合は通知を表示
-//     new Notification(title, { body, icon });
-//   } else if (Notification.permission !== "denied") {
-//     // 許可が求められていない場合は、許可を求める
-//     Notification.requestPermission().then(permission => {
-//       if (permission === "granted") {
-//         // 許可された場合は通知を表示
-//         new Notification(title, { body, icon });
-//       }
-//     });
-//   }
-// }
-
-// // 使用例
-// showNotification("新しいメッセージ", "新着メッセージがあります", "/icon.png");
-
-
-// const text = '＊p＊こっちばっかに集中してしまう　＠＠ivan1・＠＠・＊p＊';
-
-// if (text.includes('＠＠ivan1・＠＠')) {
-//   console.log('＠＠ivan1＠＠が見つかりました');
-//   new Notification('title', { body: 'nbo', icon: '/me.jpg' });
-// } else {
-//   console.log('＠＠ivan1＠＠は見つかりませんでした');
-// }
+const postThreadHead = () => {
+  if (!confirm("実行▶️")) {
+    return;
+  }
+  const description = htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''));
+  console.log(description);
+  const fd = new FormData();
+  fd.append('channelID', channelID);
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, threadHead.value.aliasNames)));
+  fd.append('pushTitle', 'threadHead');
+  const contents = [
+  	threadHead.value.parentID.replace(channelID, ""),
+    threadHead.value.title,
+    description,
+    threadHead.value.aliasNames,
+    threadHead.value.adminNames,
+    threadHead.value.broadcastFlag
+  ];
+  fd.append('contents', JSON.stringify(contents));
+  sendRequest('/ContentsPush/', fd);
+}
 
 </script>
 
-
-
 <template>
-<DrawerColumn />
-<div id="content">
-  <textarea class="headTitle" v-model="threadHead.title"></textarea>
-</div>
+<DrawerThread />
+<div id="content"><br><br>
+  <input v-if="threadHead" type="text" class="inputText" v-model="threadHead.title"/>
 
-  <div>
-    <div class="editLeft" id="toolbar">
-      <button class="ql-bold"></button>
-      <button class="ql-strike"></button>
-      <button class="ql-blockquote"></button>
-      <button class="ql-code-block"></button>
-      <button class="ql-link"></button>
-      <select class="ql-color">
-        <option value="red">Red</option>
-        <option value=""></option>
-      </select>
-    </div>
-    <div id="edit"
-      v-html="editTxt"
-      >
-    </div>
+  <div class="editLeft" id="toolbar">
+    <button class="ql-bold"></button>
+    <button class="ql-strike"></button>
+    <button class="ql-blockquote"></button>
+    <button class="ql-code-block"></button>
+    <button class="ql-link"></button>
+    <select class="ql-color">
+      <option value="red">Red</option>
+      <option value=""></option>
+    </select>
+  </div>
+  <div id="description" ></div>
+
+  <div v-if="threadHead">
+    <input type="checkbox" id="broadcastFlag" v-model="threadHead.broadcastFlag" />
+    <label for="broadcastFlag">ブロードキャスト：管理者以外投稿できません</label>    
   </div>
 
-<div @click="postThreadHead">➡️</div>
+  <SelectPeople v-if="threadHead"
+    :channel="channel"
+    :aliases="aliases"
+    :groups="groups"
+    :placeholder="'参加ユーザー'"
+    v-model="threadHead.aliasNames"
+    class="choosePeople"
+    />
+
+  <SelectAlias v-if="threadHead"
+    :channel="channel"
+    :aliases="aliases"
+    :groups="groups"
+    :editable="false"
+    :placeholder="'管理ユーザー'"
+    v-model="threadHead.adminNames"
+    class="choosePeople"
+    />
+
+  <button @click="postThreadHead" class="postButton">➡️</button>
+</div>
 </template>
 
 <style>
-@media screen and (min-width : 701px) { 
-  .headTitle {
-    margin-left: 50px;
-    display: flex;
-    width: 300px;
-  }
+
+.ql-snow.ql-toolbar {
+  padding: 8px 0px;
+}
+.ql-snow.ql-toolbar .attachment {
+  font-size: 12px;
+  padding-top: 0px;
 }
 
-@media screen and (max-width : 700px) {
-  .headTitle {
-    margin-left: 50px;
-    display: flex;
-    width: 300px;
-  }
-  .headTitle div {
-    display: table-cell;
-  }
+.inputText {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+.postButton {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #007bff;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.postButton:hover {
+  background-color: #0056b3;
+}
+
+.choosePeople {
+	padding: 6px;
 }
 
 </style>

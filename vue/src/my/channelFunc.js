@@ -88,7 +88,6 @@ export function userIDsByName(aliases, names = []) {
       userIDs.push(d.userID);
     }
   }
-  console.log(userIDs);
   return [...new Set(userIDs)];
 }
 

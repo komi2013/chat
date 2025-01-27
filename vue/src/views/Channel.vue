@@ -4,10 +4,10 @@ import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 
-import DrawerColumn from '../components/DrawerColumn.vue'
-import PeopleImg from '../components/PeopleImg.vue'
-import { markdownToHtml, htmlToMarkdown } from '../my/markdown.js';
-import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
+import DrawerColumn from '@/components/DrawerColumn.vue'
+import PeopleImg from '@/components/PeopleImg.vue'
+import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
+import { userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
   id: '',
@@ -22,22 +22,34 @@ const myimg = ref(null);
 
 const aliases = ref([]);
 const channels = ref([]);
-async function fetchAllChannel() {
-  try {
-    channels.value = await getAllIDBs('channel');
-  } catch (error) {
-    console.log('all channel:', error);
-  }
-}
 const threadHeads = ref([]);
-async function fetchThreadHead() {
-  try {
-    threadHeads.value = await getIDBs('threadHead', 'channelIDIndex', props.id);
-    console.log(threadHeads.value);
-  } catch (error) {
-    console.log('threadHeads:', error);
-  }
+
+const quill = ref(null);
+function initQuill() {
+  quill.value = new Quill('#description', {
+    modules: {
+      toolbar: '#toolbar',
+    },
+    theme: 'snow'
+  });
+  quill.value.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
 }
+
+const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
+
+onMounted(async () => {
+  // await fetchAllChannel();
+  channels.value = await getAllIDBs('channel');
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
+  threadHeads.value = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
+  console.log(threadHeads.value);
+  // await fetchThreadHead();
+  // groups.value = await fetchGroups(props.id);
+  if (props.id) {
+    channel.value = channels.value.find(d => d.channelID === props.id);
+  }
+  initQuill();
+});
 
 const channelPost = async () => {
   if (!confirm("実行▶️")) {
@@ -79,7 +91,6 @@ const invitationCode = ref('');
 const invitationQR = ref('');
 const mention = ref(true);
 const invite = async () => {
-  console.log(aliases.value);
   if (!confirm("実行▶️")) {
     return;
   }
@@ -98,29 +109,6 @@ const invite = async () => {
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
 };
 
-const quill = ref(null);
-function initQuill() {
-  quill.value = new Quill('#description', {
-    modules: {
-      toolbar: '#toolbar',
-    },
-    theme: 'snow'
-  });
-  quill.value.root.innerHTML = markdownToHtml(channel.value.channelDescription, channel.value);
-}
-
-const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
-
-onMounted(async () => {
-  await fetchAllChannel();
-  aliases.value = await fetchAliases(props.id);
-  await fetchThreadHead();
-  // groups.value = await fetchGroups(props.id);
-  if (props.id) {
-    channel.value = channels.value.find(d => d.channelID === props.id);
-  }
-  initQuill();
-});
 
 </script>
 
@@ -129,7 +117,6 @@ onMounted(async () => {
 
 <div id="content">
 <br><br>
-
   <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
@@ -143,13 +130,13 @@ onMounted(async () => {
     </select>
   </div>
   <div id="description" ></div><br>
-  <template v-if="!props.id">
+  <template v-if="!id">
     <input type="text" v-model="myname" placeholder="このチャネルのニックネーム" class="inputText">
     <PeopleImg v-model="myimg" />
   </template>
 
   <button @click="channelPost" class="postButton">▶️</button><br>
-  <div v-if="props.id">
+  <div v-if="id">
     <button @click="invite" class="postButton"> <span>✉️</span> <span>招待URL</span> </button>
     <div class="optionRight">
       <input type="checkbox" id="mention" v-model="mention" />
@@ -158,19 +145,21 @@ onMounted(async () => {
     <div> <a :href="invitationCode"> {{invitationCode}} </a> </div>
     <div> <img :src="invitationQR"></div>    
   </div>
-  <div v-if="props.id"> <a :href="'/group/' + props.id + '/'">
+  <div v-if="id"> <a :href="'/group/' + id + '/'">
     👪 グループアカウント作成・編集 
   </a> </div>
 
-<h3>スレッド一覧</h3>
-<ul v-if="threadHeads">
-  <li v-for="d in threadHeads">
-    <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
-      {{d.title}}
-    </a>
-  </li>
-  <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
-</ul>
+<template v-if="id">
+  <h3>スレッド一覧</h3>
+  <ul v-if="threadHeads">
+    <li v-for="d in threadHeads">
+      <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
+        {{d.title}}
+      </a>
+    </li>
+    <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
+  </ul>  
+</template>
 
 <h3>チャネル一覧</h3>
 <ul v-if="channels">

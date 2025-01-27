@@ -44,7 +44,12 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
     return
 	}
   channelID := common.StringRand(4)
-	aliasImg := common.ImgSave(myimg, session.UserID, myname, db1)
+	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
   var userIDs = []string{}
   userIDs = append(userIDs, session.UserID)
 

@@ -6,44 +6,43 @@ export const selectedEmoji = ref('');
 
 export const selectedMessageId = ref(null);
 
-const openEmoji = (messageId) => {
+export const openEmoji = (messageId) => {
   selectedMessageId.value = messageId;
   isEmojiOpen.value = true;
 };
 
-const closeEmoji = () => {
+export const closeEmoji = () => {
   isEmojiOpen.value = false;
   selectedMessageId.value = null;
 };
 
-const selectEmoji = (emoji) => {
+export const selectEmoji = (emoji) => {
   selectedEmoji.value = emoji;
-  console.log(selectedEmoji.value);
   closeEmoji();
 };
 
-function calcEmoji(emojis, aliasName) {
-  if (!emojis) {
+export function calcEmoji(emojis, aliasName) {
+  if (!Array.isArray(emojis) || emojis.length === 0) {
     return [];
   }
-  const result = emojis.reduce((acc, [name, value]) => {
-    const existingItem = acc.find(item => item[0] === value);
-
+  const result = emojis.reduce((acc, { aliasName: name, emoji: value }) => {
+    const existingItem = acc.find(item => item.emoji === value);
     if (existingItem) {
-      existingItem[1]++;
-      existingItem[2] = existingItem[2] || (name === aliasName);
+      existingItem.count++;
+      existingItem.selected = existingItem.selected || (name === aliasName);
     } else {
-      acc.push([value, 1, name === aliasName]);
+      acc.push({
+        emoji: value,
+        count: 1,
+        selected: name === aliasName
+      });
     }
-
     return acc;
   }, []);
-
-  // return result.sort((a, b) => b[1] - a[1]);
   return result;
 }
 
-const emojiPath = (str) => {
+export const emojiPath = (str) => {
   const filePathRegex = /^\/[\w.-]+(\/[\w.-]+)*$/;
   return filePathRegex.test(str);
 };
@@ -51,13 +50,11 @@ const emojiPath = (str) => {
 
 export const isEmojiedOpen = ref(false);
 export const openEmojied = (messageId) => {
-  console.log('openEmojied');
   isEmojiedOpen.value = true;
   selectedMessageId.value = messageId;
 };
 
 export const closeEmojied = () => {
-  console.log('closeEmojied');
   isEmojiedOpen.value = false;
   selectedMessageId.value = null;
 };
@@ -95,5 +92,33 @@ const rgbToHex = (r, g, b) => {
     .slice(1)}`;
 };
 
+export const isEmojiInRange = (input) => {
+  const codePoint = input.codePointAt(0);
+  return emojiRanges.some(([min, max]) => codePoint >= min && codePoint <= max);
+};
 
-export { openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath };
+export const validateEmoji = (input) => {
+  if ( !isEmojiInRange(input) && input.length > 1 ) {
+    return false;
+  } else {
+    return true;
+  }
+};
+
+export const rotateEmoji = (emoji) => {
+  masterEmojis = masterEmojis.filter(e => e !== emoji);
+  masterEmojis.unshift(emoji);
+  const imageEmojis = masterEmojis.filter(e => e.startsWith('/img/'));
+  const normalEmojis = masterEmojis.filter(e => !e.startsWith('/img/')).slice(0, 34);
+  masterEmojis = [...normalEmojis, ...imageEmojis];
+  localStorage.setItem('emojis', JSON.stringify(masterEmojis));
+};
+
+
+export let masterEmojis = JSON.parse(localStorage.getItem('emojis')) || [
+  '🙇','😁','🤔','😂','🤣','😱','😭','😅',
+  '/img/arigatou.png','/img/kakunin.png','/img/odaijini.png','/img/soudesune.png',
+  '/img/naruhodo.png','/img/shouchi.png',
+  '👍','👎','👌','👏','💪','🤝','✅','☑️','🎉','💖','🔥','🎶',
+  '😜','😋','😇','😊','😎','🥰','🤩'
+];

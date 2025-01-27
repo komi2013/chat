@@ -2,16 +2,16 @@
   <div class="modal">
     <div class="modal-content">
       <table>
-      <tr class="emoji-list" v-for="d in emojis">
+      <tr class="emoji-list" v-for="emoji in emojis">
         <td>
-        <template v-if="emojiPath(d[1])">
-          <img :src="d[1]" class="emoji-img" />
+        <template v-if="emojiPath(emoji.emoji)">
+          <img :src="emoji.emoji" class="emoji-img" />
         </template>
         <template v-else>
-          <span class="emoji-img" >{{ d[1] }}</span>
+          <span class="emoji-img" >{{ emoji.emoji }}</span>
         </template>
         </td>
-        <td>{{ d[0] }}</td>
+        <td>{{ emoji.aliasName }}</td>
       </tr>
       </table>
       <button @click="closeModal">Close</button>
@@ -21,10 +21,10 @@
 
 <script setup>
 import { ref, defineProps, defineEmits } from 'vue';
-import { emojiPath } from '../my/emoji.js';
+import { emojiPath } from '@/my/emoji.js';
 
 const props = defineProps(['emojis', 'channelID', 'messageID', 'aliasName', 'parentID']);
-const emojis = props.emojis;
+// const emojis = props.emojis;
 const emit = defineEmits();
 
 const closeModal = () => {

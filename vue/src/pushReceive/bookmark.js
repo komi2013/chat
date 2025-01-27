@@ -1,47 +1,42 @@
-import { useBookmarksStore } from '../stores/bookmarks.js';
-import { useMessagesStore } from '../stores/messages.js';
-import { removeMark } from '../my/markdown.js';
+import { useBookmarksStore } from '@/stores/bookmarks.js';
+import { useMessagesStore } from '@/stores/messages.js';
+import { removeMark } from '@/my/markdown.js';
 export async function bookmark(pushData) {
-  // arr = append(arr, "bookmark")
-  // arr = append(arr, r.FormValue("messageID"))
-  // arr = append(arr, r.FormValue("channelID"))
-  // arr = append(arr, r.FormValue("parentID"))
-  // arr = append(arr, r.FormValue("toggle"))
-
-  const messageID = pushData[1];
-  const channelID = pushData[2];
-  const parentID = pushData[3];
-  const toggle = pushData[4] == '1' ? 1 : 0;
-  const idb = await getIDB('thread', messageID);
+  const pushID = pushData[0];
+  const fd = new FormData();
+  fd.append('pushID', pushID);
+  const request = new Request('/PushResponse/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request);
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
-  updIDBone('thread', messageID, 'bookmark', toggle)
-    .catch((error) => {
-      console.error(error);
-    });
+  const channelID = pushData[2];
+  const aliasName = pushData[3];
+  const messageID = pushData[4][0];
+  const backID = pushData[4][1];
+  const thread = await getIDB('thread', messageID);
+  const toggle = !thread.bookmark;
+  updIDBone('thread', messageID, 'bookmark', toggle);
   const bm = {
     messageID: messageID,
     channelID: channelID,
-    title: getSubstring(removeMark(idb.messageTxt), 0, 20),
+    backID: backID,
+    title: getSubstring(removeMark(thread.messageTxt), 0, 20),
     displayStatus: 1
   };
-  if (parentID) {
-    bm.parentID = parentID
+  if (messageID == backID) {
+    updIDBone('threadHead', backID, 'bookmark', toggle);
   }
-  messagesStore.upOne(messageID, 'bookmark', toggle);
   if (toggle) {
-    upsertIDB(bm, 'bookmark', 'messageID', messageID)
-      .catch((error) => {
-        console.error(error);
-      });
+    upsertIDB(bm, 'bookmark', 'messageID', messageID);
     bookmarksStore.insert(bm);
   } else {
-    deleteIDB('bookmark', 'messageID', messageID)
-      .catch((error) => {
-        console.error(error);
-      });
+    deleteIDB('bookmark', 'messageID', messageID);
     bookmarksStore.delete(messageID);
   }
+  messagesStore.upOne(messageID, 'bookmark', toggle);
 }
 
 

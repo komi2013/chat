@@ -102,69 +102,70 @@ const fetchBookmarks = () => {
   });
 };
 
-const mentionChannel = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('channel', 'displayStatusIndex', 2)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          channelsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
 
-const unreadChannel = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('channel', 'displayStatusIndex', 1)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          channelsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
+// const mentionChannel = () => {
+//   return new Promise((resolve, reject) => {
+//     getIDBs('channel', 'displayStatusIndex', 2)
+//       .then((data) => {
+//         const latest = data.reverse();
+//         latest.forEach(d => {
+//           channelsStore.insert(d);
+//         });
+//         resolve();
+//       })
+//       .catch((error) => {
+//         reject(error);
+//       });
+//   });
+// };
 
-const readChannel = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('channel', 'displayStatusIndex', 0)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          channelsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
+// const unreadChannel = () => {
+//   return new Promise((resolve, reject) => {
+//     getIDBs('channel', 'displayStatusIndex', 1)
+//       .then((data) => {
+//         const latest = data.reverse();
+//         latest.forEach(d => {
+//           channelsStore.insert(d);
+//         });
+//         resolve();
+//       })
+//       .catch((error) => {
+//         reject(error);
+//       });
+//   });
+// };
 
-const muteChannel = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('channel', 'displayStatusIndex', 3)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          channelsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
+// const readChannel = () => {
+//   return new Promise((resolve, reject) => {
+//     getIDBs('channel', 'displayStatusIndex', 0)
+//       .then((data) => {
+//         const latest = data.reverse();
+//         latest.forEach(d => {
+//           channelsStore.insert(d);
+//         });
+//         resolve();
+//       })
+//       .catch((error) => {
+//         reject(error);
+//       });
+//   });
+// };
+
+// const muteChannel = () => {
+//   return new Promise((resolve, reject) => {
+//     getIDBs('channel', 'displayStatusIndex', 3)
+//       .then((data) => {
+//         const latest = data.reverse();
+//         latest.forEach(d => {
+//           channelsStore.insert(d);
+//         });
+//         resolve();
+//       })
+//       .catch((error) => {
+//         reject(error);
+//       });
+//   });
+// };
 
 
 function getStatusClass(status) {
@@ -191,6 +192,13 @@ function paramMsg(d) {
   return modifiedParentID;
 }
 
+function goBookmarkThread (bookmark) {
+  const channelID = bookmark.channelID;
+  const msgSecondID = bookmark.messageID.replace(channelID, '');
+  const backID = bookmark.backID.replace(channelID, '');
+  location.href = '/thread/' + channelID + '/' + msgSecondID + '/?backID=' + backID;
+  // :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)"
+}
 
 onBeforeMount(async () => {
   // await messagesStore.deleteAll();
@@ -202,10 +210,10 @@ onBeforeMount(async () => {
   await fetchBookmarks();
   console.log(bookmarks.value.length);
   // const bookmarks = await getAllIDBs('bookmark');
-  await mentionChannel();
-  await unreadChannel();
-  await readChannel();
-  await muteChannel();
+  // await mentionChannel();
+  // await unreadChannel();
+  // await readChannel();
+  // await muteChannel();
 
 });
 
@@ -218,6 +226,7 @@ onBeforeMount(async () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td><a href="/channelInfo/" > 🏠 組織チャネル </a></td></tr>
       <tr><td>スレッド</td></tr>
       <tr v-for="d in threadHeads">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
@@ -228,11 +237,12 @@ onBeforeMount(async () => {
       <tr><td> 🔖 ブックマーク </td></tr>
       <tr v-for="d in bookmarks">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
-          <a :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)">
+          <a @click="goBookmarkThread(d)">
             {{ d.title }}</a>
         </td>
       </tr>
     </template>
+
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>

@@ -61,6 +61,19 @@ function generateRandomCode(codeLength) {
   }
   return randomCode;
 }
+
+function base62Encode(num) {
+  let encoded = '';
+  const base = constantStringCharacters.length;
+
+  while (num > 0) {
+    encoded = constantStringCharacters[num % base] + encoded;
+    num = Math.floor(num / base);
+  }
+
+  return encoded || '0';  // numが0の場合は'0'を返す
+}
+
 function base62Decode(str) {
   return str.split('').reverse().reduce((prev, curr, index) => {
     return prev + constantStringCharacters.indexOf(curr) * Math.pow(62, index);
@@ -75,6 +88,14 @@ function urlBase64ToUint8Array(base64String) {
   const rawData = window.atob(base64);
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
+
+function createGetParams(params) {
+  const queryString = Object.keys(params).map(key =>
+    `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`
+    ).join('&');
+  return queryString;
+}
+
 async function sendRequest(uri, fd) {
   const request = new Request(uri, {
     method: 'POST',

@@ -1,5 +1,6 @@
 import { ref } from 'vue';
-import { useMessagesStore } from '../stores/messages.js';
+import { useMessagesStore } from '@/stores/messages.js';
+import { userIDsByName } from '@/my/channelFunc';
 
 const messagesStore = useMessagesStore();
 
@@ -14,27 +15,14 @@ export const toggleEdit = (message, messageID) => {
   messagesStore.update(message, message.messageID);
 };
 
-export const toggleBookmark = (message) => {
-  let toggle = 1;
-  if (message.bookmark) {
-    toggle = 0;
-  }
-  let parentID;
-  let threadFlg = false;
+export const toggleBookmark = (message, channel, aliases, threadHead) => {
+  const backID = message.parentID ?? threadHead.backID;
   const fd = new FormData();
-  if (message.parentID) {
-    parentID = message.parentID;
-    fd.append('parentID', parentID);
-  }
-  fd.append('messageID', message.messageID);
-  fd.append('channelID', message.channelID);
-  fd.append('toggle', toggle);
-  const request = new Request('/BookmarkToggle/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      alert(reason)
-    })
+  fd.append('channelID', channel.channelID);
+  fd.append('updatedBy', channel.myname);
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  fd.append('pushTitle', 'bookmark');
+  const contents = [message.messageID, backID];
+  fd.append('contents', JSON.stringify(contents));
+  sendRequest('/ContentsPush/', fd);
 };

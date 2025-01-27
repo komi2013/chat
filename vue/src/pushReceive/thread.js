@@ -14,92 +14,77 @@ export async function thread(pushData) {
     body: fd,
   });
   fetch(request);
-  const unixtime = base62Decode(pushData[2].slice(4, 10));
-
-  const channelID = pushData[2].slice(0, 4);
-  const obj = {
-    messageID: pushData[2],
-    parentID: channelID + pushData[3],
-    messageTxt: pushData[4],
-    aliasName: pushData[5],
-    aliasImg: pushData[6],
+  const channelID = pushData[2];
+  const updatedBy = pushData[3];
+  const parentID = pushData[4][0];
+  const secondPartMsgID = pushData[4][1];
+  const unixtime = base62Decode(secondPartMsgID);
+	let filelinks = "";
+	if (Array.isArray(pushData[5])) {
+    pushData[5].forEach(filelink => {
+      filelinks += `＊f＊${filelink}・＊f＊`;
+    });
+	}
+  const pushThread = {
+    messageID: channelID + secondPartMsgID,
+    parentID: pushData[4][0],
+    messageTxt: pushData[4][2] + filelinks,
+    aliasName: updatedBy,
+    aliasImg: pushData[4][3],
     createdAt: timeFormat('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
     channelID: channelID,
-    threadType: pushData[7] ?? '',
-    aliasNames: pushData[8],
-    backID: pushData[9] ?? '',
-    emojis: pushData[10]
+    aliasNames: pushData[4][4],
+    backID: pushData[4][5] ?? '',
+    emojis: pushData[4][6] || []
   };
 
-  let threadHead = {
-    parentID: obj.parentID,
-    messageTxt: obj.messageTxt,
-    channelID: obj.channelID,
-    displayStatus: 1
-  };
-  if (obj.backID) {
-    threadHead.backID = obj.backID;
-  }
   const channel = await getIDB('channel', channelID);
-  const aliases = await fetchAliases(channelID);
-  const groups = await fetchGroups(channelID);
-  let title = getSubstring(removeMark(obj.messageTxt), 0, 30);
-  // const dm = props.threadHead.parentID.includes('@');
+  const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  const groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  let title = getSubstring(removeMark(pushThread.messageTxt), 0, 30);
   if (pushData[3].includes('@')) {
     const parts = pushData[3].split('@');
     const toWhom = parts[0] === channel.myname ? parts[1] : parts[0];
     title = getSubstring(toWhom, 0, 12);
   }
+
   let parent = {};
-  try {
-    parent = await getIDB('thread', obj.parentID);
+  parent = await getIDB('thread', pushThread.parentID);
+  let second = false;
+  if (parent) {  // more than 2nd generation thread
     parent.threadCount = parent.threadCount ? parent.threadCount + 1 : 1;
-    parent.threadImgs = parent.threadImgs || [];
-    if (!parent.threadImgs.includes(obj.aliasImg)) {
-        parent.threadImgs.push(obj.aliasImg);
-    }
     title = getSubstring(removeMark(parent.messageTxt), 0, 30);
-  } catch (error) {
+    second = true;
+  } else {
     parent = {
-      messageID: obj.parentID,
-      channelID: obj.channelID,
-      messageTxt: obj.messageTxt,
-      aliasName: obj.aliasName,
-      aliasImg: obj.aliasImg,
-      createdAt: obj.createdAt,
-      emoji: obj.emojis,
-      threadCount: 1,
-      threadImgs: [obj.aliasImg]
-    };
+      messageID: pushThread.parentID,
+      channelID: pushThread.channelID,
+      messageTxt: pushThread.messageTxt,
+      aliasName: pushThread.aliasName,
+      aliasImg: pushThread.aliasImg,
+      createdAt: pushThread.createdAt,
+      emojis: pushThread.emojis,
+      threadCount: 1
+    };    
   }
   let displayStatus = 1;
   let notify = false;
-  if (obj.messageTxt.includes('＠＠' + channel.myname + '・＠＠')) {
+  if (pushThread.messageTxt.includes('＠＠' + channel.myname + '・＠＠')) {
     displayStatus = 2;
     notify = true;
-    return;
   }
-  // channel.allAliases.forEach(d => {
-  //   const atName = '＠＠' + d[0] + '・＠＠';
-  //   if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
-  //     displayStatus = 2;
-  //   } else if (obj.messageTxt.includes(atName)) {
-  //     displayStatus = 2;
-  //     notify = true;
-  //     return;
-  //   }
-  // });
   let pushTitle = title;
-  let newThread = false;
-  try {
-    threadHead = await getIDB('threadHead', obj.parentID);
+  let newThreadHeadFlag = false;
+  let threadHead = await getIDB('threadHead', pushThread.parentID);
+  if (threadHead) {
     if (threadHead.displayStatus != 3 || notify) {
       threadHead.displayStatus = displayStatus;
     }
-    threadHead.updatedAt = obj.createdAt;
-    threadHead.threadCount = parent.threadCount;
-    pushTitle = threadHead.title;
-  } catch (error) {
+    threadHead.updatedAt = pushThread.createdAt;
+    threadHead.threadCount = threadHead.threadCount + 1;
+  } else { // from reply first message
+    threadHead = {};
+    threadHead.parentID = pushThread.parentID;
     threadHead.emojis = parent.emojis;
     threadHead.title = title;
     threadHead.displayStatus = displayStatus;
@@ -107,41 +92,40 @@ export async function thread(pushData) {
     threadHead.aliasName = parent.aliasName;
     threadHead.aliasImg = parent.aliasImg;
     threadHead.createdAt = parent.createdAt;
-    threadHead.updatedAt = obj.createdAt;
-    threadHead.threadCount = parent.threadCount;
-    threadHead.aliasNames = obj.aliasNames;
-    threadHead.backID = obj.backID;
-    threadHead.threadType = obj.threadType;
-    newThread = true;
+    threadHead.updatedAt = pushThread.createdAt;
+    threadHead.threadCount = 0;
+    threadHead.aliasNames = pushThread.aliasNames;
+    threadHead.backID = pushThread.backID;
+    threadHead.channelID = channelID;
+    newThreadHeadFlag = true;
   }
-  if (displayStatus == 2 && obj.emojis) {
+  if (displayStatus == 2 && pushThread.emojis) {
     const bm = {
-      messageID: obj.messageID,
-      channelID: obj.channelID,
-      title: getSubstring(removeMark(obj.messageTxt), 0, 20),
+      messageID: pushThread.messageID,
+      channelID: pushThread.channelID,
+      title: getSubstring(removeMark(pushThread.messageTxt), 0, 20),
       displayStatus: 1
     };
-    upsertIDB(bm, 'bookmark', 'messageID', obj.messageID);
+    upsertIDB(bm, 'bookmark', 'messageID', pushThread.messageID);
     bookmarksStore.insert(bm);
-    obj.bookmark = 1;
+    pushThread.bookmark = 1;
   }
-  // console.log(newThread);
-  if (!newThread) {
-    upsertIDB(obj, 'thread', 'messageID', obj.messageID);
+  if (!newThreadHeadFlag || second) {
+    upsertIDB(pushThread, 'thread', 'messageID', pushThread.messageID);
   }
-  // if (obj.backID) {
-  //   upsertIDB(parent, 'thread', 'messageID', obj.parentID);
-  // }
-  upsertIDB(threadHead, 'threadHead', 'parentID', obj.parentID);
+  if (newThreadHeadFlag && second) {
+    updIDBone('thread', pushThread.parentID, 'reply', true);
+  }
+  upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
   if (notify) {
     new Notification(pushTitle, {
-      body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg
+      body: getSubstring(removeMark(pushThread.messageTxt), 0, 30), icon: pushThread.aliasImg
     });
   }
-  if (messagesStore.currentDisplay(obj.parentID)) {
-    messagesStore.insert(obj);
+  if (messagesStore.currentDisplay(pushThread.parentID)) {
+    messagesStore.insert(pushThread);
   }
-  if (newThread) {
+  if (newThreadHeadFlag) {
     location.href = '';
   }
 }

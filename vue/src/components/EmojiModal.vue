@@ -1,55 +1,82 @@
 <template>
-  <div class="modal">
+  <div class="modal" @click.self="closeModal">
     <div class="modal-content">
-      <template class="emoji-list" v-for="emoji in emojis">
+      <template class="emoji-list" v-for="emoji in masterEmojis">
         <template v-if="emojiPath(emoji)">
-          <img :src="emoji" class="emoji-img" @click="selectEmoji(emoji)" />
+          <span>
+            <img class="emoji-img" :src="emoji" @click="selectEmoji(emoji)" />
+          </span>
         </template>
         <template v-else>
-          <span class="emoji-img" @click="selectEmoji(emoji)" >{{ emoji }}</span>
+          <span class="emoji" @click="selectEmoji(emoji)" >{{ emoji }}</span>
         </template>
       </template>
+
+      <input 
+        type="text" 
+        v-model="selectedEmoji" 
+        maxlength="2" 
+        class="emoji-input"
+        @change="inputEmoji"
+      />
  
-      <button @click="closeModal">Close</button>
+      <button @click="closeModal"> x </button>
+      <br>
+      <span v-if="emojiValidErr" class="emoji-valid-err">絵文字か1文字にしてください</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, defineProps, defineEmits } from 'vue';
-import { emojiPath } from '../my/emoji.js';
+import { emojiPath } from '@/my/emoji.js';
+import { userIDsByName } from '@/my/channelFunc';
+import { validateEmoji, rotateEmoji, masterEmojis } from '@/my/emoji';
 
 const props = defineProps([
-  'emojis', 'channel', 'messageID', 'parentID', 'channel', 'threadHead']);
-const emojis = ['😀','😁','/me.jpg','😂'];
-const emit = defineEmits();
+  'channel',
+  'aliases',
+  'groups',
+  'messageID',
+  'parentID',
+  'threadHead'
+]);
 
+const emit = defineEmits();
 
 const selectEmoji = (emoji) => {
   const fd = new FormData();
-  if (props.parentID) {
-    fd.append('parentID', props.parentID);
-  }
   fd.append('channelID', props.channel.channelID);
-  fd.append('messageID', props.messageID);
-  fd.append('emojiValue', emoji);
-  fd.append('aliasName', props.channel.aliasName);
-  const userIDs = props.channel.allAliases
-    .filter(alias => props.threadHead.aliasNames.includes(alias[0]))
-    .map(alias => alias[2]);
-
-  fd.append('userIDs', JSON.stringify(userIDs));
-
-  const request = new Request('/EmojiToggle/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
-    })
+  fd.append('updatedBy', props.channel.myname);
+  // fd.append('userIDs', JSON.stringify(userIDsByName(props.channel, props.threadHead.aliasNames)));
+  fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
+  fd.append('pushTitle', 'emoji');
+  const contents = [props.messageID, emoji, props.parentID];
+  fd.append('contents', JSON.stringify(contents));
+  sendRequest('/ContentsPush/', fd);
+  rotateEmoji(emoji);
   emit('closeEmoji');
 };
+
+const selectedEmoji = ref('');
+const emojiValidErr = ref(false);
+const inputEmoji = () => {
+  if (!validateEmoji(selectedEmoji.value)) {
+    emojiValidErr.value = true;
+    return;
+  }
+  const fd = new FormData();
+  fd.append('channelID', props.channel.channelID);
+  fd.append('updatedBy', props.channel.myname);
+  fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
+  fd.append('pushTitle', 'emoji');
+  const contents = [props.messageID, selectedEmoji.value, props.parentID];
+  fd.append('contents', JSON.stringify(contents));
+  sendRequest('/ContentsPush/', fd);
+  rotateEmoji(selectedEmoji.value);
+  emit('closeEmoji');
+};
+
 
 const closeModal = () => {
   emit('closeEmoji');
@@ -58,7 +85,7 @@ const closeModal = () => {
 </script>
 
 <style scoped>
-/* Add your styles here */
+
 .modal {
   position: fixed;
   top: 0;
@@ -69,6 +96,7 @@ const closeModal = () => {
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 20;
 }
 
 .modal-content {
@@ -83,11 +111,20 @@ const closeModal = () => {
   gap: 10px;
 }
 
-.emoji-img {
+.emoji {
   max-width: 20px;
   max-height: 20px;
   padding: 6px;
 }
 
-/* Add more styles as needed */
+.emoji-img {
+  max-width: 20px;
+  max-height: 20px;
+  vertical-align: middle;
+  padding: 6px;
+}
+.emoji-input {
+  width: 24px;
+}
+
 </style>

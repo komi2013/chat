@@ -1,6 +1,6 @@
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 93 );
+    const request = indexedDB.open('chat', 94 );
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
@@ -111,11 +111,9 @@ async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc'
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);
     const index = objectStore.index(key);
-
     const range = IDBKeyRange.only(id);
     const direction = sortOrder === 'asc' ? 'next' : 'prev';
     const request = index.openCursor(range, direction);
-
     const result = [];
     let i = 0;
     request.onsuccess = (event) => {
@@ -130,9 +128,9 @@ async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc'
         resolve(result);
       }
     };
-
     request.onerror = (event) => {
-      reject(`Error fetching data: ${event.target.error}`);
+      console.error('getIDBs Request:', event.target.error, table, id);
+      resolve([]);
     };
   });
 }
@@ -173,34 +171,39 @@ async function getIDBbyMulti(table, keys, values, limit = 5, offset = 0, sortOrd
 }
 
 async function upsertIDB(data, table, key, objKey) {
-  const db = await openDatabase(table, key);
-  const objectStore = db.transaction([table], 'readwrite').objectStore(table);
-  return new Promise((resolve, reject) => {
-    const existingDataRequest = objectStore.get(objKey);
-    existingDataRequest.onsuccess = async () => {
-      const existingData = existingDataRequest.result;
-      if (existingData) {
+  try {
+    const db = await openDatabase(table, key);
+    const transaction = db.transaction([table], 'readwrite');
+    const objectStore = transaction.objectStore(table);
+    const existingData = await new Promise((resolve, reject) => {
+      const request = objectStore.get(objKey);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (event) => reject(new Error(`データ取得エラー: ${event.target.error}`));
+    });
+    if (existingData) {
+      await new Promise((resolve, reject) => {
         const putRequest = objectStore.put(data);
-        putRequest.onsuccess = () => {
-          resolve('Data updated successfully');
-        };
-        putRequest.onerror = (event) => {
-          reject(`Error updating data: ${event.target.error}`);
-        };
-      } else {
+        putRequest.onsuccess = () => resolve('データを更新しました');
+        putRequest.onerror = (event) => reject(new Error(`データ更新エラー: ${event.target.error}`));
+      });
+      return 'データを更新しました';
+    } else {
+      await new Promise((resolve, reject) => {
         const addRequest = objectStore.add(data);
-        addRequest.onsuccess = () => {
-          resolve('Data inserted successfully');
-        };
-        addRequest.onerror = (event) => {
-          reject(`Error inserting data: ${event.target.error}`);
-        };
-      }
-    };
-    existingDataRequest.onerror = (event) => {
-      reject(`Error checking existing data: ${event.target.error}`);
-    };
-  });
+        addRequest.onsuccess = () => resolve('データを挿入しました');
+        addRequest.onerror = (event) => reject(new Error(`データ挿入エラー: ${event.target.error}`));
+      });
+      return 'データを挿入しました';
+    }
+  } catch (error) {
+    console.error(`upsertIDBエラー: ${error}`, {
+      table,
+      key,
+      objKey,
+      data,
+    });
+    return null;
+  }
 }
 
 async function deleteIDB(table, key, objKey) {
@@ -223,9 +226,7 @@ async function getAllIDBs(table) {
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);
     const request = objectStore.openCursor();
-
     const result = [];
-
     request.onsuccess = (event) => {
       const cursor = event.target.result;
       if (cursor) {
@@ -235,9 +236,10 @@ async function getAllIDBs(table) {
         resolve(result);
       }
     };
-
     request.onerror = (event) => {
-      reject(`Error fetching data: ${event.target.error}`);
+      // reject(`Error fetching data: ${event.target.error}`);
+      console.error('getAllIDBs:', event.target.error, table);
+      resolve([]);
     };
   });
 }

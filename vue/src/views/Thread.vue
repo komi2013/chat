@@ -1,102 +1,105 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue';
+import { ref, computed, onBeforeMount, onMounted, nextTick } from 'vue';
 import { onBeforeRouteUpdate, useRouter } from 'vue-router';
-import DrawerThread from '../components/DrawerThread.vue';
-import EditBox from '../components/EditBox.vue';
-import Messages from '../components/Messages.vue';
 
-import { useMessagesStore } from '../stores/messages.js';
-import { useChannelsStore } from '../stores/channels.js';
+import DrawerThread from '@/components/DrawerThread.vue';
+import EditBox from '@/components/EditBox.vue';
+import Messages from '@/components/Messages.vue';
+
+import { useMessagesStore } from '@/stores/messages.js';
+import { useChannelsStore } from '@/stores/channels.js';
 
 import { fetchChannel, fetchAliases, fetchGroups } from '@/my/channelFunc';
-import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { removeMark } from '../my/markdown.js';
-
+import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '@/my/emoji.js';
+import { removeMark } from '@/my/markdown.js';
 
 const props = defineProps({
+  channel_id: '',
   message_id: '',
-  channel_id: ''
+  backID: ''
 })
 
 const channel = ref(null);
 const aliases = ref(null);
 const groups = ref(null);
+const threadHead = ref({
+  parentID: '',
+  title: '',
+});
+const fetched = ref(false);
 onBeforeMount(async () => {
-  channel.value = await fetchChannel(props.channel_id);
-  aliases.value = await fetchAliases(props.channel_id);
-  groups.value = await fetchGroups(props.channel_id);
-  await fetchThreadHead();
+  channel.value = await getIDB('channel', props.channel_id);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
+  threadHead.value = await getIDB('threadHead', props.channel_id + props.message_id);
+  await makeThreadHead();
+  fetched.value = await true;
+  const content = await document.getElementById('content');
+  content.scrollTop = await content.scrollHeight;
+  await window.scrollTo(0, content.scrollHeight);
   readStatus();
-  const content = document.getElementById('content');
-  content.scrollTop = content.scrollHeight;
-  window.scrollTo(0, content.scrollHeight);
 });
 
 const message = ref('');
-let threadHead = ref('');
 const parentID = ref('');
 const messagesStore = useMessagesStore();
-
 const messages = computed(() => {
   return messagesStore.messages;
 });
 
+// /thread/I0JH/I0JH1tamySv/?backID=I0JHvaj
+// /thread/I0JH/gdK/
+
 const msg = {
   messageTxt: '',
   messageID: '',
-  parentID: props.message_id
+  parentID: props.channel_id + props.message_id
 };
 
-async function fetchThreadHead() {
-  try {
-    const data = await getIDB('threadHead', props.channel_id + props.message_id);
-    if (data.aliasName == channel.value.myname) {
-      data.edit = true;
+async function makeThreadHead() {
+  if (threadHead.value) {
+    if (threadHead.value.aliasName == channel.value.myname) {
+      threadHead.value.edit = true;
     }
-    console.log('data', data);
-    threadHead.value = data;
-    let message = {};
-    message.messageID = data.parentID;
-    message.parentID = data.parentID;
-    message.messageTxt = data.messageTxt;
-    message.aliasName = data.aliasName;
-    message.aliasImg = data.aliasImg;
-    message.createdAt = data.createdAt;
-    message.emojis = data.emojis;
+    let message = threadHead.value;
+    // message = threadHead.value;
+    message.messageID = threadHead.value.parentID;
+    // message.parentID = threadHead.value.parentID;
+    // message.messageTxt = threadHead.value.messageTxt;
+    // message.aliasName = threadHead.value.aliasName;
+    // message.aliasImg = threadHead.value.aliasImg;
+    // message.createdAt = threadHead.value.createdAt;
+    // message.emojis = threadHead.value.emojis;
     messagesStore.insert(message);
-  } catch (error) {
-    console.log('error', error);
+  } else {
+    const threadHeadValue = {
+      channelID: channel.value.channelID,
+      parentID: props.message_id,
+      title: '新規スレッド',
+      messageTxt: '',
+      aliasName: channel.value.myname,
+      aliasImg: channel.value.myimg,
+      // threadType: 1,localStorage.getItem("userID")
+      aliasNames: [channel.value.myname], 
+      displayStatus: 0
+    }
     if (props.message_id.includes('@')) {
       const parts = props.message_id.split('@');
       const toWhom = parts[0] === channel.value.myname ? parts[1] : parts[0];
-      const threadHeadValue = {
-        channelID: channel.value.channelID,
-        parentID: props.message_id,
-        title: getSubstring(toWhom, 0, 12),
-        messageTxt: toWhom,
-        aliasName: channel.value.myname,
-        aliasImg: channel.value.aliasImg,
-        threadType: 1,
-        aliasNames: parts,
-        displayStatus: 0
-      }
-      threadHead.value = threadHeadValue;
-    } else {
-      try {
-        const message = await getIDB('thread', props.message_id);
-        threadHead.value = message;
-        threadHead.value.parentID = props.message_id;
-        threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
-        threadHead.value.messageTxt = message.messageTxt;
-        threadHead.value.threadType = 0;
-        if (getParam('backID')) {
-          threadHead.value.backID = getParam('backID');
-        }
-        console.log('message', message);
-        messagesStore.insert(message);
-      } catch (error) {
-        console.log('new thread', error);
-      }
+      threadHeadValue.title = getSubstring(toWhom, 0, 12);
+      threadHeadValue.messageTxt = toWhom;
+      threadHeadValue.aliasNames = parts;
+    }
+    threadHead.value = threadHeadValue;
+    if (props.backID) {
+      const message = await getIDB('thread', props.channel_id + props.message_id);
+      threadHead.value = message;
+      threadHead.value.parentID = props.message_id;
+      threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
+      threadHead.value.messageTxt = message.messageTxt;
+      threadHead.value.threadType = 0;
+      threadHead.value.backID = props.backID;
+      messagesStore.insert(message);          
     }
   }
 }
@@ -113,18 +116,13 @@ function readStatus () {
   }
 }
 
-onBeforeRouteUpdate((to, from, next) => {
-  if (from.path != to.path) {
-    console.log('ページ遷移が検出されました:', from.path, to.path);
-    location.href = to.path;
-  }
-});
-
-function backTo(backID) {
+function backTo() {
+  const backID = threadHead.value.backID;
   if (backID) {
-    return '/thread/' + props.channel_id + '/' + backID + '/';
+    const secondPart = backID.replace(props.channel_id, '');
+    location.href = '/thread/' + props.channel_id + '/' + secondPart + '/';
   } else {
-    return '/channel/' + props.channel_id + '/';
+    location.href = '/channel/' + props.channel_id + '/';
   }
 }
 
@@ -133,37 +131,36 @@ function backTo(backID) {
 <template>
 <DrawerThread />
 <div id="content">
-<div class="headTitle">
-  <div style="width: 90%;" >
-    <a :href="'/threadHead/' + threadHead.parentID + '/'">
-      {{threadHead.title}}
-    </a>
-  </div>
-  <div style="line-height: 50px;width: 50px;">
-    <a :href="backTo(threadHead.backID)"> ⬅ </a>
-   <!--  <span v-if="threadHead.edit" class="emoji" > 🖋 </span> -->
-  </div>
-</div>
-
-  <template v-if="channel && messages && threadHead">
+  <div v-if="fetched">
+    <div v-if="threadHead" class="headTitle">
+      <div>
+        <a :href="'/threadHead/' + threadHead.parentID + '/'">
+          {{threadHead.title}}
+        </a>
+      </div>
+      <span>
+        <a @click="backTo"> ⬅ </a>
+      </span>
+    </div>
     <Messages 
       :channel="channel"
       :aliases="aliases"
       :groups="groups"
       :messages="messages"
       :threadHead="threadHead" />
-  </template>
 
-<div class="editText" v-if="channel">
-  <EditBox 
-    :channel="channel"
-    :aliases="aliases"
-    :groups="groups"
-    :message="msg"
-    :threadHead="threadHead" />
+    <div class="editText">
+      <EditBox 
+        :channel="channel"
+        :aliases="aliases"
+        :groups="groups"
+        :message="msg"
+        :threadHead="threadHead" />
+    </div>
+  <br>
+  </div>
 </div>
-<br>
-</div>
+<div v-if="!fetched"><br><br> Loading... or Something Went </div>
 </template>
 
 <style>
@@ -171,6 +168,15 @@ function backTo(backID) {
 #content {
   height: 100%;
   overflow-y: auto;
+}
+
+.headTitle div {
+  width: 90%;
+}
+
+.headTitle span {
+  line-height: 50px;
+  width: 50px;
 }
 
 @media screen and (min-width : 701px) { 

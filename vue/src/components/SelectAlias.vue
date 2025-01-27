@@ -4,13 +4,11 @@
       v-if="editable"
       v-model="searchTerm"
       type="text"
-      placeholder="ユーザー検索"
+      :placeholder="placeholder || 'ユーザー検索'"
       @input="filterResults"
     /><br>
     <ul v-if="filteredResults.length > 0" class="dropdown-menu">
       <li v-for="item in filteredResults" :key="item.id" @click="addToSelection(item)">
-<!--         <img v-if="item.image && item.image !== 'null'" :src="item.image" class="icon" />
- -->
         <img v-if="item.image && item.image.charAt(0) != ','" 
           :src="item.image" class="people-img">
         <span v-if="item.image && item.image.charAt(0) == ','"
@@ -42,7 +40,8 @@ import { ref, computed, watch } from "vue";
 const props = defineProps({
   aliases: Object,
   modelValue: Array,
-  editable: Boolean
+  editable: Boolean,
+  placeholder: String
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -78,6 +77,7 @@ const addToSelection = (item) => {
   if (!selectedAlias.value.find((selected) => selected.id === item.id)) {
     selectedAlias.value.push(item);
     emitNames();
+  	searchTerm.value = "";
   }
 };
 
@@ -91,20 +91,11 @@ const removeFromSelection = (item) => {
 const emitNames = () => {
   const names = selectedAlias.value.map(item => item.name);
   emit("update:modelValue", names);
-  searchTerm.value = "";
 };
 
 </script>
 
 <style scoped>
-
-.icon {
-  margin-right: 10px;
-  max-width: 20px;
-  max-height: 20px;
-  vertical-align: middle;
-  border-radius: 4px;
-}
 
 .dropdown-menu {
   position: absolute;
@@ -122,7 +113,7 @@ const emitNames = () => {
 }
 
 .dropdown-menu li {
-  padding: 10px;
+  padding: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;

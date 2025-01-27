@@ -100,7 +100,7 @@ const props = defineProps({
 <div id="content">
 <h2>ホーム</h2>
   <div class="block"><a href="/">チャット</a></div>
-  <div class="block"><a href="/channelInfo/" > + グループ追加 </a></div>
+  <div class="block"><a href="/channel/" > 👪 組織・チャネル </a></div>
   <div class="block"><a href="/timestampCodeIssue/">タイムスタンプ</a></div>
   <div class="block"><a href="/workflow/">ワークフロー</a></div>
   <div class="block"><a href="/calendar/">カレンダー</a></div>

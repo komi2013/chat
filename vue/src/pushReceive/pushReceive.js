@@ -13,6 +13,7 @@ import { storePush } from './storePush.js';
 import { storeSelect } from './storeSelect.js';
 import { thread } from './thread.js';
 import { threadEdit } from './threadEdit.js';
+import { threadHead } from './threadHead.js';
 import { ticket } from './ticket.js';
 import { timestamp } from './timestamp.js';
 import { timestampCode } from './timestampCode.js';
@@ -40,6 +41,7 @@ export function pushReceive(notificationData) {
     schedule: shiftStaffEdit,
     thread: thread,
     threadEdit: threadEdit,
+    threadHead: threadHead,
     ticket: ticket,
     timestamp: timestamp,
     timestampCode: timestampCode,

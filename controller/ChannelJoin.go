@@ -47,7 +47,11 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
     return
 	}
 
-	aliasImg := common.ImgSave(myimg, session.UserID, myname, db1)
+	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	coll := db1.Collection("invitation")
 	filter := bson.M{"_id": code}

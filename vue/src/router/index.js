@@ -102,7 +102,8 @@ const router = createRouter({
       component: () => import('../views/Thread.vue'),
       props: route => ({
         channel_id: route.params.channel_id,
-        message_id: route.params.message_id
+        message_id: route.params.message_id,
+        backID: route.query.backID
       })
     },
     {

@@ -32,11 +32,12 @@
 import { ref, defineProps, onMounted } from 'vue';
 import { useMessagesStore } from '../stores/messages.js';
 
-import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
-
 import Quill from 'quill';
 import "quill-mention";
 import "quill/dist/quill.snow.css";
+
+import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
+import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
   channel: Object,
@@ -64,7 +65,7 @@ const attach = () => {
   if (fileInput) {
     fileInput.click();
   }
-
+  console.log(fileInput);
   // File input要素にchangeイベントリスナーを追加
   // const fileInput = document.getElementById('fileInput_');
   fileInput.addEventListener('change', handleFileInputChange);
@@ -74,6 +75,7 @@ const attach = () => {
 let dm = false;
 const fileInfo = ref({});
 const handleFileInputChange = (event) => {
+	console.log(event);
   const files = event.target.files;
   const newFileInfo = document.createElement('div');
   for (let i = 0; i < files.length; i++) {
@@ -91,13 +93,15 @@ const handleFileInputChange = (event) => {
     }
     newFileInfo.appendChild(fileContainer);
   }
+  console.log(fileInfo.value);
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 let clicked = false;
-const msgUpsert = (messageID, delMessage) => {
+const msgUpsert = async (messageID, delMessage) => {
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
+
   if (clicked) {
     return;
   }
@@ -105,35 +109,30 @@ const msgUpsert = (messageID, delMessage) => {
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   // const threadFlg = props.message.parentID;
   const uri = messageID ? '/ThreadEdit/' : '/ThreadPost/';
+  // messageID = messageID ?? base62Encode(Math.floor(Date.now() / 1000));
+  const SecondMsgID = messageID ? messageID.replace(channelID, '') : base62Encode(Math.floor(Date.now() / 1000)) +  generateRandomCode(1);
   const fd = new FormData();
   console.log(messageData);
-  fd.append('parentID', props.message.parentID);
-  fd.append('channelID', props.channel.channelID);
-  fd.append('messageID', messageID);
-  fd.append('messageTxt', messageData);
-  fd.append('postedBy', props.channel.myname);
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
   console.log('いいい', alias.aliasImg);
-  fd.append('aliasImg', getAliasImg(props));
-  let userIDs = [];
-  let names = [props.channel.aliasName];
+  let userIDs = [localStorage.getItem("userID")];
+  let names = [props.channel.myname];
+  let backID = '';
   if (props.threadHead) {
-    fd.append('backID', props.threadHead.backID);
-    fd.append('type', props.threadHead.threadType);
+    if (props.threadHead.backID) {
+      backID = props.threadHead.backID;
+    }
     dm = props.threadHead.parentID.includes('@');
     if (dm) {
       names = props.threadHead.parentID.split('@');
     }
-    userIDs = props.aliases
-      .filter(alias => props.threadHead.aliasNames.includes(alias.aliasName))
-      .map(alias => alias.userID);
+    userIDs = userIDsByName(props.aliases, props.threadHead.aliasNames);
   }
-  userIDs.push(localStorage.getItem("userID"));
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
-      const atName = `＠＠${d[0]}・＠＠`;
+      const atName = `＠＠${d.groupName}・＠＠`;
       if (messageData.includes(atName)) {
-        for (const d2 of d[2]) {
+        for (const d2 of d.aliasNames) {
           names.push(d2);
         }
       }
@@ -148,14 +147,15 @@ const msgUpsert = (messageID, delMessage) => {
     if (messageData.includes(atName) && !dm) {
       userIDs.push(d.userID);
       names.push(d.aliasName);
-      yets.push([d.aliasName, '/img/yet.png']);
+      yets.push({
+      	aliasName: d.aliasName,
+      	emoji: '☑️'
+      });
     }
   }
-  fd.append('names', JSON.stringify([...new Set(names)]));
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  if (task.value) {
-    fd.append('yets', JSON.stringify(yets));
-  }
+  // if (task.value) {
+  //   fd.append('yets', JSON.stringify(yets));
+  // }
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
@@ -170,14 +170,33 @@ const msgUpsert = (messageID, delMessage) => {
     quill.root.innerHTML = '';
     fileInfo.value = [];
   }
-  const request = new Request(uri, {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .then(function(response) {
-      clicked = false;
-    })
+
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', props.channel.myname);
+  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
+  fd.append('pushTitle', 'thread');
+  const contents = [
+  	props.message.parentID,
+    SecondMsgID,
+    messageData,
+    getAliasImg(props),
+    [...new Set(names)],
+    backID,
+    yets
+  ];
+  fd.append('contents', JSON.stringify(contents));
+  await sendRequest('/ContentsPush/', fd);
+
+  // await sendRequest(uri, fd);
+  clicked = false;
+  // const request = new Request(uri, {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request)
+  //   .then(function(response) {
+  //     clicked = false;
+  //   })
 }
 
 function getAliasImg(props) {

@@ -8,6 +8,8 @@ import (
   "net/http"
   "time"
 	// "unicode/utf8"
+	// "os"
+	// "io"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
@@ -40,6 +42,12 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 最大10MB
+		log.Printf("ParseMultipartForm: %v; Req: ", err, r.URL.Path, r.Form)
+		http.Error(w, "Failed to parse form because more than 10MB", http.StatusBadRequest)
+		return
+	}
+
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -66,7 +74,18 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
     log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
-  imgPath := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, db1)
+  imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fileLinks, err := common.FileSave(r, db1, channelID, updatedBy)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
   coll := db1.Collection("session")
   filter := bson.D{{"user_id", bson.D{{"$in", userIDs}}}}
   cursor, err := coll.Find(context.TODO(), filter)
@@ -85,9 +104,10 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, contents)
   if imgPath != "" {
   	arr = append(arr, imgPath)
+  } else {
+  	arr = append(arr, fileLinks)
   }
   
-
 	common.ChunkPush(filteredSessions, db1, r, arr)
   fmt.Fprint(w, `{"Status":"1"}`)
 }

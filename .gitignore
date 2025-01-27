@@ -1,14 +1,13 @@
 .bash_history
 .cache/
 chat
-public/data/
-public/assets/
 
 common/config.go
 log/
-img/
-upload/
-
+upload_data/
+# upload/
 
 infrastructure/fullchain.pem
 infrastructure/privkey.pem
+
+public/
