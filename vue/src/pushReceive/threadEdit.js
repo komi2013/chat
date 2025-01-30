@@ -3,92 +3,94 @@ import { useMessagesStore } from '../stores/messages.js';
 import { removeMark } from '../my/markdown.js';
 
 export async function threadEdit(pushData) {
-  const rcv = {
-    messageID: pushData[1],
-    messageTxt: pushData[2],
-    yets: pushData[3]
-  };
-  const bookmarksStore = useBookmarksStore();
-  const messagesStore = useMessagesStore();
-  if(rcv.messageTxt == ''){
-    deleteIDB('thread', 'messageID', rcv.messageID);
-    messagesStore.delete(rcv.messageID);
-  } else {
-    const idb = await getIDB('thread', rcv.messageID);
-    const obj = {
-      parentID: idb.parentID,
-      messageID: idb.messageID,
-      channelID: idb.channelID,
-      messageTxt: rcv.messageTxt,
-      aliasName: idb.aliasName,
-      aliasImg: idb.aliasImg,
-      createdAt: idb.createdAt
-    };
-    let emojis;
-    if (rcv.yets) {
-      if (idb.emojis) {
-        const filtered = idb.emojis.filter(
-          ([name, url]) => !rcv.yets.some(([n, u]) => n === name && u === url)
-        );
-        emojis = rcv.yets.concat(filtered);
-      } else {
-        emojis = rcv.yets;
-      }
-    } else {
-      emojis = idb.emojis;
-    }
-    obj.emojis = emojis;
-    const alias = await getAllIDBs('alias');
-    let displayStatus = 1;
-    let notify = false;
-    alias.forEach(d => {
-      const atName = '＠＠' + d.aliasName + '・＠＠';
-      if (obj.messageTxt.includes(atName) && d.groupFlg == 1) {
-        displayStatus = 2;
-      } else if (obj.messageTxt.includes(atName)) {
-        displayStatus = 2;
-        notify = true;
-        return;
-      }
-      if (obj.messageTxt.includes(atName)) {
-        displayStatus = 2;
-        if (d.groupFlg != 1) {
-          notify = true;
-        }
-      }
+  const pushID = pushData[0];
+  const fd = new FormData();
+  fd.append('pushID', pushID);
+  const request = new Request('/PushResponse/', {
+    method: 'POST',
+    body: fd,
+  });
+  fetch(request);
+  const channelID = pushData[2];
+  const updatedBy = pushData[3];
+  const secondPartMsgID = pushData[4][1];
+  const unixtime = base62Decode(secondPartMsgID.slice(0, -1));
+	let filelinks = "";
+	if (Array.isArray(pushData[5])) {
+    pushData[5].forEach(filelink => {
+      filelinks += `＊f＊${filelink}・＊f＊ `;
     });
-
-    let threadHead;
-    try {
-      threadHead = await getIDB('threadHead', obj.parentID);
-      if (threadHead.displayStatus != 3 || notify) {
-        threadHead.displayStatus = displayStatus;
-      }
-      threadHead.updatedAt = obj.createdAt;
-    } catch (error) {
-      console.log('this device dont have this threadHead but receive message', obj);
-    }
-    if (displayStatus == 2) {
-      const bm = {
-        messageID: idb.messageID,
-        channelID: idb.channelID,
-        title: getSubstring(removeMark(rcv.messageTxt), 0, 20),
-        displayStatus: 1
-      };
-      upsertIDB(bm, 'bookmark', 'messageID', idb.messageID);
-      bookmarksStore.insert(bm);
-      obj.bookmark = 1;
-    }
-    upsertIDB(obj, 'thread', 'messageID', idb.messageID);
-    upsertIDB(threadHead, 'threadHead', 'parentID', obj.parentID);
-    if (notify) {
-      new Notification(threadHead.title, {
-        body: getSubstring(removeMark(obj.messageTxt), 0, 30), icon: obj.aliasImg
-      });
-    }
-    if (messagesStore.currentDisplay(obj.parentID)) {
-      messagesStore.update(obj, idb.messageID);
-    }
+	}
+  const editThread = {
+    messageID: channelID + secondPartMsgID,
+    parentID: pushData[4][0],
+    messageTxt: pushData[4][2] + filelinks,
+    aliasImg: pushData[4][3],
+    aliasNames: pushData[4][4],
+    emojis: pushData[4][6] || []
+  };
+  const messagesStore = useMessagesStore();
+  if(editThread.aliasImg == ''){
+    deleteIDB('thread', 'messageID', editThread.messageID);
+    messagesStore.delete(editThread.messageID);
+    return;
   }
 
+  const channel = await getIDB('channel', channelID);
+  const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  const groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  let thread = await getIDB('thread', editThread.messageID);
+  let threadHead = await getIDB('threadHead', editThread.parentID);
+
+	const mergedEmojis = [
+	  ...thread.emojis,
+	  ...editThread.emojis.filter(
+	    editEmoji => !thread.emojis.some(threadEmoji => threadEmoji.aliasName === editEmoji.aliasName)
+	  )
+	];
+	thread.emojis = mergedEmojis;
+	thread.messageTxt = editThread.messageTxt;
+	thread.aliasNames = editThread.aliasNames;
+	thread.updatedAt = editThread.updatedAt;
+	if (threadHead) {
+		threadHead.emojis = thread.emojis;
+		threadHead.messageTxt = thread.messageTxt;
+		threadHead.aliasNames = thread.aliasNames;
+		threadHead.updatedAt = thread.updatedAt;
+		upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
+	}
+  let displayStatus = 1;
+  let notify = false;
+  groups.forEach(d => {
+    const atName = '＠＠' + d.groupName + '・＠＠';
+    if (thread.messageTxt.includes(atName)) {
+    	if (d.aliasNames.includes(channel.myname)) {
+	      displayStatus = 2;
+    	}
+    }
+  });
+  if (editThread.messageTxt.includes('＠＠' + channel.myname + '・＠＠')) {
+    displayStatus = 2;
+    notify = true;
+  }
+  const bookmarksStore = useBookmarksStore();
+  if (displayStatus == 2 && editThread.emojis) {
+    const bm = {
+      messageID: thread.messageID,
+      channelID: thread.channelID,
+      title: getSubstring(removeMark(thread.messageTxt), 0, 20),
+      displayStatus: 1
+    };
+    upsertIDB(bm, 'bookmark', 'messageID', bm.messageID);
+    bookmarksStore.insert(bm);
+  }
+  upsertIDB(thread, 'thread', 'messageID', thread.messageID);
+  if (notify) {
+    new Notification(getSubstring(removeMark(thread.messageTxt), 0, 20), {
+      body: getSubstring(removeMark(thread.messageTxt), 0, 30), icon: thread.aliasImg
+    });
+  }
+  if (messagesStore.currentDisplay(thread.parentID)) {
+    messagesStore.update(thread, thread.messageID);
+  }
 }

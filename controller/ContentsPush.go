@@ -80,7 +80,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileLinks, err := common.FileSave(r, db1, channelID, updatedBy)
+	fileLinks, err := common.FileSave(r, db1, channelID, updatedBy, userIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -108,7 +108,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   	arr = append(arr, fileLinks)
   }
   
-	common.ChunkPush(filteredSessions, db1, r, arr)
+	common.ChunkPush(filteredSessions, db1, arr)
   fmt.Fprint(w, `{"Status":"1"}`)
 }
 

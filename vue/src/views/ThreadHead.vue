@@ -20,11 +20,13 @@ const aliases = ref([]);
 const groups = ref([]);
 const threadHead = ref(null);
 
+let adminEditable = false;
 // onBeforeMount(async () => {
 //   channel.value = await getIDB('channel', channelID);
 //   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
 //   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
 //   threadHead.value = await getIDB('threadHead', props.parent_id);
+//   adminEditable = threadHead.value.adminNames.includes(channel.value.myname);
 //   console.log(threadHead.value);
 // });
 
@@ -44,7 +46,7 @@ onMounted(async () => {
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   threadHead.value = await getIDB('threadHead', props.parent_id);
-  console.log(threadHead.value);
+  adminEditable = threadHead.value.adminNames.includes(channel.value.myname);
   await initQuill();
 });
 
@@ -59,23 +61,37 @@ const postThreadHead = () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, threadHead.value.aliasNames)));
   fd.append('pushTitle', 'threadHead');
-  const contents = [
-  	threadHead.value.parentID.replace(channelID, ""),
-    threadHead.value.title,
-    description,
-    threadHead.value.aliasNames,
-    threadHead.value.adminNames,
-    threadHead.value.broadcastFlag
-  ];
-  fd.append('contents', JSON.stringify(contents));
+  let editThreadHead = threadHead.value;
+  editThreadHead.description = description;
+  // const contents = [
+  // 	threadHead.value.parentID.replace(channelID, ""),
+  //   threadHead.value.title,
+  //   description,
+  //   threadHead.value.aliasNames,
+  //   threadHead.value.adminNames,
+  //   threadHead.value.broadcastFlag
+  // ];
+  fd.append('contents', JSON.stringify(editThreadHead));
   sendRequest('/ContentsPush/', fd);
+}
+
+function backTo() {
+  const backID = props.parent_id;
+  const secondPart = backID.replace(channelID, '');
+  location.href = '/thread/' + channelID + '/' + secondPart + '/';
 }
 
 </script>
 
 <template>
 <DrawerThread />
-<div id="content"><br><br>
+<div id="content">
+  <div v-if="threadHead" class="headTitle">
+    <div>&nbsp;</div>
+    <span>
+      <a @click="backTo"> ⬅ </a>
+    </span>
+  </div>
   <input v-if="threadHead" type="text" class="inputText" v-model="threadHead.title"/>
 
   <div class="editLeft" id="toolbar">
@@ -109,7 +125,7 @@ const postThreadHead = () => {
     :channel="channel"
     :aliases="aliases"
     :groups="groups"
-    :editable="false"
+    :editable="adminEditable"
     :placeholder="'管理ユーザー'"
     v-model="threadHead.adminNames"
     class="choosePeople"
@@ -120,6 +136,16 @@ const postThreadHead = () => {
 </template>
 
 <style>
+
+.headTitle div {
+  width: 90%;
+  display: inline-block;
+}
+
+.headTitle span {
+  line-height: 50px;
+  width: 50px;
+}
 
 .ql-snow.ql-toolbar {
   padding: 8px 0px;

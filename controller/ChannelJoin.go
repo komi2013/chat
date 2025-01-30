@@ -83,7 +83,31 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   arr = append(arr, channelID)
   arr = append(arr, myname)
   arr = append(arr, contents)
-	common.ChunkPush(mySessions, db1, r, arr)
+	common.ChunkPush(mySessions, db1, arr)
+
+	for _, d := range invitation.Aliases {
+		aliasData := []string{d.UserID, d.AliasName}
+	  var arr []interface{}
+		arr = append(arr, "alias")
+		arr = append(arr, channelID)
+		arr = append(arr, myname)
+		arr = append(arr, aliasData)
+		arr = append(arr, d.AliasImg)
+		log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
+		common.ChunkPush(mySessions, db1, arr)
+	}
+
+	for _, d := range invitation.Groups {
+		groupData := []interface{}{d.GroupName, d.AliasNames}
+	  var arr []interface{}
+		arr = append(arr, "group")
+		arr = append(arr, channelID)
+		arr = append(arr, myname)
+		arr = append(arr, groupData)
+		arr = append(arr, d.GroupImg)
+		log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
+		common.ChunkPush(mySessions, db1, arr)
+	}
 
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
@@ -100,8 +124,9 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
+		// add alias, group 
   }
-	contents = []string{session.UserID, ""}
+	contents = []string{session.UserID, myname}
   for _, subscription := range invitation.Subscriptions {
 	  pushID := common.StringRand(12)
 		var arr []interface{}

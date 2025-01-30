@@ -18,7 +18,7 @@ const props = defineProps({
   message_id: '',
   backID: ''
 })
-
+localStorage.setItem('channelID', props.channel_id);
 const channel = ref(null);
 const aliases = ref(null);
 const groups = ref(null);
@@ -62,14 +62,7 @@ async function makeThreadHead() {
       threadHead.value.edit = true;
     }
     let message = threadHead.value;
-    // message = threadHead.value;
     message.messageID = threadHead.value.parentID;
-    // message.parentID = threadHead.value.parentID;
-    // message.messageTxt = threadHead.value.messageTxt;
-    // message.aliasName = threadHead.value.aliasName;
-    // message.aliasImg = threadHead.value.aliasImg;
-    // message.createdAt = threadHead.value.createdAt;
-    // message.emojis = threadHead.value.emojis;
     messagesStore.insert(message);
   } else {
     const threadHeadValue = {
@@ -99,7 +92,7 @@ async function makeThreadHead() {
       threadHead.value.messageTxt = message.messageTxt;
       threadHead.value.threadType = 0;
       threadHead.value.backID = props.backID;
-      messagesStore.insert(message);          
+      messagesStore.insert(message);
     }
   }
 }

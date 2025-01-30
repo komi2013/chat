@@ -91,10 +91,10 @@ const emitNames = (diff, item) => {
       <li v-for="item in filteredResults" :key="item.id" @click="addToSelection(item)">
 
         <img v-if="item.image && item.image.charAt(0) != ','" 
-          :src="item.image" class="people-img">
+          :src="item.image" class="min-icon">
         <span v-if="item.image && item.image.charAt(0) == ','"
           :style="'background-color:' + item.image.split(',')[2] "
-          class="people-img">
+          class="min-icon">
             <span>{{item.image.split(',')[1]}}</span>
         </span>
 
@@ -104,8 +104,9 @@ const emitNames = (diff, item) => {
     <br>
     <div v-for="item in selectedAlias" :key="item.id" class="selected-item">
       <img v-if="item.image && item.image.charAt(0) != ','" 
-        :src="item.image" >
+        :src="item.image" class="min-icon">
       <span v-if="item.image && item.image.charAt(0) == ','"
+        class="min-icon"
         :style="'background-color:' + item.image.split(',')[2] ">
           <span>{{item.image.split(',')[1]}}</span>
       </span>
@@ -158,12 +159,16 @@ li {
   margin-bottom: 5px;
 }
 */
-.people-img {
-	width: 24px;
-	vertical-align: middle;
-	display: inline-table;
-	text-align: center;
-	border-radius: 5px;
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
 }
 
 .selected-item {

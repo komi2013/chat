@@ -14,18 +14,32 @@ import (
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
-  // "go.mongodb.org/mongo-driver/bson"
+  "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
 
-  // "chat/collection"
+  "chat/collection"
   "chat/common"
 )
 
 func Upload(w http.ResponseWriter, r *http.Request) {
 	u := strings.Split(r.URL.Path, "/")
-  aliasName := u[3]
-  
-	fmt.Printf("/upload/I0JH/ u %s\n", u[1], u[2]) // upload I0JH
+	if len(u) < 6 {
+		http.Error(w, "invalid URL path or File not found", http.StatusNotFound)
+		return 
+	}
+	fileType := u[2]
+	channelID := u[3]
+	fileID := u[4]
+	aliasName := u[5]
+	if channelID == "" || fileID == "" {
+		http.Error(w, "invalid URL path or File not found", http.StatusNotFound)
+		return 
+	}
+	ext := filepath.Ext(aliasName)
+	if fileType == "img" && ext != ".png" {
+		http.Error(w, "invalid URL path or File not found", http.StatusNotFound)
+		return 
+	}
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -43,55 +57,45 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
   trueAccess := false
-  // for _, d := range session.ChannelAliases {
-  //   if d.Alias == updatedBy && d.ChannelID == channelID {
-  //     trueAccess = true
-  //   }
-  // }
-  // if !trueAccess {
-  //   log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
-  //   return
-  // }
+  for _, d := range session.ChannelAliases {
+    if d.ChannelID == channelID {
+      trueAccess = true
+    }
+  }
+  if !trueAccess {
+    log.Printf("!trueAccess: %v; Req: ", session.ChannelAliases, r.URL.Path)
+    http.Error(w, "no access right for file", http.StatusNotFound)
+    return
+  }
+  log.Printf("!trueAccess: %v; Req: ", fileID)
+  if fileType == "file" {
+		var fileData collection.FileStruct
+		coll := db1.Collection("file")
+		filter := bson.M{"_id": fileID}
+		err = coll.FindOne(ctx, filter).Decode(&fileData)
+		if err != nil {
+			log.Printf("fileData: %v; Req: ", err, fileID, r.URL.Path)
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+    found := false
+    for _, userID := range fileData.AvailableBy {
+      if userID == session.UserID {
+        found = true
+        break
+      }
+    }
+    if !found {
+      log.Printf("fileData access denied for user %s; Req: ", session.UserID, r.URL.Path)
+      http.Error(w, "file not found", http.StatusNotFound)
+      return
+    }
+  }
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Print(err)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
-  // var session collection.SessionStruct
-
-  // coll := db1.Collection("session")
-  // filter := bson.D{{"_id", cookie.Value}}
-  // // opts := options.FindOne().SetProjection(projection)
-  // opts := options.FindOne().SetProjection(bson.D{
-  //   {"user_id", 1},
-  //   {"alias_array", 1},
-  // })
-  // coll.FindOne(context.TODO(), filter, opts).Decode(&session)
-  // if err != nil {
-  //   panic(err)
-  // }
-  // trueAccess := false
-  // for _, arrayData := range session.AliasArray {
-  //   if arrayData[0] == aliasName {
-  //     trueAccess = true
-  //   }
-  // }
-  // if !trueAccess {
-  //   fmt.Printf(" err %s\n", session.AliasArray, aliasName)
-  //   return
-  // }
-
-  fmt.Printf(" u %s\n", aliasName, session, trueAccess)
-
-	filePath := u[2] + "/" + u[4]
-
-	file, err := http.Dir("./upload").Open(filePath)
+	filePath := fmt.Sprintf("%s/%s/%s", channelID, fileID, aliasName)
+	file, err := http.Dir("./upload_data/" + fileType).Open(filePath)
 	if err != nil {
+		log.Printf("File not found: %v; Req: ", err, r.URL.Path, r.Form)
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}

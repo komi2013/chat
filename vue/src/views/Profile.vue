@@ -2,7 +2,6 @@
 import { ref, computed, onBeforeMount, onMounted } from 'vue';
 import DrawerColumn from '@/components/DrawerColumn.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
-import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
 import { getRandomEmoji, getRandomColor } from '@/my/emoji';
 
 const props = defineProps({
@@ -12,21 +11,21 @@ const props = defineProps({
   toAliasName: String
 })
 
+localStorage.setItem('channelID', props.id);
+
 const channel = ref(null);
 const alias = ref(null);
 let aliases;
-// const groups = ref([]);
 const fetched = ref(false);
 const isEditable = ref(false);
 const aliasName = ref(props.name);
 const aliasImg = ref(',' + getRandomEmoji() + ',' + getRandomColor());
-
-// console.log(aliasImg.value);
-
+let sameUserAliases;
+let joinGroups;
 onBeforeMount(async () => {
   if (!props.code) {
-    channel.value = await fetchChannel(props.id);
-    aliases = await fetchAliases(props.id);
+    channel.value = await getIDB('channel', props.id);
+    aliases = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
     if (!props.name) {
       aliasName.value = channel.value.myname;
       isEditable.value = true;
@@ -34,10 +33,15 @@ onBeforeMount(async () => {
     alias.value = aliases.find(
       (item) => item.aliasName === aliasName.value
     );
-    console.log(aliases);
     if (alias.value) {
       aliasImg.value = alias.value.aliasImg;
+      sameUserAliases = aliases.filter(
+        item => item.userID === alias.value.userID && item.aliasID !== alias.value.aliasID
+      );
+      console.log('sameUserAliases', sameUserAliases);
     }
+    const groups = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+    joinGroups = groups.filter(group => group.aliasNames.includes(aliasName.value));
   }
   fetched.value = true;
 });
@@ -58,8 +62,8 @@ function editAlias() {
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'alias');
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases)));
-  const contents = [alias.value.userID, alias.value.bio];
+  fd.append('userIDs', JSON.stringify(aliases.map(d => d.userID)));
+  const contents = [alias.value.userID, channel.value.myname, alias.value.bio];
   fd.append('contents', JSON.stringify(contents));
   // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
   fd.append('imgPath', aliasImg.value);
@@ -73,8 +77,17 @@ async function join () {
   fd.append('myname', aliasName.value);
   fd.append('myimg', aliasImg.value);
   await sendRequest('/ChannelJoin/', fd);
+  // location.href = '/profile/' + props.id + '/';
+}
+
+async function switchAlias (aliasName) {
+  const newChannel = JSON.parse(JSON.stringify(channel.value));
+  newChannel.myname = aliasName;
+  console.log(newChannel);
+  upsertIDB(newChannel, 'channel', 'channelID', props.id);
   location.href = '/profile/' + props.id + '/';
 }
+
 
 </script>
 
@@ -83,18 +96,20 @@ async function join () {
 <div id="content" v-if="fetched">
 <br><br>
   <div class="join">
-    <template v-if="!isEditable">
-      <img v-if="aliasImg && aliasImg.charAt(0) != ','" 
-        :src="aliasImg" class="people-img">
-      <span v-if="aliasImg && aliasImg.charAt(0) == ','"
-        class="people-img" 
-        :style="'background-color:' + aliasImg.split(',')[2] ">
-          <span>{{aliasImg.split(',')[1]}}</span>
-      </span>
-    </template>
+    <div class="icon-name">
+      <template v-if="!isEditable">
+        <img v-if="aliasImg && aliasImg.charAt(0) != ','" 
+          :src="aliasImg" class="new-alias-img">
+        <span v-if="aliasImg && aliasImg.charAt(0) == ','"
+          class="new-alias-img" 
+          :style="'background-color:' + aliasImg.split(',')[2] ">
+            <span>{{aliasImg.split(',')[1]}}</span>
+        </span>
+      </template>
 
-    <input v-if="props.code" type="text" v-model="aliasName" placeholder="このチャネルのニックネーム" class="aliasName">
-    <span v-if="!props.code" class="aliasName">{{aliasName}}</span>
+      <input v-if="props.code" type="text" v-model="aliasName" placeholder="このチャネルのニックネーム" class="aliasName">
+      <span v-if="!props.code" class="aliasName">{{aliasName}}</span>
+    </div>
     <PeopleImg v-if="isEditable" v-model="aliasImg" />
 
     <div v-if="!isEditable && alias" class="display-mode">
@@ -106,8 +121,40 @@ async function join () {
       v-model="alias.bio" 
       placeholder="自己紹介を入力してください">
     </textarea>
+    <button v-if="isEditable" @click="aliasEdit">▶️</button>
+  </div>
 
-    <button @click="aliasEdit">▶️</button>
+  <h3>マイニックネーム一覧</h3>
+  <div v-for="(d) in sameUserAliases" >
+    <div class="people-list">
+      <a :href="'/profile/' + id + '/' + d.aliasName + '/' ">
+        <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
+          :src="d.aliasImg" class="people-img">
+        <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
+          class="people-img" 
+          :style="'background-color:' + d.aliasImg.split(',')[2] ">
+            <span>{{d.aliasImg.split(',')[1]}}</span>
+        </span>
+        <span> {{d.aliasName}} </span>
+      </a>
+    </div>
+    <div v-if="isEditable" @click="switchAlias(d.aliasName)" class="switch-alias">🔀</div>
+  </div>
+
+  <h3>参加グループ一覧</h3>
+  <div v-for="(d) in joinGroups" >
+    <div class="people-list">
+      <a :href="'/group/' + id + '/' + d.groupName + '/' ">
+        <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
+          :src="d.groupImg" class="people-img">
+        <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"
+          class="people-img" 
+          :style="'background-color:' + d.groupImg.split(',')[2] ">
+            <span>{{d.groupImg.split(',')[1]}}</span>
+        </span>
+        <span> {{d.groupName}} </span>
+      </a>
+    </div>
   </div>
 </div>
 <div v-if="!fetched"> Loading... or Something Went </div>
@@ -120,10 +167,10 @@ async function join () {
   text-align: center;
 }
 
-.aliasName {
-  padding: 8px;
-  margin: 10px;
-  width: 200px;
+.icon-name {
+  display: inline-flex;
+  width: 94%;
+  align-items: center;
 }
 
 button {
@@ -143,12 +190,11 @@ button:hover {
 }
 
 .display-mode {
-  background-color: #f9f9f9;
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 5px;
   text-align: left;
-  white-space: pre-wrap; /* 改行を反映 */
+  white-space: pre-wrap;
 }
 
 .edit-mode {
@@ -161,5 +207,15 @@ button:hover {
   font-family: Arial, sans-serif;
 }
 
+.people-list {
+  padding: 5px;
+  display: inline-flex;
+  width: 80%;
+}
+
+.switch-alias {
+  display: inline-flex;
+  margin-left: 10px;
+}
 </style>
 

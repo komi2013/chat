@@ -8,17 +8,7 @@ import { useCalendarsStore } from '../stores/calendars.js';
 const props = defineProps({
   date: String, // 文字列形式の日付（例: '2025-02-01'）
 });
-
-let channel;
-async function fetchChannel() {
-  try {
-    channel = await getIDB('channel', localStorage.channelID);
-    fetchCalendar();
-  } catch (error) {
-    console.error('channel error', error);
-  }
-}
-fetchChannel();
+const channelID = localStorage.getItem("channelID");
 
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
 const calendarsStore = useCalendarsStore();
@@ -26,17 +16,6 @@ const calendarsStore = useCalendarsStore();
 const schedules = computed(() => {
   return calendarsStore.calendars;
 });
-
-async function fetchCalendar() {
-  try {
-    const data = await getAllIDBs('calendar');
-    data.forEach((d) => {
-      calendarsStore.upsert(d);
-    });
-  } catch (error) {
-    console.error('channel error', error);
-  }
-}
 
 const getStartOfWeek = (date) => {
   const start = new Date(date);
@@ -123,7 +102,19 @@ const decideHeightTop = (schedule, index) => {
   };
 };
 
-onMounted(() => {
+let channel;
+let aliases;
+let groups;
+onMounted(async () => {
+  channel = await getIDB('channel', channelID);
+  aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  const calendarData = await getAllIDBs('calendar');
+  console.log(calendarData);
+  calendarData.forEach((d) => {
+    d.title = d.todo ? Array.from(d.todo).slice(0, 10).join('') : ''; 
+    calendarsStore.upsert(d);
+  });
   const container = document.getElementById('calendar-container-move');
   if (container) {
     setupPCEvents(container);
@@ -171,8 +162,8 @@ const newSchedule = (day, hour) => {
   start.setHours(hour, 0);
   const end = new Date(start);
   end.setMinutes(start.getMinutes() + 30);
-  const timeStart = timeFormat('YYYY-MM-DDThh:mm', start);
-  location.href = `/calendarEdit/_/${timeStart}/`;
+  const timeStart = timeFormat('YYYYMMDDThhmmss', start);
+  location.href = `/calendarEdit/?dates=${timeStart}/`;
 };
 
 const handleSelectedItemsChange = (change) => {
@@ -180,11 +171,11 @@ const handleSelectedItemsChange = (change) => {
   if (diff === 1) {
     console.log("Item added:", item);
     let userIDs = [];
-    for (const d of channel.allAliases) {
-      if (d[0] === item.name) {
-        userIDs.push(d[2]);
-      }
-    }
+    // for (const d of channel.allAliases) {
+    //   if (d[0] === item.name) {
+    //     userIDs.push(d[2]);
+    //   }
+    // }
     const fd = new FormData();
     fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
     fd.append('channelID', localStorage.channelID);
@@ -196,14 +187,15 @@ const handleSelectedItemsChange = (change) => {
     }
     fd.append('param', JSON.stringify(param));
     // fd.append('pushTitle', 'pushSelect');
-    const request = new Request('/StoreSelect/', {
-      method: 'POST',
-      body: fd,
-    });
-    fetch(request)
-      .catch((reason)=>{
-        console.error(reason);
-      })
+    // const request = new Request('/StoreSelect/', {
+    //   method: 'POST',
+    //   body: fd,
+    // });
+    // fetch(request)
+    //   .catch((reason)=>{
+    //     console.error(reason);
+    //   })
+    sendRequest('/StoreSelect/', fd);
   } else if (diff === -1) {
     console.log("Item removed:", item);
   }

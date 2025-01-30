@@ -40,17 +40,17 @@
       </span>
     </div>
   </div>
-  <div v-if="!emojiImg">
+  <template v-if="!emojiImg">
     <img v-if="aliasImg && aliasImg.charAt(0) != ','" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">
     <span v-else @click="triggerFileInput" class="new-alias-img" > 🌄 </span>
     <input type="file" ref="fileInputRef" @change="previewAndUpload" accept="image/*" style="display: none;">
-  </div>
+  </template>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 
-import { emojiRanges, getRandomEmoji, getRandomColor } from '@/my/emoji';
+import { emojiRanges, isEmojiInRange, getRandomEmoji, getRandomColor } from '@/my/emoji';
 
 const props = defineProps({
   alias: Object,
@@ -150,6 +150,16 @@ const validateEmoji = () => {
 	border-radius: 5px;
 }
 
+.new-alias-img {
+/*  width: 40px;
+  height: 40px;*/
+  max-height: 50px;
+  max-width: 50px;
+  margin: 6px;
+  display: inline-block;
+  font-size: 36px;
+}
+
 .toggleEmoji {
   display: inline-block;
   text-align: center;
@@ -173,15 +183,18 @@ const validateEmoji = () => {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
 #color-picker {
   position: absolute;
   width: 60px;
   height: 44px;
 }
+
 .emoji-valid-err {
   position: absolute;
   color: red;
   left: 10px;
 }
+
 
 </style>

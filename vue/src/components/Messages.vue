@@ -4,11 +4,11 @@ import DrawerColumn from '@/components/DrawerColumn.vue';
 import EditBox from '@/components/EditBox.vue';
 import EmojiModal from '@/components/EmojiModal.vue';
 import EmojiedModal from '@/components/EmojiedModal.vue';
-import { useMessagesStore } from '@/stores/messages.js';
-import { useChannelsStore } from '@/stores/channels.js';
-import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath, isEmojiedOpen, openEmojied, closeEmojied } from '@/my/emoji.js';
+import { useMessagesStore } from '@/stores/messages';
+import { useChannelsStore } from '@/stores/channels';
+import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath, isEmojiedOpen, openEmojied, closeEmojied, rotateEmoji } from '@/my/emoji';
 import { toggleEdit, toggleBookmark } from '@/my/toggle.js';
-import { markdownToHtml } from '@/my/markdown.js';
+import { markdownToHtml } from '@/my/markdown';
 import { userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
@@ -30,15 +30,13 @@ const moreMessages = async () => {
   const parentMessageID = props.threadHead ? props.threadHead.parentID : props.channel.channelID;
   const addPosition = props.threadHead ? 1 : 0;
   const thread = await getIDBs('thread', 'parentIDIndex', parentMessageID, limit, offset);
-  if (addPosition === 1) {
-    thread.forEach(message => {
-      messagesStore.unshift(message, addPosition);
-    });
-  } else {
-    thread.reverse().forEach(message => {
-      messagesStore.insert(message);
-    });
-  }
+  thread.forEach(message => {
+  	if (addPosition === 1) {
+  		messagesStore.unshift(message, addPosition);
+  	} else {
+  		messagesStore.insert(message);
+  	}
+  });
   if (thread.length === limit) {
     offset += limit;
     more = true;
@@ -46,6 +44,26 @@ const moreMessages = async () => {
     more = false;
   }
 };
+
+function editable (myname, message) {
+	const now = Date.now();
+	const createdAtTimestamp = new Date(message.createdAt).getTime();
+	if (Math.floor((now - createdAtTimestamp) / (1000 * 60)) < 10 && myname == message.aliasName) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+function replyable (message) {
+	const msg2ndPartID = message.messageID.replace(props.channel.channelID, '');
+	const parent2ndPartID = message.parentID.replace(props.channel.channelID, '');
+	if (msg2ndPartID !== parent2ndPartID) {
+		return true;
+	} else {
+		return false;
+	}
+}
 
 onBeforeMount(async () => {
   await moreMessages();
@@ -67,15 +85,13 @@ function reply(message) {
 const clickEmoji = (message, emoji) => {
   const fd = new FormData();
   fd.append('channelID', props.channel.channelID);
-  fd.append('messageID', message.messageID);
-  fd.append('emojiValue', emoji.emoji);
   fd.append('updatedBy', props.channel.myname);
   fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
   fd.append('pushTitle', 'emoji');
   const contents = [message.messageID, emoji.emoji, message.parentID];
   fd.append('contents', JSON.stringify(contents));
   sendRequest('/ContentsPush/', fd);
-  rotateEmoji(emoji);
+  rotateEmoji(emoji.emoji);
 };
 
 </script>
@@ -88,22 +104,25 @@ const clickEmoji = (message, emoji) => {
         <tr>
           <td class="icon_td">
             <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
-              :src="message.aliasImg" class="icon">
+              :src="message.aliasImg" class="icon-img">
             <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
-              class="icon" 
+              class="icon-span" 
               :style="'background-color:' + message.aliasImg.split(',')[2] ">
               {{message.aliasImg.split(',')[1]}}</span>
           </td>
           <td>
-            <span class="aliasName">{{ message.aliasName }}</span>
+            <span class="aliasName">{{ message.aliasName }} {{message.spentMinute}}</span>
             <span class="dateTime" :id="'msg_'+message.messageID">{{ tF('MM-DD hh:mm', message.createdAt) }}</span>
           </td>
           <td class="setting">
             <span
-              v-if="channel.myname == message.aliasName"
+              v-if="editable(channel.myname, message)"
               :class="{ 'selected': message.editFlg }"
               @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
-            <span :class="{ 'selected': message.reply }"> <a @click="reply(message)"> 💬 </a> </span>
+            <span v-if="replyable(message)"
+            			:class="{ 'selected': message.reply }">
+            	<a @click="reply(message)"> 💬 </a>
+            </span>
             <span
               :class="{ 'selected': message.bookmark }"
               @click="toggleBookmark(message, channel, aliases, threadHead)"> 🔖 </span>
@@ -112,7 +131,12 @@ const clickEmoji = (message, emoji) => {
         </tr>
         <tr>
           <td v-if="message.editFlg" colspan="3" class="editText" :id="'for_content_' + messageID">
-            <EditBox :channel="channel" :message="message" :threadHead="threadHead" />
+			      <EditBox
+			        :channel="channel"
+			        :aliases="aliases"
+			        :groups="groups"
+			        :message="message"
+			        :threadHead="threadHead" />
           </td>
           <td v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
             <div
@@ -139,12 +163,6 @@ const clickEmoji = (message, emoji) => {
               class="emojied"
               @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
             </span>
-<!--             <div class="threads" v-if="message.reply">
-              <a :href="'/thread/' + channel.channelID + '/' + message.messageID.replace(channel.channelID, '') + '/'">
-                <span> 💬 </span>
-                <template v-for="img in message.threadImgs"><img :src="img" class="iconMini"></template>
-              </a>
-            </div> -->
           </td>
         </tr>
       </table>
@@ -188,10 +206,17 @@ code {
   border: 1px solid silver;
   margin: 3px;
 }
-.icon {
-  max-width: 50px;
-  max-height: 50px;
+.icon-span {
   border-radius: 10%;
+	display: inline-block;
+  height: 28px;
+  width: 28px;
+}
+.icon-img {
+  border-radius: 10%;
+	display: inline-block;
+  max-height: 30px;
+  max-width: 30px;
 }
 .icon_td {
   width: 50px;
@@ -262,11 +287,7 @@ code {
 .ql-editor {
   padding: 0;
 }
-.iconMini {
-  max-width: 26px;
-  max-height: 26px;
-  border-radius: 10%;
-}
+
 .threads a {
   cursor: pointer;
   display: flex;

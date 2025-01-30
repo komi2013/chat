@@ -72,7 +72,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, channelID)
   arr = append(arr, myname)
   arr = append(arr, contents)
-	common.ChunkPush(sessions, db1, r, arr)
+	common.ChunkPush(sessions, db1, arr)
 
   contents = []string{session.UserID, ""}
   newAliasChannel := collection.ChannelAlias{

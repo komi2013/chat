@@ -2,8 +2,8 @@ package common
 
 import (
   "encoding/json"
-  "log"
-  "net/http"
+  // "log"
+  // "net/http"
   "unicode/utf8"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -16,7 +16,6 @@ import (
 func ChunkPush(
   sessions []collection.SessionStruct,
   db1 *mongo.Database,
-  r *http.Request,
   arr []interface{},
 ) {
 	jsonData, _ := json.Marshal(arr)
@@ -46,7 +45,7 @@ func ChunkPush(
       }
       resp, err := SendWebPushNotification(db1, arrForJson, pushID, session.Subscription)
       if err != nil {
-        log.Printf("Error in SendWebPushNotification: %v; Req: %s", err, r.URL.Path)
+        LogError("SendWebPushNotification:", err)
       } else {
         defer resp.Body.Close()
       }

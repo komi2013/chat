@@ -10,9 +10,9 @@
     <ul v-if="filteredResults.length > 0" class="dropdown-menu">
       <li v-for="item in filteredResults" :key="item.id" @click="addToSelection(item)">
         <img v-if="item.image && item.image.charAt(0) != ','" 
-          :src="item.image" class="people-img">
+          :src="item.image" class="min-icon">
         <span v-if="item.image && item.image.charAt(0) == ','"
-          class="people-img" 
+          class="min-icon" 
           :style="'background-color:' + item.image.split(',')[2] ">
             <span>{{item.image.split(',')[1]}}</span>
         </span>
@@ -22,9 +22,9 @@
     </ul>
     <div v-for="item in selectedAlias" :key="item.id" class="selected-item">
       <img v-if="item.image && item.image.charAt(0) != ','" 
-        :src="item.image" class="people-img">
+        :src="item.image" class="min-icon">
       <span v-if="item.image && item.image.charAt(0) == ','"
-        class="people-img" 
+        class="min-icon" 
         :style="'background-color:' + item.image.split(',')[2] ">
           <span>{{item.image.split(',')[1]}}</span>
       </span>
@@ -44,6 +44,9 @@ const props = defineProps({
   placeholder: String
 });
 
+console.log('props.modelValue', props.modelValue);
+console.log('props.aliases', props.aliases);
+
 const emit = defineEmits(["update:modelValue"]);
 const searchTerm = ref("");
 const selectedAlias = ref([]);
@@ -55,6 +58,9 @@ if (Array.isArray(props.modelValue)) {
       : null;
   }).filter(Boolean);
 }
+
+console.log('selectedAlias.value', selectedAlias.value);
+
 
 const filteredResults = computed(() => {
   if (!searchTerm.value || typeof searchTerm.value !== "string") return [];
@@ -135,5 +141,17 @@ const emitNames = () => {
   margin-top: 10px;
   padding: 10px;
 }*/
+
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
+}
 
 </style>

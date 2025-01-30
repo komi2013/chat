@@ -25,6 +25,20 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+	var aliases []collection.Alias
+  if err := json.Unmarshal([]byte(r.FormValue("aliases")), &aliases); err != nil {
+  	log.Printf("aliases: %v; Request:", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON aliases", http.StatusBadRequest)
+    return
+  }
+
+	var groups []collection.Group
+  if err := json.Unmarshal([]byte(r.FormValue("groups")), &groups); err != nil {
+  	log.Printf("groups: %v; Request:", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON groups", http.StatusBadRequest)
+    return
+  }
+
 	var aliasNames []string
   if err := json.Unmarshal([]byte(r.FormValue("aliasNames")), &aliasNames); err != nil {
   	log.Printf("aliasNames: %v; Request:", err, r.URL.Path, r.Form)
@@ -99,6 +113,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
     CreatedAt: time.Now(),
 		Subscriptions: subscriptions,
 		AliasNames: aliasNames,
+		Aliases: aliases,
+		Groups: groups,
 	}
 	_, err = coll.InsertOne(context.TODO(), invitation)
 	if err != nil {

@@ -21,11 +21,12 @@ const router = createRouter({
       })
     },
     {
-      path: '/calendarEdit/:id/:start?/',
+      path: '/calendarEdit/:id?/',
       component: () => import('../views/CalendarEdit.vue'),
       props: route => ({
         id: route.params.id,
-        start: route.params.start
+        text: route.query.text,
+        dates: route.query.code
       })
     },
     {

@@ -69,26 +69,10 @@ export async function fetchGroups(channelId) {
   }
 }
 
-// export function userIDsAll(channel, aliases) {
-//   let userIDs = [];
-//   for (const d of aliases) {
-//     if (names.includes(d[0])) {
-//       userIDs.push(d[2]);
-//     }
-//   }
-//   return [...new Set(userIDs)];
-// }
-
-export function userIDsByName(aliases, names = []) {
-  let userIDs = [];
-  for (const d of aliases) {
-    if (Array.isArray(names) && names.includes(d.aliasName)) {
-      userIDs.push(d.userID);
-    } else {
-      userIDs.push(d.userID);
-    }
-  }
-  return [...new Set(userIDs)];
+export function userIDsByName(aliases, names) {
+  return Array.isArray(names) 
+    ? [...new Set(aliases.filter(d => names.includes(d.aliasName)).map(d => d.userID))]
+    : [];
 }
 
 export function userIDsByGroups(channel, aliases, groups, groupNames) {

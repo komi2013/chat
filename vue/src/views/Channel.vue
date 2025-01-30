@@ -20,8 +20,9 @@ const channel = ref({
 const myname = ref(null);
 const myimg = ref(null);
 
-const aliases = ref([]);
 const channels = ref([]);
+const aliases = ref([]);
+const groups = ref([]);
 const threadHeads = ref([]);
 
 const quill = ref(null);
@@ -38,11 +39,12 @@ function initQuill() {
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 
 onMounted(async () => {
-  // await fetchAllChannel();
   channels.value = await getAllIDBs('channel');
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
-  threadHeads.value = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
-  console.log(threadHeads.value);
+  groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+
+  const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
+  threadHeads.value = threadHeadsAll.filter(d => !d.backID);
   // await fetchThreadHead();
   // groups.value = await fetchGroups(props.id);
   if (props.id) {
@@ -67,8 +69,7 @@ async function channelEdit () {
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'channelEdit');
-  let userIDs = userIDsByName(aliases.value);
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
   const contents = [
     channel.value.channelName,
     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
@@ -99,8 +100,10 @@ const invite = async () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('channelName', channel.value.channelName);
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
   fd.append('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
+  fd.append('aliases', JSON.stringify(aliases.value));
+  fd.append('groups', JSON.stringify(groups.value));
   if (!mention.value) {
     fd.append('noRightMention', 1);
   }
@@ -149,6 +152,20 @@ const invite = async () => {
     👪 グループアカウント作成・編集 
   </a> </div>
 
+  <h3>ユーザー一覧</h3>
+  <div v-for="d in aliases" class="aliases">
+    <a :href="'/profile/' + id + '/' + d.aliasName + '/'">
+      <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
+        :src="d.aliasImg" class="min-icon">
+      <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
+        :style="'background-color:' + d.aliasImg.split(',')[2] "
+        class="min-icon">
+          <span>{{d.aliasImg.split(',')[1]}}</span>
+      </span>
+      <span>{{ d.aliasName }}</span>
+    </a>
+  </div>
+
 <template v-if="id">
   <h3>スレッド一覧</h3>
   <ul v-if="threadHeads">
@@ -158,7 +175,7 @@ const invite = async () => {
       </a>
     </li>
     <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
-  </ul>  
+  </ul>
 </template>
 
 <h3>チャネル一覧</h3>
@@ -211,5 +228,23 @@ const invite = async () => {
 .optionRight {
   padding: 4px;
 }
+
+.aliases {
+  padding: 4px;
+  display: inline-flex;
+}
+
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
+}
+
 </style>
 

@@ -46,7 +46,7 @@ const props = defineProps({
   message: Object,
   threadHead: Object,
 });
-
+console.log('props.aliases', props.aliases)
 const message = props.message;
 let task = ref(false);
 const messageID = props.message.messageID;
@@ -72,7 +72,6 @@ const attach = () => {
 
 }
 
-let dm = false;
 const fileInfo = ref({});
 const handleFileInputChange = (event) => {
 	console.log(event);
@@ -96,26 +95,25 @@ const handleFileInputChange = (event) => {
   console.log(fileInfo.value);
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
+
+let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
-
   if (clicked) {
     return;
   }
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
-  // const threadFlg = props.message.parentID;
-  const uri = messageID ? '/ThreadEdit/' : '/ThreadPost/';
-  // messageID = messageID ?? base62Encode(Math.floor(Date.now() / 1000));
-  const SecondMsgID = messageID ? messageID.replace(channelID, '') : base62Encode(Math.floor(Date.now() / 1000)) +  generateRandomCode(1);
+  const pushTitle = messageID ? 'threadEdit' : 'thread';
+  const SecondMsgID = messageID ? 
+  	messageID.replace(props.channel.channelID, '') :
+  	base62Encode(Math.floor(Date.now() / 1000)) +  generateRandomCode(1);
   const fd = new FormData();
-  console.log(messageData);
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
-  console.log('いいい', alias.aliasImg);
-  let userIDs = [localStorage.getItem("userID")];
+  let userIDs = [];
   let names = [props.channel.myname];
   let backID = '';
   if (props.threadHead) {
@@ -126,37 +124,47 @@ const msgUpsert = async (messageID, delMessage) => {
     if (dm) {
       names = props.threadHead.parentID.split('@');
     }
+    console.log('userIDs0', props.threadHead.aliasNames);
     userIDs = userIDsByName(props.aliases, props.threadHead.aliasNames);
+    console.log('userIDs1', userIDs);
   }
+  let yets = [];
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
       const atName = `＠＠${d.groupName}・＠＠`;
       if (messageData.includes(atName)) {
         for (const d2 of d.aliasNames) {
           names.push(d2);
+		    	if (task.value) {
+				    yets.push({
+				    	aliasName: d2,
+				    	emoji: '☑️'
+				    });    		
+		    	}
         }
       }
     }
   }
-  let yets = [];
   for (const d of props.aliases) {
-    if (names.includes(d.aliasName)) {
-      userIDs.push(d.userID);
-    }
+    // if (names.includes(d.aliasName)) {
+    //   userIDs.push(d.userID);
+    // }
     const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
-      userIDs.push(d.userID);
-      names.push(d.aliasName);
-      yets.push({
-      	aliasName: d.aliasName,
-      	emoji: '☑️'
-      });
-    }
+    	if (!dm) {
+	      userIDs.push(d.userID);
+	      names.push(d.aliasName);    		
+    	}
+    	if (task.value) {
+		    yets.push({
+		    	aliasName: d.aliasName,
+		    	emoji: '☑️'
+		    });    		
+    	}
+		}
   }
-  // if (task.value) {
-  //   fd.append('yets', JSON.stringify(yets));
-  // }
   const fileInput = document.getElementById('fileInput_' + messageID);
+
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
     return;
@@ -166,15 +174,10 @@ const msgUpsert = async (messageID, delMessage) => {
       fd.append('files[]', file);
     }
   }
-  if (!messageID) {
-    quill.root.innerHTML = '';
-    fileInfo.value = [];
-  }
-
-  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('pushTitle', 'thread');
+  fd.append('pushTitle', pushTitle);
   const contents = [
   	props.message.parentID,
     SecondMsgID,
@@ -186,28 +189,16 @@ const msgUpsert = async (messageID, delMessage) => {
   ];
   fd.append('contents', JSON.stringify(contents));
   await sendRequest('/ContentsPush/', fd);
-
-  // await sendRequest(uri, fd);
+  quill.root.innerHTML = '';
+  fileInfo.value = [];
+  task.value = false;
   clicked = false;
-  // const request = new Request(uri, {
-  //   method: 'POST',
-  //   body: fd,
-  // });
-  // fetch(request)
-  //   .then(function(response) {
-  //     clicked = false;
-  //   })
 }
 
 function getAliasImg(props) {
   let aliasImg = null;
   const myname = props.channel.myname;
-  // props.aliases.forEach(d => {
-
-  // });
-  // const found = array1.find((element) => element > 10);
   for (let i = 0; i < props.aliases.length; i++) {
-    console.log(props.aliases[i].aliasName, '===', myname);
     if (props.aliases[i].aliasName === myname) {
       aliasImg = props.aliases[i].aliasImg;
       break;
@@ -221,7 +212,6 @@ onMounted(() => {
   quill = new Quill('#edit_' + messageID, {
     modules: {
       toolbar: '#toolbar_' + messageID,
-
       mention: {
         allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
         mentionDenotationChars: ["@"],
@@ -234,7 +224,7 @@ onMounted(() => {
                 props.groups.map(group => ({
                   aliasID: group.groupID,
                   aliasName: group.groupName,
-                  aliasImg: group.groupImg, // 必要に応じてプロパティ名を調整
+                  aliasImg: group.groupImg,
                 }))
               );
             }
@@ -243,7 +233,7 @@ onMounted(() => {
               return {
                 id: alias.aliasID,
                 value: alias.aliasName,
-                imageUrl: alias.aliasImg
+                icon: alias.aliasImg
               };
             });
           }
@@ -256,10 +246,15 @@ onMounted(() => {
           }
         },
         renderItem: function(item) {
-          // console.log(position);
           const mentionWithImage = document.createElement("div");
-          // mentionWithImage.style.left = 0;
-          mentionWithImage.innerHTML = `<img src="${item.imageUrl}" class="iconMini">${item.value}`;
+          if (item.icon.charAt(0) == ',') {
+          	const arr = item.icon.split(',');
+          	console.log('arr', arr);
+          	mentionWithImage.innerHTML = 
+          		`<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
+          } else {
+          	mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
+          }
           return mentionWithImage;
         },
         onOpen: function() {
@@ -344,8 +339,21 @@ onMounted(() => {
   height: 24px;
 }
 
+.min-icon {
+	width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
+}
+
 .mention {
   background-color: #a7cad63d;
   color: blue;
 }
+
 </style>

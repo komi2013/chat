@@ -1,7 +1,6 @@
-import { useBookmarksStore } from '../stores/bookmarks.js';
-import { useMessagesStore } from '../stores/messages.js';
-import { removeMark } from '../my/markdown.js';
-import { fetchChannel, fetchAliases, fetchGroups } from '@/my/channelFunc';
+import { useBookmarksStore } from '@/stores/bookmarks.js';
+import { useMessagesStore } from '@/stores/messages.js';
+import { removeMark } from '@/my/markdown.js';
 
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
@@ -16,13 +15,12 @@ export async function thread(pushData) {
   fetch(request);
   const channelID = pushData[2];
   const updatedBy = pushData[3];
-  const parentID = pushData[4][0];
   const secondPartMsgID = pushData[4][1];
-  const unixtime = base62Decode(secondPartMsgID);
+  const unixtime = base62Decode(secondPartMsgID.slice(0, -1));
 	let filelinks = "";
 	if (Array.isArray(pushData[5])) {
     pushData[5].forEach(filelink => {
-      filelinks += `＊f＊${filelink}・＊f＊`;
+      filelinks += `＊f＊${filelink}・＊f＊ `;
     });
 	}
   const pushThread = {
@@ -95,6 +93,7 @@ export async function thread(pushData) {
     threadHead.updatedAt = pushThread.createdAt;
     threadHead.threadCount = 0;
     threadHead.aliasNames = pushThread.aliasNames;
+    threadHead.adminNames = pushThread.aliasNames;
     threadHead.backID = pushThread.backID;
     threadHead.channelID = channelID;
     newThreadHeadFlag = true;
@@ -126,6 +125,6 @@ export async function thread(pushData) {
     messagesStore.insert(pushThread);
   }
   if (newThreadHeadFlag) {
-    location.href = '';
+    // location.href = '';
   }
 }

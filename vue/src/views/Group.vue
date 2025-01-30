@@ -7,56 +7,40 @@ import PeopleImg from '@/components/PeopleImg.vue';
 import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
-import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
+import { userIDsByName } from '@/my/channelFunc';
 // import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/toggle.js';
 
 const props = defineProps({
   id: '',
-  groupAliasName: ''
+  groupName: ''
 })
+
+localStorage.setItem('channelID', props.id);
 
 const channel = ref(null);
 const aliases = ref([]);
 const groups = ref([]);
 const fetched = ref(false);
 onBeforeMount(async () => {
-  channel.value = await fetchChannel(props.id);
-  aliases.value = await fetchAliases(props.id);
-  groups.value = await fetchGroups(props.id);
+  // channel.value = await fetchChannel(props.id);
+  // aliases.value = await fetchAliases(props.id);
+  // groups.value = await fetchGroups(props.id);
+  channel.value = await getIDB('channel', props.id);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+  groups.value.forEach(group => {
+    if (group.aliasNames.includes(channel.value.myname)) {
+      group.editable = true;
+    } else {
+      group.editable = false;
+    }
+  });
   fetched.value = true;
+
+  // console.log(aliases.value.map(d => ));
 });
 
-const groupName = ref(props.groupName);
-// const isEditable = ref(true);
-
-function isEditable(groupAlias) {
-  if ( groupAlias.aliasNames.includes(channel.value.myname) ) {
-    return true;
-  }
-  return false;
-}
-
-// function updateGroupAliasName(event, groupAlias) {
-//   groupAlias[0] = event.target.innerText;
-// }
-
-// function getImagePath(aliasName) {
-//   const alias = aliases.value.find(alias => alias.aliasName === aliasName);
-//   return alias.aliasImg ? alias.aliasImg : '';
-// }
-
-// function removeName(groupIndex, aliasName) {
-//   const group = groups.value[groupIndex];
-//   if (!group) {
-//     console.warn(`Group at index ${groupIndex} not found.`);
-//     return;
-//   }
-//   const aliasIndex = group.aliasNames.findIndex(
-//     (name) => name === aliasName
-//   );
-//   group.aliasNames.splice(aliasIndex, 1);
-//   console.log(groups.value);
-// }
+// const groupName = ref(props.groupName);
 
 function newGroup() {
   const group = {
@@ -92,7 +76,7 @@ function editGroup(group) {
   }
   const fd = new FormData();
   fd.append('channelID', channel.value.channelID);
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'group');
   const contents = [
@@ -130,12 +114,15 @@ const updateSelectedAlias = (change) => {
 <DrawerColumn />
 <div id="content" v-if="fetched">
   <div class="headTitle">
-    <div>
+    <div v-if="!groupName">
       <a :href="'/channel/' + channel.channelID"> {{ channel.channelName }} </a>
     </div>
-    <div style="line-height: 50px;">
-      &nbsp;
+    <div v-if="groupName">
+      {{groupName}}
     </div>
+    <span v-if="groupName">
+      <a :href="'/group/' + props.id + '/'"> ⬅ </a>
+    </span>
   </div>
 
 <table>
@@ -143,36 +130,37 @@ const updateSelectedAlias = (change) => {
     <template v-if="!groupName || (groupName === groupAlias.groupName)">
       <tr><td colspan="3">
         <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
-        <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
+          <PeopleImg v-if="groupAlias.editable" v-model="groupAlias.groupImg" />
+          <template v-if="!groupAlias.editable">
+            <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' ">
+              <img v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) != ','" 
+                :src="groupAlias.groupImg" class="people-img">
+              <span v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) == ','"
+                class="people-img" 
+                :style="'background-color:' + groupAlias.groupImg.split(',')[2] ">
+                  <span>{{groupAlias.groupImg.split(',')[1]}}</span>
+              </span>
+            </a>
+          </template>
+          <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' ">
+            <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
+          </a>
       </td></tr>
       <tr>
-        <td colspan="3">
-          <PeopleImg v-if="isEditable(groupAlias)" v-model="groupAlias.groupImg" />
-          <template v-if="!isEditable(groupAlias)">
-            <img v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) != ','" 
-              :src="groupAlias.groupImg" class="people-img">
-            <span v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) == ','"
-              class="people-img" 
-              :style="'background-color:' + groupAlias.groupImg.split(',')[2] ">
-                <span>{{groupAlias.groupImg.split(',')[1]}}</span>
-            </span>
-          </template>
-        </td>
-      </tr>
-      <tr>
         <td colspan="3" class="height">
-          <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="isEditable(groupAlias)" />
+          <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="groupAlias.editable" />
         </td>
       </tr>
       <tr>
         <td class="center">
-          <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a>
+
+          <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
         </td>
 
-        <td v-if="isEditable(groupAlias)" class="center">
-          <button v-if="isEditable(groupAlias)" @click="removeGroup(groupAlias)"> 🗑 </button>
+        <td v-if="groupAlias.editable" class="center">
+          <button @click="removeGroup(groupAlias)"> 🗑 </button>
         </td>
-        <td v-if="isEditable(groupAlias)" class="center">
+        <td v-if="groupAlias.editable" class="center">
           <button @click="editGroup(groupAlias)">▶️</button>
         </td>
       </tr>
@@ -185,7 +173,6 @@ const updateSelectedAlias = (change) => {
 
 <div class="center">
   <button v-if="!groupName" @click="newGroup"> + </button>
-  <a v-if="groupName" :href="'/group/' + props.id + '/'"><button> ✏️ </button></a>
 </div>
 
 </div>
@@ -193,6 +180,17 @@ const updateSelectedAlias = (change) => {
 </template>
 
 <style>
+
+.headTitle div {
+  width: 90%;
+  display: inline-block;
+  height: 50px
+}
+
+.headTitle span {
+  line-height: 50px;
+  width: 50px;
+}
 
 img {
   max-width: 50px;

@@ -1,57 +1,72 @@
 <script setup>
-import { ref } from 'vue';
-import SelectPeople from '../components/SelectPeople.vue';
-
+import { ref, onMounted } from 'vue';
+import SelectPeople from '@/components/SelectPeople.vue';
+import { userIDsByName } from '@/my/channelFunc';
 const props = defineProps({
   id: String,
-  start: String,
+  text: String,
+  dates: String,
 });
+const channelID = localStorage.getItem("channelID");
 
 document.title = 'カレンダー';
-const channel = ref(null);
-const person = ref(null);
-fetchChannel();
-async function fetchChannel() {
-  try {
-    channel.value = await getIDB('channel', localStorage.channelID);
-    if (channel.value.allAliases && Array.isArray(channel.value.allAliases)) {
-      const aliasName = channel.value.aliasName;
-      const aliases = channel.value.allAliases.find((alias) => alias[0] === aliasName);
-      console.log(aliases);
-      if (aliases) {
-        person.value = {
-          name: aliases[0],
-          image: aliases[1] !== "null" ? aliases[1] : null,
-        };
-      }
-    }
-    if (props.id != '_') {
-      fetchCalendar();
-    }
-  } catch (error) {
-    console.error('channel error', error);
-  }
+
+function parseDates(dates) {
+  if (!dates) return null;
+  const parts = dates.split('/');
+  const parseDateTime = (dtStr) => {
+    const match = dtStr.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/);
+    if (!match) return null;
+    const [, year, month, day, hour, minute, second] = match.map(Number);
+    return new Date(year, month - 1, day, hour, minute, second);
+  };
+  const start = parseDateTime(parts[0]);
+  const end = parts[1] ? parseDateTime(parts[1]) : new Date(start.getTime() + 30 * 60 * 1000);
+  return { start, end };
 }
 
-const start = new Date(props.start || new Date());
-const end = new Date(start.getTime() + 30 * 60 * 1000);
+const { start, end } = parseDates(props.dates) || {
+  start: new Date(),
+  end: new Date(new Date().getTime() + 30 * 60 * 1000)
+};
+
+// const start = new Date(props.start || new Date());
+// const end = new Date(start.getTime() + 30 * 60 * 1000);
 const currentDate = ref(timeFormat('YYYY-MM-DD', start));
 
 const calendar = ref({
   timeStart: timeFormat('YYYY-MM-DDThh:mm', start),
   timeEnd: timeFormat('YYYY-MM-DDThh:mm', end),
-  title: '',
-  todo: ''
+  todo: props.text ?? ''
 });
 
-async function fetchCalendar() {
-  try {
+// async function fetchCalendar() {
+//   try {
+//     calendar.value = await getIDB('calendar', props.id);
+//     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
+//   } catch (error) {
+//     console.error('calendar error', error);
+//   }
+// }
+
+let channel;
+let aliases;
+let groups;
+onMounted(async () => {
+  channel = await getIDB('channel', channelID);
+  aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  // const myAlias = aliases.find((d) => d.aliasName === channel.myname);
+  // person.value = {
+  //   name: myAlias.aliasName,
+  //   image: myAlias.aliasImg,
+  // };
+  if (props.id != '_') {
     calendar.value = await getIDB('calendar', props.id);
     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
-  } catch (error) {
-    console.error('calendar error', error);
   }
-}
+});
+
 
 let joinNames = [];
 const handleSelectedItemsChange = (change) => {
@@ -69,38 +84,22 @@ const handleSelectedItemsChange = (change) => {
 };
 
 const submit = () => {
+  console.log(JSON.stringify(userIDsByName(aliases, [channel.myname])));
   if (!confirm("実行▶️")) {
     return;
   }
-  let userIDs = [];
-  for (const d of channel.value.allAliases) {
-    if (channel.value.aliasName === d[0]) {
-      userIDs.push(d[2]);
-    }
-    for (const dd of joinNames) {
-      if (dd === d[0]) {
-        userIDs.push(d[2]);
-      }
-    }
-  }
   calendar.value.calendarID ||= generateRandomCode(8);
-  calendar.value.channelID = channel.value.channelID;
-  calendar.value.aliasName = channel.value.aliasName;
+  calendar.value.channelID = channelID;
+  calendar.value.aliasName = channel.myname;
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  // fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
+  fd.append('channelID', channelID);
+  fd.append('updatedBy', channel.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
-  const request = new Request('/ContentsPush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.error(reason);
-    })
-  location.href = '/calendar/' + currentDate.value + '/';
+  sendRequest('/ContentsPush/', fd);
+  // location.href = '/calendar/' + currentDate.value + '/';
 };
 </script>
 
@@ -110,12 +109,15 @@ const submit = () => {
       <input type="datetime-local" v-model="calendar.timeStart" />
       <span> ~ </span>
       <input type="datetime-local" v-model="calendar.timeEnd" />
-      <input type="text" placeholder="タイトル" v-model="calendar.title" class="title" />
       <textarea type="text" placeholder="Todo" v-model="calendar.todo"></textarea>
-      <SelectPeople v-if="channel && person"
+      <SelectPeople v-if="groups"
         @update:selectedItems="handleSelectedItemsChange"
         :channel="channel"
-        :person="person"
+        :aliases="aliases"
+        :groups="groups"
+        :placeholder="'参加ユーザー'"
+        v-model="calendar.aliasNames"
+
         />
       <button @click="submit">投稿</button>
       <button><a :href="`/calendar/${currentDate}/`">閉じる</a></button>
@@ -137,11 +139,11 @@ const submit = () => {
   width: 100%;
 }
 
-.title {
+/*.title {
   width: 100%;
   margin-bottom: 10px;
 }
-
+*/
 .modal-content textarea {
   width: 100%;
 }

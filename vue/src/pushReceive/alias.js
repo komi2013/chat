@@ -8,9 +8,10 @@ export async function alias(pushData) {
   });
   fetch(request);
   const channelID = pushData[2];
-  const aliasName = pushData[3];
+  const updatedBy = pushData[3];
   const userID = pushData[4][0];
-  const bio = pushData[4][1];
+  const aliasName = pushData[4][1];
+  const bio = pushData[4][2]; // change
   const aliasImg = pushData[5];
 
   const alias = {

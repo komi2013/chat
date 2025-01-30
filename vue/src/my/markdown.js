@@ -86,8 +86,9 @@ const applyCodeBlocks = (markdown) => {
 };
 
 const applyAttach = (markdown, channel) => {
-  const updatedFilePath = `/upload/${channel.channelID}/${channel.aliasName}/$1`;
-  return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="${updatedFilePath}" download>$1</a></p>`);
+	// ＊f＊/upload/I0JH/DrFH/OTOMAでSQLの検証.sql・＊f＊
+  // const updatedFilePath = `/upload/${channel.channelID}/${channel.aliasName}/$1`;
+  return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="$1" download>$1</a></p>`);
   // return markdown.replace(/「＊([^]*?)＊」（＊([^]*?)＊）/g, '<p><a href="$2" download>$1</a></p>');
 };
 
@@ -100,7 +101,8 @@ const applyColors = (markdown) => {
 };
 
 const applyMention = (markdown, channel) => {
-  const aliasName = channel.aliasName;
+  // console.log('applyMention', channel);
+  const aliasName = channel.myname;
   const channelID = channel.channelID;
   const regex = /＠＠([^]*?)・＠＠/g;
   const atName = '＠＠' + aliasName + '・＠＠';
