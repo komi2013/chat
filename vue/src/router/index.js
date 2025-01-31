@@ -26,7 +26,7 @@ const router = createRouter({
       props: route => ({
         id: route.params.id,
         text: route.query.text,
-        dates: route.query.code
+        dates: route.query.dates
       })
     },
     {

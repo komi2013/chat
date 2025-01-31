@@ -22,32 +22,45 @@ import (
 )
 
 func StorePush(w http.ResponseWriter, r *http.Request) {
-  session, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Unauthorized: Session expired or login required", http.StatusUnauthorized)
+	var userIDs []string
+  if err := json.Unmarshal([]byte(r.FormValue("userIDs")), &userIDs); err != nil {
+  	log.Printf("userIDs: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON userIDs", http.StatusBadRequest)
     return
   }
+  var contents interface{}
+  if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); err != nil {
+  	log.Printf("contents: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON contents", http.StatusBadRequest)
+    return
+  }
+  aliasName := r.FormValue("aliasName")
+  channelID := r.FormValue("channelID")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  aliasName := r.FormValue("aliasName")
-  channelID := r.FormValue("channelID")
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
 
   trueAccess := false
-  for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName && arrayData[1] == channelID {
+  for _, d := range session.ChannelAliases {
+    if d.Alias == aliasName && d.ChannelID == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, aliasName, channelID, r.URL.Path, r.Form)
     return
   }
 
@@ -65,13 +78,6 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  jsonBytes := []byte(r.FormValue("userIDs"))
-  userIDs := []string{}
-  json.Unmarshal(jsonBytes, &userIDs)
-  jsonBytes = []byte(r.FormValue("contents"))
-  var contents interface{}
-  json.Unmarshal(jsonBytes, &contents)
-  fmt.Println("contents:", contents)
   coll = db1.Collection("session")
   filter = bson.D{{
     "user_id", bson.D{{"$in", userIDs}}}}

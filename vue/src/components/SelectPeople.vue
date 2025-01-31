@@ -120,7 +120,6 @@ const emitNames = (diff, item) => {
 
 .dropdown-menu {
   position: absolute;
-  left: 0;
   background-color: #fff;
   border: 1px solid #ccc;
   border-radius: 4px;

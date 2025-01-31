@@ -6,7 +6,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useNoticesStore } from '../stores/notices.js';
+import { useNoticesStore } from '@/stores/notices.js';
 
 const noticesStore = useNoticesStore();
 

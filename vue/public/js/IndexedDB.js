@@ -92,7 +92,6 @@ async function getIDB(table, id) {
       getRequest.onsuccess = (event) => {
         resolve(event.target.result);
       };
-
       getRequest.onerror = (event) => {
         console.error('Request error:', event.target.error, table, id);
         resolve(null);
@@ -207,17 +206,24 @@ async function upsertIDB(data, table, key, objKey) {
 }
 
 async function deleteIDB(table, key, objKey) {
-  const db = await openDatabase(table, key);
-  const objectStore = db.transaction([table], 'readwrite').objectStore(table);
-  return new Promise((resolve, reject) => {
+  try {
+    const db = await openDatabase();
+    const objectStore = db.transaction([table], 'readwrite').objectStore(table);
     const deleteRequest = objectStore.delete(objKey);
-    deleteRequest.onsuccess = () => {
-      resolve('Data deleted successfully');
-    };
-    deleteRequest.onerror = (event) => {
-      reject(`Error deleting data: ${event.target.error}`);
-    };
-  });
+
+    return new Promise((resolve) => {
+      deleteRequest.onsuccess = () => {
+        resolve('データを削除しました');
+      };
+      deleteRequest.onerror = (event) => {
+        console.error('データ削除エラー:', event.target.error, table, objKey);
+        resolve(null);
+      };
+    });
+  } catch (error) {
+    console.error('deleteIDBの予期しないエラー:', error, table, objKey);
+    return null;
+  }
 }
 
 async function getAllIDBs(table) {

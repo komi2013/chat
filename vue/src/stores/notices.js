@@ -9,6 +9,7 @@ export const useNoticesStore = defineStore('notice', {
     setNotice(message) {
       this.notice = message;
       setTimeout(() => {
+        console.log(message);
         this.notice = ''; // 1秒後にクリア
       }, 2000);
     },

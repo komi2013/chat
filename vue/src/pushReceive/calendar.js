@@ -14,31 +14,13 @@ export async function calendar(pushData) {
   const channelID = pushData[2];
   const aliasName = pushData[3];
   const calendar = pushData[4];
-
-  if (channelID == calendar.channelID && aliasName == calendar.aliasName) {
-    upsertIDB(calendar, 'calendar', 'calendarID', calendar.calendarID)
-      .catch((error) => {
-        console.error(error);
-      });
+  if (calendar.delete) {
+    deleteIDB('calendar', 'calendarID', calendar.calendarID);
+    calendarsStore.delete(calendar.calendarID);
+  } else if (channelID == calendar.channelID && aliasName == calendar.aliasName) {
+    upsertIDB(calendar, 'calendar', 'calendarID', calendar.calendarID);
+    calendar.title = calendar.todo ? Array.from(calendar.todo).slice(0, 10).join('') : ''; 
     calendarsStore.upsert(calendar);
   }
-
-  // obj = {
-  //   ca: generateRandomCode(8),
-  //   title: title,
-  //   channelID: channelID,
-  //   aliasName: aliasName,
-  //   contents: contents
-  // };
-
-  // for (let stampCode of stampCodes) {
-  //   if (stampCode.isDel) {
-  //     deleteIDB('calendar', 'calendarID', calendar.calendarID);
-  //   }
-  //   upsertIDB(calendar, 'calendar', 'calendarID', calendar.calendarID)
-  //     .catch((error) => {
-  //       console.error(error);
-  //     });
-  // }
 }
 

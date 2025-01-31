@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import SelectPeople from '@/components/SelectPeople.vue';
 import { userIDsByName } from '@/my/channelFunc';
 const props = defineProps({
@@ -12,6 +12,7 @@ const channelID = localStorage.getItem("channelID");
 document.title = 'カレンダー';
 
 function parseDates(dates) {
+  console.log('dates', dates);
   if (!dates) return null;
   const parts = dates.split('/');
   const parseDateTime = (dtStr) => {
@@ -30,8 +31,6 @@ const { start, end } = parseDates(props.dates) || {
   end: new Date(new Date().getTime() + 30 * 60 * 1000)
 };
 
-// const start = new Date(props.start || new Date());
-// const end = new Date(start.getTime() + 30 * 60 * 1000);
 const currentDate = ref(timeFormat('YYYY-MM-DD', start));
 
 const calendar = ref({
@@ -40,14 +39,12 @@ const calendar = ref({
   todo: props.text ?? ''
 });
 
-// async function fetchCalendar() {
-//   try {
-//     calendar.value = await getIDB('calendar', props.id);
-//     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
-//   } catch (error) {
-//     console.error('calendar error', error);
-//   }
-// }
+const googleURL = computed(() => {
+  const text = encodeURIComponent(calendar.value.todo);
+  const start = timeFormat('YYYYMMDDThhmmss', calendar.value.timeStart);
+  const end = timeFormat('YYYYMMDDThhmmss', calendar.value.timeEnd);
+  return `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}`;
+});
 
 let channel;
 let aliases;
@@ -56,35 +53,13 @@ onMounted(async () => {
   channel = await getIDB('channel', channelID);
   aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
-  // const myAlias = aliases.find((d) => d.aliasName === channel.myname);
-  // person.value = {
-  //   name: myAlias.aliasName,
-  //   image: myAlias.aliasImg,
-  // };
-  if (props.id != '_') {
+  if (props.id) {
     calendar.value = await getIDB('calendar', props.id);
     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
   }
 });
 
-
-let joinNames = [];
-const handleSelectedItemsChange = (change) => {
-  const { diff, item } = change;
-  if (diff === 1) {
-    console.log("Item added:", item);
-    joinNames.push(item.name);
-  } else if (diff === -1) {
-    console.log("Item removed:", item);
-    const index = joinNames.indexOf(item.name);
-    if (index !== -1) {
-      joinNames.splice(index, 1);
-    }
-  }
-};
-
-const submit = () => {
-  console.log(JSON.stringify(userIDsByName(aliases, [channel.myname])));
+const submit = async () => {
   if (!confirm("実行▶️")) {
     return;
   }
@@ -98,9 +73,25 @@ const submit = () => {
   fd.append('updatedBy', channel.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
-  sendRequest('/ContentsPush/', fd);
-  // location.href = '/calendar/' + currentDate.value + '/';
+  await sendRequest('/ContentsPush/', fd);
+  window.close();
 };
+
+const delCalendar = async () => {
+  if (!confirm("削除🗑")) {
+    return;
+  }
+  calendar.value.delete = 1;
+  const fd = new FormData();
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  fd.append('channelID', channelID);
+  fd.append('updatedBy', channel.myname);
+  fd.append('contents', JSON.stringify(calendar.value));
+  fd.append('pushTitle', 'calendar');
+  await sendRequest('/ContentsPush/', fd);
+  window.close();
+};
+
 </script>
 
 <template>
@@ -109,23 +100,29 @@ const submit = () => {
       <input type="datetime-local" v-model="calendar.timeStart" />
       <span> ~ </span>
       <input type="datetime-local" v-model="calendar.timeEnd" />
-      <textarea type="text" placeholder="Todo" v-model="calendar.todo"></textarea>
+      <textarea type="text" placeholder="Todo" v-model="calendar.todo" required></textarea>
       <SelectPeople v-if="groups"
-        @update:selectedItems="handleSelectedItemsChange"
-        :channel="channel"
         :aliases="aliases"
         :groups="groups"
         :placeholder="'参加ユーザー'"
         v-model="calendar.aliasNames"
-
         />
-      <button @click="submit">投稿</button>
-      <button><a :href="`/calendar/${currentDate}/`">閉じる</a></button>
+      <button @click="submit" :disabled="!calendar.todo">▶️</button>
+      <button @click="delCalendar" :disabled="!calendar.calendarID">🗑</button>
+      <button><a onclick="window.close();">x</a></button>
     </div>
   </div>
+  <textarea class="google-url">{{googleURL}}</textarea>
 </template>
 
 <style scoped>
+
+button {
+  width: 80%;
+  height: 30px;
+  margin: 8px;
+}
+
 .modal {
   display: flex;
   justify-content: center;
@@ -139,13 +136,16 @@ const submit = () => {
   width: 100%;
 }
 
-/*.title {
-  width: 100%;
-  margin-bottom: 10px;
-}
-*/
 .modal-content textarea {
   width: 100%;
+}
+
+
+.google-url {
+  width: 80%;
+  height: 50px;
+  margin: 8px;
+  padding: 8px;
 }
 
 </style>

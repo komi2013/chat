@@ -7,12 +7,13 @@ export async function storeSelect(pushData) {
   const targetStore = pushData[4];
   const param = pushData[5];
   const channel = await getIDB('channel', channelID);
-  const userIDs = userIDsByName(channel, [aliasName]);
+  const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  const userIDs = userIDsByName(aliases, [aliasName]);
   const calendar = await getAllIDBs('calendar');
   const startDate = new Date(param.date);
   const endDate = new Date(param.date);
-  startDate.setDate(startDate.getDate() - 7);
-  endDate.setDate(endDate.getDate() + 7);
+  startDate.setDate(startDate.getDate() - 1);
+  endDate.setDate(endDate.getDate() + 13);
   const contents = calendar
     .filter(event => {
       const eventDate = new Date(event.timeStart);
@@ -25,20 +26,14 @@ export async function storeSelect(pushData) {
         timeEnd: event.timeEnd
       };
     });
+  console.log(contents);
   const fd = new FormData();
   fd.append('pushSelectID', pushSelectID);
   fd.append('userIDs', JSON.stringify(userIDs));
   fd.append('channelID', channelID);
-  fd.append('aliasName', channel.aliasName);
+  fd.append('aliasName', channel.myname);
   fd.append('contents', JSON.stringify(contents));
   fd.append('targetStore', targetStore);
-  const request = new Request('/StorePush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.error(reason);
-    })
+  sendRequest('/StorePush/', fd);
 }
 

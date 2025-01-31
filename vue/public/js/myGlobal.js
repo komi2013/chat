@@ -3,6 +3,8 @@ function timeFormat(
   str
 ) {
   const _dt = str ? new Date(str) : new Date();
+  const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
+
   return [
     ['YYYY', _dt.getFullYear()],
     ['MM', _dt.getMonth() + 1],
@@ -10,8 +12,11 @@ function timeFormat(
     ['hh', _dt.getHours()],
     ['mm', _dt.getMinutes()],
     ['ss', _dt.getSeconds()],
-    ['iii',  _dt.getMilliseconds() ],
-  ].reduce((s, a) => s.replace(a[0], `${a[1]}`.padStart(a[0].length, '0')), _fmt);
+    ['iii', _dt.getMilliseconds()],
+    ['WWW', daysOfWeek[_dt.getDay()]], // 📌 曜日（ゼロ埋め不要）
+  ].reduce((s, a) =>
+    s.replace(a[0], a[0] === 'WWW' ? a[1] : `${a[1]}`.padStart(a[0].length, '0'))
+  , _fmt);
 }
 
 function getSubstring(str, start, end) {

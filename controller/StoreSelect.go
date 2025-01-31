@@ -21,42 +21,50 @@ import (
 )
 
 func StoreSelect(w http.ResponseWriter, r *http.Request) {
-  session, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Unauthorized: Session expired or login required", http.StatusUnauthorized)
+	var userIDs []string
+  if err := json.Unmarshal([]byte(r.FormValue("userIDs")), &userIDs); err != nil {
+  	log.Printf("userIDs: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON userIDs", http.StatusBadRequest)
     return
   }
+
+  var param interface{}
+  if err := json.Unmarshal([]byte(r.FormValue("param")), &param); err != nil {
+  	log.Printf("param: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON param", http.StatusBadRequest)
+    return
+  }
+
+  aliasName := r.FormValue("aliasName")
+  channelID := r.FormValue("channelID")
+  targetStore := r.FormValue("targetStore")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
-    log.Print(err)
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  aliasName := r.FormValue("aliasName")
-  channelID := r.FormValue("channelID")
-  targetStore := r.FormValue("targetStore")
-  jsonBytes := []byte(r.FormValue("param"))
-  var param interface{}
-  json.Unmarshal(jsonBytes, &param)
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+	}
 
   trueAccess := false
-  for _, arrayData := range session.AliasArray {
-    if arrayData[0] == aliasName && arrayData[1] == channelID {
+  for _, d := range session.ChannelAliases {
+    if d.Alias == aliasName && d.ChannelID == channelID {
       trueAccess = true
     }
   }
   if !trueAccess {
-    fmt.Printf(" err %s\n", session.AliasArray, aliasName)
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, aliasName, channelID, r.URL.Path, r.Form)
     return
   }
-
-  jsonBytes = []byte(r.FormValue("userIDs"))
-  userIDs := []string{}
-  json.Unmarshal(jsonBytes, &userIDs)
 
   coll := db1.Collection("session")
   filter := bson.D{{
@@ -71,7 +79,7 @@ func StoreSelect(w http.ResponseWriter, r *http.Request) {
   if err = cursor.All(context.TODO(), &sessions); err != nil {
     fmt.Printf(" err %s\n", err)
   }
-	// UserID と pushSelectID をマッピングするためのマップ
+
 	pushSelectIDMap := make(map[string]string)
 	for _, r4 := range sessions {
 		// UserID に対応する pushSelectID が既に生成済みか確認

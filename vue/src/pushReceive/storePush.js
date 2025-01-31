@@ -1,6 +1,5 @@
-import { userIDsByName } from '../my/channelFunc.js';
-import { useCalendarsStore } from '../stores/calendars.js';
-import { useNoticesStore } from '../stores/notices.js';
+import { useCalendarsStore } from '@/stores/calendars.js';
+import { useNoticesStore } from '@/stores/notices.js';
 
 let nameCount = 1;
 export async function storePush(pushData) {
@@ -12,6 +11,7 @@ export async function storePush(pushData) {
   const calendarsStore = useCalendarsStore();
   contents.forEach((d) => {
     d.nameCount = nameCount;
+    d.title = aliasName;
     calendarsStore.upsert(d);
   });
   const noticesStore = useNoticesStore();

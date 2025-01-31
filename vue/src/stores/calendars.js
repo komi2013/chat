@@ -25,6 +25,9 @@ export const useCalendarsStore = defineStore({
       if (index !== -1) {
         this.calendars[index] = data;
       }
-    }
+    },
+    delete(calendarID) {
+      this.calendars = this.calendars.filter(calendar => calendar.calendarID !== calendarID);
+    },
   },
 });
