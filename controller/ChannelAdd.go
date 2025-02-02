@@ -50,20 +50,16 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  var userIDs = []string{}
-  userIDs = append(userIDs, session.UserID)
-
 	coll := db1.Collection("session")
-  filter := bson.D{{
-  	"user_id", bson.D{{"$in", userIDs}}}}
+  filter := bson.M{"user_id": session.UserID}
 	project := bson.D{{"updated_at", 0}}
 	opts4 := options.Find().SetProjection(project)
 	cursor, err := coll.Find(context.TODO(), filter, opts4)
 	if err != nil {
 	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
 	}
-	var sessions []collection.SessionStruct
-	if err = cursor.All(context.TODO(), &sessions); err != nil {
+	var mySessions []collection.SessionStruct
+	if err = cursor.All(context.TODO(), &mySessions); err != nil {
 	  log.Printf("cursor.All: %v; Req:", err, r.URL.Path, r.Form)
 	}
 	contents := []string{channelName, channelDescription}
@@ -72,14 +68,14 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, channelID)
   arr = append(arr, myname)
   arr = append(arr, contents)
-	common.ChunkPush(sessions, db1, arr)
+	common.ChunkPush(mySessions, db1, arr)
 
-  contents = []string{session.UserID, ""}
+  contents = []string{session.UserID, myname}
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
 	}
-  for _, d := range sessions { // go to alias
+  for _, d := range mySessions { // go to alias
 	  pushID := common.StringRand(12)
 		var arr []interface{}
 		arr = append(arr, pushID)
@@ -104,6 +100,22 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		  log.Printf("coll.UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
   }
+
+  collUser := db1.Collection("user")
+  filterUser := bson.M{"_id": session.UserID}
+  var user collection.UserStruct
+  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  if err != nil {
+    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+  }
+  user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
+  user.UpdatedAt = time.Now()
+	userUpdate := bson.D{{"$set", user}}
+	_, err = collUser.UpdateOne(context.TODO(), filterUser, userUpdate)
+	if err != nil {
+	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+	}
+
   response := map[string]string{"channelID": channelID}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {

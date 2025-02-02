@@ -12,9 +12,11 @@ type InvitationStruct struct {
   CreatedAt     time.Time    `bson:"created_at"`
   CreatedBy     string    `bson:"created_by"`
   Subscriptions      []string    `bson:"subscriptions"`
-  AliasNames      []string    `bson:"aliasNames"`
+  AliasNames      []string    `bson:"alias_names"`
   Aliases          []Alias `bson:"aliases"`
   Groups          []Group `bson:"groups"`
+  NoRightMention  bool `bson:"no_right_mention,omitempty"`
+  UntilDate  time.Time `bson:"until_date,omitempty"`
 }
 
 type Alias struct {

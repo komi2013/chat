@@ -7,6 +7,7 @@ const props = defineProps({
   modelValue: Array,
   placeholder: String
 });
+
 const emit = defineEmits(["update:modelValue"]);
 
 const searchTerm = ref("");

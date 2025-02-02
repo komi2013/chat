@@ -109,6 +109,11 @@ async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc'
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);
+
+    if (!objectStore.indexNames.contains(key)) {
+      console.log(`Index "${key}" not found in table "${table}". Returning empty array.`);
+      return resolve([]);
+    }
     const index = objectStore.index(key);
     const range = IDBKeyRange.only(id);
     const direction = sortOrder === 'asc' ? 'next' : 'prev';
@@ -140,6 +145,10 @@ async function getIDBbyMulti(table, keys, values, limit = 5, offset = 0, sortOrd
     const transaction = db.transaction([table], 'readonly');
     const objectStore = transaction.objectStore(table);
     const indexName = keys.join('_');
+    if (!objectStore.indexNames.contains(key)) {
+      console.log(`Index "${key}" not found in table "${table}". Returning empty array.`);
+      return resolve([]);
+    }
     const index = objectStore.index(indexName);
     try {
       const range = IDBKeyRange.only(values);
@@ -174,26 +183,14 @@ async function upsertIDB(data, table, key, objKey) {
     const db = await openDatabase(table, key);
     const transaction = db.transaction([table], 'readwrite');
     const objectStore = transaction.objectStore(table);
-    const existingData = await new Promise((resolve, reject) => {
-      const request = objectStore.get(objKey);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (event) => reject(new Error(`データ取得エラー: ${event.target.error}`));
+
+    await new Promise((resolve, reject) => {
+      const request = objectStore.put(data);
+      request.onsuccess = () => resolve('データを追加または更新しました');
+      request.onerror = (event) => reject(new Error(`データ更新エラー: ${event.target.error}`));
     });
-    if (existingData) {
-      await new Promise((resolve, reject) => {
-        const putRequest = objectStore.put(data);
-        putRequest.onsuccess = () => resolve('データを更新しました');
-        putRequest.onerror = (event) => reject(new Error(`データ更新エラー: ${event.target.error}`));
-      });
-      return 'データを更新しました';
-    } else {
-      await new Promise((resolve, reject) => {
-        const addRequest = objectStore.add(data);
-        addRequest.onsuccess = () => resolve('データを挿入しました');
-        addRequest.onerror = (event) => reject(new Error(`データ挿入エラー: ${event.target.error}`));
-      });
-      return 'データを挿入しました';
-    }
+
+    return 'データを追加または更新しました';
   } catch (error) {
     console.error(`upsertIDBエラー: ${error}`, {
       table,

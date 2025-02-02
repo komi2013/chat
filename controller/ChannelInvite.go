@@ -46,10 +46,18 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+	untilDate, err := time.Parse("2006-01-02", r.FormValue("untilDate"))
+	if err != nil {
+		log.Printf("Invalid untilDate: %v; Request:", err, r.URL.Path, r.Form)
+		http.Error(w, "Invalid untilDate: must be in YYYY-MM-DD format", http.StatusBadRequest)
+		return
+	}
+
   channelID := r.FormValue("channelID")
   channelName := r.FormValue("channelName")
   channelDescription := r.FormValue("channelDescription")
   updatedBy := r.FormValue("updatedBy")
+  noRightMention := r.FormValue("noRightMention") != ""
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -115,6 +123,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		AliasNames: aliasNames,
 		Aliases: aliases,
 		Groups: groups,
+		NoRightMention: noRightMention,
+		UntilDate: untilDate,
 	}
 	_, err = coll.InsertOne(context.TODO(), invitation)
 	if err != nil {

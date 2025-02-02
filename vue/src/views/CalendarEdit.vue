@@ -12,7 +12,6 @@ const channelID = localStorage.getItem("channelID");
 document.title = 'カレンダー';
 
 function parseDates(dates) {
-  console.log('dates', dates);
   if (!dates) return null;
   const parts = dates.split('/');
   const parseDateTime = (dtStr) => {
@@ -36,7 +35,8 @@ const currentDate = ref(timeFormat('YYYY-MM-DD', start));
 const calendar = ref({
   timeStart: timeFormat('YYYY-MM-DDThh:mm', start),
   timeEnd: timeFormat('YYYY-MM-DDThh:mm', end),
-  todo: props.text ?? ''
+  todo: props.text ?? '',
+  aliasNames: []
 });
 
 const googleURL = computed(() => {
@@ -46,17 +46,20 @@ const googleURL = computed(() => {
   return `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}`;
 });
 
-let channel;
-let aliases;
-let groups;
+const channel = ref(null);
+const groups = ref([]);
+const aliases = ref([]);
+const fetched = ref(false);
 onMounted(async () => {
-  channel = await getIDB('channel', channelID);
-  aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  channel.value = await getIDB('channel', channelID);
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   if (props.id) {
     calendar.value = await getIDB('calendar', props.id);
     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
   }
+  calendar.value.aliasNames = [channel.value.myname];
+  fetched.value = true;
 });
 
 const submit = async () => {
@@ -65,16 +68,16 @@ const submit = async () => {
   }
   calendar.value.calendarID ||= generateRandomCode(8);
   calendar.value.channelID = channelID;
-  calendar.value.aliasName = channel.myname;
+  calendar.value.aliasName = channel.value.myname;
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)));
   // fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
   fd.append('channelID', channelID);
-  fd.append('updatedBy', channel.myname);
+  fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
   await sendRequest('/ContentsPush/', fd);
-  window.close();
+  // window.close();
 };
 
 const delCalendar = async () => {
@@ -83,9 +86,9 @@ const delCalendar = async () => {
   }
   calendar.value.delete = 1;
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)));
   fd.append('channelID', channelID);
-  fd.append('updatedBy', channel.myname);
+  fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
   await sendRequest('/ContentsPush/', fd);
@@ -101,7 +104,7 @@ const delCalendar = async () => {
       <span> ~ </span>
       <input type="datetime-local" v-model="calendar.timeEnd" />
       <textarea type="text" placeholder="Todo" v-model="calendar.todo" required></textarea>
-      <SelectPeople v-if="groups"
+      <SelectPeople v-if="fetched"
         :aliases="aliases"
         :groups="groups"
         :placeholder="'参加ユーザー'"

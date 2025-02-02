@@ -226,7 +226,7 @@ onBeforeMount(async () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
-      <tr><td><a href="/channelInfo/" > 🏠 組織チャネル </a></td></tr>
+      <tr><td><a href="/channel/" > 🏠 組織チャネル </a></td></tr>
       <tr><td>スレッド</td></tr>
       <tr v-for="d in threadHeads">
         <td class="channel_menu" :class="getStatusClass(d.displayStatus)">

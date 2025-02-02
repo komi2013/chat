@@ -42,6 +42,8 @@ onBeforeMount(async () => {
     }
     const groups = await getIDBs('group', 'channelIDIndex', props.id, 10000);
     joinGroups = groups.filter(group => group.aliasNames.includes(aliasName.value));
+  } else if (props.code && !props.name) {
+    isEditable.value = true;
   }
   fetched.value = true;
 });

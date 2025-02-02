@@ -8,7 +8,6 @@ import { useThreadHeadsStore } from '../stores/threadHeads.js';
 import { useChannelsStore } from '../stores/channels.js';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
 import { userIDsByName } from '@/my/channelFunc';
-// import { isOtherOpen, otherMessageId, openOther, closeOther, selectOther, activeEdit } from '../my/toggle.js';
 
 const props = defineProps({
   id: '',
@@ -21,15 +20,15 @@ const channel = ref(null);
 const aliases = ref([]);
 const groups = ref([]);
 const fetched = ref(false);
+let groupLockUntilDate;
+const today = new Date();
 onBeforeMount(async () => {
-  // channel.value = await fetchChannel(props.id);
-  // aliases.value = await fetchAliases(props.id);
-  // groups.value = await fetchGroups(props.id);
   channel.value = await getIDB('channel', props.id);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+  groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
   groups.value.forEach(group => {
-    if (group.aliasNames.includes(channel.value.myname)) {
+    if (group.aliasNames.includes(channel.value.myname) && today > groupLockUntilDate) {
       group.editable = true;
     } else {
       group.editable = false;
@@ -49,7 +48,8 @@ function newGroup() {
     groupName: '',
     groupImg: '',
     aliasNames: [channel.value.myname],
-    newOne: true 
+    newOne: true ,
+    editable: today < groupLockUntilDate ? false : true
   }
   groups.value.push(group);
 }

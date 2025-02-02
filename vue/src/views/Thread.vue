@@ -72,7 +72,6 @@ async function makeThreadHead() {
       messageTxt: '',
       aliasName: channel.value.myname,
       aliasImg: channel.value.myimg,
-      // threadType: 1,localStorage.getItem("userID")
       aliasNames: [channel.value.myname], 
       displayStatus: 0
     }

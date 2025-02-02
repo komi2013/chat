@@ -13,6 +13,8 @@ const props = defineProps({
   id: '',
 })
 
+props.id && localStorage.setItem('channelID', props.id);
+
 const channel = ref({
   channelDescription: '',
   channelName: ''
@@ -50,7 +52,7 @@ onMounted(async () => {
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
   }
-  initQuill();
+  await initQuill();
 });
 
 const channelPost = async () => {
@@ -91,11 +93,15 @@ async function channelAdd () {
 const invitationCode = ref('');
 const invitationQR = ref('');
 const mention = ref(true);
+const untilDays = ref(1);
 const invite = async () => {
   if (!confirm("実行▶️")) {
     return;
   }
-  const fd = new FormData();
+  const until = new Date();
+  until.setDate(until.getDate() + untilDays.value);
+  const untilDate = timeFormat('YYYY-MM-DD', until);
+  let fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
   fd.append('channelName', channel.value.channelName);
@@ -107,9 +113,27 @@ const invite = async () => {
   if (!mention.value) {
     fd.append('noRightMention', 1);
   }
+  fd.append('untilDate', untilDate);
   const res = await sendRequest('/ChannelInvite/', fd);
   invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res[0]}`;
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
+  if (res) {
+    fd = new FormData();
+    fd.append('channelID', props.id);
+    fd.append('updatedBy', channel.value.myname);
+    fd.append('pushTitle', 'channelEdit');
+    fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+    const contents = [
+      channel.value.channelName,
+      htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')),
+      untilDate
+    ];
+    fd.append('contents', JSON.stringify(contents));
+    sendRequest('/ContentsPush/', fd);
+
+  }
+
+
 };
 
 
@@ -138,12 +162,15 @@ const invite = async () => {
     <PeopleImg v-model="myimg" />
   </template>
 
-  <button @click="channelPost" class="postButton">▶️</button><br>
-  <div v-if="id">
+  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname">▶️</button><br>
+  <div v-if="id" class="invitation">
     <button @click="invite" class="postButton"> <span>✉️</span> <span>招待URL</span> </button>
     <div class="optionRight">
       <input type="checkbox" id="mention" v-model="mention" />
       <label for="mention">メンション権限</label>
+      <span>&nbsp;&nbsp;</span>
+      <input type="number" id="until" v-model="untilDays" />
+      <label for="until">日まで有効</label>      
     </div>
     <div> <a :href="invitationCode"> {{invitationCode}} </a> </div>
     <div> <img :src="invitationQR"></div>    
@@ -215,14 +242,6 @@ const invite = async () => {
   padding: 10px;
   border: none;
   border-radius: 5px;
-  background-color: #007bff;
-  color: #fff;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.postButton:hover {
-  background-color: #0056b3;
 }
 
 .optionRight {
@@ -244,6 +263,16 @@ const invite = async () => {
   vertical-align: middle;
   justify-content: center;
   align-items: center;
+}
+
+.invitation {
+  padding: 10px;
+  margin: 10px;
+  border: 1px solid #ccc;
+}
+
+.invitation input[type=number] {
+  width: 32px;
 }
 
 </style>

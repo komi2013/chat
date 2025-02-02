@@ -21,11 +21,13 @@ export async function channelEdit(pushData) {
   const updatedBy = pushData[3];
   const channelName = pushData[4][0];
   const channelDescription = pushData[4][1];
+  const groupLockUntilDate = pushData[4][2] ?? null;
   let channel = await fetchChannel(channelID);
   if (channel) {
     channel.channelName = channelName;
     channel.myname = updatedBy;
-    channel.channelDescription = channelDescription;    
+    channel.channelDescription = channelDescription;
+    channel.groupLockUntilDate = groupLockUntilDate;
   } else {
     channel = {
       channelID: channelID,

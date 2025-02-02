@@ -10,6 +10,7 @@ import { ref, computed, onBeforeMount } from 'vue'
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
       <tr><td><a href="/channel/" > 👪 組織・チャネル </a></td></tr>
+      <tr><td><a href="/calendar/">カレンダー</a></td></tr>
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>

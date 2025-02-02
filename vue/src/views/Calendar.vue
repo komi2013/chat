@@ -11,8 +11,6 @@ import { userIDsByName } from '@/my/channelFunc';
 const props = defineProps({
   date: String,
 });
-// const noticesStore = useNoticesStore();
-// noticesStore.setNotice('testのデータを取得');
 
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
@@ -45,7 +43,6 @@ const getEventsForDayAndHour = (day, hour) => {
 };
 
 const decideHeightTop = (schedule) => {
-  console.log(schedule);
   const start = new Date(schedule.timeStart);
   const end = new Date(schedule.timeEnd);
   const minuteHeight = 1;
@@ -95,6 +92,10 @@ const newSchedule = (day, hour) => {
   // location.href = `/calendarEdit/?dates=${timeStart}`;
 };
 
+const openCalendar = (calendarID) => {
+  window.open(`/calendarEdit/${calendarID}/`);
+};
+
 const searchUsers = ref([]);
 
 watch(searchUsers, (newNames, oldNames) => {
@@ -124,6 +125,12 @@ watch(searchUsers, (newNames, oldNames) => {
   }
 });
 
+function jump(days) {
+  const currentDate = new Date(today);
+  currentDate.setDate(currentDate.getDate() + days);
+  const formattedDate = currentDate.toISOString().split('T')[0];
+  location.href = `/calendar/${formattedDate}/`;
+}
 
 </script>
 
@@ -135,9 +142,9 @@ watch(searchUsers, (newNames, oldNames) => {
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
       <tr>
         <td>
-          <SelectPeople v-if="groups"
-            :aliases="aliases"
+          <SelectPeople v-if="aliases"
             :groups="groups"
+            :aliases="aliases"
             :placeholder="'検索ユーザー'"
             v-model="searchUsers"
             />
@@ -152,18 +159,18 @@ watch(searchUsers, (newNames, oldNames) => {
         <tr class="header">
           <th>≡</th>
           <th v-for="(day, index) in monthDates" :key="'day-header-' + index">
-            <span>{{ tF('DD', day) }}</span>
             <span>{{ tF('WWW', day) }}</span>
+            <span>{{ tF('MM/DD', day) }}</span>
           </th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="hour in hours">
-          <td class="back-column">
+          <td class="back-column" @click="jump(-30)">
             <span v-if="hour % 6 == 5">
               ⬅                
             </span>
-         </td>
+          </td>
           <td v-for="(day, index) in monthDates" :key="'day-' + index" 
               class="day-slot"
               :class="{'sunday': day.getDay() === 0}"
@@ -172,13 +179,18 @@ watch(searchUsers, (newNames, oldNames) => {
                :key="'event-' + d.id" 
                class="event"
                :style="decideHeightTop(d)"
-               @click="window.open(`/calendarEdit/${d.calendarID}/`)"
+               @click.stop="openCalendar(d.calendarID)"
                >
                {{ d.title }}
             </div>
             <span v-if="index % 3 === 0 && getEventsForDayAndHour(day, hour).length === 0"
                   class="time-hour">
               {{ hour }}
+            </span>
+          </td>
+          <td class="back-column" @click="jump(30)">
+            <span v-if="hour % 6 == 5">
+              ➡               
             </span>
           </td>
         </tr>

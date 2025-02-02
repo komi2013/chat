@@ -125,6 +125,7 @@ const msgUpsert = async (messageID, delMessage) => {
       names = props.threadHead.parentID.split('@');
     }
     console.log('userIDs0', props.threadHead.aliasNames);
+    console.log('props.aliases', props.aliases);
     userIDs = userIDsByName(props.aliases, props.threadHead.aliasNames);
     console.log('userIDs1', userIDs);
   }

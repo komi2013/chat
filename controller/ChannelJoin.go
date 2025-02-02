@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   // "encoding/base64"
-  // "encoding/json"
+  "encoding/json"
   "fmt"
   // "io/ioutil"
   "log"
@@ -31,6 +31,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   myimg := r.FormValue("myimg")
   code := r.FormValue("code")
 
+
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
@@ -53,6 +54,12 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	newAlias := collection.Alias{
+	  AliasName:  myname,
+	  AliasImg:   myimg,
+	  UserID:     session.UserID,
+	}
+
 	coll := db1.Collection("invitation")
 	filter := bson.M{"_id": code}
 	var invitation collection.InvitationStruct
@@ -64,6 +71,51 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		log.Printf("invitation.ChannelID != channelID:; Req:", r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
+	}
+
+	nameFound := false
+	for _, name := range invitation.AliasNames {
+		if name == myname {
+			nameFound = true
+			break
+		}
+	}
+
+	if nameFound {
+	    collUser := db1.Collection("user")
+	    filterUser := bson.M{"_id": session.UserID}
+	    var user collection.UserStruct
+	    err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+	    if err != nil {
+	        log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+	    }
+	    userFound := false
+	    for _, ca := range user.ChannelAliases {
+	        if ca.ChannelID == channelID && ca.Alias == myname {
+	            userFound = true
+	            break
+	        }
+	    }
+			if !userFound {
+			    w.Header().Set("Content-Type", "application/json")
+			    w.WriteHeader(http.StatusConflict) // 409 Conflict
+			    json.NewEncoder(w).Encode(map[string]string{
+			        "error": "すでに同じ名前が存在しています。",
+			    })
+			    return
+			}
+	}
+
+	_, err = coll.UpdateOne(context.TODO(), filter,
+    bson.M{
+        "$push": bson.M{
+            "aliases": newAlias,
+            "alias_names": myname,
+        },
+    },
+	)
+	if err != nil {
+	  log.Printf("coll.UpdateOne push aliases alias_names: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
 	coll = db1.Collection("session")
@@ -97,17 +149,17 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		common.ChunkPush(mySessions, db1, arr)
 	}
 
-	for _, d := range invitation.Groups {
-		groupData := []interface{}{d.GroupName, d.AliasNames}
-	  var arr []interface{}
-		arr = append(arr, "group")
-		arr = append(arr, channelID)
-		arr = append(arr, myname)
-		arr = append(arr, groupData)
-		arr = append(arr, d.GroupImg)
-		log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
-		common.ChunkPush(mySessions, db1, arr)
-	}
+	// for _, d := range invitation.Groups {
+	// 	groupData := []interface{}{d.GroupName, d.AliasNames}
+	//   var arr []interface{}
+	// 	arr = append(arr, "group")
+	// 	arr = append(arr, channelID)
+	// 	arr = append(arr, myname)
+	// 	arr = append(arr, groupData)
+	// 	arr = append(arr, d.GroupImg)
+	// 	log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
+	// 	common.ChunkPush(mySessions, db1, arr)
+	// }
 
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
@@ -124,8 +176,23 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
-		// add alias, group 
   }
+
+  collUser := db1.Collection("user")
+  filterUser := bson.M{"_id": session.UserID}
+  var user collection.UserStruct
+  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  if err != nil {
+    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+  }
+  user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
+  user.UpdatedAt = time.Now()
+	userUpdate := bson.D{{"$set", user}}
+	_, err = collUser.UpdateOne(context.TODO(), filterUser, userUpdate)
+	if err != nil {
+	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+	}
+
 	contents = []string{session.UserID, myname}
   for _, subscription := range invitation.Subscriptions {
 	  pushID := common.StringRand(12)
