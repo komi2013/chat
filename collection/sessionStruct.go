@@ -14,10 +14,10 @@ type SessionStruct struct {
   ChannelAliases []ChannelAlias `bson:"channel_aliases,omitempty" json:"channel_aliases,omitempty"`
   Subscription  string      `bson:"subscription,omitempty"`
   Csrf  string      `bson:"csrf,omitempty"`
-  Yen   int `bson:"yen,omitempty"` // must delete
+  PushContents []string `bson:"push_contents,omitempty"`
 }
 
-// type AliasChannel struct {
-//     ChannelID string `bson:"channel_id" json:"channel_id"`
-//     Alias     string `bson:"alias" json:"alias"`
+// type Content struct {
+// 	PushID string      `bson:"push_id"`
+// 	Data   string `bson:"data"`
 // }

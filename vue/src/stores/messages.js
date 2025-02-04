@@ -8,7 +8,10 @@ export const useMessagesStore = defineStore({
   }),
   actions: {
     insert(data) {
-      this.messages.push(data);
+      const exists = this.messages.some(msg => msg.messageID === data.messageID);
+      if (!exists) {
+        this.messages.push(data);
+      }
     },
     unshift(data, position) {
       this.messages.splice(position, 0, data);

@@ -85,7 +85,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, contents)
 		arr = append(arr, aliasImg)
 		// cursor.Decode(&d)
-    resp, err := common.SendWebPushNotification(db1, arr, pushID, d.Subscription)
+    resp, err := common.SendWebPushNotification(db1, arr, pushID, d)
 		if err != nil {
 	    log.Printf("resp SendWebPushNotification: %v; Req:", err, r.URL.Path, r.Form)
 		}
@@ -116,9 +116,15 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
-  response := map[string]string{"channelID": channelID}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "JSONエンコードエラー", http.StatusInternalServerError)
+	responseData := struct {
+		ChannelID    string    `json:"channelID"`
+		Csrf         string    `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		ChannelID:    channelID,
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }

@@ -17,6 +17,7 @@ type InvitationStruct struct {
   Groups          []Group `bson:"groups"`
   NoRightMention  bool `bson:"no_right_mention,omitempty"`
   UntilDate  time.Time `bson:"until_date,omitempty"`
+  Sessions    []SessionStruct `bson:"session,omitempty"`
 }
 
 type Alias struct {

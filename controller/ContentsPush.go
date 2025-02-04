@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "time"
@@ -109,6 +109,16 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   }
   
 	common.ChunkPush(filteredSessions, db1, arr)
-  fmt.Fprint(w, `{"Status":"1"}`)
+
+	responseData := struct {
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
+
 }
 

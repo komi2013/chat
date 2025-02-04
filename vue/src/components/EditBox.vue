@@ -36,7 +36,8 @@ import Quill from 'quill';
 import "quill-mention";
 import "quill/dist/quill.snow.css";
 
-import { htmlToMarkdown, markdownToHtml } from '../my/markdown.js';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
+import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
 import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
@@ -189,7 +190,13 @@ const msgUpsert = async (messageID, delMessage) => {
     yets
   ];
   fd.append('contents', JSON.stringify(contents));
-  await sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem("csrf"));
+  const res = await sendRequest('/ContentsPush/', fd);
+  console.log(res);
+  localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   quill.root.innerHTML = '';
   fileInfo.value = [];
   task.value = false;

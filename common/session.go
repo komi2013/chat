@@ -82,11 +82,18 @@ func GenerateCSRFToken(db1 *mongo.Database, session collection.SessionStruct) (c
 	coll := db1.Collection("session")
 	token := StringRand(16)
 	session.Csrf = token
-	session.UpdatedAt = time.Now()
+	contents := session.PushContents
 	filter := bson.D{{"_id", session.SessionID}}
-	update := bson.D{{"$set", session}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"csrf", session.Csrf},
+			{"updated_at", time.Now()},
+			{"push_contents", bson.A{}}, // これを明示的にセット
+		}},
+	}
 	opts := options.Update().SetUpsert(false)
 	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
+	session.PushContents = contents
 	return session, err
 }
 

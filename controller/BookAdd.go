@@ -21,7 +21,7 @@ import (
 )
 
 func BookAdd(w http.ResponseWriter, r *http.Request) {
-  ss, err := common.Session(w,r)
+  _, err := common.Session(w,r)
   if err != nil {
     http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
     return
@@ -164,9 +164,10 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 
 	if bookingAdded {
 		if requestedService.PrepaidPrice == 0 {
-			if requestedService.PrepaidPrice > ss.Yen {
-				bookingAdded = false
-			}
+			bookingAdded = false
+			// if requestedService.PrepaidPrice > ss.Yen {
+			// 	bookingAdded = false
+			// }
 		}
 	} else {
 		log.Printf("bookingAdded: %v", bookingAdded)

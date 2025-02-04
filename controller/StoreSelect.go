@@ -137,6 +137,13 @@ func StoreSelect(w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 	}
-
-  fmt.Fprint(w, `{"Status":"1"}`)
+	responseData := struct {
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }

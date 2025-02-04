@@ -43,7 +43,7 @@ func ChunkPush(
       } else {
         arrForJson = append([]interface{}{pushID}, arr...)
       }
-      resp, err := SendWebPushNotification(db1, arrForJson, pushID, session.Subscription)
+      resp, err := SendWebPushNotification(db1, arrForJson, pushID, session)
       if err != nil {
         LogError("SendWebPushNotification:", err)
       } else {

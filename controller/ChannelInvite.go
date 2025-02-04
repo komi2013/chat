@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "time"
@@ -131,8 +131,15 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		log.Printf("InsertOne: %v; Request:", err, r.URL.Path, r.Form)
 	}
 
-	var jsonArr []interface{}
-	jsonArr = append(jsonArr, invitation.InvitationCode)
-	jsonData, _ := json.Marshal(jsonArr)
-  fmt.Fprint(w, string(jsonData))
+	responseData := struct {
+		InvitationCode    string        `json:"invitationCode"`
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		InvitationCode:    invitation.InvitationCode,
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }

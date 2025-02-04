@@ -7,16 +7,18 @@ import (
   "log"
   "net/http"
   "runtime"
-  "time"
+  // "time"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
 
   "github.com/SherClockHolmes/webpush-go"
+
+  "chat/collection"
 )
 
-func SendWebPushNotification(db1 *mongo.Database, arr []interface{}, pushID string, subscription string) (*http.Response, error) {
-	if subscription == "" {
+func SendWebPushNotification(db1 *mongo.Database, arr []interface{}, pushID string, session collection.SessionStruct) (*http.Response, error) {
+	if session.Subscription == "" {
 		pc, _, _, _ := runtime.Caller(1)
 		functionName := runtime.FuncForPC(pc).Name()
 		log.Printf("[%s] SendWebPushNotification no subscription data: %v", functionName)
@@ -28,19 +30,22 @@ func SendWebPushNotification(db1 *mongo.Database, arr []interface{}, pushID stri
 		functionName := runtime.FuncForPC(pc).Name()
 		log.Printf("[%s] SendWebPushNotification arr: %v", functionName, err)
 	}
-	coll := db1.Collection("push")
-	document := bson.M{
-    "_id": pushID,
-    "contents": string(jsonData),
-    "created_at": time.Now().Format("2006-01-02 15:04:05"),
+
+	coll := db1.Collection("session")
+	filter := bson.D{{"_id", session.SessionID}}
+	update := bson.M{
+		"$push": bson.M{
+			"push_contents": string(jsonData),
+		},
 	}
-	_, err = coll.InsertOne(context.TODO(), document)
+	_, err = coll.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		pc, _, _, _ := runtime.Caller(1)
 		functionName := runtime.FuncForPC(pc).Name()
-		log.Printf("[%s] SendWebPushNotification push InsertOne: %v", functionName, err)
+		log.Printf("[%s] SendWebPushNotification session UpdateOne: %v", functionName, err)
 	}
-  resp, err := PushNotification(string(jsonData), subscription)
+
+  resp, err := PushNotification(string(jsonData), session.Subscription)
   return resp, err
 }
 

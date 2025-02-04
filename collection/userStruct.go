@@ -13,4 +13,5 @@ type UserStruct struct {
   UpdatedAt    time.Time `bson:"updated_at,omitempty"`
   SignedAt     time.Time `bson:"signed_at,omitempty"`
 	ChannelAliases []ChannelAlias `bson:"channel_aliases,omitempty" json:"channel_aliases,omitempty"`
+	Yen   int `bson:"yen,omitempty"` // must delete
 }

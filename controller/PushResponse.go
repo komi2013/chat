@@ -35,6 +35,7 @@ func PushResponse(w http.ResponseWriter, r *http.Request) {
       log.Print(err)
       return
   }
+  log.Printf("pushID; Req: ", r.URL.Path, r.Form)
   fmt.Fprint(w, `{"Status":"deleted"}`)
 }
 

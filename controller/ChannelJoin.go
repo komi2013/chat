@@ -4,7 +4,7 @@ import (
   "context"
   // "encoding/base64"
   "encoding/json"
-  "fmt"
+  // "fmt"
   // "io/ioutil"
   "log"
   "net/http"
@@ -30,7 +30,6 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   myname := r.FormValue("myname")
   myimg := r.FormValue("myimg")
   code := r.FormValue("code")
-
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -194,7 +193,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	}
 
 	contents = []string{session.UserID, myname}
-  for _, subscription := range invitation.Subscriptions {
+  for _, sess := range invitation.Sessions {
 	  pushID := common.StringRand(12)
 		var arr []interface{}
 		arr = append(arr, pushID)
@@ -203,11 +202,19 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, myname)
 		arr = append(arr, contents)
 		arr = append(arr, aliasImg)
-    resp, err := common.SendWebPushNotification(db1, arr, pushID, subscription)
+    resp, err := common.SendWebPushNotification(db1, arr, pushID, sess)
 		if err != nil {
 	    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)
 		}
 		defer resp.Body.Close()
   }
-  fmt.Fprint(w, `{"Status":"1"}`)
+	responseData := struct {
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }
