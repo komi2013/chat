@@ -6,8 +6,10 @@ import "quill/dist/quill.snow.css";
 
 import DrawerColumn from '@/components/DrawerColumn.vue'
 import PeopleImg from '@/components/PeopleImg.vue'
+
 import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: '',
@@ -77,7 +79,12 @@ async function channelEdit () {
     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
   ];
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
 
 async function channelAdd () {
@@ -86,8 +93,10 @@ async function channelAdd () {
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
   fd.append('myname', myname.value);
   fd.append('myimg', myimg.value);
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelAdd/', fd);
-  // location.href = res.channelID;
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  location.href = res.channelID;
 }
 
 const invitationCode = ref('');
@@ -114,9 +123,11 @@ const invite = async () => {
     fd.append('noRightMention', 1);
   }
   fd.append('untilDate', untilDate);
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelInvite/', fd);
-  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res[0]}`;
+  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`;
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
   if (res) {
     fd = new FormData();
     fd.append('channelID', props.id);
@@ -129,11 +140,13 @@ const invite = async () => {
       untilDate
     ];
     fd.append('contents', JSON.stringify(contents));
-    sendRequest('/ContentsPush/', fd);
-
+    fd.append('csrf', localStorage.getItem('csrf'));
+    const res = await sendRequest('/ContentsPush/', fd);
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    res.pushContents.forEach(content => {
+      pushReceive(content);
+    });
   }
-
-
 };
 
 

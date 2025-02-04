@@ -3,7 +3,7 @@ import { bookmark } from './bookmark.js';
 import { bookPattern } from './bookPattern.js';
 import { calendar } from './calendar.js';
 import { channelEdit } from './channelEdit.js';
-import { channelJoin } from './channelJoin.js';
+// import { channelJoin } from './channelJoin.js';
 import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
 import { group } from './group.js';
@@ -30,7 +30,7 @@ export function pushReceive(notificationData) {
     calendar: calendar,
     // channelAdd: channelAdd,
     channelEdit: channelEdit,
-    channelJoin: channelJoin,
+    // channelJoin: channelJoin,
     chunk: chunk,
     emoji: emoji,
     group: group,

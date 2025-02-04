@@ -10,6 +10,7 @@ import SelectAlias from '@/components/SelectAlias.vue';
 
 import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   parent_id: ''
@@ -50,17 +51,17 @@ onMounted(async () => {
   await initQuill();
 });
 
-const postThreadHead = () => {
+const postThreadHead = async () => {
   if (!confirm("実行▶️")) {
     return;
   }
   const description = htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''));
-  console.log(description);
   const fd = new FormData();
   fd.append('channelID', channelID);
   fd.append('updatedBy', channel.value.myname);
   fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, threadHead.value.aliasNames)));
   fd.append('pushTitle', 'threadHead');
+  fd.append('csrf', localStorage.getItem('csrf'));
   let editThreadHead = threadHead.value;
   editThreadHead.description = description;
   // const contents = [
@@ -72,7 +73,11 @@ const postThreadHead = () => {
   //   threadHead.value.broadcastFlag
   // ];
   fd.append('contents', JSON.stringify(editThreadHead));
-  sendRequest('/ContentsPush/', fd);
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
 
 function backTo() {

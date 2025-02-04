@@ -71,9 +71,10 @@ func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, t
 }
 
 func CheckMakeCSRFToken(db1 *mongo.Database, session collection.SessionStruct, token string) (collection.SessionStruct, error) {
-	// if session.Csrf != token {
-	// 	return session, errors.New("token error ")
-	// }
+	if session.Csrf != token {
+		// return session, errors.New("token error ")
+		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
+	}
 	session, err := GenerateCSRFToken(db1, session)
 	return session, err
 }

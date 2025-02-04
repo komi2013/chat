@@ -4,10 +4,12 @@ import DrawerColumn from '../components/DrawerColumn.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
-import { useThreadHeadsStore } from '../stores/threadHeads.js';
-import { useChannelsStore } from '../stores/channels.js';
-import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '../my/emoji.js';
+import { useThreadHeadsStore } from '@/stores/threadHeads.js';
+import { useChannelsStore } from '@/stores/channels.js';
+
+import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '@/my/emoji.js';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: '',
@@ -54,7 +56,7 @@ function newGroup() {
   groups.value.push(group);
 }
 
-function removeGroup(group) {
+async function removeGroup(group) {
   if (!confirm("▶️実行")) {
     return;
   }
@@ -67,10 +69,15 @@ function removeGroup(group) {
     group.groupName, ''
   ]
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
 
-function editGroup(group) {
+async function editGroup(group) {
   if (!confirm("▶️実行")) {
     return;
   }
@@ -84,9 +91,13 @@ function editGroup(group) {
   ]
   fd.append('contents', JSON.stringify(contents));
   fd.append('imgPath', group.groupImg);
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
-
 
 function getAliasesByNames(aliasNames) {
   return aliasNames
@@ -102,10 +113,6 @@ function getAliasesByNames(aliasNames) {
       return null;
     })
     .filter(Boolean); // null 値を除外
-}
-
-const updateSelectedAlias = (change) => {
-  console.log('change', change);
 }
 
 </script>

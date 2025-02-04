@@ -10,6 +10,7 @@ import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, cal
 import { toggleEdit, toggleBookmark } from '@/my/toggle.js';
 import { markdownToHtml } from '@/my/markdown';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   messages: Object,
@@ -82,7 +83,7 @@ function reply(message) {
   location.href = URL + queryString;
 }
 
-const clickEmoji = (message, emoji) => {
+const clickEmoji = async (message, emoji) => {
   const fd = new FormData();
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
@@ -90,7 +91,12 @@ const clickEmoji = (message, emoji) => {
   fd.append('pushTitle', 'emoji');
   const contents = [message.messageID, emoji.emoji, message.parentID];
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   rotateEmoji(emoji.emoji);
 };
 

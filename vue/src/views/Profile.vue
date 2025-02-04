@@ -2,7 +2,9 @@
 import { ref, computed, onBeforeMount, onMounted } from 'vue';
 import DrawerColumn from '@/components/DrawerColumn.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
+
 import { getRandomEmoji, getRandomColor } from '@/my/emoji';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: String,
@@ -59,7 +61,7 @@ async function aliasEdit() {
   }
 }
 
-function editAlias() {
+async function editAlias() {
   const fd = new FormData()
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
@@ -69,7 +71,12 @@ function editAlias() {
   fd.append('contents', JSON.stringify(contents));
   // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
   fd.append('imgPath', aliasImg.value);
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
 
 async function join () {
@@ -78,7 +85,12 @@ async function join () {
   fd.append('code', props.code);
   fd.append('myname', aliasName.value);
   fd.append('myimg', aliasImg.value);
-  await sendRequest('/ChannelJoin/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ChannelJoin/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   // location.href = '/profile/' + props.id + '/';
 }
 

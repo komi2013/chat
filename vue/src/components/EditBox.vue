@@ -30,15 +30,15 @@
 
 <script setup>
 import { ref, defineProps, onMounted } from 'vue';
-import { useMessagesStore } from '../stores/messages.js';
+import { useMessagesStore } from '@/stores/messages.js';
 
 import Quill from 'quill';
 import "quill-mention";
 import "quill/dist/quill.snow.css";
 
-import { pushReceive } from '@/pushReceive/pushReceive.js';
 import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
-import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
+import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   channel: Object,
@@ -47,7 +47,7 @@ const props = defineProps({
   message: Object,
   threadHead: Object,
 });
-console.log('props.aliases', props.aliases)
+
 const message = props.message;
 let task = ref(false);
 const messageID = props.message.messageID;
@@ -192,8 +192,7 @@ const msgUpsert = async (messageID, delMessage) => {
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem("csrf"));
   const res = await sendRequest('/ContentsPush/', fd);
-  console.log(res);
-  localStorage.setItem('csrf', res.csrf);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
   });

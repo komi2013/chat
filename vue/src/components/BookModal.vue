@@ -50,7 +50,6 @@ console.log('props', props);
 // console.log('props.bookPattern', props.bookPattern);
 
 const submit = () => {
-  console.log('localEvent.value', localEvent.value);
   const fd = new FormData();
   fd.append('bookPatternID', localEvent.value.bookPatternID);
   fd.append('bookStart', localEvent.value.timeStart);

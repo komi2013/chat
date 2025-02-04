@@ -2,14 +2,14 @@ import { useBookmarksStore } from '@/stores/bookmarks.js';
 import { useMessagesStore } from '@/stores/messages.js';
 import { removeMark } from '@/my/markdown.js';
 export async function bookmark(pushData) {
-  const pushID = pushData[0];
-  const fd = new FormData();
-  fd.append('pushID', pushID);
-  const request = new Request('/PushResponse/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request);
+  // const pushID = pushData[0];
+  // const fd = new FormData();
+  // fd.append('pushID', pushID);
+  // const request = new Request('/PushResponse/', {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request);
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
   const channelID = pushData[2];

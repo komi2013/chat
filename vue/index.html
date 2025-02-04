@@ -13,5 +13,7 @@
   </body>
 </html>
 <script>
-  localStorage.setItem("csrf", "{{.Session.Csrf}}");
+  {{if .Session.Csrf}}
+    localStorage.setItem("csrf", "{{.Session.Csrf}}");
+  {{end}}
 </script>

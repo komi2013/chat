@@ -1,14 +1,14 @@
 // import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
 
 export async function threadHead(pushData) {
-  const pushID = pushData[0];
-  const fd = new FormData();
-  fd.append('pushID', pushID);
-  const request = new Request('/PushResponse/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request);
+  // const pushID = pushData[0];
+  // const fd = new FormData();
+  // fd.append('pushID', pushID);
+  // const request = new Request('/PushResponse/', {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request);
   const channelID = pushData[2];
   const updatedBy = pushData[3];
   let editThreadHead = pushData[4];

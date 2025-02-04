@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue';
 import SelectPeople from '@/components/SelectPeople.vue';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
+
 const props = defineProps({
   id: String,
   text: String,
@@ -76,8 +78,13 @@ const submit = async () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
-  await sendRequest('/ContentsPush/', fd);
-  // window.close();
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  window.close();
 };
 
 const delCalendar = async () => {
@@ -91,7 +98,12 @@ const delCalendar = async () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(calendar.value));
   fd.append('pushTitle', 'calendar');
-  await sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   window.close();
 };
 

@@ -29,9 +29,11 @@
 
 <script setup>
 import { ref, defineProps, defineEmits } from 'vue';
+
 import { emojiPath } from '@/my/emoji.js';
 import { userIDsByName } from '@/my/channelFunc';
 import { validateEmoji, rotateEmoji, masterEmojis } from '@/my/emoji';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps([
   'channel',
@@ -44,7 +46,7 @@ const props = defineProps([
 
 const emit = defineEmits();
 
-const selectEmoji = (emoji) => {
+const selectEmoji = async (emoji) => {
   const fd = new FormData();
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
@@ -53,14 +55,20 @@ const selectEmoji = (emoji) => {
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, emoji, props.parentID];
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+
   rotateEmoji(emoji);
   emit('closeEmoji');
 };
 
 const selectedEmoji = ref('');
 const emojiValidErr = ref(false);
-const inputEmoji = () => {
+const inputEmoji = async () => {
   if (!validateEmoji(selectedEmoji.value)) {
     emojiValidErr.value = true;
     return;
@@ -72,7 +80,12 @@ const inputEmoji = () => {
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, selectedEmoji.value, props.parentID];
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   rotateEmoji(selectedEmoji.value);
   emit('closeEmoji');
 };

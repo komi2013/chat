@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { useMessagesStore } from '@/stores/messages.js';
 import { userIDsByName } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const messagesStore = useMessagesStore();
 
@@ -15,7 +16,7 @@ export const toggleEdit = (message, messageID) => {
   messagesStore.update(message, message.messageID);
 };
 
-export const toggleBookmark = (message, channel, aliases, threadHead) => {
+export const toggleBookmark = async (message, channel, aliases, threadHead) => {
   const backID = message.parentID ?? threadHead.backID;
   const fd = new FormData();
   fd.append('channelID', channel.channelID);
@@ -24,5 +25,10 @@ export const toggleBookmark = (message, channel, aliases, threadHead) => {
   fd.append('pushTitle', 'bookmark');
   const contents = [message.messageID, backID];
   fd.append('contents', JSON.stringify(contents));
-  sendRequest('/ContentsPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 };

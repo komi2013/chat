@@ -5,14 +5,14 @@ import { removeMark } from '@/my/markdown.js';
 export async function thread(pushData) {
   const bookmarksStore = useBookmarksStore();
   const messagesStore = useMessagesStore();
-  const pushID = pushData[0];
-  const fd = new FormData();
-  fd.append('pushID', pushID);
-  const request = new Request('/PushResponse/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request);
+  // const pushID = pushData[0];
+  // const fd = new FormData();
+  // fd.append('pushID', pushID);
+  // const request = new Request('/PushResponse/', {
+  //   method: 'POST',
+  //   body: fd,
+  // });
+  // fetch(request);
   const channelID = pushData[2];
   const updatedBy = pushData[3];
   const secondPartMsgID = pushData[4][1];

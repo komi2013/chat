@@ -20,7 +20,7 @@ func main() {
 		http.HandleFunc("/ChannelJoin/", controller.ChannelJoin)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)
 		http.HandleFunc("/GoogleIdentity/", controller.GoogleIdentity)
-		http.HandleFunc("/PushResponse/", controller.PushResponse)
+		// http.HandleFunc("/PushResponse/", controller.PushResponse)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
 		http.HandleFunc("/ReceptionCheck/", controller.ReceptionCheck)
 		http.HandleFunc("/ReceptionDelete/", controller.ReceptionDelete)
