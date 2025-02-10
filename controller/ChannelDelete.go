@@ -80,14 +80,14 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 			"$pull": bson.M{"channel_aliases": bson.M{"channel_id": channelID, "alias": del.AliasName}},
 		}
 		sessionFilter := bson.M{"user_id": del.UserID}
-		result, err := sessionCol.UpdateMany(ctx, sessionFilter, update)
+		_, err = sessionCol.UpdateMany(ctx, sessionFilter, update)
 		if err != nil {
-			log.Printf("Failed to update session: %v", err)
+			log.Printf("Failed to update session: %v", err, del.UserID, r.URL.Path, r.Form)
 		}
 		userFilter := bson.M{"_id": del.UserID}
-		result, err = userCol.UpdateMany(ctx, userFilter, update)
+		_, err = userCol.UpdateMany(ctx, userFilter, update)
 		if err != nil {
-			log.Printf("Failed to update user: %v", err)
+			log.Printf("Failed to update user: %v", err, del.UserID, r.URL.Path, r.Form)
 		}
 
 		aliasData := []string{del.UserID, del.AliasName, "", "1"}

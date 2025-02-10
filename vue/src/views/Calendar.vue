@@ -65,13 +65,13 @@ const decideHeightTop = (schedule) => {
   };
 };
 
-let channel;
-let aliases;
-let groups;
+const channel = ref(null);
+const aliases = ref([]);
+const groups = ref([]);
 onMounted(async() => {
-  channel = await getIDB('channel', channelID);
-  aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  channel.value = await getIDB('channel', channelID);
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   const calendarData = await getAllIDBs('calendar');
   console.log(calendarData);
   calendarData.forEach((d) => {
@@ -98,25 +98,28 @@ const openCalendar = (calendarID) => {
 
 const searchUsers = ref([]);
 
-watch(searchUsers, (newNames, oldNames) => {
+watch(searchUsers, async (newNames, oldNames) => {
   console.log('検索ユーザーが変更されました:', newNames, oldNames);
   const oldSet = new Set(oldNames || []);
   const newSet = new Set(newNames || []);
   const addName = [...newSet].find(name => !oldSet.has(name));
   const subName = [...oldSet].find(name => !newSet.has(name));
-  console.log(addName, subName);
   if (addName) {
     const fd = new FormData();
-    fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [addName])));
+    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])));
     fd.append('channelID', channelID);
-    fd.append('aliasName', channel.myname);
+    fd.append('aliasName', channel.value.myname);
     fd.append('targetStore', 'calendar');
 
     // console.log(today);
     const param = { date: timeFormat('YYYY-MM-DD') };
     fd.append('param', JSON.stringify(param));
-
-    sendRequest('/StoreSelect/', fd);
+    fd.append('csrf', localStorage.getItem("csrf"));
+    const res = await sendRequest('/StoreSelect/', fd);
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    res.pushContents.forEach(content => {
+      pushReceive(content);
+    });
   } else if (subName) {
     const delSchedules = schedules.value.filter(schedule => schedule.aliasName === subName);
     delSchedules.forEach((d) => {

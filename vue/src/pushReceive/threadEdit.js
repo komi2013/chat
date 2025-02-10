@@ -3,14 +3,6 @@ import { useMessagesStore } from '../stores/messages.js';
 import { removeMark } from '../my/markdown.js';
 
 export async function threadEdit(pushData) {
-  // const pushID = pushData[0];
-  // const fd = new FormData();
-  // fd.append('pushID', pushID);
-  // const request = new Request('/PushResponse/', {
-  //   method: 'POST',
-  //   body: fd,
-  // });
-  // fetch(request);
   const channelID = pushData[2];
   const updatedBy = pushData[3];
   const secondPartMsgID = pushData[4][1];
@@ -35,7 +27,6 @@ export async function threadEdit(pushData) {
     messagesStore.delete(editThread.messageID);
     return;
   }
-
   const channel = await getIDB('channel', channelID);
   const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   const groups = await getIDBs('group', 'channelIDIndex', channelID, 10000);

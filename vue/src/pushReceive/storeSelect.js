@@ -26,7 +26,6 @@ export async function storeSelect(pushData) {
         timeEnd: event.timeEnd
       };
     });
-  console.log(contents);
   const fd = new FormData();
   fd.append('pushSelectID', pushSelectID);
   fd.append('userIDs', JSON.stringify(userIDs));
@@ -34,6 +33,12 @@ export async function storeSelect(pushData) {
   fd.append('aliasName', channel.myname);
   fd.append('contents', JSON.stringify(contents));
   fd.append('targetStore', targetStore);
-  sendRequest('/StorePush/', fd);
+  fd.append('csrf', localStorage.getItem("csrf"));
+  console.log('/StorePush/', fd);
+  const res = sendRequest('/StorePush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents && res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }
 

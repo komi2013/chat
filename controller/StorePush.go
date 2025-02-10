@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "time"
@@ -18,7 +18,7 @@ import (
 
   "chat/collection"
   "chat/common"
-  // "chat/logic/quiz"
+
 )
 
 func StorePush(w http.ResponseWriter, r *http.Request) {
@@ -64,32 +64,31 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-	coll := db1.Collection("push_select")
-	filter := bson.D{{"_id", r.FormValue("pushSelectID")}}
-	result, err := coll.DeleteOne(context.TODO(), filter)
-	if err != nil {
-		fmt.Printf("push_select Failed to delete document: %v\n", err)
-		return
-	}
+	// coll := db1.Collection("push_select")
+	// filter := bson.D{{"_id", r.FormValue("pushSelectID")}}
+	// result, err := coll.DeleteOne(context.TODO(), filter)
+	// if err != nil {
+	// 	log.Printf("coll.DeleteOne session: %v", err, userIDs, r.URL.Path, r.Form)
+	// 	return
+	// }
 
-	deletedCount := result.DeletedCount
-	fmt.Printf("Deleted %d document(s)\n", deletedCount)
-	if deletedCount == 0 {
-		return
-	}
+	// deletedCount := result.DeletedCount
+	// fmt.Printf("Deleted %d document(s)\n", deletedCount)
+	// if deletedCount == 0 {
+	// 	return
+	// }
 
-  coll = db1.Collection("session")
-  filter = bson.D{{
-    "user_id", bson.D{{"$in", userIDs}}}}
+  coll := db1.Collection("session")
+  filter := bson.D{{"user_id", bson.D{{"$in", userIDs}}}}
   project := bson.D{{"subscription", 1}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
   if err != nil {
-    fmt.Printf(" err %s\n", err)
+    log.Printf("coll.Find session: %v", err, userIDs, r.URL.Path, r.Form)
   }
-  var results4 []collection.SessionStruct
-  if err = cursor.All(context.TODO(), &results4); err != nil {
-    fmt.Printf(" err %s\n", err)
+  var sessions []collection.SessionStruct
+  if err = cursor.All(context.TODO(), &sessions); err != nil {
+    log.Printf("coll.Find session: %v", err, userIDs, r.URL.Path, r.Form)
   }
 
   var arr []interface{}
@@ -100,28 +99,24 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, r.FormValue("targetStore"))
   jsonData, err := json.Marshal(arr)
   if err != nil {
-    fmt.Println("JSON変換エラー:", err)
+    log.Printf("json.Marshal storePush: %v", err, jsonData, r.URL.Path, r.Form)
   }
   chunk := false
-  var chunks []string
-	if len(jsonData) > 2000 {
-	  // fmt.Println("JSON data exceeds 2000 bytes")
-	  chunk = true
-	  chunks = common.SplitIntoByteChunks(string(jsonData), 2000 / utf8.UTFMax)
-	} else {
-		chunks = []string{"no chunk"}
-	}
-	chunkLength := len(chunks)
-	chunkPass := common.StringRand(2)
+  chunks := []string{string(jsonData)}
+  if len(jsonData) > 2000 {
+    chunk = true
+    // chunks = SplitIntoByteChunks(string(jsonData), maxChunkSize)
+    chunks = common.SplitIntoByteChunks(string(jsonData), 2000 / utf8.UTFMax)
+  }
+  chunkLength := len(chunks)
+  chunkPass := common.StringRand(2)
 	for chIndex, ch := range chunks {
-	  for _, r4 := range results4 {
-	    pushID := common.StringRand(12)
+	  for _, ssData := range sessions {
+	    pushID := common.StringRand(1)
 	    var arrForJson []interface{}
 	    if chunk {
 	    	arrForJson = append(arrForJson, pushID)
 			  arrForJson = append(arrForJson, "chunk")
-			  // arr = append(arr, channelID)
-			  // arr = append(arr, aliasName)
 			  arrForJson = append(arrForJson, ch)
 			  arrForJson = append(arrForJson, chunkPass)
 			  arrForJson = append(arrForJson, chIndex)
@@ -129,26 +124,12 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
 	    } else {
 		    arrForJson = append([]interface{}{pushID}, arr...)
 	    }
-	    fmt.Printf(" arrForJson %s\n", arrForJson)
 	    jsonD, err := json.Marshal(arrForJson)
 	    if err != nil {
-	      fmt.Println("JSON変換エラー:", err)
+	      log.Printf("json.Marshal chunks sessions: %v", err, arrForJson, r.URL.Path, r.Form)
 	    }
-	    coll = db1.Collection("push")
-	    document := bson.M{
-	      "_id": pushID,
-	      "pushJson": string(jsonD),
-	      "created_at": time.Now().Format("2006-01-02 15:04:05"),
-	    }
-	    _, err = coll.InsertOne(context.TODO(), document)
-	    if err != nil {
-	        fmt.Printf("err %s\n", err)
-	    }
-	    cursor.Decode(&r4)
 	    webpushSub := &webpush.Subscription{}
-	    json.Unmarshal([]byte(r4.Subscription), webpushSub)
-
-	    // Send Notification
+	    json.Unmarshal([]byte(ssData.Subscription), webpushSub)
 	    resp, err := webpush.SendNotification([]byte(string(jsonD)), webpushSub, &webpush.Options{
 	      Subscriber:      "example@example.com",
 	      VAPIDPublicKey:  common.VAPIDPublicKey,
@@ -156,12 +137,18 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
 	      TTL:             30,
 	    })
 	    if err != nil {
-	      // TODO: Handle error
-	      fmt.Printf(" err %s\n", err)
+	      log.Printf("SendNotification storePush: %v", err, string(jsonD), r.URL.Path, r.Form)
 	    }
 	    defer resp.Body.Close()
 	  }
 	}
-
-  fmt.Fprint(w, `{"Status":"1"}`)
+	responseData := struct {
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }

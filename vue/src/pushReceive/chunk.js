@@ -1,14 +1,6 @@
 import { pushReceive } from './pushReceive.js';
 
 export async function chunk(pushData) {
-  // const pushID = pushData[0];
-  // const fd = new FormData();
-  // fd.append('pushID', pushID);
-  // const request = new Request('/PushResponse/', {
-  //   method: 'POST',
-  //   body: fd,
-  // });
-  // fetch(request);
   const chunk = {
     chunkID: pushData[3] + pushData[4],
     strChunk: pushData[2],
