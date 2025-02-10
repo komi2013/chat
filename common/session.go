@@ -5,6 +5,7 @@ import (
   // "errors"
   "log"
   "net/http"
+  "strings"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -66,20 +67,24 @@ func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, t
   if err != nil {
     return session, err
   }
-  session, err = CheckMakeCSRFToken(db1, session, token)
+	if session.Csrf != token {
+		// return session, errors.New("token error")
+		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
+	}
+  // session, err = CheckMakeCSRFToken(db1, session, token)
   return session, err
 }
 
-func CheckMakeCSRFToken(db1 *mongo.Database, session collection.SessionStruct, token string) (collection.SessionStruct, error) {
-	if session.Csrf != token {
-		// return session, errors.New("token error ")
-		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
-	}
-	session, err := GenerateCSRFToken(db1, session)
-	return session, err
-}
+// func CheckMakeCSRFToken(db1 *mongo.Database, session collection.SessionStruct, token string) (collection.SessionStruct, error) {
+// 	if session.Csrf != token {
+// 		// return session, errors.New("token error ")
+// 		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
+// 	}
+// 	session, err := GenerateCSRFToken(db1, session)
+// 	return session, err
+// }
 
-func GenerateCSRFToken(db1 *mongo.Database, session collection.SessionStruct) (collection.SessionStruct, error) {
+func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (collection.SessionStruct, error) {
 	coll := db1.Collection("session")
 	token := StringRand(16)
 	session.Csrf = token
@@ -113,6 +118,19 @@ func FilterSessionsByChannelID(sessions []collection.SessionStruct, channelID st
 		}
 	}
 	return filteredSessions
+}
+
+func IsMobile(userAgent string) bool {
+	mobileKeywords := []string{
+		"Mobile", "Android", "iPhone", "iPad", "iPod", "Windows Phone",
+	}
+
+	for _, keyword := range mobileKeywords {
+		if strings.Contains(userAgent, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 

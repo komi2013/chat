@@ -126,11 +126,11 @@ async function sendRequest(uri, fd) {
         }
       }
     } else {
-      console.error('Failed to findBookParent data', response.status);
+      console.error('Failed to fetch data', response.status);
       return null;
     }
   } catch (error) {
-    console.error('Error findBookParent data:', error);
+    console.error('Error fetch data:', error);
     return null;
   }
 }

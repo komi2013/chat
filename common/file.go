@@ -7,10 +7,11 @@ import (
   "fmt"
   "io"
   "io/ioutil"
-  // "log"
+  "log"
   "math"
   "net/http"
   "os"
+  "path/filepath"
   // "runtime"
   "strings"
   "time"
@@ -73,52 +74,87 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
 }
 
 func FileSave(r *http.Request, db1 *mongo.Database, channelID string, uploadedBy string, userIDs []string) ([]string, error) {
+	const (
+		maxFileSize      = 100 << 20 // 100MB (1ファイルあたりの上限)
+		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
+		maxFileCount     = 10        // 最大10ファイル
+	)
+	allowedExtensions := map[string]bool{".jpg": true, ".png": true, ".txt": true, ".pdf": true}
+
 	var fileLinks []string
 	files := r.MultipartForm.File["files[]"]
+
+	if len(files) > maxFileCount {
+		return nil, fmt.Errorf("file limit exceeded: maximum %d files allowed", maxFileCount)
+	}
+
 	coll := db1.Collection("file")
+	var totalSize int64 = 0
+
 	for _, fileHeader := range files {
+		if fileHeader.Size > maxFileSize {
+			return nil, fmt.Errorf("file '%s' exceeds max size of %dMB", fileHeader.Filename, maxFileSize/(1<<20))
+		}
+
+		totalSize += fileHeader.Size
+		if totalSize > maxTotalSize {
+			return nil, fmt.Errorf("total upload size exceeds %dMB", maxTotalSize/(1<<20))
+		}
+
+		ext := strings.ToLower(filepath.Ext(fileHeader.Filename)) // 🔴 修正後も問題なし
+		if !allowedExtensions[ext] {
+			return nil, fmt.Errorf("file '%s' has an invalid extension: %s", fileHeader.Filename, ext)
+		}
+
 		file, err := fileHeader.Open()
 		if err != nil {
-			LogError("Failed to open file", err)
+			log.Printf("Failed to open file: %v", err)
 			return nil, fmt.Errorf("failed to open file: %w", err)
 		}
 		defer file.Close()
+
 		fileID := StringRand(4)
 		filePath := fmt.Sprintf("/upload/file/%s/%s/%s", channelID, fileID, fileHeader.Filename)
 		saveDir := fmt.Sprintf("./upload_data/file/%s/%s/", channelID, fileID)
+
 		if err := os.MkdirAll(saveDir, 0755); err != nil {
-			LogError("Failed to create directory", err)
+			log.Printf("Failed to create directory: %v", err)
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
-		dst, err := os.Create(saveDir + fileHeader.Filename)
+
+		dst, err := os.Create(filepath.Join(saveDir, fileHeader.Filename))
 		if err != nil {
-			LogError("Failed to create file", err)
+			log.Printf("Failed to create file: %v", err)
 			return nil, fmt.Errorf("failed to create file: %w", err)
 		}
 		defer dst.Close()
+
 		_, err = io.Copy(dst, file)
 		if err != nil {
-			LogError("Failed to copy file", err)
+			log.Printf("Failed to copy file: %v", err)
 			return nil, fmt.Errorf("failed to copy file: %w", err)
 		}
+
 		fileSizeMB := float64(fileHeader.Size) / (1024 * 1024)
 		fileSizeMB = math.Floor(fileSizeMB*100) / 100
 		fileLinks = append(fileLinks, filePath)
+
 		fileDoc := collection.FileStruct{
-			FileID:     fileID,
-			ChannelID:  channelID,
-			UploadedBy: uploadedBy,
-			ImgPath:    filePath,
-			FileSize:   fileSizeMB,
-			CreatedAt:  time.Now(),
+			FileID:      fileID,
+			ChannelID:   channelID,
+			UploadedBy:  uploadedBy,
+			ImgPath:     filePath,
+			FileSize:    fileSizeMB,
+			CreatedAt:   time.Now(),
 			AvailableBy: userIDs,
 		}
+
 		_, err = coll.InsertOne(context.TODO(), fileDoc)
 		if err != nil {
-			LogError("Failed to insert document into MongoDB", err)
+			log.Printf("Failed to insert document into MongoDB: %v", err)
 			return nil, fmt.Errorf("failed to insert document into MongoDB: %w", err)
 		}
 	}
+
 	return fileLinks, nil
 }
-

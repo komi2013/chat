@@ -23,7 +23,7 @@ const channel = ref({
 });
 const myname = ref(null);
 const myimg = ref(null);
-
+const userID = ref(null);
 const channels = ref([]);
 const aliases = ref([]);
 const groups = ref([]);
@@ -42,11 +42,19 @@ function initQuill() {
 
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 
+// function removable(alias) {
+//   const isAdmin = channel.value.adminNames.includes(myname.value);
+//   if ( alias.userID === userID.value || isAdmin ) {
+//     return true;
+//   } else {
+//     return false;
+//   }
+// }
+
 onMounted(async () => {
   channels.value = await getAllIDBs('channel');
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
-
   const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
   threadHeads.value = threadHeadsAll.filter(d => !d.backID);
   // await fetchThreadHead();
@@ -54,6 +62,14 @@ onMounted(async () => {
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
   }
+  myname.value = channel.value.myname;
+  userID.value = aliases.value.find((d) => d.aliasName === myname.value)?.userID;
+  // const isAdmin = channel.value.adminNames.includes(myname.value);
+  const isAdmin = false;
+  aliases.value = aliases.value.map((alias) => ({
+    ...alias,
+    removable: alias.userID === userID.value || isAdmin,
+  }));
   await initQuill();
 });
 
@@ -149,6 +165,34 @@ const invite = async () => {
   }
 };
 
+const removeName = (alias) => {
+  alias.deleteFlag = true;
+};
+
+const removeNames = async () => {
+  console.log(aliases.value);
+  const deleteAliases = aliases.value.filter(d => d.deleteFlag);
+  console.log('deleteAliases', deleteAliases);
+  if (!confirm("実行▶️")) {
+    return;
+  }
+  const fd = new FormData();
+  fd.append('channelID', props.id);
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  // fd.append('deleteUserIDs', JSON.stringify(deleteAliases.map(d => d.userID)));
+  // const contents = [
+  //   channel.value.channelName,
+  //   htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
+  // ];
+  fd.append('deleteAliases', JSON.stringify(deleteAliases));
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ChannelDelete/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+};
 
 </script>
 
@@ -193,7 +237,7 @@ const invite = async () => {
   </a> </div>
 
   <h3>ユーザー一覧</h3>
-  <div v-for="d in aliases" class="aliases">
+  <div v-for="d in aliases" class="aliases" :class="{ 'deleted': d.deleteFlag }">
     <a :href="'/profile/' + id + '/' + d.aliasName + '/'">
       <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
         :src="d.aliasImg" class="min-icon">
@@ -204,7 +248,11 @@ const invite = async () => {
       </span>
       <span>{{ d.aliasName }}</span>
     </a>
+    <button v-if="d.removable" @click="removeName(d)" >x</button>
   </div>
+  <button @click="removeNames" class="postButton">▶️</button>
+
+
 
 <template v-if="id">
   <h3>スレッド一覧</h3>
@@ -264,6 +312,11 @@ const invite = async () => {
 .aliases {
   padding: 4px;
   display: inline-flex;
+}
+
+.deleted {
+  background-color: gray;
+  opacity: 0.4;
 }
 
 .min-icon {

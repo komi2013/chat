@@ -76,7 +76,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		Alias:     myname,
 	}
   for _, d := range mySessions { // go to alias
-	  pushID := common.StringRand(12)
+	  pushID := common.StringRand(1)
 		var arr []interface{}
 		arr = append(arr, pushID)
 		arr = append(arr, "alias")
@@ -116,6 +116,10 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
+	session, err = common.ReGenerateData(db1, session)
+	if err != nil {
+		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
+	}
 	responseData := struct {
 		ChannelID    string    `json:"channelID"`
 		Csrf         string    `json:"csrf"`

@@ -6,9 +6,7 @@
 // aliasImg is changeble
 // aliasName is not changeble
 
-import { fetchChannel, fetchAliases, fetchGroups, userIDsByName } from '@/my/channelFunc';
-
-export async function channelEdit(pushData) {
+export async function channelEdit(pd) {
   // const pushID = pushData[0];
   // const fd = new FormData();
   // fd.append('pushID', pushID);
@@ -17,17 +15,23 @@ export async function channelEdit(pushData) {
   //   body: fd,
   // });
   // fetch(request);
-  const channelID = pushData[2];
-  const updatedBy = pushData[3];
-  const channelName = pushData[4][0];
-  const channelDescription = pushData[4][1];
-  const groupLockUntilDate = pushData[4][2] ?? null;
-  let channel = await fetchChannel(channelID);
-  if (channel) {
+  const channelID = pd[2];
+  const updatedBy = pd[3];
+  const channelName = pd[4][0];
+  const channelDescription = pd[4][1];
+  const groupLockUntilDate = pd[4][2] ?? null;
+  // let channel = await fetchChannel(channelID);
+  let pre = await getIDB('channel', channelID);
+  console.log('channel', pre);
+  let channel;
+  if (pre) {
+    channel = JSON.parse(JSON.stringify(pre));
     channel.channelName = channelName;
-    channel.myname = updatedBy;
+    // channel.myname = updatedBy;
     channel.channelDescription = channelDescription;
     channel.groupLockUntilDate = groupLockUntilDate;
+    console.log('channelEdit', channel);
+
   } else {
     channel = {
       channelID: channelID,
@@ -35,17 +39,28 @@ export async function channelEdit(pushData) {
       channelName: channelName,
       channelDescription: channelDescription
     }
+    console.log('channelAdd', channel);
   }
-  const editLogs = channel.editLogs ?? [];
-  const editLog = {
-    updatedBy: updatedBy,
-    updatedAt: timeFormat()
+  // const editLogs = channel.editLogs ?? [];
+  // const editLog = {
+  //   updatedBy: updatedBy,
+  //   updatedAt: timeFormat()
+  // }
+  // editLogs.push(editLog);
+  // channel.editLogs = editLogs;
+  upsertIDB(channel, 'channel', 'channelID', channel.channelID);
+  if (pre) {
+    const logID = pd[1] + pd[2] + pd[3] + pd[0];
+    const log = {
+      logID: logID,
+      pushID: pd[0],
+      pushTitle: pd[1],
+      channelID: pd[2],
+      updatedBy: pd[3],
+      updatedAt: timeFormat(),
+      preContents: pre
+    }
+    upsertIDB(log, 'log', 'log', log.logID);
   }
-  editLogs.push(editLog);
-  channel.editLogs = editLogs;
-  upsertIDB(channel, 'channel', 'channelID', channel.channelID)
-    .catch((error) => {
-      console.error(error);
-    });
 }
 

@@ -6,6 +6,9 @@
 </head>
 <body>
   <script>
+  {{if .Session.Csrf}}
+    localStorage.setItem("csrf", "{{.Session.Csrf}}");
+  {{end}}
     function subscribe() {
       navigator.serviceWorker.ready
         .then(function(registration) {
@@ -56,6 +59,7 @@
     function pushSubscribe(subscription) {
       const fd = new FormData();
       fd.append('subscription', JSON.stringify(subscription));
+      fd.append('csrf', localStorage.getItem("csrf"));
       const request = new Request('/PushSubscribe/', {
         method: 'POST',
         body: fd,

@@ -2,7 +2,7 @@ package controller
 
 import (
   "context"
-  "fmt"
+  // "fmt"
   "log"
   // "encoding/json"
   "net/http"
@@ -39,48 +39,27 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
   }
   http.SetCookie(w, cookie)
   userID := r.FormValue("userID")
-  var ssAlready collection.SessionStruct
-  coll := db1.Collection("session")
-  filter3 := bson.D{{"user_id", userID}}
-  opts3 := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
-    {"alias_channels", 1},
-  }).SetSort(bson.D{
-    {"created_at", -1},
-  })
-  err = coll.FindOne(context.TODO(), filter3, opts3).Decode(&ssAlready)
 
-  if err == mongo.ErrNoDocuments {
-    // ドキュメントが見つからない場合の処理
-    fmt.Println("Document not found")
-    coll = db1.Collection("session")
-    session := collection.SessionStruct{
-      SessionID: sessionID,
-      UserID: userID,
-      CreatedAt: time.Now(),
-    }
-    _, err := coll.InsertOne(context.TODO(), session)
-    if err != nil {
-      log.Fatal(err)
-    }
-  } else if err != nil {
-    // エラーが発生した場合の処理
-    fmt.Printf("Error: %s\n", err.Error())
-  } else {
-    // ドキュメントが見つかった場合の処理
-    fmt.Println("Document found")
-    coll = db1.Collection("session")
-    session := collection.SessionStruct{
-      SessionID: sessionID,
-      UserID: userID,
-      ChannelAliases: ssAlready.ChannelAliases,
-      CreatedAt: time.Now(),
-    }
-    _, err := coll.InsertOne(context.TODO(), session)
-    if err != nil {
-      log.Fatal(err)
-    }
+  collUser := db1.Collection("user")
+  filterUser := bson.M{"_id": userID}
+  var user collection.UserStruct
+  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  if err != nil {
+    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
   }
+  coll := db1.Collection("session")
+  session := collection.SessionStruct{
+    SessionID: sessionID,
+    UserID: userID,
+    ChannelAliases: user.ChannelAliases,
+    CreatedAt: time.Now(),
+    IsMobile: common.IsMobile(r.UserAgent()),
+  }
+  _, err = coll.InsertOne(context.TODO(), session)
+  if err != nil {
+    log.Fatal(err)
+  }
+
 	coll = db1.Collection("user")
 	userFilter := bson.D{{"_id", userID}}
 	update := bson.D{{"$set", bson.D{

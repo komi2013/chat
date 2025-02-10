@@ -44,9 +44,6 @@ const props = defineProps({
   placeholder: String
 });
 
-console.log('props.modelValue', props.modelValue);
-console.log('props.aliases', props.aliases);
-
 const emit = defineEmits(["update:modelValue"]);
 const searchTerm = ref("");
 const selectedAlias = ref([]);
@@ -58,9 +55,6 @@ if (Array.isArray(props.modelValue)) {
       : null;
   }).filter(Boolean);
 }
-
-console.log('selectedAlias.value', selectedAlias.value);
-
 
 const filteredResults = computed(() => {
   if (!searchTerm.value || typeof searchTerm.value !== "string") return [];

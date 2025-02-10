@@ -71,9 +71,12 @@ export async function thread(pushData) {
     displayStatus = 2;
     notify = true;
   }
-  let pushTitle = title;
+  let pushTitle = find;
   let newThreadHeadFlag = false;
+  let toWhom;
   let threadHead = await getIDB('threadHead', pushThread.parentID);
+  console.log('threadHead', threadHead);
+  console.log('secondPartMsgID', secondPartMsgID);
   if (threadHead) {
     if (threadHead.displayStatus != 3 || notify) {
       threadHead.displayStatus = displayStatus;
@@ -84,7 +87,18 @@ export async function thread(pushData) {
     threadHead = {};
     threadHead.parentID = pushThread.parentID;
     threadHead.emojis = parent.emojis;
-    threadHead.title = title;
+    if (pushThread.parentID.includes('@')) {
+      const parentSecondPart = pushThread.parentID.replace(channelID, '');
+      const parts = parentSecondPart.split('@');
+      const matchedGroup = groups.find(group => parts.includes(group.groupName));
+      if (matchedGroup) {
+        toWhom = parts.find(part => part !== matchedGroup.groupName);
+      }
+      if (parts.includes(channel.myname)) {
+        toWhom = parts.find(part => part !== channel.myname);
+      }
+    }
+    threadHead.title = toWhom || title;
     threadHead.displayStatus = displayStatus;
     threadHead.messageTxt = parent.messageTxt;
     threadHead.aliasName = parent.aliasName;

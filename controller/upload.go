@@ -49,9 +49,9 @@ func Upload(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	session, err := common.SessionGet(db1, w, r)
 	if err != nil {
-		log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+		log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
@@ -67,7 +67,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "no access right for file", http.StatusNotFound)
     return
   }
-  log.Printf("!trueAccess: %v; Req: ", fileID)
+  // log.Printf("!trueAccess: %v; Req: ", fileID)
   if fileType == "file" {
 		var fileData collection.FileStruct
 		coll := db1.Collection("file")

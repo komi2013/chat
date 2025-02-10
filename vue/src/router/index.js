@@ -80,8 +80,11 @@ const router = createRouter({
       component: () => import('../views/Redirect.vue')
     },
     {
+      path: '/setting/',
+      component: () => import('../views/Setting.vue')
+    },
+    {
       path: '/shift/:id/',
-      name: 'shift',
       component: () => import('../views/Shift.vue'),
       props: route => ({id: route.params.id}),
     },

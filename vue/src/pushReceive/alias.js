@@ -13,7 +13,7 @@ export async function alias(pushData) {
   const aliasName = pushData[4][1];
   const bio = pushData[4][2]; // change
   const aliasImg = pushData[5];
-
+  const deleteFlag = pushData[4][3] ?? false;
   const alias = {
     aliasID: channelID + aliasName, // should not? be userID for unique per
     channelID: channelID,
@@ -22,9 +22,9 @@ export async function alias(pushData) {
     userID: userID,
     bio: bio,
   }
-  upsertIDB(alias, 'alias', 'aliasID', alias.aliasID)
-    .catch((error) => {
-      console.error(error);
-    });
-
+  if (deleteFlag) {
+    deleteIDB('alias', 'aliasID', alias.aliasID);
+  } else {
+    upsertIDB(alias, 'alias', 'aliasID', alias.aliasID);
+  }
 }

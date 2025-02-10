@@ -55,14 +55,14 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 
 	newAlias := collection.Alias{
 	  AliasName:  myname,
-	  AliasImg:   myimg,
+	  AliasImg:   aliasImg,
 	  UserID:     session.UserID,
 	}
 
-	coll := db1.Collection("invitation")
-	filter := bson.M{"_id": code}
+	collInvitation := db1.Collection("invitation")
+	invitationFilter := bson.M{"_id": code}
 	var invitation collection.InvitationStruct
-	err = coll.FindOne(context.TODO(), filter).Decode(&invitation)
+	err = collInvitation.FindOne(context.TODO(), invitationFilter).Decode(&invitation)
 	if err != nil {
 		log.Printf("invitation FindOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
@@ -105,20 +105,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 			}
 	}
 
-	_, err = coll.UpdateOne(context.TODO(), filter,
-    bson.M{
-        "$push": bson.M{
-            "aliases": newAlias,
-            "alias_names": myname,
-        },
-    },
-	)
-	if err != nil {
-	  log.Printf("coll.UpdateOne push aliases alias_names: %v; Req:", err, r.URL.Path, r.Form)
-	}
-
-	coll = db1.Collection("session")
-  filter = bson.M{"user_id": session.UserID}
+	coll := db1.Collection("session")
+  filter := bson.M{"user_id": session.UserID}
 	cursor, err := coll.Find(context.TODO(), filter)
 	if err != nil {
 	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
@@ -136,6 +124,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   arr = append(arr, contents)
 	common.ChunkPush(mySessions, db1, arr)
 
+	invitation.Aliases = append(invitation.Aliases, newAlias)
+
 	for _, d := range invitation.Aliases {
 		aliasData := []string{d.UserID, d.AliasName}
 	  var arr []interface{}
@@ -144,28 +134,17 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, myname)
 		arr = append(arr, aliasData)
 		arr = append(arr, d.AliasImg)
-		log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
 		common.ChunkPush(mySessions, db1, arr)
 	}
-
-	// for _, d := range invitation.Groups {
-	// 	groupData := []interface{}{d.GroupName, d.AliasNames}
-	//   var arr []interface{}
-	// 	arr = append(arr, "group")
-	// 	arr = append(arr, channelID)
-	// 	arr = append(arr, myname)
-	// 	arr = append(arr, groupData)
-	// 	arr = append(arr, d.GroupImg)
-	// 	log.Printf("invitation.Aliases: %v; Req:", err, r.URL.Path, r.Form)
-	// 	common.ChunkPush(mySessions, db1, arr)
-	// }
 
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
 	}
+	var addSessions []collection.SessionStruct
   for _, d := range mySessions {
-  	invitation.Subscriptions = append(invitation.Subscriptions, d.Subscription)
+  	// newSubscriptions = append(newSubscriptions, d.Subscription)
+  	// invitation.Subscriptions = append(invitation.Subscriptions, d.Subscription)
 		d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
 		d.UpdatedAt = time.Now()
 		coll := db1.Collection("session")
@@ -175,6 +154,10 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
+    addSessions = append(addSessions, collection.SessionStruct{
+        SessionID:    d.SessionID,
+        Subscription: d.Subscription,
+    })
   }
 
   collUser := db1.Collection("user")
@@ -192,8 +175,22 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
+	msg, err := collInvitation.UpdateOne(context.TODO(), invitationFilter,
+    bson.M{
+        "$push": bson.M{
+            "aliases": newAlias,
+            "alias_names": myname,
+            "push_sessions": bson.M{"$each": addSessions},
+        },
+    },
+	)
+	log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)
+	if err != nil {
+	  log.Printf("collInvitation.UpdateOne push: %v; Req:", err, r.URL.Path, r.Form)
+	}
+
 	contents = []string{session.UserID, myname}
-  for _, sess := range invitation.Sessions {
+  for _, sess := range invitation.PushSessions {
 	  pushID := common.StringRand(12)
 		var arr []interface{}
 		arr = append(arr, pushID)
@@ -208,6 +205,12 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
   }
+
+	session, err = common.ReGenerateData(db1, session)
+	if err != nil {
+		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
+	}
+
 	responseData := struct {
 		Csrf         string        `json:"csrf"`
 		PushContents []string `json:"pushContents"`

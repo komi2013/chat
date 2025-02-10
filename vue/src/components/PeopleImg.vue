@@ -82,7 +82,7 @@ const resizeAndPreviewImage = (file) => {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const MAX_SIZE = 50;
+      const MAX_SIZE = 1;
       let width = img.width;
       let height = img.height;
       if (width > height) {

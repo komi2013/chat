@@ -123,12 +123,13 @@ const msgUpsert = async (messageID, delMessage) => {
     }
     dm = props.threadHead.parentID.includes('@');
     if (dm) {
-      names = props.threadHead.parentID.split('@');
+      let dmNames = props.threadHead.parentID.replace(props.channel.channelID, '').split('@');
+      let matchedGroup = props.groups.find(group => dmNames.includes(group.groupName));
+      let dmAliasNames = matchedGroup?.aliasNames || [];
+      dmNames = dmNames.filter(name => name !== matchedGroup?.groupName);
+      names = [...names, ...dmNames, ...dmAliasNames];
     }
-    console.log('userIDs0', props.threadHead.aliasNames);
-    console.log('props.aliases', props.aliases);
     userIDs = userIDsByName(props.aliases, props.threadHead.aliasNames);
-    console.log('userIDs1', userIDs);
   }
   let yets = [];
   if (Array.isArray(props.groups) && !dm) {
@@ -148,13 +149,10 @@ const msgUpsert = async (messageID, delMessage) => {
     }
   }
   for (const d of props.aliases) {
-    // if (names.includes(d.aliasName)) {
-    //   userIDs.push(d.userID);
-    // }
     const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
     	if (!dm) {
-	      userIDs.push(d.userID);
+	      // userIDs.push(d.userID);
 	      names.push(d.aliasName);    		
     	}
     	if (task.value) {
@@ -165,8 +163,8 @@ const msgUpsert = async (messageID, delMessage) => {
     	}
 		}
   }
+  const nameUserIDs = userIDsByName(props.aliases, names);
   const fileInput = document.getElementById('fileInput_' + messageID);
-
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
     return;
@@ -178,7 +176,7 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
+  fd.append('userIDs', JSON.stringify([...new Set([...nameUserIDs, ...userIDs])]));
   fd.append('pushTitle', pushTitle);
   const contents = [
   	props.message.parentID,

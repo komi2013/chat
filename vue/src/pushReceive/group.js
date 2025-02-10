@@ -1,4 +1,4 @@
-export async function group(pushData) {
+export async function group(pd) {
   // const pushID = pushData[0];
   // const fd = new FormData();
   // fd.append('pushID', pushID);
@@ -7,11 +7,11 @@ export async function group(pushData) {
   //   body: fd,
   // });
   // fetch(request);
-  const channelID = pushData[2];
-  const updatedBy = pushData[3];
-  const groupName = pushData[4][0];
-  const aliasNames = pushData[4][1];
-  const groupImg = pushData[5];
+  const channelID = pd[2];
+  const updatedBy = pd[3];
+  const groupName = pd[4][0];
+  const aliasNames = pd[4][1];
+  const groupImg = pd[5];
 
   const timestamp = timeFormat();
   // const editLogKey = `editLog${timestamp}`;
@@ -34,30 +34,26 @@ export async function group(pushData) {
   }
   let action;
   if (aliasNames) {
-    upsertIDB(group, 'group', 'group', group.groupID).catch((error) => {
-      console.error(error);
-    });
+    upsertIDB(group, 'group', 'group', group.groupID);
     action = 'update';
   } else {
     deleteIDB('group', 'groupID', group.groupID);
     action = 'delete';
   }
-  const storeName = 'group';
   if (pre) {
-    const logID = storeName + updatedBy + action + timestamp;
+    const logID = pd[1] + pd[2] + pd[3] + pd[0];
     const log = {
       logID: logID,
-      storeName: storeName,
-      updatedBy: updatedBy,
-      action: action,
-      updatedAt: timestamp,
+      pushID: pd[0],
+      pushTitle: pd[1],
+      channelID: pd[2],
+      updatedBy: pd[3],
+      updatedAt: timeFormat(),
       preContents: pre
     }
-    upsertIDB(log, 'log', 'log', log.logID).catch((error) => {
-      console.error(error);
-    });
+    upsertIDB(log, 'log', 'log', log.logID);
   }
-  
+
 
 
   // let editLog = {

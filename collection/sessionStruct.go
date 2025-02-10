@@ -15,6 +15,7 @@ type SessionStruct struct {
   Subscription  string      `bson:"subscription,omitempty"`
   Csrf  string      `bson:"csrf,omitempty"`
   PushContents []string `bson:"push_contents,omitempty"`
+  IsMobile bool `bson:"is_mobile,omitempty"`
 }
 
 // type Content struct {

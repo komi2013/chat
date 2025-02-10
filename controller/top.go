@@ -18,14 +18,29 @@ import (
 )
 
 func Top(w http.ResponseWriter, r *http.Request) {
-	// log.Println("Requested URL:", r.URL.Path)
-
 	var session collection.SessionStruct
-
 	var tmplPath string
 	switch {
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
-			tmplPath = "view/pushSubscription.tmpl"
+		tmplPath = "view/pushSubscription.tmpl"
+	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	  defer cancel()
+	  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	  if err != nil {
+	    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+	  }
+	  defer c.Disconnect(ctx)
+	  db1 := c.Database(common.MongoDb1)
+		session, err = common.SessionGet(db1, w, r)
+		if err != nil {
+			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			return
+		}
+		session, err = common.ReGenerateData(db1, session)
+		if err != nil {
+			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			return
+		}
 	case r.URL.Path == "/":
 		tmplPath = "public/index.html"
 	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -38,27 +53,22 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	  db1 := c.Database(common.MongoDb1)
 		session, err = common.SessionGet(db1, w, r)
 		if err != nil {
-			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
-	  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
-	    return
+			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			return
 		}
-		session, err = common.GenerateCSRFToken(db1, session)
+		session, err = common.ReGenerateData(db1, session)
 		if err != nil {
-			log.Printf("GenerateCSRFToken: %v; Req: ", err, r.URL.Path, r.Form)
-	  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
-	    return
+			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			return
 		}
 	default:
 		tmplPath = "public/index.html"
 	}
-
 	type View struct {
 		Session collection.SessionStruct
 	}
-
 	var view View
 	view.Session = session
-
 	tpl := template.Must(template.ParseFiles(tmplPath))
 	if err := tpl.Execute(w, view); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)

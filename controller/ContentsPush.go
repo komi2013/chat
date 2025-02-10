@@ -3,24 +3,16 @@ package controller
 import (
   "context"
   "encoding/json"
-  // "fmt"
   "log"
   "net/http"
   "time"
-	// "unicode/utf8"
-	// "os"
-	// "io"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  // "go.mongodb.org/mongo-driver/bson/primitive"
-
-  // webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
   "chat/common"
-  // "chat/logic/quiz"
 )
 
 func ContentsPush(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +101,11 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   }
   
 	common.ChunkPush(filteredSessions, db1, arr)
+
+	session, err = common.ReGenerateData(db1, session)
+	if err != nil {
+		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
+	}
 
 	responseData := struct {
 		Csrf         string        `json:"csrf"`

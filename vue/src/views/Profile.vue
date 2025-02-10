@@ -51,6 +51,7 @@ onBeforeMount(async () => {
 });
 
 async function aliasEdit() {
+  console.log(aliasImg.value);
   if (!confirm("実行▶️")) {
     return;
   }
@@ -91,7 +92,7 @@ async function join () {
   res.pushContents.forEach(content => {
     pushReceive(content);
   });
-  // location.href = '/profile/' + props.id + '/';
+  location.href = '/profile/' + props.id + '/';
 }
 
 async function switchAlias (aliasName) {
@@ -108,7 +109,12 @@ async function switchAlias (aliasName) {
 <template>
 <DrawerColumn />
 <div id="content" v-if="fetched">
-<br><br>
+  <div class="headTitle">
+    <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
+    <span>
+      <a :href="'/profile/' + id + '/'"> ⬅ </a>
+    </span>
+  </div>
   <div class="join">
     <div class="icon-name">
       <template v-if="!isEditable">
@@ -175,6 +181,26 @@ async function switchAlias (aliasName) {
 </template>
 
 <style>
+
+.headTitle {
+  margin-left: 50px;
+  display: flex;
+}
+
+.headTitle div {
+  width: 90%;
+}
+
+.headTitle span {
+  line-height: 50px;
+  width: 50px;
+}
+
+@media screen and (max-width: 700px) {
+  .headTitle div {
+    display: table-cell;
+  }
+}
 
 .join {
   width: 100%;

@@ -160,7 +160,7 @@ function getAliasesByNames(aliasNames) {
       </tr>
       <tr>
         <td class="center">
-
+          <button @click="removeGroup(groupAlias)"> ✉️ </button>
           <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
         </td>
 

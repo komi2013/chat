@@ -1,84 +1,170 @@
+// const openDatabase = () => {
+//   return new Promise((resolve, reject) => {
+//     const request = indexedDB.open('chat', 94 );
+//     request.onerror = (event) => {
+//       reject(`Error opening database: ${event.target.error}`);
+//     };
+//     request.onupgradeneeded = (event) => {
+//       const db = event.target.result;
+
+//       // オブジェクトストアを削除
+//       // if (db.objectStoreNames.contains('schedule')) {
+//       //   db.deleteObjectStore('schedule');
+//       // }
+
+//       const transaction = event.target.transaction;
+//       transaction.onerror = (event) => {
+//         console.error('Error in upgrade transaction:', event.target.error);
+//       };
+//       transaction.oncomplete = (event) => {
+//         console.log('Upgrade transaction completed');
+//       };
+
+//       const tables = [
+//         ['alias', 'aliasID'],
+//         ['bookmark', 'messageID'],
+//         ['bookPattern', 'bookPatternID'],
+//         ['calendar', 'calendarID'],
+//         ['channel', 'channelID'],
+//         ['chunk', 'chunkID'],
+//         ['group', 'groupID'],
+//         ['log', 'logID'],
+//         ['receptionOrder', 'receptionOrderID'],
+//         ['shiftStaff', 'shiftStaffID'],
+//         ['thread', 'messageID'],
+//         ['threadHead', 'parentID'],
+//         ['timestamp', 'timestampID'],
+//         ['timestampCode', 'code'],
+//         ['ticket', 'ticketID'],
+//       ];
+//       tables.forEach(([tableName, keyPath]) => {
+//         let objectStore;
+//         if (db.objectStoreNames.contains(tableName)) {
+//           objectStore = transaction.objectStore(tableName);
+//         } else {
+//           objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
+//         }
+//         if (tableName === 'alias' && !objectStore.indexNames.contains('channelIDIndex')) {
+//           objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+//         }
+//         if (tableName === 'channel' && !objectStore.indexNames.contains('displayStatusIndex')) {
+//           objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
+//         }
+//         if (tableName === 'chunk' && !objectStore.indexNames.contains('chunkPassIndex')) {
+//           objectStore.createIndex('chunkPassIndex', 'chunkPass', { unique: false });
+//         }
+//         if (tableName === 'group' && !objectStore.indexNames.contains('channelIDIndex')) {
+//           objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+//         }
+//         if (tableName === 'shiftStaff' && !objectStore.indexNames.contains('bookPatternIDIndex')) {
+//           objectStore.createIndex('bookPatternIDIndex', 'bookPatternID', { unique: false });
+//         }
+//         if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
+//           objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
+//         }
+//         if (tableName === 'timestampCode' && !objectStore.indexNames.contains('channelIDIndex')) {
+//           objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+//         }
+//         if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelIDIndex')) {
+//           objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+//         }
+//         if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelID_aliasName')) {
+//           objectStore.createIndex('channelID_aliasName', ['channelID', 'aliasName'], { unique: false });
+//         }
+//       });
+//     };
+
+//     request.onsuccess = (event) => {
+//       const db = event.target.result;
+//       resolve(db);
+//     };
+//   });
+// };
+
+const indexedDBStores = [
+  ['alias', 'aliasID'],
+  ['bookmark', 'messageID'],
+  ['bookPattern', 'bookPatternID'],
+  ['calendar', 'calendarID'],
+  ['channel', 'channelID'],
+  ['chunk', 'chunkID'],
+  ['group', 'groupID'],
+  ['log', 'logID'],
+  ['receptionOrder', 'receptionOrderID'],
+  ['shiftStaff', 'shiftStaffID'],
+  ['thread', 'messageID'],
+  ['threadHead', 'parentID'],
+  ['timestamp', 'timestampID'],
+  ['timestampCode', 'code'],
+  ['ticket', 'ticketID'],
+];
+
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 94 );
+    const request = indexedDB.open('chat', 95);
+
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
+
     request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-
-      // オブジェクトストアを削除
-      if (db.objectStoreNames.contains('schedule')) {
-        db.deleteObjectStore('schedule');
-      }
-
-      const transaction = event.target.transaction;
-      transaction.onerror = (event) => {
-        console.error('Error in upgrade transaction:', event.target.error);
-      };
-      transaction.oncomplete = (event) => {
-        console.log('Upgrade transaction completed');
-      };
-
-      const tables = [
-        ['alias', 'aliasID'],
-        ['bookmark', 'messageID'],
-        ['bookPattern', 'bookPatternID'],
-        ['calendar', 'calendarID'],
-        ['channel', 'channelID'],
-        ['chunk', 'chunkID'],
-        ['group', 'groupID'],
-        ['log', 'logID'],
-        ['receptionOrder', 'receptionOrderID'],
-        ['shiftStaff', 'shiftStaffID'],
-        ['thread', 'messageID'],
-        ['threadHead', 'parentID'],
-        ['timestamp', 'timestampID'],
-        ['timestampCode', 'code'],
-        ['ticket', 'ticketID'],
-      ];
-      tables.forEach(([tableName, keyPath]) => {
-        let objectStore;
-        if (db.objectStoreNames.contains(tableName)) {
-          objectStore = transaction.objectStore(tableName);
-        } else {
-          objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
-        }
-        if (tableName === 'alias' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
-        }
-        if (tableName === 'channel' && !objectStore.indexNames.contains('displayStatusIndex')) {
-          objectStore.createIndex('displayStatusIndex', 'displayStatus', { unique: false });
-        }
-        if (tableName === 'chunk' && !objectStore.indexNames.contains('chunkPassIndex')) {
-          objectStore.createIndex('chunkPassIndex', 'chunkPass', { unique: false });
-        }
-        if (tableName === 'group' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
-        }
-        if (tableName === 'shiftStaff' && !objectStore.indexNames.contains('bookPatternIDIndex')) {
-          objectStore.createIndex('bookPatternIDIndex', 'bookPatternID', { unique: false });
-        }
-        if (tableName === 'thread' && !objectStore.indexNames.contains('parentIDIndex')) {
-          objectStore.createIndex('parentIDIndex', 'parentID', { unique: false });
-        }
-        if (tableName === 'timestampCode' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
-        }
-        if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelIDIndex')) {
-          objectStore.createIndex('channelIDIndex', 'channelID', { unique: false });
-        }
-        if (tableName === 'timestamp' && !objectStore.indexNames.contains('channelID_aliasName')) {
-          objectStore.createIndex('channelID_aliasName', ['channelID', 'aliasName'], { unique: false });
-        }
-      });
+      setupDatabaseSchema(event.target.result, event.target.transaction);
     };
 
     request.onsuccess = (event) => {
-      const db = event.target.result;
-      resolve(db);
+      resolve(event.target.result);
     };
   });
+};
+
+const setupDatabaseSchema = (db, transaction) => {
+  console.log('Database upgrade triggered');
+
+  // もし `schedule` ストアがあれば削除
+  if (db.objectStoreNames.contains('schedule')) {
+    db.deleteObjectStore('schedule');
+  }
+
+  // 各テーブルの作成・インデックス作成
+  indexedDBStores.forEach(([tableName, keyPath]) => {
+    let objectStore;
+
+    if (db.objectStoreNames.contains(tableName)) {
+      objectStore = transaction.objectStore(tableName);
+    } else {
+      objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
+    }
+
+    // インデックスの作成
+    const indexConfigs = {
+      alias: [['channelIDIndex', 'channelID']],
+      channel: [['displayStatusIndex', 'displayStatus']],
+      chunk: [['chunkPassIndex', 'chunkPass']],
+      group: [['channelIDIndex', 'channelID']],
+      shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
+      thread: [['parentIDIndex', 'parentID']],
+      timestampCode: [['channelIDIndex', 'channelID']],
+      timestamp: [
+        ['channelIDIndex', 'channelID'],
+        ['channelID_aliasName', ['channelID', 'aliasName']],
+      ],
+    };
+    if (indexConfigs[tableName]) {
+      indexConfigs[tableName].forEach(([indexName, keyPath]) => {
+        if (!objectStore.indexNames.contains(indexName)) {
+          objectStore.createIndex(indexName, keyPath, { unique: false });
+        }
+      });
+    }
+  });
+
+  transaction.onerror = (event) => {
+    console.error('Error in upgrade transaction:', event.target.error);
+  };
+
+  transaction.oncomplete = () => {
+    console.log('Database upgrade completed');
+  };
 };
 
 async function getIDB(table, id) {
@@ -278,3 +364,22 @@ async function updIDBone(table, key, columnName, columnValue) {
     console.error(`Error getting data: ${event.target.error}`);
   };
 }
+
+const getObjectStoreNames = async () => {
+  const db = await openDatabase();
+  return Array.from(db.objectStoreNames); // ストア一覧を取得
+};
+
+const clearObjectStore = async (storeName) => {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    if (!db.objectStoreNames.contains(storeName)) {
+      return reject(`"${storeName}" は存在しません。`);
+    }
+    const transaction = db.transaction([storeName], 'readwrite');
+    const objectStore = transaction.objectStore(storeName);
+    const request = objectStore.clear(); // データ削除
+    request.onsuccess = () => resolve(`"${storeName}" のデータを削除しました！`);
+    request.onerror = (event) => reject(`エラー: ${event.target.error}`);
+  });
+};

@@ -16,6 +16,7 @@ func main() {
 		http.HandleFunc("/BookAdd/", controller.BookAdd)
 		http.HandleFunc("/BookPatternGet/", controller.BookPatternGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
+		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)
 		http.HandleFunc("/ChannelInvite/", controller.ChannelInvite)
 		http.HandleFunc("/ChannelJoin/", controller.ChannelJoin)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)

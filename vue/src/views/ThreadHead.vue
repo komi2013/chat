@@ -22,15 +22,6 @@ const groups = ref([]);
 const threadHead = ref(null);
 
 let adminEditable = false;
-// onBeforeMount(async () => {
-//   channel.value = await getIDB('channel', channelID);
-//   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-//   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
-//   threadHead.value = await getIDB('threadHead', props.parent_id);
-//   adminEditable = threadHead.value.adminNames.includes(channel.value.myname);
-//   console.log(threadHead.value);
-// });
-
 const quill = ref(null);
 async function initQuill() {
   quill.value = await new Quill('#description', {
@@ -64,14 +55,6 @@ const postThreadHead = async () => {
   fd.append('csrf', localStorage.getItem('csrf'));
   let editThreadHead = threadHead.value;
   editThreadHead.description = description;
-  // const contents = [
-  // 	threadHead.value.parentID.replace(channelID, ""),
-  //   threadHead.value.title,
-  //   description,
-  //   threadHead.value.aliasNames,
-  //   threadHead.value.adminNames,
-  //   threadHead.value.broadcastFlag
-  // ];
   fd.append('contents', JSON.stringify(editThreadHead));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
@@ -92,12 +75,14 @@ function backTo() {
 <DrawerThread />
 <div id="content">
   <div v-if="threadHead" class="headTitle">
-    <div>&nbsp;</div>
+    <div>
+      <span v-if="threadHead && threadHead.parentID.includes('@')" >{{threadHead.title}}</span>
+    </div>
     <span>
       <a @click="backTo"> ⬅ </a>
     </span>
   </div>
-  <input v-if="threadHead" type="text" class="inputText" v-model="threadHead.title"/>
+  <input v-if="threadHead && !threadHead.parentID.includes('@')" type="text" class="inputText" v-model="threadHead.title"/>
 
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
@@ -143,8 +128,9 @@ function backTo() {
 <style>
 
 .headTitle div {
-  width: 90%;
+  width: 74%;
   display: inline-block;
+  margin-left: 60px;
 }
 
 .headTitle span {

@@ -32,12 +32,12 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-	var groups []collection.Group
-  if err := json.Unmarshal([]byte(r.FormValue("groups")), &groups); err != nil {
-  	log.Printf("groups: %v; Request:", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON groups", http.StatusBadRequest)
-    return
-  }
+	// var groups []collection.Group
+ //  if err := json.Unmarshal([]byte(r.FormValue("groups")), &groups); err != nil {
+ //  	log.Printf("groups: %v; Request:", err, r.URL.Path, r.Form)
+ //    http.Error(w, "Invalid JSON groups", http.StatusBadRequest)
+ //    return
+ //  }
 
 	var aliasNames []string
   if err := json.Unmarshal([]byte(r.FormValue("aliasNames")), &aliasNames); err != nil {
@@ -86,7 +86,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
     log.Printf("ChannelAliases !trueAccess: %v; Request:", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
-  var subscriptions []string
+  // var subscriptions []string
+  var addSessions []collection.SessionStruct
   coll := db1.Collection("session")
   filter := bson.D{{
     "user_id", bson.D{{"$in", userIDs}}}}
@@ -108,10 +109,27 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 	    }
 	  }
 	  if trueAccess {
-	  	subscriptions = append(subscriptions, s.Subscription)
+	  	// subscriptions = append(subscriptions, s.Subscription)
+	    addSessions = append(addSessions, collection.SessionStruct{
+	        SessionID:    s.SessionID,
+	        Subscription: s.Subscription,
+	    })
 	  }
 	}
+
 	coll = db1.Collection("invitation")
+	now := time.Now()
+	filterInvitation := bson.M{
+    "$or": []interface{}{
+      bson.M{"channel_id": channelID},
+      bson.M{"until_date": bson.M{"$lt": now}},
+    },
+	}
+
+	_, err = coll.DeleteMany(context.TODO(), filterInvitation)
+	if err != nil {
+    log.Printf("DeleteMany: %v; Request:", err, r.URL.Path, r.Form)
+	}
   invitation := collection.InvitationStruct{
   	InvitationCode: common.StringRand(16),
 		ChannelID: channelID,
@@ -119,16 +137,20 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		ChannelDescription: channelDescription,
 		CreatedBy: updatedBy,
     CreatedAt: time.Now(),
-		Subscriptions: subscriptions,
+		PushSessions: addSessions,
 		AliasNames: aliasNames,
 		Aliases: aliases,
-		Groups: groups,
 		NoRightMention: noRightMention,
 		UntilDate: untilDate,
 	}
 	_, err = coll.InsertOne(context.TODO(), invitation)
 	if err != nil {
 		log.Printf("InsertOne: %v; Request:", err, r.URL.Path, r.Form)
+	}
+
+	session, err = common.ReGenerateData(db1, session)
+	if err != nil {
+		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
 	responseData := struct {

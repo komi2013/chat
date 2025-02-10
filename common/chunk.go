@@ -33,7 +33,7 @@ func ChunkPush(
 
   for chIndex, ch := range chunks {
     for _, session := range sessions {
-      pushID := StringRand(12)
+      pushID := StringRand(1)
       var arrForJson []interface{}
 
       if chunk {

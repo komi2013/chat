@@ -10,15 +10,22 @@ type InvitationStruct struct {
   ChannelName      string    `bson:"channel_name"`
   ChannelDescription      string    `bson:"channel_description"`
   CreatedAt     time.Time    `bson:"created_at"`
+  UpdatedAt     time.Time    `bson:"updated_at"`
   CreatedBy     string    `bson:"created_by"`
-  Subscriptions      []string    `bson:"subscriptions"`
+  // Subscriptions      []string    `bson:"subscriptions"`
   AliasNames      []string    `bson:"alias_names"`
   Aliases          []Alias `bson:"aliases"`
-  Groups          []Group `bson:"groups"`
+  // Groups          []Group `bson:"groups"`
   NoRightMention  bool `bson:"no_right_mention,omitempty"`
   UntilDate  time.Time `bson:"until_date,omitempty"`
-  Sessions    []SessionStruct `bson:"session,omitempty"`
+  PushSessions    []SessionStruct `bson:"push_sessions,omitempty"`
 }
+
+// type PushSession struct {
+//   SessionID  string
+//   Subscription  string
+// }
+
 
 type Alias struct {
 	AliasName string
@@ -26,8 +33,8 @@ type Alias struct {
 	UserID string
 }
 
-type Group struct {
-	GroupName string
-	GroupImg string
-	AliasNames []string
-}
+// type Group struct {
+// 	GroupName string
+// 	GroupImg string
+// 	AliasNames []string
+// }

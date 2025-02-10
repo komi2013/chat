@@ -9,7 +9,6 @@ import Messages from '@/components/Messages.vue';
 import { useMessagesStore } from '@/stores/messages.js';
 import { useChannelsStore } from '@/stores/channels.js';
 
-import { fetchChannel, fetchAliases, fetchGroups } from '@/my/channelFunc';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '@/my/emoji.js';
 import { removeMark } from '@/my/markdown.js';
 
@@ -80,7 +79,14 @@ async function makeThreadHead() {
       const toWhom = parts[0] === channel.value.myname ? parts[1] : parts[0];
       threadHeadValue.title = getSubstring(toWhom, 0, 12);
       threadHeadValue.messageTxt = toWhom;
-      threadHeadValue.aliasNames = parts;
+      threadHeadValue.aliasNames = [...parts];
+      parts.forEach(part => {
+        const group = groups.value.find(g => g.groupName === part);
+        if (group) {
+          threadHeadValue.aliasNames.push(...group.aliasNames);
+        }
+      });
+      threadHeadValue.aliasNames = [...new Set(threadHeadValue.aliasNames)];
     }
     threadHead.value = threadHeadValue;
     if (props.backID) {
