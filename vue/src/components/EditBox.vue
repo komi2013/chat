@@ -17,6 +17,7 @@
     <div class="editRight ql-toolbar ql-snow">
       <button v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
       <button @click="tasking" :class="{ 'task': task }">🔖</button>
+      <button @click="tasking" :class="{ 'task': task }">👥</button>
       <button @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"

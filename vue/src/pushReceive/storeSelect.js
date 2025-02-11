@@ -1,11 +1,11 @@
-import { userIDsByName } from '../my/channelFunc.js';
+import { userIDsByName } from '@/my/channelFunc.js';
 
-export async function storeSelect(pushData) {
-  const pushSelectID = pushData[0];
-  const channelID = pushData[2];
-  const aliasName = pushData[3];
-  const targetStore = pushData[4];
-  const param = pushData[5];
+export async function storeSelect(pd) {  
+  const pushID = pd[0];
+  const channelID = pd[2];
+  const aliasName = pd[3];
+  const targetStore = pd[4];
+  const param = pd[5];
   const channel = await getIDB('channel', channelID);
   const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   const userIDs = userIDsByName(aliases, [aliasName]);
@@ -27,18 +27,28 @@ export async function storeSelect(pushData) {
       };
     });
   const fd = new FormData();
-  fd.append('pushSelectID', pushSelectID);
+  fd.append('pushID', pushID);
   fd.append('userIDs', JSON.stringify(userIDs));
   fd.append('channelID', channelID);
   fd.append('aliasName', channel.myname);
   fd.append('contents', JSON.stringify(contents));
   fd.append('targetStore', targetStore);
   fd.append('csrf', localStorage.getItem("csrf"));
-  console.log('/StorePush/', fd);
-  const res = sendRequest('/StorePush/', fd);
+  const res = await sendRequest('/StorePush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents && res.pushContents.forEach(content => {
     pushReceive(content);
   });
+  const logID = pd[1] + pd[2] + pd[3] + pd[4] + pd[0];
+  const log = {
+    logID: logID,
+    pushID: pd[0],
+    pushTitle: pd[1],
+    channelID: pd[2],
+    updatedBy: pd[3],
+    updatedAt: timeFormat(),
+    preContents: pre
+  }
+  upsertIDB(log, 'log', 'log', log.logID);
 }
 

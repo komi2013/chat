@@ -52,7 +52,7 @@ func StorePush(w http.ResponseWriter, r *http.Request) {
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
-
+	log.Printf("trueAccess dayo: %v; Req: ", nil, r.URL.Path, r.Form)
   trueAccess := false
   for _, d := range session.ChannelAliases {
     if d.Alias == aliasName && d.ChannelID == channelID {
