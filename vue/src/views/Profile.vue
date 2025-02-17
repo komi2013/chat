@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onBeforeMount, onMounted } from 'vue';
-import DrawerColumn from '@/components/DrawerColumn.vue';
+import Drawer from '@/components/Drawer.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
 import { getRandomEmoji, getRandomColor } from '@/my/emoji';
@@ -8,9 +8,7 @@ import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: String,
-  name: String,
-  code: String,
-  toAliasName: String
+  code: String
 })
 
 localStorage.setItem('channelID', props.id);
@@ -20,7 +18,7 @@ const alias = ref(null);
 let aliases;
 const fetched = ref(false);
 const isEditable = ref(false);
-const aliasName = ref(props.name);
+const aliasName = ref(null);
 const aliasImg = ref(',' + getRandomEmoji() + ',' + getRandomColor());
 let sameUserAliases;
 let joinGroups;
@@ -28,10 +26,8 @@ onBeforeMount(async () => {
   if (!props.code) {
     channel.value = await getIDB('channel', props.id);
     aliases = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
-    if (!props.name) {
-      aliasName.value = channel.value.myname;
-      isEditable.value = true;
-    }
+    aliasName.value = channel.value.myname;
+    isEditable.value = true;
     alias.value = aliases.find(
       (item) => item.aliasName === aliasName.value
     );
@@ -40,11 +36,11 @@ onBeforeMount(async () => {
       sameUserAliases = aliases.filter(
         item => item.userID === alias.value.userID && item.aliasID !== alias.value.aliasID
       );
-      console.log('sameUserAliases', sameUserAliases);
+      // console.log('sameUserAliases', sameUserAliases);
     }
     const groups = await getIDBs('group', 'channelIDIndex', props.id, 10000);
     joinGroups = groups.filter(group => group.aliasNames.includes(aliasName.value));
-  } else if (props.code && !props.name) {
+  } else if (props.code) {
     isEditable.value = true;
   }
   fetched.value = true;
@@ -107,7 +103,7 @@ async function switchAlias (aliasName) {
 </script>
 
 <template>
-<DrawerColumn />
+<Drawer />
 <div id="content" v-if="fetched">
   <div class="headTitle">
     <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
@@ -147,7 +143,7 @@ async function switchAlias (aliasName) {
   <h3>マイニックネーム一覧</h3>
   <div v-for="(d) in sameUserAliases" >
     <div class="people-list">
-      <a :href="'/profile/' + id + '/' + d.aliasName + '/' ">
+      <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
         <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
           :src="d.aliasImg" class="people-img">
         <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
@@ -164,7 +160,7 @@ async function switchAlias (aliasName) {
   <h3>参加グループ一覧</h3>
   <div v-for="(d) in joinGroups" >
     <div class="people-list">
-      <a :href="'/group/' + id + '/' + d.groupName + '/' ">
+      <a :href="'/people/' + id + '/' + d.groupName + '/' ">
         <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
           :src="d.groupImg" class="people-img">
         <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"

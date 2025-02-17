@@ -21,6 +21,7 @@ export async function threadEdit(pushData) {
     aliasNames: pushData[4][4],
     emojis: pushData[4][6] || []
   };
+  console.log('messageTxt', editThread.messageTxt);
   const messagesStore = useMessagesStore();
   if(editThread.aliasImg == ''){
     deleteIDB('thread', 'messageID', editThread.messageID);

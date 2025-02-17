@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import TimestampDrawer from '../components/TimestampDrawer.vue';
-import SelectGroup from '../components/SelectGroup.vue';
-import { takeUserIDs } from '../my/channelFunc.js';
+import TimestampDrawer from '@/components/TimestampDrawer.vue';
+import SelectGroup from '@/components/SelectGroup.vue';
+import { takeUserIDs } from '@/my/channelFunc.js';
 
 const props = defineProps({
   admin: String,

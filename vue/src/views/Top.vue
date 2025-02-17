@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import DrawerColumn from '../components/DrawerColumn.vue'
+import Drawer from '@/components/Drawer.vue'
 
 const props = defineProps({
   id: '',
@@ -9,7 +9,7 @@ const props = defineProps({
 </script>
 
 <template>
-<DrawerColumn />
+<Drawer />
 <div id="content">
 <h2>ホーム</h2>
   <div class="block"><a href="/">チャット</a></div>

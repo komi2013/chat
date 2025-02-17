@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
-import DrawerColumn from '@/components/DrawerColumn.vue';
 import EditBox from '@/components/EditBox.vue';
 import EmojiModal from '@/components/EmojiModal.vue';
 import EmojiedModal from '@/components/EmojiedModal.vue';
@@ -17,8 +16,12 @@ const props = defineProps({
   channel: Object,
   aliases: Array,
   groups: Array,
-  threadHead: Object
+  threadHead: Object,
+  copyable: Boolean
 });
+
+function tF(a, b = null){ return timeFormat(a, b) }
+
 const messagesStore = useMessagesStore();
 const messages = computed(() => {
   return messagesStore.messages;
@@ -46,14 +49,17 @@ const moreMessages = async () => {
   }
 };
 
-function editable (myname, message) {
-	const now = Date.now();
-	const createdAtTimestamp = new Date(message.createdAt).getTime();
-	if (Math.floor((now - createdAtTimestamp) / (1000 * 60)) < 10 && myname == message.aliasName) {
-		return true;
-	} else {
-		return false;
-	}
+function editable(myname, message) {
+  const now = Date.now();
+  const createdAtTimestamp = new Date(message.createdAt).getTime();
+  const within10min = Math.floor((now - createdAtTimestamp) / (1000 * 60)) < 10;
+  if (within10min && myname === message.aliasName) {
+    return true;
+  }
+  const isInSameGroup = props.groups.some(group => 
+    within10min && group.aliasNames.includes(myname) && group.groupName === message.aliasName
+  );
+  return isInSameGroup;
 }
 
 function replyable (message) {
@@ -69,8 +75,6 @@ function replyable (message) {
 onBeforeMount(async () => {
   await moreMessages();
 });
-
-function tF(a, b = null){ return timeFormat(a, b) }
 
 function reply(message) {
   const channelID = props.channel.channelID;
@@ -106,45 +110,47 @@ const clickEmoji = async (message, emoji) => {
   <div class="messages" >
     <div v-if="more" @click="moreMessages" class="more"> - - more - - </div>
     <template v-for="(message, k) in messages" :key="message.messageID" >
-      <table v-if="!more || k > 0">
-        <tr>
-          <td class="icon_td">
-            <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
-              :src="message.aliasImg" class="icon-img">
-            <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
-              class="icon-span" 
-              :style="'background-color:' + message.aliasImg.split(',')[2] ">
-              {{message.aliasImg.split(',')[1]}}</span>
-          </td>
-          <td>
-            <span class="aliasName">{{ message.aliasName }} {{message.spentMinute}}</span>
-            <span class="dateTime" :id="'msg_'+message.messageID">{{ tF('MM-DD hh:mm', message.createdAt) }}</span>
-          </td>
-          <td class="setting">
-            <span
-              v-if="editable(channel.myname, message)"
-              :class="{ 'selected': message.editFlg }"
-              @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
-            <span v-if="replyable(message)"
-            			:class="{ 'selected': message.reply }">
-            	<a @click="reply(message)"> 💬 </a>
-            </span>
-            <span
-              :class="{ 'selected': message.bookmark }"
-              @click="toggleBookmark(message, channel, aliases, threadHead)"> 🔖 </span>
-            <span @click="openEmoji(message.messageID)"> 😄 </span>
-          </td>
-        </tr>
-        <tr>
-          <td v-if="message.editFlg" colspan="3" class="editText" :id="'for_content_' + messageID">
+      <div v-if="!more || k > 0">
+        <!-- <tr> -->
+          <div class="msg-header">
+            <div v-if="!copyable" class="icon_td">
+              <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
+                :src="message.aliasImg" class="icon-img">
+              <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
+                class="icon-span" 
+                :style="'background-color:' + message.aliasImg.split(',')[2] ">
+                {{message.aliasImg.split(',')[1]}}</span>
+            </div>
+            <div class="name_time">
+              <span class="aliasName">{{ message.aliasName }} {{message.spentMinute}}</span>
+              <span class="dateTime" :id="'msg_'+message.messageID">{{ tF('MM-DD hh:mm', message.createdAt) }}</span>
+            </div>
+            <div v-if="!copyable" class="setting">
+              <span
+                v-if="editable(channel.myname, message)"
+                :class="{ 'selected': message.editFlg }"
+                @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
+              <span v-if="replyable(message)"
+              			:class="{ 'selected': message.reply }">
+              	<a @click="reply(message)"> 💬 </a>
+              </span>
+              <span
+                :class="{ 'selected': message.bookmark }"
+                @click="toggleBookmark(message, channel, aliases, threadHead)"> 🔖 </span>
+              <span @click="openEmoji(message.messageID)"> 😄 </span>
+            </div>
+          </div>
+<!--         </tr>
+        <tr> -->
+          <div v-if="message.editFlg" colspan="3" class="editText" :id="'for_content_' + messageID">
 			      <EditBox
 			        :channel="channel"
 			        :aliases="aliases"
 			        :groups="groups"
 			        :message="message"
 			        :threadHead="threadHead" />
-          </td>
-          <td v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
+          </div>
+          <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
             <div
               v-html="markdownToHtml(message.messageTxt, channel)"
               class="ql-editor"></div>
@@ -169,9 +175,9 @@ const clickEmoji = async (message, emoji) => {
               class="emojied"
               @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
             </span>
-          </td>
-        </tr>
-      </table>
+          </div>
+        <!-- </tr> -->
+      </div>
       <EmojiedModal
         :key="message.messageID"
         v-if="isEmojiedOpen && selectedMessageId === message.messageID"
@@ -212,6 +218,11 @@ code {
   border: 1px solid silver;
   margin: 3px;
 }
+
+.msg-header {
+  display: flex;
+}
+
 .icon-span {
   border-radius: 10%;
 	display: inline-block;
@@ -228,10 +239,16 @@ code {
   width: 50px;
   vertical-align: top;
   text-align: center;
+  display: inline-block;
+}
+
+.name_time {
+  display: flex;
 }
 
 .setting {
-  text-align: right;
+  display: flex;
+  margin-left: auto;
 }
 
 .setting span {
@@ -294,11 +311,11 @@ code {
   padding: 0;
 }
 
-.threads a {
+/*.threads a {
   cursor: pointer;
   display: flex;
   align-items: center;
-}
+}*/
 .ql-container.ql-snow {
   border: none;
   font-size: 14px;
@@ -306,7 +323,8 @@ code {
 }
 
 .ql-snow .ql-editor a {
-    text-decoration: none;
+  text-decoration: none;
+  color: #06c;
 }
 
 .mentioned {

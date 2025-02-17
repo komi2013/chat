@@ -2,13 +2,19 @@
   <div class="dropdown-menu">
     <div 
       v-for="group in groups"
-      :key="group[0]"
+      :key="group.groupID"
       class="dropdown-item" 
-      :class="{ 'selected': group[0] === selectedGroup[0] }"
+      :class="{ 'selected': group.groupID === selectedGroup.groupID }"
       @click="selectGroup(group)"
     >
-      <img :src="group[1]" class="option-image" />
-      {{ group[0] }}
+      <img v-if="group.groupImg && group.groupImg.charAt(0) != ','" 
+        :src="group.groupImg" class="min-icon">
+      <span v-if="group.groupImg && group.groupImg.charAt(0) == ','"
+        :style="'background-color:' + group.groupImg.split(',')[2] "
+        class="min-icon">
+          <span>{{group.groupImg.split(',')[1]}}</span>
+      </span>
+      <span>{{ group.groupName }}</span>
     </div>
   </div>
 </template>
@@ -27,12 +33,16 @@ const props = defineProps({
   },
 });
 
+console.log('props',  props);
+console.log('modelValue', props.modelValue);
+
 const emit = defineEmits(['update:modelValue']);
 
-const selectedGroup = ref([...props.modelValue]);
+const selectedGroup = ref(props.modelValue);
 
 function selectGroup(group) {
   selectedGroup.value = group;
+  console.log(group);
   emit('update:modelValue', group);
 }
 </script>

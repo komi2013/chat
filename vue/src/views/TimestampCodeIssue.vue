@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watchEffect } from 'vue';
 import QRCode from 'qrcode';
-import TimestampDrawer from '../components/TimestampDrawer.vue';
+import TimestampDrawer from '@/components/TimestampDrawer.vue';
 
 const stampCodes = ref([]);
 let currents;

@@ -104,18 +104,23 @@ watch(searchUsers, async (newNames, oldNames) => {
   const newSet = new Set(newNames || []);
   const addName = [...newSet].find(name => !oldSet.has(name));
   const subName = [...oldSet].find(name => !newSet.has(name));
+
+    // fd.append('contents', JSON.stringify(calendar.value));
+    // fd.append('targetStore', 'calendar');
+    // console.log(today);
+    // fd.append('param', JSON.stringify(param));
+
   if (addName) {
     const fd = new FormData();
     fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])));
     fd.append('channelID', channelID);
-    fd.append('aliasName', channel.value.myname);
-    fd.append('targetStore', 'calendar');
-
-    // console.log(today);
-    const param = { date: timeFormat('YYYY-MM-DD') };
-    fd.append('param', JSON.stringify(param));
+    fd.append('updatedBy', channel.value.myname);
+    const param = { date: today };
+    const contents = ['calendar', param];
+    fd.append('contents', JSON.stringify(contents));
+    fd.append('pushTitle', 'storeSelect');
     fd.append('csrf', localStorage.getItem("csrf"));
-    const res = await sendRequest('/StoreSelect/', fd);
+    const res = await sendRequest('/ContentsJustPush/', fd);
     res.csrf && localStorage.setItem('csrf', res.csrf);
     res.pushContents.forEach(content => {
       pushReceive(content);

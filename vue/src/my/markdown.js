@@ -55,13 +55,13 @@ export const markdownToHtml = (markdown, channel) => {
   if (!markdown) {
     return ''; 
   }
-  let html = markdown.replace(/<[^>]*>/g, '');
+  let html = markdown.replace(/<(?!\/?(table|thead|tbody|tfoot|tr|th|td)\b)[^>]*>/gi, '');
   html = html.replace(/\n/g, '');
   html = applyEmphasis(html);
   html = applyStrikethrough(html);
   html = applyBlockquotes(html);
   html = applyCodeBlocks(html);
-  html = applyAttach(html, channel);
+  html = applyAttach(html);
   html = applyLinks(html);
   html = applyColors(html);
   html = applyMention(html, channel);
@@ -85,11 +85,8 @@ const applyCodeBlocks = (markdown) => {
   return markdown.replace(/｀｀｀([\s\S]*?)・｀｀｀/g, '<pre class="ql-syntax" spellcheck="false">$1</pre>');
 };
 
-const applyAttach = (markdown, channel) => {
-	// ＊f＊/upload/I0JH/DrFH/OTOMAでSQLの検証.sql・＊f＊
-  // const updatedFilePath = `/upload/${channel.channelID}/${channel.aliasName}/$1`;
+const applyAttach = (markdown) => {
   return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="$1" download>$1</a></p>`);
-  // return markdown.replace(/「＊([^]*?)＊」（＊([^]*?)＊）/g, '<p><a href="$2" download>$1</a></p>');
 };
 
 const applyLinks = (markdown) => {
@@ -102,21 +99,20 @@ const applyColors = (markdown) => {
 
 const applyMention = (markdown, channel) => {
   // console.log('applyMention', channel);
-  const aliasName = channel.myname;
+  // const aliasName = channel.myname;
   const channelID = channel.channelID;
   const regex = /＠＠([^]*?)・＠＠/g;
-  const atName = '＠＠' + aliasName + '・＠＠';
+  // const atName = '＠＠' + aliasName + '・＠＠';
   
-  if (markdown.includes(atName)) {
-    markdown = markdown.replace(new RegExp(atName, 'g'), 
-      `<a href="/thread/${channelID}/@${aliasName}/"><span class="mentionme" contenteditable="false">@${aliasName}</span></a>`);
-  }
+  // if (markdown.includes(atName)) {
+  //   markdown = markdown.replace(new RegExp(atName, 'g'), 
+  //     `<a href="/thread/${channelID}/@${aliasName}/"><span class="mentionme" contenteditable="false">@${aliasName}</span></a>`);
+  // }
 
   return markdown.replace(regex, (match, p1) => {
-    const sortedNames = [aliasName, p1].sort();
-    const sortedMention = `${sortedNames[0]}@${sortedNames[1]}`;
-    
-    return `<a href="/thread/${channelID}/${sortedMention}/"><span class="mentioned" contenteditable="false">@${p1}</span></a>`;
+    // const sortedNames = [aliasName, p1].sort();
+    // const sortedMention = `${sortedNames[0]}@${sortedNames[1]}`;
+    return `<a href="/people/${channelID}/${p1}/"><span class="mentioned" contenteditable="false">@${p1}</span></a>`;
   });
 };
 

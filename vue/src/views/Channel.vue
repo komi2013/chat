@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 
-import DrawerColumn from '@/components/DrawerColumn.vue'
+import Drawer from '@/components/Drawer.vue'
 import PeopleImg from '@/components/PeopleImg.vue'
 
 import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
@@ -53,8 +53,8 @@ const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 
 onMounted(async () => {
   channels.value = await getAllIDBs('channel');
-  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
   threadHeads.value = threadHeadsAll.filter(d => !d.backID);
   // await fetchThreadHead();
@@ -197,7 +197,7 @@ const removeNames = async () => {
 </script>
 
 <template>
-<DrawerColumn />
+<Drawer />
 
 <div id="content">
 <br><br>
@@ -238,7 +238,7 @@ const removeNames = async () => {
 
   <h3>ユーザー一覧</h3>
   <div v-for="d in aliases" class="aliases" :class="{ 'deleted': d.deleteFlag }">
-    <a :href="'/profile/' + id + '/' + d.aliasName + '/'">
+    <a :href="'/people/' + id + '/' + d.aliasName + '/'">
       <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
         :src="d.aliasImg" class="min-icon">
       <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"

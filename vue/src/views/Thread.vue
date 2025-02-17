@@ -26,6 +26,8 @@ const threadHead = ref({
   title: '',
 });
 const fetched = ref(false);
+const copyable = ref(false);
+// const copyableValue = computed(() => copyable.value);
 onBeforeMount(async () => {
   channel.value = await getIDB('channel', props.channel_id);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
@@ -139,13 +141,17 @@ function backTo() {
       <span>
         <a @click="backTo"> ⬅ </a>
       </span>
+      <span :class="{ 'selected': copyable }">
+        <a @click="copyable = !copyable" > 📄 </a>
+      </span>
     </div>
     <Messages 
       :channel="channel"
       :aliases="aliases"
       :groups="groups"
       :messages="messages"
-      :threadHead="threadHead" />
+      :threadHead="threadHead"
+      :copyable="copyable" />
 
     <div class="editText">
       <EditBox 
@@ -175,6 +181,7 @@ function backTo() {
 .headTitle span {
   line-height: 50px;
   width: 50px;
+  text-align: center;
 }
 
 @media screen and (min-width : 701px) { 

@@ -8,6 +8,7 @@ import (
   "net/http"
   "runtime"
   // "time"
+  "unicode/utf8"
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
@@ -65,3 +66,99 @@ func PushNotification(data string, subscription string) (*http.Response, error) 
   return resp, nil
 }
 
+func ChunkPush(
+  sessions []collection.SessionStruct,
+  db1 *mongo.Database,
+  arr []interface{},
+) {
+	jsonData, _ := json.Marshal(arr)
+  const maxChunkSize = 2000 / utf8.UTFMax
+
+  chunk := false
+  chunks := []string{string(jsonData)}
+  if len(jsonData) > 2000 {
+    chunk = true
+    chunks = SplitIntoByteChunks(string(jsonData), maxChunkSize)
+  }
+
+  chunkLength := len(chunks)
+  chunkPass := StringRand(2)
+
+  for chIndex, ch := range chunks {
+    for _, session := range sessions {
+      pushID := StringRand(1)
+      var arrForJson []interface{}
+
+      if chunk {
+        arrForJson = []interface{}{
+          pushID, "chunk", ch, chunkPass, chIndex, chunkLength,
+        }
+      } else {
+        arrForJson = append([]interface{}{pushID}, arr...)
+      }
+      resp, err := SendWebPushNotification(db1, arrForJson, pushID, session)
+      if err != nil {
+        LogError("SendWebPushNotification:", err)
+      } else {
+        defer resp.Body.Close()
+      }
+    }
+  }
+}
+
+func ChunkJustPush(
+  sessions []collection.SessionStruct,
+  db1 *mongo.Database,
+  arr []interface{},
+) {
+	jsonData, _ := json.Marshal(arr)
+  const maxChunkSize = 2000 / utf8.UTFMax
+
+  chunk := false
+  chunks := []string{string(jsonData)}
+  if len(jsonData) > 2000 {
+    chunk = true
+    chunks = SplitIntoByteChunks(string(jsonData), maxChunkSize)
+  }
+
+  chunkLength := len(chunks)
+  chunkPass := StringRand(2)
+
+  for chIndex, ch := range chunks {
+    for _, session := range sessions {
+      pushID := StringRand(1)
+      var arrForJson []interface{}
+
+      if chunk {
+        arrForJson = []interface{}{
+          pushID, "chunk", ch, chunkPass, chIndex, chunkLength,
+        }
+      } else {
+        arrForJson = append([]interface{}{pushID}, arr...)
+      }
+      resp, err := SendWebJustPush(db1, arrForJson, pushID, session)
+      if err != nil {
+        LogError("SendWebJustPush:", err)
+      } else {
+        defer resp.Body.Close()
+      }
+    }
+  }
+}
+
+func SendWebJustPush(db1 *mongo.Database, arr []interface{}, pushID string, session collection.SessionStruct) (*http.Response, error) {
+	if session.Subscription == "" {
+		pc, _, _, _ := runtime.Caller(1)
+		functionName := runtime.FuncForPC(pc).Name()
+		log.Printf("[%s] SendWebJustPush no subscription data: %v", functionName)
+		return nil, fmt.Errorf("no subscription data")
+	}
+	jsonData, err := json.Marshal(arr)
+	if err != nil {
+		pc, _, _, _ := runtime.Caller(1)
+		functionName := runtime.FuncForPC(pc).Name()
+		log.Printf("[%s] SendWebJustPush arr: %v", functionName, err)
+	}
+  resp, err := PushNotification(string(jsonData), session.Subscription)
+  return resp, err
+}

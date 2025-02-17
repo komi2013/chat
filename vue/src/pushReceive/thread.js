@@ -19,12 +19,12 @@ export async function thread(pushData) {
     messageID: channelID + secondPartMsgID,
     parentID: pushData[4][0],
     messageTxt: pushData[4][2] + filelinks,
-    aliasName: updatedBy,
+    aliasName: pushData[4][7] || updatedBy,
     aliasImg: pushData[4][3],
     createdAt: timeFormat('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
     channelID: channelID,
     aliasNames: pushData[4][4],
-    backID: pushData[4][5] ?? '',
+    backID: pushData[4][5] || '',
     emojis: pushData[4][6] || []
   };
 

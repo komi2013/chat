@@ -1,13 +1,22 @@
-<!-- App.vue -->
 <script setup>
-import { ref, onMounted } from "vue";
-// import { getObjectStoreNames, clearObjectStore, indexedDBStores } from "./indexeddb.js";
+import { ref, onMounted, onBeforeMount } from "vue";
+import Drawer from '@/components/Drawer.vue'
+import SelectAlias from '@/components/SelectAlias.vue'
 
-const storeNames = ref([]); // IndexedDBのストア一覧
-const selectedStore = ref(""); // 選択されたストア
-const message = ref(""); // メッセージ表示
+const channel = ref(null);
+const aliases = ref([]);
+const storeNames = ref([]);
+const selectedStore = ref("");
+const aliasNames = ref([]);
+const message = ref("");
 
-// ストア一覧を取得
+onBeforeMount(async () => {
+  // await loadStores;
+  channel.value = await getIDB('channel', localStorage.getItem('channelID'));
+  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+});
+
+
 const loadStores = async () => {
   try {
     storeNames.value = await getObjectStoreNames();
@@ -16,7 +25,17 @@ const loadStores = async () => {
   }
 };
 
-// データ削除処理
+// const shareStoreData = async () => {
+//   if (!selectedStore.value) {
+//     message.value = "共有するストアを選択してください。";
+//     return;
+//   }
+//   console.log('aliasNames', aliasNames);
+//   console.log('selectedStore', selectedStore.value);
+
+// };
+
+
 const deleteStoreData = async () => {
   if (!selectedStore.value) {
     message.value = "削除するストアを選択してください。";
@@ -24,19 +43,37 @@ const deleteStoreData = async () => {
   }
   try {
     message.value = await clearObjectStore(selectedStore.value);
-    await loadStores(); // 削除後にリスト更新
+    await loadStores();
   } catch (error) {
     message.value = `エラー: ${error}`;
   }
 };
 
-// 初回ロード時にストアリストを取得
 onMounted(loadStores);
+
 </script>
 
 <template>
-  <div class="container">
-    <h1>IndexedDB ストア削除</h1>
+  <Drawer />
+  <div class="content">
+
+<!--     <h2>ストアを共有</h2>
+
+    <label for="storeShare">共有するストアを選択:</label>
+    <select v-model="selectedStore" id="storeShare">
+      <option value="" disabled>選択してください</option>
+      <option v-for="store in storeNames" :key="store" :value="store">
+        {{ store }}
+      </option>
+    </select>
+
+    <SelectAlias v-model="aliasNames" :aliases="aliases" :editable="true" />
+
+    <button @click="shareStoreData">データ共有</button>
+ -->
+    <h2>IndexedDB ストア削除</h2>
+    <p class="message">{{ message }}</p>
+
 
     <label for="storeSelect">削除するストアを選択:</label>
     <select v-model="selectedStore" id="storeSelect">
@@ -59,7 +96,7 @@ onMounted(loadStores);
 </template>
 
 <style scoped>
-.container {
+.content {
   font-family: Arial, sans-serif;
   text-align: center;
   max-width: 500px;

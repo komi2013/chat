@@ -10,15 +10,11 @@
         <option value="red">Red</option>
         <option value=""></option>
       </select>
-      <button class="attachment" @click="attach(messageID)">
-        🌄
-      </button>
-    </div>
-    <div class="editRight ql-toolbar ql-snow">
-      <button v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
-      <button @click="tasking" :class="{ 'task': task }">🔖</button>
-      <button @click="tasking" :class="{ 'task': task }">👥</button>
-      <button @click="msgUpsert(messageID, false)">▶️</button>
+      <button class="emoji" @click="attach(messageID)">🌄</button>
+      <button class="emoji" v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
+      <button class="emoji" @click="tasking" :class="{ 'task': task }">🔖</button>
+      <button class="emoji" @click="isEditOption = true" :class="{ 'task': task }">👥</button>
+      <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
       v-html="editTxt[messageID]"
@@ -27,6 +23,14 @@
   </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
+
+  <EditOptionModal :show="isEditOption" @close="isEditOption = false">
+    <SelectGroup
+      :groups="myGroups"
+      v-model="selectedGroup"
+      @update:modelValue="handleSelection"
+    />
+  </EditOptionModal>
 </template>
 
 <script setup>
@@ -36,6 +40,9 @@ import { useMessagesStore } from '@/stores/messages.js';
 import Quill from 'quill';
 import "quill-mention";
 import "quill/dist/quill.snow.css";
+
+import EditOptionModal from '@/components/EditOptionModal.vue';
+import SelectGroup from '@/components/SelectGroup.vue';
 
 import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
@@ -56,8 +63,6 @@ const messagesStore = useMessagesStore();
 
 let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel, []);
-// console.log('props.message.messageTxt' , props.message.messageTxt);
-// console.log('editTxt.value[messageID]' , editTxt.value[messageID]);
 const tasking = () => {
   task.value = !task.value;
 };
@@ -67,16 +72,11 @@ const attach = () => {
   if (fileInput) {
     fileInput.click();
   }
-  console.log(fileInput);
-  // File input要素にchangeイベントリスナーを追加
-  // const fileInput = document.getElementById('fileInput_');
   fileInput.addEventListener('change', handleFileInputChange);
-
 }
 
 const fileInfo = ref({});
 const handleFileInputChange = (event) => {
-	console.log(event);
   const files = event.target.files;
   const newFileInfo = document.createElement('div');
   for (let i = 0; i < files.length; i++) {
@@ -94,7 +94,6 @@ const handleFileInputChange = (event) => {
     }
     newFileInfo.appendChild(fileContainer);
   }
-  console.log(fileInfo.value);
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 
@@ -109,6 +108,7 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
+  console.log('messageData', messageData);
   const pushTitle = messageID ? 'threadEdit' : 'thread';
   const SecondMsgID = messageID ? 
   	messageID.replace(props.channel.channelID, '') :
@@ -186,7 +186,8 @@ const msgUpsert = async (messageID, delMessage) => {
     getAliasImg(props),
     [...new Set(names)],
     backID,
-    yets
+    yets,
+    selectedGroup.value.groupName ?? ''
   ];
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem("csrf"));
@@ -202,6 +203,9 @@ const msgUpsert = async (messageID, delMessage) => {
 }
 
 function getAliasImg(props) {
+  if (selectedGroup.value.groupImg) {
+    return selectedGroup.value.groupImg;
+  }
   let aliasImg = null;
   const myname = props.channel.myname;
   for (let i = 0; i < props.aliases.length; i++) {
@@ -255,7 +259,6 @@ onMounted(() => {
           const mentionWithImage = document.createElement("div");
           if (item.icon.charAt(0) == ',') {
           	const arr = item.icon.split(',');
-          	console.log('arr', arr);
           	mentionWithImage.innerHTML = 
           		`<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
           } else {
@@ -266,7 +269,6 @@ onMounted(() => {
         onOpen: function() {
           const quillMentionList = document.getElementById('quill-mention-list');
           const rect = quillMentionList.getBoundingClientRect();
-          console.log(rect);
           if (rect.left > 150 && rect.left < 300) {
             quillMentionList.style.left = (- 1 * rect.left) + 'px';
           }
@@ -277,20 +279,27 @@ onMounted(() => {
   });
 });
 
+const isEditOption = ref(false);
+const selectedGroup = ref({groupID:'', groupName:'', groupImg:''}); 
+const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(props.channel.myname)));
+function handleSelection(group) {
+  selectedGroup.value = group;
+  isEditOption.value = false;
+}
 </script>
 
 <style>
 
 .editLeft {
   display: inline-block;
-  width: 69%;
+  width: 99%;
 }
 
-.editRight {
+/*.editRight {
   display: inline-block;
   width: 30%;
 }
-
+*/
 .editText .ql-container.ql-snow {
   border: 1px solid #d1d5db;
   border-bottom-width: 0;
@@ -308,7 +317,7 @@ onMounted(() => {
 .ql-snow.ql-toolbar {
   padding: 8px 0px;
 }
-.ql-snow.ql-toolbar .attachment {
+.ql-snow.ql-toolbar .emoji {
   font-size: 12px;
   padding-top: 0px;
 }

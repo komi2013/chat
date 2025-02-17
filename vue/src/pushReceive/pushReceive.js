@@ -9,8 +9,8 @@ import { emoji } from './emoji.js';
 import { group } from './group.js';
 import { receptionOrder } from './receptionOrder.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
-import { storePush } from './storePush.js';
 import { storeSelect } from './storeSelect.js';
+import { storeShare } from './storeShare.js';
 import { thread } from './thread.js';
 import { threadEdit } from './threadEdit.js';
 import { threadHead } from './threadHead.js';
@@ -36,8 +36,8 @@ export function pushReceive(notificationData) {
     group: group,
     receptionOrder: receptionOrder,
     shiftStaffEdit: shiftStaffEdit,
-    storePush: storePush,
     storeSelect: storeSelect,
+    storeShare: storeShare,
     schedule: shiftStaffEdit,
     thread: thread,
     threadEdit: threadEdit,

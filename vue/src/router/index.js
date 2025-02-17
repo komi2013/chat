@@ -35,16 +35,14 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/group/:id/:groupName?/',
+      path: '/group/:id/',
       component: () => import('../views/Group.vue'),
       props: route => ({
-        id: route.params.id,
-        groupName: route.params.groupName
+        id: route.params.id
       })
     },
     {
       path: '/menu/:id/:code?/',
-      name: 'menu',
       component: () => import('../views/Menu.vue'),
       props: route => ({
         id: route.params.id,
@@ -60,11 +58,18 @@ const router = createRouter({
       })
     },
     {
-      path: '/profile/:id/:name?/',
+      path: '/people/:id/:name/',
+      component: () => import('../views/People.vue'),
+      props: route => ({
+        id: route.params.id,
+        name: route.params.name
+      }),
+    },
+    {
+      path: '/profile/:id/',
       component: () => import('../views/Profile.vue'),
       props: route => ({
         id: route.params.id,
-        name: route.params.name,
         code: route.query.code
       }),
     },

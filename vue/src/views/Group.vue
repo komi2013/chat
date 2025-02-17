@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
-import DrawerColumn from '../components/DrawerColumn.vue';
+import Drawer from '../components/Drawer.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
@@ -19,15 +19,15 @@ const props = defineProps({
 localStorage.setItem('channelID', props.id);
 
 const channel = ref(null);
-const aliases = ref([]);
 const groups = ref([]);
+const aliases = ref([]);
 const fetched = ref(false);
 let groupLockUntilDate;
 const today = new Date();
 onBeforeMount(async () => {
   channel.value = await getIDB('channel', props.id);
-  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
   groups.value.forEach(group => {
     if (group.aliasNames.includes(channel.value.myname) && today > groupLockUntilDate) {
@@ -118,68 +118,66 @@ function getAliasesByNames(aliasNames) {
 </script>
 
 <template>
-<DrawerColumn />
+<Drawer />
 <div id="content" v-if="fetched">
   <div class="headTitle">
-    <div v-if="!groupName">
+    <div>
       <a :href="'/channel/' + channel.channelID"> {{ channel.channelName }} </a>
     </div>
-    <div v-if="groupName">
+<!--     <div v-if="groupName">
       {{groupName}}
     </div>
     <span v-if="groupName">
       <a :href="'/group/' + props.id + '/'"> ⬅ </a>
-    </span>
+    </span> -->
   </div>
 
 <table>
   <template v-for="(groupAlias, i) in groups">
-    <template v-if="!groupName || (groupName === groupAlias.groupName)">
-      <tr><td colspan="3">
-        <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
-          <PeopleImg v-if="groupAlias.editable" v-model="groupAlias.groupImg" />
-          <template v-if="!groupAlias.editable">
-            <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' ">
-              <img v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) != ','" 
-                :src="groupAlias.groupImg" class="people-img">
-              <span v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) == ','"
-                class="people-img" 
-                :style="'background-color:' + groupAlias.groupImg.split(',')[2] ">
-                  <span>{{groupAlias.groupImg.split(',')[1]}}</span>
-              </span>
-            </a>
-          </template>
-          <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' ">
-            <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
+    <tr><td colspan="3">
+      <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
+        <PeopleImg v-if="groupAlias.editable" v-model="groupAlias.groupImg" />
+        <template v-if="!groupAlias.editable">
+          <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
+            <img v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) != ','" 
+              :src="groupAlias.groupImg" class="people-img">
+            <span v-if="groupAlias.groupImg && groupAlias.groupImg.charAt(0) == ','"
+              class="people-img" 
+              :style="'background-color:' + groupAlias.groupImg.split(',')[2] ">
+                <span>{{groupAlias.groupImg.split(',')[1]}}</span>
+            </span>
           </a>
-      </td></tr>
-      <tr>
-        <td colspan="3" class="height">
-          <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="groupAlias.editable" />
-        </td>
-      </tr>
-      <tr>
-        <td class="center">
-          <button @click="removeGroup(groupAlias)"> ✉️ </button>
-          <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
-        </td>
+        </template>
+        <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
+          <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
+        </a>
+    </td></tr>
+    <tr>
+      <td colspan="3" class="height">
+        <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="groupAlias.editable" />
+      </td>
+    </tr>
+    <tr>
+      <td class="center">&nbsp;
+        <!-- <button @click="removeGroup(groupAlias)"> ✉️ </button> -->
+        <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
+      </td>
 
-        <td v-if="groupAlias.editable" class="center">
-          <button @click="removeGroup(groupAlias)"> 🗑 </button>
-        </td>
-        <td v-if="groupAlias.editable" class="center">
-          <button @click="editGroup(groupAlias)">▶️</button>
-        </td>
-      </tr>
-      <div >
-      </div>
-      <tr><td colspan="3"><hr></td></tr>
-    </template>
+      <td v-if="groupAlias.editable" class="center">
+        <button @click="removeGroup(groupAlias)"> 🗑 </button>
+      </td>
+      <td v-if="groupAlias.editable" class="center">
+        <button @click="editGroup(groupAlias)">▶️</button>
+      </td>
+    </tr>
+    <div >
+    </div>
+    <tr><td colspan="3"><hr></td></tr>
   </template>
 </table>
 
 <div class="center">
-  <button v-if="!groupName" @click="newGroup"> + </button>
+  <button @click="newGroup"> + </button>
 </div>
 
 </div>

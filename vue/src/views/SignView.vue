@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import DrawerColumn from '../components/DrawerColumn.vue'
+import Drawer from '../components/Drawer.vue'
 
 import {subscriptionRegister} from '../my/subscribe.js'
 
@@ -42,7 +42,7 @@ function unregister() {
 </script>
 
 <template>
-  <DrawerColumn />
+  <Drawer />
   <div id="content">
     <br><br>
   <input v-model="userID" placeholder="seijiro" />
