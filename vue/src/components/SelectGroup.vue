@@ -4,7 +4,7 @@
       v-for="group in groups"
       :key="group.groupID"
       class="dropdown-item" 
-      :class="{ 'selected': group.groupID === selectedGroup.groupID }"
+      :class="{ 'selected': selectedGroup && group.groupID === selectedGroup.groupID }"
       @click="selectGroup(group)"
     >
       <img v-if="group.groupImg && group.groupImg.charAt(0) != ','" 
@@ -67,9 +67,17 @@ function selectGroup(group) {
   background-color: #e6f7ff;
 }
 
-.option-image {
-  width: 24px;
-  height: 24px;
-  margin-right: 8px;
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
 }
+
+
 </style>

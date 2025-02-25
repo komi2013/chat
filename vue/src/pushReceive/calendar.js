@@ -1,4 +1,4 @@
-import { useCalendarsStore } from '../stores/calendars.js';
+import { useCalendarsStore } from '@/stores/calendars.js';
 
 export async function calendar(pushData) {
   const calendarsStore = useCalendarsStore();

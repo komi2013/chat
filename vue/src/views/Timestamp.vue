@@ -1,85 +1,25 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import QRCode from 'qrcode';
-import TimestampDrawer from '@/components/TimestampDrawer.vue';
+
+import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
+import NoticePopup from '@/components/NoticePopup.vue';
+
+import { userIDsByName, userIDsByGroups } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  name: '',
+  adminName: '',
   code: ''
 })
+
 const channel = ref('');
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', localStorage.channelID);
-    channel.value = data;
-    fetchTimestamp();
-    // console.log(channel.value);
-    const aliasName = data.aliasName;
-    const allAliases = data.allAliases;
-    for (let i = 0; i < allAliases.length; i++) {
-      if (allAliases[i][0] === aliasName) {
-
-      }
-    }
-  } catch (error) {
-    console.log('error', error);
-    channel.value = null;
-  }
-}
+const groups = ref([]);
+const aliases = ref([]);
 const timestamps = ref('');
-let timestampID;
-async function fetchTimestamp() {
-  try {
-    timestamps.value = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
-      [localStorage.channelID, channel.value.aliasName], 30, 0, 'desc');
-    const latestEntry = timestamps.value.reduce((max, obj) => 
-      obj.timestampID > max.timestampID ? obj : max, timestamps.value[0]);
-    timestampID = latestEntry.timestampID;
-    console.log(timestamps.value);
-  } catch (error) {
-    console.log('error', error);
-    timestamps.value = null;
-  }
-}
+// let timestampID;
 
-function stamp(action) {
-  if (!confirm("実行▶️")) {
-    return;
-  }
-  const fd = new FormData();
-  let userIDs = [];
-  let names = [channel.value.aliasName];
-  names.push(props.name);
-  if (Array.isArray(channel.value.groupAliases)) {
-    for (const d of channel.value.groupAliases) {
-      if (props.name == d[0]) {
-        for (const d2 of d[2]) {
-          names.push(d2);
-        }
-      }
-    }
-  }
-  for (const d of channel.value.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
-    }
-  }
-  const now = timeFormat('YYYY-MM-DDThh:mm');
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
-  fd.append('contents', JSON.stringify([
-    props.code, action, now, props.name]));
-  fd.append('pushTitle', 'timestamp');
-  const request = new Request('/ContentsPush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
-    })
-}
+function tF(a, b = null){ return timeFormat(a, b) }
 
 const latestTimestamp = computed(() => {
   if (!timestamps.value) return null;
@@ -94,16 +34,52 @@ function formatDateTime(dateTime) {
   return timeFormat('MM/DD hh:mm', dateTime);
 }
 
-function tF(a, b = null){ return timeFormat(a, b) }
+onMounted(async () => {
+  channel.value = await getIDB('channel', localStorage.getItem('channelID'));
+  groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
 
-onMounted(() => {
-  fetchChannel();
+  timestamps.value = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
+    [localStorage.getItem('channelID'), channel.value.myname], 30, 0, 'desc');
+  // if () {
+
+  // }
+  // const latestEntry = timestamps.value.reduce((max, obj) => 
+  //   obj.timestampID > max.timestampID ? obj : max, timestamps.value[0]);
+  // timestampID = latestEntry.timestampID;
+  // console.log(timestamps.value);
 });
+
+async function stamp(action) {
+  if (!confirm("実行▶️")) {
+    return;
+  }
+  const fd = new FormData();
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('pushTitle', 'timestamp');
+  const userIDs = [...new Set([
+    ...userIDsByGroups(aliases.value, groups.value, props.adminName),
+    ...userIDsByName(aliases.value, [channel.value.myname])
+  ])];
+
+  fd.append('userIDs', JSON.stringify(userIDs));
+  const now = timeFormat('YYYY-MM-DDThh:mm');
+  fd.append('contents', JSON.stringify([props.code, action, now, channel.value.myname]));
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+}
+
+
 </script>
 
 
 <template>
-<TimestampDrawer />
+<DrawerTimestamp />
 
 <div id="content">
 
@@ -130,7 +106,7 @@ onMounted(() => {
         <h4>☕休憩:</h4>
         <ul>
           <li v-for="(breakPeriod, index) in latestTimestamp.breaks" :key="index">
-            {{ formatDateTime(breakPeriod[0]) }} - {{ formatDateTime(breakPeriod[1]) }}
+            {{ formatDateTime(breakPeriod.start) }} - {{ formatDateTime(breakPeriod.end) }}
           </li>
         </ul>
       </div>
@@ -141,11 +117,12 @@ onMounted(() => {
   </div>
 
   <div>
-    <a :href="'/timestampReport/' + props.name + `/${tF('YYYY-MM')}/` + '_/'">
-    {{ '/timestampReport/' + props.name + `/${tF('YYYY-MM')}/` + '_/' }} </a>
+    <a :href="'/timestampReport/' + adminName + `/?month=${tF('YYYY-MM')}` ">
+    {{ '/timestampReport/' + adminName + `/?month=${tF('YYYY-MM')}` }} </a>
   </div>
 
 </div>
+<NoticePopup />
 </template>
 
 <style scoped>

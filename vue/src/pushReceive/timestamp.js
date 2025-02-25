@@ -1,4 +1,9 @@
+import { userIDsByName } from '@/my/channelFunc';
+import { useNoticesStore } from '@/stores/notices.js';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
+
 let channel;
+let aliases;
 let channelID;
 let aliasName;
 let code;
@@ -7,100 +12,56 @@ let now;
 let timestampID;
 let timestampCode;
 let planDate;
-let tts;
-let tt;
+let timestamps;
+let timestampRecord;
+let until;
 
-export async function timestamp(pushData) {
-  const pushID = pushData[0];
-  const fd = new FormData();
-  fd.append('pushID', pushID);
-  const request = new Request('/PushResponse/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request);
-  channelID = pushData[2];
-  aliasName = pushData[3];
-  code = pushData[4][0];
-  action = pushData[4][1];
-  now = pushData[4][2];
-  name = pushData[4][3];
-  await fetchChannel();
-  await fetchTimestampCode();
-  await fetchTimestamp();
-  let date = new Date(planDate);
-  date.setHours(date.getHours() + timestampCode.until);
-  const until = timeFormat('YYYY-MM-DDThh:mm', date.toISOString());
-  if (planDate && (now < planDate || until < now)) {
-    console.log('revert');
-    revertTimestamp();
-  } else {
-    console.log('stamp');
-    stampTime();
-  }
-  editIDBLogging(pushData[1], pushData[2], pushData[3], pushData[4]);
-}
-
-async function fetchChannel() {
-  try {
-    channel = await getIDB('channel', channelID);
-  } catch (error) {
-    console.log('error', error);
-    channel = null;
-  }
-}
-
-async function fetchTimestampCode() {
-  try {
-    timestampCode = await getIDB('timestampCode', code);
+export async function timestamp(pd) {
+  const pushID = pd[0];
+  channelID = pd[2];
+  // updatedBy = pd[3];
+  code = pd[4][0];
+  action = pd[4][1];
+  now = pd[4][2];
+  aliasName = pd[4][3];
+  channel = await getIDB('channel', channelID);
+  aliases = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  timestampCode = await getIDB('timestampCode', code);
+  if (timestampCode) {
     planDate = timestampCode.planDate;
-  } catch (error) {
-    console.log('error', error);
-    timestampCode = null;
+    let date = new Date(planDate);
+    date.setHours(date.getHours() + timestampCode.until);
+    until = timeFormat('YYYY-MM-DDThh:mm', date.toISOString());
   }
+  timestamps = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
+    [channelID, aliasName], 30, 0, 'desc');
+  const latestEntry = timestamps.reduce((max, obj) => 
+    obj.timestampID > max.timestampID ? obj : max, timestamps[0]);
+  const pre = latestEntry;
+  if (pre) timestampRecord = JSON.parse(JSON.stringify(pre));
+  if (!planDate || (now >= planDate && now <= until)) {
+    stampTime();
+  } else {
+    revertTimestamp();
+  }
+  const logID = pd[1] + pd[2] + pd[3] + pd[0];
+  const log = {
+    logID: logID,
+    pushID: pd[0],
+    pushTitle: pd[1],
+    channelID: pd[2],
+    updatedBy: pd[3],
+    updatedAt: timeFormat(),
+    preContents: pre
+  }
+  if (pre) log.preContents = pre;
+  upsertIDB(log, 'log', 'log', log.logID);
 }
 
-async function fetchTimestamp() {
-  try {
-    tts = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
-      [channelID, aliasName], 30, 0, 'desc');
-    const latestEntry = tts.reduce((max, obj) => 
-      obj.timestampID > max.timestampID ? obj : max, tts[0]);
-    tt = latestEntry;
-  } catch (error) {
-    console.log('error', error);
-    tts = null;
-  }
-}
-
-function revertTimestamp() {
-  let userIDs = [];
-  let names = [aliasName];
-  for (const d of channel.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
-    }
-  }
-  const fd = new FormData();
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', channelID);
-  fd.append('aliasName', channel.aliasName);
-  fd.append('contents', JSON.stringify([code, action, now, name]));
-  fd.append('pushTitle', 'timestampRevert');
-  const request = new Request('/ContentsPush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
-    })
-}
-
-function stampTime() {
+async function stampTime() {
     switch (action) {
       case 'startWork':
-        tt = {
+        timestampRecord = {
           timestampID: now + aliasName,
           channelID: channelID,
           aliasName: aliasName,
@@ -108,26 +69,61 @@ function stampTime() {
         };
         break;
       case 'endWork':
-        tt.timeOut = now;
-        console.log(tt);
+        timestampRecord.timeOut = now;
         break;
       case 'startBreak':
-        if (tt.breaks) {
-          tt.breaks.push([now, null]);
+        if (timestampRecord.breaks) {
+          timestampRecord.breaks.push({start: now});
         } else {
-          tt.breaks = [ [now, null] ];
+          timestampRecord.breaks = [{start: now}];
         }
         break;
       case 'endBreak':
-        const lastLine = tt.breaks.length - 1;
-        let lastBreak = tt.breaks[lastLine];
-        lastBreak[1] = now;
-        tt.breaks[lastLine] = lastBreak;
+        const lastLine = timestampRecord.breaks.length - 1;
+        let lastBreak = timestampRecord.breaks[lastLine];
+        lastBreak.end = now;
+        timestampRecord.breaks[lastLine] = lastBreak;
+        break;
+      case 'del_startWork':
+        console.log(now + aliasName, aliasName);
+        const res = await deleteIDB('timestamp', 'timestampID', now + aliasName);
+        console.log(res);
+        break;
+      case 'del_endWork':
+        delete timestampRecord.timeOut;
+        break;
+      case 'del_startBreak':
+        if (timestampRecord.breaks && timestampRecord.breaks.length > 0) {
+          timestampRecord.breaks.pop();
+        }
+        break;
+      case 'del_endBreak':
+        if (timestampRecord.breaks && timestampRecord.breaks.length > 0) {
+          const lastIndex = timestampRecord.breaks.length - 1;
+          delete timestampRecord.breaks[lastIndex].end;
+        }
         break;
     }
-    upsertIDB(tt, 'timestamp', 'timestampID', tt.timestampID)
-      .catch((error) => {
-        console.error(error);
-      });
+    if (code == 'revert' && aliasName === channel.myname) {
+      const noticesStore = useNoticesStore();
+      noticesStore.setNotice('打刻できませんでした');
+    }
+    if (action != 'del_startWork') {
+      await upsertIDB(timestampRecord, 'timestamp', 'timestampID', timestampRecord.timestampID);
+    }
+}
 
+async function revertTimestamp() {
+  const fd = new FormData();
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [aliasName])));
+  fd.append('channelID', channelID);
+  fd.append('updatedBy', channel.myname);
+  fd.append('contents', JSON.stringify(['revert', 'del_' + action, now, aliasName]));
+  fd.append('pushTitle', 'timestamp');
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/ContentsJustPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
 }

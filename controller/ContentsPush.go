@@ -64,6 +64,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   }
   if !trueAccess {
     log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
+    http.Error(w, "no true access right", http.StatusServiceUnavailable)
     return
   }
   imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID)

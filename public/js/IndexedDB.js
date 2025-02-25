@@ -226,22 +226,25 @@ async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc'
 }
 
 async function getIDBbyMulti(table, keys, values, limit = 5, offset = 0, sortOrder = 'desc') {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([table], 'readonly');
-    const objectStore = transaction.objectStore(table);
-    const indexName = keys.join('_');
-    if (!objectStore.indexNames.contains(key)) {
-      console.log(`Index "${key}" not found in table "${table}". Returning empty array.`);
-      return resolve([]);
-    }
-    const index = objectStore.index(indexName);
-    try {
+  try {
+    const db = await openDatabase();
+    return new Promise((resolve) => {
+      const transaction = db.transaction([table], 'readonly');
+      const objectStore = transaction.objectStore(table);
+      const indexName = keys.join('_');
+
+      if (!objectStore.indexNames.contains(indexName)) {
+        console.log(`Index "${indexName}" not found in table "${table}". Returning empty array.`);
+        return resolve([]);
+      }
+
+      const index = objectStore.index(indexName);
       const range = IDBKeyRange.only(values);
       const direction = sortOrder === 'asc' ? 'next' : 'prev';
       const request = index.openCursor(range, direction);
       const result = [];
       let i = 0;
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
         if (cursor) {
@@ -254,15 +257,18 @@ async function getIDBbyMulti(table, keys, values, limit = 5, offset = 0, sortOrd
           resolve(result);
         }
       };
+
       request.onerror = (event) => {
-        reject(`Error fetching data: ${event.target.error}`);
+        console.error(`getIDBbyMulti Error fetching data from "${table}":`, event.target.error);
+        resolve([]);
       };
-    } catch (error) {
-      console.error("Values:", values);
-      reject(error);
-    }
-  });
+    });
+  } catch (error) {
+    console.error("getIDBbyMulti Error:", error);
+    return [];
+  }
 }
+
 
 async function upsertIDB(data, table, key, objKey) {
   try {

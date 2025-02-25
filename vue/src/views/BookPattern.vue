@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import TimestampDrawer from '../components/TimestampDrawer.vue';
+import TimestampDrawer from '@/components/DrawerTimestamp.vue';
 
 const props = defineProps({
   id: '',

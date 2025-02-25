@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import TimestampDrawer from '@/components/TimestampDrawer.vue';
+import TimestampDrawer from '@/components/DrawerTimestamp.vue';
 import { takeUserIDs } from '@/my/channelFunc.js';
 
 const props = defineProps({

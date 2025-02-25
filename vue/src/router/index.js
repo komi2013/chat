@@ -124,27 +124,24 @@ const router = createRouter({
       })
     },
     {
-      path: '/timestamp/:name/:code/',
-      name: 'timestamp',
+      path: '/timestamp/:adminName/:code/',
       component: () => import('../views/Timestamp.vue'),
       props: route => ({
-        name: route.params.name,
+        adminName: route.params.adminName,
         code: route.params.code
       })
     },
     {
-      path: '/timestampCodeIssue/',
-      name: 'timestampCodeIssue',
-      component: () => import('../views/TimestampCodeIssue.vue')
+      path: '/timestampCode/',
+      component: () => import('../views/TimestampCode.vue')
     },
     {
-      path: '/timestampReport/:admin/:month/:stamper/',
-      name: 'timestampReport',
+      path: '/timestampReport/:admin/',
       component: () => import('../views/TimestampReport.vue'),
       props: route => ({
         admin: route.params.admin,
-        month: route.params.month,
-        stamper: route.params.stamper
+        month: route.query.month,
+        stamper: route.query.stamper
       })
     },
     {

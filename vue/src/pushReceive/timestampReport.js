@@ -1,14 +1,8 @@
 export async function timestampReport(pushData) {
   const pushID = pushData[0];
-  const fd = new FormData();
-  fd.append('pushID', pushID);
-  const request = new Request('/PushResponse/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request);
   const channelID = pushData[2];
   const aliasName = pushData[3];
+  console.log('data', pushData[4]);
   if (pushData[4][0] === 1) { // approve
     const timestamps = pushData[4][1];
     timestamps.forEach(record => {
@@ -17,10 +11,7 @@ export async function timestampReport(pushData) {
       } else if (!record.approveds.includes(aliasName)) {
           record.approveds.push(aliasName);
       }
-      upsertIDB(record, 'timestamp', 'timestampID', record.timestampID)
-        .catch((error) => {
-          console.error(error);
-        });
+      upsertIDB(record, 'timestamp', 'timestampID', record.timestampID);
     });
   } else if (pushData[4][0] === 2) {
     const timestamps = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
@@ -43,10 +34,7 @@ export async function timestampReport(pushData) {
       return entry;
     });
     for (let d of updatedTimestamps) {
-      upsertIDB(d, 'timestamp', 'timestampID', d.timestampID)
-        .catch((error) => {
-          console.error(error);
-        });
+      upsertIDB(d, 'timestamp', 'timestampID', d.timestampID);
     }
   } else { // manual edit stampStatus 1
     const timestamps = pushData[4];
@@ -54,16 +42,14 @@ export async function timestampReport(pushData) {
       d.channelID = channelID;
       d.aliasName = aliasName;
       d.stampStatus = 1;
+      console.log('d', d);
       if (d.timestampID == null) {
         d.timestampID = `${d.timeIn}${d.aliasName}`;
       }
       if (d.approveds) {
         delete d.approveds;
       }
-      upsertIDB(d, 'timestamp', 'timestampID', d.timestampID)
-        .catch((error) => {
-          console.error(error);
-        });
+      upsertIDB(d, 'timestamp', 'timestampID', d.timestampID);
     }
   }
 }

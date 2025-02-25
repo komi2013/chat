@@ -14,7 +14,7 @@ onBeforeMount(async () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
-      <tr><td><a href="/timestampCodeIssue/" > 🖨️ QR発行 </a></td></tr>
+      <tr><td><a href="/timestampCode/" > 🖨️ QR発行 </a></td></tr>
       <tr><td><a href="/timestampReport/_/_/" > 📋 勤務表 </a></td></tr>
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>

@@ -66,8 +66,8 @@ const decideHeightTop = (schedule) => {
 };
 
 const channel = ref(null);
-const aliases = ref([]);
 const groups = ref([]);
+const aliases = ref([]);
 onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);

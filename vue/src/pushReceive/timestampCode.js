@@ -13,10 +13,7 @@ export async function timestampCode(pushData) {
     if (stampCode.isDel) {
       deleteIDB('timestampCode', 'code', stampCode.code);
     }
-    upsertIDB(stampCode, 'timestampCode', 'code', stampCode.code)
-      .catch((error) => {
-        console.error(error);
-      });
+    upsertIDB(stampCode, 'timestampCode', 'code', stampCode.code);
   }
 }
 

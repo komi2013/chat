@@ -14,7 +14,7 @@ const props = defineProps({
 <h2>ホーム</h2>
   <div class="block"><a href="/">チャット</a></div>
   <div class="block"><a href="/channel/" > 👪 組織・チャネル </a></div>
-  <div class="block"><a href="/timestampCodeIssue/">タイムスタンプ</a></div>
+  <div class="block"><a href="/timestampCode/">タイムスタンプ</a></div>
   <div class="block"><a href="/workflow/">ワークフロー</a></div>
   <div class="block"><a href="/calendar/">カレンダー</a></div>
   <div class="block"><a href="/bookPattern/">bookPattern</a></div>

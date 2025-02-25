@@ -11,8 +11,9 @@ import { ref, computed, onBeforeMount } from 'vue'
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
       <tr><td><a href="/channel/" > 👪 組織・チャネル </a></td></tr>
       <tr><td><a href="/calendar/">カレンダー</a></td></tr>
-      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+      <tr><td><a href="/timestampCode/">タイムスタンプ</a></td></tr>
       <tr><td><a href="/setting/" > setting </a></td></tr>
+      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>
 </template>
