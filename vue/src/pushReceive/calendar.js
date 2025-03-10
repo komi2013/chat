@@ -1,10 +1,10 @@
 import { useCalendarsStore } from '@/stores/calendars.js';
 
-export async function calendar(pushData) {
+export async function calendar(pd) {
   const calendarsStore = useCalendarsStore();
-  const channelID = pushData[2];
-  const aliasName = pushData[3];
-  const calendar = pushData[4];
+  const channelID = pd[2];
+  const aliasName = pd[3];
+  const calendar = pd[4];
   const pre = await getIDB('calendar', calendar.calendarID);
   if (calendar.delete) {
     deleteIDB('calendar', 'calendarID', calendar.calendarID);

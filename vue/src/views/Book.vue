@@ -1,8 +1,8 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
-import BookModal from '../components/BookModal.vue';
 
-// book data
+import BookModal from '@/components/BookModal.vue';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: '',
@@ -10,31 +10,31 @@ const props = defineProps({
 
 const bookPatternID = ref(props.id);
 
-const channel = ref('');
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', localStorage.channelID);
-    channel.value = data;
-  } catch (error) {
-    console.log('error', error);
-    channel.value = null;
-  }
-}
-let bookPattern = null;
-const services = ref('');
-async function findBookPattern() {
-  const fd = new FormData();
-  fd.append('bookPatternID', props.id);
-  const data = await sendRequest('/BookPatternGet/', fd);
-  bookPattern = data;
-  services.value = data.services;
-  const hasNeedSkills = data.services.some(m => m.needSkill && m.needSkill.length > 0);
-  if (hasNeedSkills) {
-    generateOpenTimes();
+// const channel = ref('');
+// async function fetchChannel() {
+//   try {
+//     const data = await getIDB('channel', localStorage.channelID);
+//     channel.value = data;
+//   } catch (error) {
+//     console.log('error', error);
+//     channel.value = null;
+//   }
+// }
+// let bookPattern = null;
+// const services = ref('');
+// async function findBookPattern() {
+//   const fd = new FormData();
+//   fd.append('bookPatternID', props.id);
+//   const data = await sendRequest('/BookPatternGet/', fd);
+//   bookPattern = data;
+//   services.value = data.services;
+//   const hasNeedSkills = data.services.some(m => m.needSkill && m.needSkill.length > 0);
+//   if (hasNeedSkills) {
+//     generateOpenTimes();
     
-    console.log(openTimes.value);
-  }
-}
+//     console.log(openTimes.value);
+//   }
+// }
 
 // openTimesの作成
 const openTimes = ref([]);
@@ -48,8 +48,8 @@ function generateOpenTimes(service = null) {
   bookPattern.times.forEach(slot => {
     let facilities = [...bookPattern.facilities];
     let staffOpenTimes = [];
-    if (slot.shiftStaffs) {
-      slot.shiftStaffs.forEach(staff => {
+    if (slot.workStaffs) {
+      slot.workStaffs.forEach(staff => {
         const staffStart = new Date(`${slot.date}T${staff.shiftStart}`);
         const staffEnd = new Date(`${slot.date}T${staff.shiftEnd}`);
         let currentTime = new Date(staffStart);
@@ -101,12 +101,32 @@ function generateOpenTimes(service = null) {
   console.log(openTimes.value);
 }
 
-
-onMounted(() => {
-  fetchChannel();
-  findBookPattern();
-  // findBook();
-  console.log(openTimes.value);
+const channel = ref(null);
+const groups = ref([]);
+const aliases = ref([]);
+let bookPattern = null;
+const services = ref([]);
+onMounted(async () => {
+  channel.value = await getIDB('channel', localStorage.getItem('channelID'));
+  groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  const fd = new FormData();
+  fd.append('bookPatternID', props.id);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('aliasName', channel.value.myname);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/BookPatternGet/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  bookPattern = res.bookPattern;
+  services.value = res.bookPattern.services;
+  const hasNeedSkills = services.value.some(m => m.needSkill && m.needSkill.length > 0);
+  if (hasNeedSkills) {
+    generateOpenTimes();
+    console.log(openTimes.value);
+  }
 });
 
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));

@@ -48,6 +48,7 @@ const decideHeightTop = (schedule) => {
   const minuteHeight = 1;
   const top = start.getMinutes() * minuteHeight;
   const height = (end - start) / (1000 * 60) * minuteHeight;
+  console.log('height', height);
   const opacity = schedule.index === 0 ? 1 : 0.5;
   const zindex = (schedule.index + 1) * 4;
   const width = 120 / schedule.total;
@@ -73,15 +74,20 @@ onMounted(async() => {
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   const calendarData = await getAllIDBs('calendar');
-  console.log(calendarData);
+  // console.log(calendarData);
   calendarData.forEach((d) => {
     d.title = d.todo ? Array.from(d.todo).slice(0, 10).join('') : ''; 
     calendarsStore.upsert(d);
   });
-  const container = document.getElementById('calendar-container-move');
-  if (container) {
-    container.scrollTo({ top: 600 });
-  }
+  // window.scrollTo({top: 600, behavior: "smooth"});
+
+  document.documentElement.scrollTo({ top: 600, behavior: "smooth" });
+  document.body.scrollTo({ top: 600, behavior: "smooth" });
+
+  // const container = document.getElementById('calendar-container-move');
+  // if (container) {
+  //   container.scrollTo({ top: 600 });
+  // }
 });
 
 const newSchedule = (day, hour) => {
@@ -230,7 +236,7 @@ function jump(days) {
 }
 
 .day-slot {
-  height: 60px;
+  height: 57px;
   min-width: 120px;
   border: 1px solid #ccc;
   position: relative;

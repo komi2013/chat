@@ -55,10 +55,7 @@ const updateOkStaffs = (bookPattern, pushStaffs) => {
       }
     });
   });
-  upsertIDB(bookPattern, 'bookPattern', 'bookPatternID', bookPattern.bookPatternID)
-    .catch((error) => {
-      console.error(error);
-    });
+  upsertIDB(bookPattern, 'bookPattern', 'bookPatternID', bookPattern.bookPatternID);
 };
 
 function updateStaffs(bookPattern, updateData) {
@@ -73,8 +70,5 @@ function updateStaffs(bookPattern, updateData) {
       }
     });
   });
-  upsertIDB(bookPattern, 'bookPattern', 'bookPatternID', bookPattern.bookPatternID)
-    .catch((error) => {
-      console.error(error);
-    });
+  upsertIDB(bookPattern, 'bookPattern', 'bookPatternID', bookPattern.bookPatternID);
 }

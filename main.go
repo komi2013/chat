@@ -15,6 +15,7 @@ func main() {
 	if len(os.Args) == 1 {
 		http.HandleFunc("/BookAdd/", controller.BookAdd)
 		http.HandleFunc("/BookPatternGet/", controller.BookPatternGet)
+		http.HandleFunc("/BookPatternShift/", controller.BookPatternShift)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)
 		http.HandleFunc("/ChannelInvite/", controller.ChannelInvite)

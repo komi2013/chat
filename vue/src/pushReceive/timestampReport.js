@@ -7,9 +7,9 @@ export async function timestampReport(pushData) {
     const timestamps = pushData[4][1];
     timestamps.forEach(record => {
       if (!record.approveds) {
-          record.approveds = [aliasName];
+        record.approveds = [aliasName];
       } else if (!record.approveds.includes(aliasName)) {
-          record.approveds.push(aliasName);
+        record.approveds.push(aliasName);
       }
       upsertIDB(record, 'timestamp', 'timestampID', record.timestampID);
     });

@@ -108,25 +108,16 @@ async function sendRequest(uri, fd) {
   });
   try {
     const response = await fetch(request);
-
     if (response.ok) {
-      const contentLength = response.headers.get("Content-Length");
-
-      if (contentLength === "0" || contentLength === null) {
-        console.log('no data');
-        return null;
+      const data = await response.json();
+      if (data && Object.keys(data).length > 0) {
+        return data; // データが存在する場合は data を返す
       } else {
-        const data = await response.json();
-        
-        if (data && Object.keys(data).length > 0) {
-          return data; // データが存在する場合は data を返す
-        } else {
-          console.log('データが存在しませんが、レスポンスは成功しました');
-          return null;
-        }
+        console.error('no data');
+        return null;
       }
     } else {
-      console.error('Failed to fetch data', response.status);
+      console.error('response not ok', response.status);
       return null;
     }
   } catch (error) {

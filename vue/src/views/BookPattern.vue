@@ -1,60 +1,126 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import TimestampDrawer from '@/components/DrawerTimestamp.vue';
+
+import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
+import { userIDsByName, userIDsByGroups } from '@/my/channelFunc';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   id: '',
 })
 console.log(props.id);
-const channel = ref('');
+
+// async function fetchChannel() {
+//   try {
+//     const data = await getIDB('channel', localStorage.channelID);
+//     channel.value = data;
+//     for (let i = 0; i < data.groupAliases.length; i++) {
+//       groups.value.push([data.groupAliases[i][0], data.groupAliases[i][1]]);
+//     }
+//     console.log('groups', groups);
+//   } catch (error) {
+//     console.log('error', error);
+//     channel.value = null;
+//   }
+// }
+
+// async function fetchBookPattern() {
+//   try {
+//     bookPattern.value = await getIDB('bookPattern', props.id);
+//     selectedGroup.value = [bookPattern.value.adminGroup];
+//   } catch (error) {
+//     console.log('error', error);
+//   }
+// }
+
+// async function findBookPattern() {
+//   const fd = new FormData();
+//   fd.append('bookPatternID', props.id);
+//   const data = await sendRequest('/BookPatternGet/', fd);
+//   if (data) {
+//     bookPattern.value = data;
+//     selectedGroup.value = [bookPattern.value.adminGroup];
+//   }
+// }
+
+
+const bookPattern = ref({
+  _id: "", // 本来は ObjectId 形式
+  admin_group: "",
+  join_names: [],
+  book_title: "",
+  asks: [],
+  ask_choices: [],
+  facilities: [
+    { facility_count: 0, facility_name: "" }
+  ],
+  times: [
+    {
+      date: "",
+      limit_start: "",
+      limit_end: "",
+      shift_staffs: [
+        { alias_name: "", shift_start: "", shift_end: "", skills: [], seq: 0 }
+      ],
+      books: [
+        { book_start: "", book_end: "", answers: ["", "", ""], service_id: 0 }
+      ]
+    }
+  ],
+  services: [
+    { id: 1, service_name: "", need_skill: "", price: 0, prepaid_price: 0, spend_minute: 0 }
+  ]
+});
+
+// 施設を追加する関数
+const addFacility = () => {
+  bookPattern.value.facilities.push({ facility_count: 0, facility_name: "" });
+};
+
+// スタッフを追加する関数
+const addStaff = (timeIndex) => {
+  bookPattern.value.times[timeIndex].shift_staffs.push({ alias_name: "", shift_start: "", shift_end: "", skills: [], seq: 1 });
+};
+
+
+
+const publicWindow = ref(false); // チェックボックスの初期値
+
+const channel = ref(null);
 const groups = ref([]);
+const aliases = ref([]);
 const selectedGroup = ref('');
+onMounted(async () => {
+  channel.value = await getIDB('channel', localStorage.getItem('channelID'));
+  groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  if (props.id.length > 4) {
+    // findBookPattern();
+    const fd = new FormData();
+    fd.append('bookPatternID', props.id);
+    fd.append('channelID', localStorage.getItem('channelID'));
+    fd.append('aliasName', channel.value.myname);
+    fd.append('csrf', localStorage.getItem('csrf'));
+    const res = await sendRequest('/BookPatternGet/', fd);
+    console.log('res', res);
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    res.pushContents.forEach(content => {
+      pushReceive(content);
+    });
+    if (res.bookPattern) {
+      bookPattern.value = res.bookPattern;
+      selectedGroup.value = [bookPattern.value.adminGroup];
+    }
+  } else if (props.id.length > 0) {
+    // fetchBookPattern();
+    bookPattern.value = await getIDB('bookPattern', props.id);
+    selectedGroup.value = [bookPattern.value.adminGroup];
+  }
+});
+
 function selectGroup(group) {
   selectedGroup.value = group;
 }
-
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', localStorage.channelID);
-    channel.value = data;
-    for (let i = 0; i < data.groupAliases.length; i++) {
-      groups.value.push([data.groupAliases[i][0], data.groupAliases[i][1]]);
-    }
-    console.log('groups', groups);
-  } catch (error) {
-    console.log('error', error);
-    channel.value = null;
-  }
-}
-
-const bookPattern = ref('');
-async function fetchBookPattern() {
-  try {
-    bookPattern.value = await getIDB('bookPattern', props.id);
-    selectedGroup.value = [bookPattern.value.adminGroup];
-  } catch (error) {
-    console.log('error', error);
-  }
-}
-
-async function findBookPattern() {
-  const fd = new FormData();
-  fd.append('bookPatternID', props.id);
-  const data = await sendRequest('/BookPatternGet/', fd);
-  if (data) {
-    bookPattern.value = data;
-    selectedGroup.value = [bookPattern.value.adminGroup];
-  }
-}
-
-onMounted(() => {
-  fetchChannel();
-  if (props.id.length > 4) {
-    findBookPattern();
-  } else if (props.id.length > 0) {
-    fetchBookPattern();
-  }
-});
 
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
@@ -130,32 +196,37 @@ const toggleDateSelection = (date) => {
 };
 
 
-const publicWindow = ref(false);
+// const publicWindow = ref(false);
 const submit = async () => {
-  bookPattern.value.adminGroup = selectedGroup.value[0];
+  bookPattern.value.adminGroup = selectedGroup.value.groupName;
+  console.log('bookPattern', bookPattern.value);
   if (!confirm("実行▶️")) {
     return;
   }
   const fd = new FormData();
-  let userIDs = [];
-  let names = [channel.value.aliasName];
-  if (Array.isArray(channel.value.groupAliases)) {
-    for (const d of channel.value.groupAliases) {
-      if (selectedGroup.value[0] == d[0]) {
-        for (const d2 of d[2]) {
-          names.push(d2);
-        }
-      }
-    }
-  }
-  for (const d of channel.value.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
-    }
-  }
+  // let userIDs = [];
+  // let names = [channel.value.aliasName];
+  // if (Array.isArray(channel.value.groupAliases)) {
+  //   for (const d of channel.value.groupAliases) {
+  //     if (selectedGroup.value[0] == d[0]) {
+  //       for (const d2 of d[2]) {
+  //         names.push(d2);
+  //       }
+  //     }
+  //   }
+  // }
+  // for (const d of channel.value.allAliases) {
+  //   if (names.includes(d[0])) {
+  //     userIDs.push(d[2]);
+  //   }
+  // }
+  const userIDs = [...new Set([
+    ...userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName),
+    ...userIDsByName(aliases.value, [channel.value.myname])
+  ])];
   fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(removeEmptyElements(bookPattern.value)));
   fd.append('pushTitle', 'bookPattern');
   let uri = '/ContentsPush/';
@@ -172,10 +243,18 @@ const submit = async () => {
       bookPattern.value.bookPatternID = generateRandomCode(4);
     }
   }
-  const data = await sendRequest(uri, fd);
-  if (data) {
-    location.href = '/bookpattern/' + data[0];
-  }
+
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest(uri, fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  location.href = '/bookpattern/' + bookPattern.value.bookPatternID;
+  // const data = await sendRequest(uri, fd);
+  // if (data) {
+  //   location.href = '/bookpattern/' + data[0];
+  // }
 };
 
 function removeEmptyElements(obj) {
@@ -203,77 +282,77 @@ function removeEmptyElements(obj) {
 <template>
   <br><br>
   <div>
-    <template v-if="bookPattern.bookTitle">
-      <input v-model="bookPattern.bookTitle" type="text" placeholder="予約設定" style="width: 96%;" />      
-    </template>
-    <template v-if="!bookPattern.bookTitle">
-      <span>予約設定ページ</span>
-    </template>
 
-    <div v-if="bookPattern.facilities" class="inline-form">
-      <input v-model="bookPattern.facilities[0]" type="number" placeholder="施設・道具の数" />
-      <input v-model="bookPattern.facilities[1]" type="text" placeholder="施設・道具の名称" />
-    </div>
+    <div>
+      <h2>予約設定ページ</h2>
 
-    <div v-if="bookPattern.maxFacility" class="inline-form">
+      <!-- 予約タイトル -->
+      <label>予約タイトル:</label>
+      <input v-model="bookPattern.book_title" type="text" placeholder="予約タイトルを入力" />
 
-      <label>最大収容人数:</label>
-      <input v-model="bookPattern.maxFacility" type="number" placeholder="最大収容人数" />
-
-    </div>
-
-    <div v-if="bookPattern.parentID" class="inline-form">
-      <label>ペアレントID:</label>
-      <input v-model="bookPattern.parentID" type="text" placeholder="ペアレントID" />
-    </div>
-
-    <div class="inline-form">
-      <label>公開:</label>
-      <input v-model="publicWindow" type="checkbox" />
-    </div>
-
-    <hr />
-
-    <div v-for="time in bookPattern.times" class="time-form">
-      <div class="inline-form">
-        <label>Book Title:</label>
-        <input v-model="time.bookTitle" type="text" />
-      </div>
-
-      <div class="inline-form">
-        <label>Date:</label>
-        <input v-model="time.date" type="date" />
-      </div>
-
-      <div v-if="time.limitStart" class="inline-form">
-        <label>開始時間 ~ 終了時間:</label>
-        <input v-model="time.limitStart" type="time" /> ~ <input v-model="time.limitEnd" type="time" />
-      </div>
-
-      <div v-if="time.start" class="inline-form">
-        <label>開始時間 ~ 終了時間:</label>
-        <input v-model="time.start" type="time" /> ~ <input v-model="time.end" type="time" />
-      </div>
-
-      <!-- スタッフ情報の入力 -->
-      <div v-if="time.staffs" v-for="(staff, staffIndex) in time.staffs" :key="staffIndex" class="inline-form">
-        <label>Required Number:</label>
-        <input v-model="staff[0]" type="number" placeholder="必要人数" />
-
-        <label>Staff Role:</label>
-        <input v-model="staff[1]" type="text" placeholder="スタッフの役割" />
-
-<!--         <label>Staff Members:</label>
-        <div v-for="(member, memberIndex) in staff[2] || []" :key="memberIndex">
-          <input v-model="staff[2][memberIndex]" type="text" placeholder="スタッフ名" />
-        </div> -->
-      </div>
-
-      <button @click="removeTime(index)">この日付を削除</button>
       <hr />
 
-    </div>
+      <!-- 施設情報 -->
+      <h3>施設情報</h3>
+      <div v-for="(facility, index) in bookPattern.facilities" :key="index" class="inline-form">
+        <label>施設数:</label>
+        <input v-model="facility.facility_count" type="number" placeholder="施設・道具の数" />
+        
+        <label>施設名:</label>
+        <input v-model="facility.facility_name" type="text" placeholder="施設・道具の名称" />
+      </div>
+      <button @click="addFacility">施設を追加</button>
 
+      <hr />
+
+      <!-- タイムスケジュール -->
+      <h3>予約枠</h3>
+      <div v-for="(time, timeIndex) in bookPattern.times" :key="timeIndex" class="time-form">
+        <label>日付:</label>
+        <input v-model="time.date" type="date" />
+
+        <label>予約受付時間:</label>
+        <input v-model="time.limit_start" type="time" /> ~ <input v-model="time.limit_end" type="time" />
+
+        <h4>スタッフシフト</h4>
+        <div v-for="(staff, staffIndex) in time.shift_staffs" :key="staffIndex" class="inline-form">
+          <label>スタッフ名:</label>
+          <input v-model="staff.alias_name" type="text" placeholder="スタッフ名" />
+
+          <label>シフト時間:</label>
+          <input v-model="staff.shift_start" type="time" /> ~ <input v-model="staff.shift_end" type="time" />
+
+          <label>スキル:</label>
+          <input v-model="staff.skills" type="text" placeholder="スキル（カンマ区切り）" />
+        </div>
+        <button @click="addStaff(timeIndex)">スタッフを追加</button>
+        <button @click="removeTime(timeIndex)">この日付を削除</button>
+      </div>
+
+      <hr />
+
+      <!-- サービス情報 -->
+      <h3>サービス</h3>
+      <div v-for="service in bookPattern.services" :key="service.id" class="inline-form">
+        <label>サービス名:</label>
+        <input v-model="service.service_name" type="text" />
+
+        <label>価格:</label>
+        <input v-model="service.price" type="number" />
+
+        <label>前払い価格:</label>
+        <input v-model="service.prepaid_price" type="number" />
+
+        <label>必要スキル:</label>
+        <input v-model="service.need_skill" type="text" />
+
+        <label>必要設備:</label>
+        <input v-model="service.need_facility" type="text" />
+
+        <label>所要時間（分）:</label>
+        <input v-model="service.spend_minute" type="number" />
+      </div>
+    </div>
 
     <button @click="addTime">日付を追加</button>
 
@@ -317,17 +396,8 @@ function removeEmptyElements(obj) {
         <br>
       </div>
     </div>
-    <div class="dropdown-menu">
-      <div 
-        v-for="group in groups"
-        class="dropdown-item" 
-        :class="{ 'selected': group[0] === selectedGroup[0] }"
-        @click="selectGroup(group)"
-      >
-        <img :src="group[1]" class="option-image" />
-        {{ group[0] }}
-      </div>
-    </div>
+    <SelectGroup v-if="selectedGroup" :groups="groups" v-model="selectedGroup"/>
+    <SelectGroup v-if="groups && !selectedGroup" :groups="groups" v-model="selectedGroup"/>
     <div style="text-align: center;">
       <button @click="submit" style="width: 80%;">送信</button>
     </div>

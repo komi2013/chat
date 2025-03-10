@@ -205,13 +205,14 @@ async function approve() {
     return;
   }
   const fd = new FormData();
-  localStorage.setItem('nextApprover', selectedGroup.value.groupName)
+  localStorage.setItem('nextApprover', selectedGroup.value.groupName); // just shortcut already selected
   const nextApproverIDs = userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName);
   fd.append('userIDs', JSON.stringify([...new Set([...userIDs, ...nextApproverIDs])]));
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify([1, thisMonthEntries, props.stamper, selectedGroup.value.groupName]));
   fd.append('pushTitle', 'timestampReport');
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
@@ -226,6 +227,7 @@ async function deleteReport() {
   fd.append('userIDs', JSON.stringify(userIDs));
   fd.append('contents', JSON.stringify([2, targetName]));
   fd.append('pushTitle', 'timestampReport');
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
@@ -246,6 +248,7 @@ async function submitReport() {
   const maxTimestampID = timestampIDs.reduce((max, current) => current > max ? current : max);
   fd.append('contents', JSON.stringify([channel.value.myname, minTimestampID, maxTimestampID]));
   fd.append('pushTitle', 'timestampReport');
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
@@ -351,6 +354,7 @@ async function manualPost(changedRecords) {
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(changedRecords));
   fd.append('pushTitle', 'timestampReport');
+  fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
@@ -365,11 +369,8 @@ function copyToClipboard() {
     formatTime(day.timeOut),
     formatBreaksTotal(day.breaks)
   ]);
-
   const tabDelimitedString = rows.map(row => row.join('\t')).join('\n');
-
   navigator.clipboard.writeText(tabDelimitedString).then(() => {
-    // alert('Data copied to clipboard!');
     const noticesStore = useNoticesStore();
     noticesStore.setNotice('コピーしました');
   }).catch(err => {
@@ -442,7 +443,8 @@ function copyToClipboard() {
         </span>
       </div>
       <div>次の承認グループ</div>
-      <SelectGroup :groups="groups" v-model="selectedGroup"/>
+      <SelectGroup v-if="selectedGroup" :groups="groups" v-model="selectedGroup"/>
+      <SelectGroup v-if="groups && !selectedGroup" :groups="groups" v-model="selectedGroup"/>
     </div>
 
     <button v-if="!iamAdmin" @click="manualEdit">修正</button>

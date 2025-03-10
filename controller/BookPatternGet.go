@@ -18,29 +18,44 @@ import (
 )
 
 func BookPatternGet(w http.ResponseWriter, r *http.Request) {
-  _, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-    return
-  }
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Print(err)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
 
-	coll := db1.Collection("book_pattern")
-
+  aliasName := r.FormValue("aliasName")
+  channelID := r.FormValue("channelID")
 	bookPatternID, err := primitive.ObjectIDFromHex(r.FormValue("bookPatternID"))
 	if err != nil {
 		http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
 		return
 	}
 
-	// Find the document by `_id`
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  if err != nil {
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  }
+  defer c.Disconnect(ctx)
+  db1 := c.Database(common.MongoDb1)
+
+  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  if err != nil {
+    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+  }
+
+  trueAccess := false
+  for _, d := range session.ChannelAliases {
+    if d.Alias == aliasName && d.ChannelID == channelID {
+      trueAccess = true
+    }
+  }
+  if !trueAccess {
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, r.URL.Path, r.Form)
+    return
+  }
+
+	coll := db1.Collection("book_pattern")
+
 	var bookPattern collection.BookPatternStruct
 	filter := bson.M{"_id": bookPatternID}
 	err = coll.FindOne(ctx, filter).Decode(&bookPattern)
@@ -50,9 +65,17 @@ func BookPatternGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with the bookPattern in JSON format
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(bookPattern); err != nil {
-		http.Error(w, "Failed to encode response to JSON", http.StatusInternalServerError)
-	}
+  responseData := struct {
+    Csrf         string        `json:"csrf"`
+    PushContents []string `json:"pushContents"`
+    BookPattern collection.BookPatternStruct `json:"bookPattern"`
+  }{
+    Csrf:         session.Csrf,
+    PushContents: session.PushContents,
+    BookPattern: bookPattern,
+  }
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(responseData)
+
+
 }

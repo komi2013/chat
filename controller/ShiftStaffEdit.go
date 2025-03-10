@@ -34,6 +34,12 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
+	bookPatternID, err := primitive.ObjectIDFromHex(r.FormValue("bookPatternID"))
+	if err != nil {
+		http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
+		return
+	}
+
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
 
@@ -48,29 +54,14 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-	var shiftStaffs []struct {
-		BookPatternID string   `json:"bookPatternID,omitempty"`
-		AliasName     string   `json:"aliasName,omitempty"`
-		ShiftStart    string   `json:"shiftStart,omitempty"`
-		ShiftEnd      string   `json:"shiftEnd,omitempty"`
-		Skills        []string `json:"skills,omitempty"`
-		Seq           int      `json:"seq,omitempty"`
-		Delete        bool     `json:"delete,omitempty"`
-		ShiftStaffID  string   `json:"shiftStaffID,omitempty"`
-	}
-	if err := json.Unmarshal([]byte(r.FormValue("shiftStaffs")), &shiftStaffs); err != nil {
+  var workStaffs []collection.WorkStaff
+	if err := json.Unmarshal([]byte(r.FormValue("workStaffs")), &workStaffs); err != nil {
 		http.Error(w, "Invalid JSON input", http.StatusBadRequest)
 		log.Printf("JSON error: %v", err)
 		return
 	}
-	if len(shiftStaffs) == 0 {
-		http.Error(w, "No shiftStaffs provided", http.StatusBadRequest)
-		return
-	}
-	firstStaff := shiftStaffs[0]
-	bookPatternID, err := primitive.ObjectIDFromHex(firstStaff.BookPatternID)
-	if err != nil {
-		http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
+	if len(workStaffs) == 0 {
+		http.Error(w, "No workStaffs provided", http.StatusBadRequest)
 		return
 	}
 	coll := db1.Collection("book_pattern")
@@ -108,39 +99,39 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
 		timeSlotMap[slot.Date] = slot
 	}
 
-	for _, staff := range shiftStaffs {
-		date := staff.ShiftStart[:10]
+	for _, staff := range workStaffs {
+		date := staff.WorkStart[:10]
 		slot, exists := timeSlotMap[date]
 		if !exists {
 			newSlot := &collection.TimeSlot{
 				Date:        date,
 				LimitStart:  "",
 				LimitEnd:    "",
-				ShiftStaffs:  []collection.ShiftStaffs{},
+				WorkStaffs:  []collection.WorkStaff{},
 				Books:        []collection.Books{},
 			}
 			timeSlotMap[date] = newSlot
 			slot = newSlot
 		}
-		updatedShiftStaff := []collection.ShiftStaffs{}
-		for _, s := range slot.ShiftStaffs {
-			key := fmt.Sprintf("%s|%s", s.AliasName, s.ShiftStart)
-			reqKey := fmt.Sprintf("%s|%s", staff.AliasName, staff.ShiftStart[11:])
+		updatedWorkStaff := []collection.WorkStaff{}
+		for _, s := range slot.WorkStaffs {
+			key := fmt.Sprintf("%s|%s", s.AliasName, s.WorkStart)
+			reqKey := fmt.Sprintf("%s|%s", staff.AliasName, staff.WorkStart[11:])
 			if key == reqKey && staff.Delete {
 				continue
 			}
-			updatedShiftStaff = append(updatedShiftStaff, s)
+			updatedWorkStaff = append(updatedWorkStaff, s)
 		}
 		if !staff.Delete {
-			updatedShiftStaff = append(updatedShiftStaff, collection.ShiftStaffs{
+			updatedWorkStaff = append(updatedWorkStaff, collection.WorkStaff{
 				AliasName:  staff.AliasName,
-				ShiftStart: staff.ShiftStart[11:],
-				ShiftEnd:   staff.ShiftEnd[11:],
+				WorkStart: staff.WorkStart[11:],
+				WorkEnd:   staff.WorkEnd[11:],
 				Skills:     staff.Skills,
 				Seq:        staff.Seq,
 			})
 		}
-		slot.ShiftStaffs = updatedShiftStaff
+		slot.WorkStaffs = updatedWorkStaff
 	}
 	updatedTimes := make([]collection.TimeSlot, 0, len(timeSlotMap))
 	for _, slot := range timeSlotMap {
@@ -156,11 +147,11 @@ func ShiftStaffEdit(w http.ResponseWriter, r *http.Request) {
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		http.Error(w, "Failed to update shift staff", http.StatusInternalServerError)
+		http.Error(w, "Failed to update work staff", http.StatusInternalServerError)
 		log.Printf("Update error: %v", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "Shift staffs updated successfully")
+	fmt.Fprint(w, "Work staffs updated successfully")
 }
 

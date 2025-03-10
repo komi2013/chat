@@ -121,13 +121,13 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 		}
 
 		staffAvailable := false
-		for _, staff := range timeSlot.ShiftStaffs {
-			staffStart, _ := time.Parse("15:04", staff.ShiftStart)
-			staffEnd, _ := time.Parse("15:04", staff.ShiftEnd)
+		for _, staff := range timeSlot.WorkStaffs {
+			staffStart, _ := time.Parse("15:04", staff.WorkStart)
+			staffEnd, _ := time.Parse("15:04", staff.WorkEnd)
 
-			shiftStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), staffStart.Hour(), staffStart.Minute(), 0, 0, bookStartTime.Location())
-			shiftEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), staffEnd.Hour(), staffEnd.Minute(), 0, 0, bookEndTime.Location())
-			if !bookStartTime.Before(shiftStart) && bookEndTime.Before(shiftEnd) &&
+			workStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), staffStart.Hour(), staffStart.Minute(), 0, 0, bookStartTime.Location())
+			workEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), staffEnd.Hour(), staffEnd.Minute(), 0, 0, bookEndTime.Location())
+			if !bookStartTime.Before(workStart) && bookEndTime.Before(workEnd) &&
 			    (requestedService.NeedSkill == "" || contains(staff.Skills, requestedService.NeedSkill)) {
 			    staffAvailable = true
 			    break
@@ -186,12 +186,12 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 
   _, err = coll.UpdateOne(ctx, filter, update, opts)
   if err != nil {
-    http.Error(w, "Failed to update shift staff", http.StatusInternalServerError)
+    http.Error(w, "Failed to update work staff", http.StatusInternalServerError)
     log.Printf("Update error: %v", err)
     return
   }
   w.WriteHeader(http.StatusOK)
-  fmt.Fprint(w, "Shift staffs updated successfully")
+  fmt.Fprint(w, "Work staffs updated successfully")
 }
 
 // func AddBooking(ctx context.Context, db *mongo.Database, collectionName string, bookPatternID primitive.ObjectID, bookStart string, bookEnd string, menuID int, answers []string) (bool, error) {

@@ -1,341 +1,435 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+
+import NoticePopup from '@/components/NoticePopup.vue';
+import SelectPeople from '@/components/SelectPeople.vue';
+import { useCalendarsStore } from '@/stores/calendars.js';
+// import { useNoticesStore } from '@/stores/notices.js';
+
+import { userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
-  id: '',
-})
-
-const channel = ref('');
-async function fetchChannel() {
-  try {
-    channel.value = await getIDB('channel', localStorage.channelID);
-  } catch (error) {
-    console.log('error', error);
-    channel.value = null;
-  }
-}
-const bookPattern = ref('');
-const availableSkills = ref([]);
-async function fetchBookPattern() {
-  try {
-    bookPattern.value = await getIDB('bookPattern', props.id);
-    console.log(bookPattern.value);
-    if (bookPattern.value.parentID) {
-      findParent(bookPattern.value.parentID);
-    } else {
-      fetchShiftStaff();
-    }
-  } catch (error) {
-    console.log('error', error);
-    bookPattern.value = null;
-  }
-}
-
-const shiftStaffs = ref([]);
-let initialStaffs = [];
-async function fetchShiftStaff() {
-  try {
-    shiftStaffs.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
-    initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
-  } catch (error) {
-    console.log('error', error);
-    // shiftStaff.value = [];
-  }
-}
-
-async function findParent(parentID) {
-  const fd = new FormData();
-  fd.append('bookPatternID', parentID);
-  const res = await sendRequest('/BookPatternGet/', fd);
-  res.times.forEach((time) => {
-    if (time.shiftStaffs) {
-      time.shiftStaffs.forEach((staff) => {
-        shiftStaffs.value.push({
-          shiftStaffID: props.id + time.date.replace(/-/g, "") + staff.shiftStart.replace(":", "") + staff.aliasName,
-          aliasName: staff.aliasName,
-          shiftStart: `${time.date}T${staff.shiftStart}`, // 日付と時間を結合
-          shiftEnd: `${time.date}T${staff.shiftEnd}`, // 日付と時間を結合
-          skills: staff.skills,
-          seq: staff.seq,
-        });
-      });
-    }
-  });
-  initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
-}
-
-const IamAdmin = () => {
-  let iamAdmin = true;
-  if (Array.isArray(channel.value.groupAliases)) {
-    for (const d of channel.value.groupAliases) {
-      if (bookPattern.value.adminGroup == d[0]) {
-        for (const name of d[2]) {
-          if (channel.value.aliasName == name) {
-            iamAdmin = true;
-          }
-        }
-      }
-    }
-  }
-  return iamAdmin;
-}
-
-const getShiftStaffByDate = (timeSlot) => {
-  // console.log(timeSlot);
-  const { date, start } = timeSlot;
-  const result = (shiftStaffs.value || []).filter(shiftStaff => {
-      const shiftDate = shiftStaff.shiftStart.slice(0, 10);
-      const shiftTime = shiftStaff.shiftStart.slice(11);
-      console.log(shiftDate, date);
-      console.log(shiftTime, start);
-      return (
-        shiftDate === date &&
-        shiftTime === start
-      );
-    })
-    .sort((a, b) => a.seq - b.seq);
-  return result;
-};
-
-const myNameInclude = (timeSlot) => {
-
-  const { date, start } = timeSlot;
-  return (shiftStaffs.value || []).some(shiftStaff => {
-    const shiftDate = shiftStaff.shiftStart.slice(0, 10);
-    const shiftTime = shiftStaff.shiftStart.slice(11);
-
-    return (
-      shiftDate === date &&
-      shiftTime === start &&
-      shiftStaff.aliasName === channel.value.aliasName
-    );
-  });
-};
-
-onMounted(() => {
-  fetchChannel();
-  fetchBookPattern();
+  id: String,
 });
 
-const moveStaffToTop = (timeSlot, name) => {
-  const { date, start } = timeSlot;
-  const shiftStart = date + 'T' + start;
-  const staffs = (shiftStaffs.value || []).filter(staff => staff.shiftStart === shiftStart);
-  staffs.sort((a, b) => {
-    if (a.aliasName === name) return -1;
-    if (b.aliasName === name) return 1;
-    return a.seq - b.seq;
+const channelID = localStorage.getItem("channelID");
+function tF(a, b = null){ return timeFormat(a, b) }
+const hours = ref(Array.from({ length: 24 }, (_, i) => i));
+const calendarsStore = useCalendarsStore();
+const schedules = computed(() => calendarsStore.calendars);
+
+const today = props.date || timeFormat('YYYY-MM-DD');
+const getNext30Days = () => {
+  return Array.from({ length: 30 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    return date;
   });
-  staffs.forEach((staff, index) => {
-    staff.seq = index + 1;
+};
+const monthDates = getNext30Days();
+const getEventsForDayAndHour = (day, hour) => {
+  const events = schedules.value.filter((event) => {
+    const start = new Date(event.timeStart);
+
+    return (
+      start.getFullYear() === day.getFullYear() &&
+      start.getMonth() === day.getMonth() &&
+      start.getDate() === day.getDate() &&
+      start.getHours() === hour
+    );
+  });
+  return events.map((event, index) => ({ ...event, index, total: events.length }));
+};
+
+const decideHeightTop = (schedule) => {
+  const start = new Date(schedule.timeStart);
+  const end = new Date(schedule.timeEnd);
+  const minuteHeight = 1;
+  const top = start.getMinutes() * minuteHeight;
+  const height = (end - start) / (1000 * 60) * minuteHeight;
+  console.log('height', height);
+  const opacity = schedule.index === 0 ? 1 : 0.5;
+  const zindex = (schedule.index + 1) * 4;
+  const width = 120 / schedule.total;
+  const left = schedule.index * width;
+  const colors = ["rgba(255, 0, 0, 0.25)", "rgba(255, 255, 0, 0.25)", "rgba(128, 0, 128, 0.25)", "rgba(0, 0, 255, 0.25)"];
+  const backgroundColor = colors[schedule.nameCount - 1] || colors[3];
+  return {
+    height: `${height}px`,
+    top: `${top}px`,
+    opacity: `${opacity}`,
+    "z-index": `${zindex}`,
+    "background-color": backgroundColor,
+    width: `${width}px`,
+    left: `${left}px`,
+  };
+};
+
+const channel = ref(null);
+const groups = ref([]);
+const aliases = ref([]);
+const bookPattern = ref(null);
+const availableSkills = ref([]);
+const iamAdmin = ref(false);
+const shiftStaffs = ref([]);
+let initialStaffs = [];
+onMounted(async() => {
+  channel.value = await getIDB('channel', channelID);
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  if (props.id && props.id.length > 5) {
+    bookPattern.value = await findBookPattern();
+  } else {
+    bookPattern.value = await getIDB('bookPattern', props.id);
+  }
+  console.log(bookPattern.value);
+  // if (bookPattern.value && bookPattern.value.parentID) {
+  //   await findParent(bookPattern.value.parentID);
+  // } else {
+  //   shiftStaffs.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
+  //   initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
+  // }
+  const matchingGroup = groups.value.find(group => group.groupName === bookPattern.value.adminGroup);
+  if (matchingGroup && matchingGroup.aliasNames.includes(channel.value.myname)) {
+    iamAdmin.value = true;
+  }
+  generateSchedules();
+  // const calendarData = await getAllIDBs('calendar');
+  // console.log('schedules.value', schedules.value, bookPattern.value);
+  schedules.value.forEach((d) => {
+    // console.log('d', d);
+    calendarsStore.upsert(d);
+  });
+  // window.scrollTo({top: 600, behavior: "smooth"});
+  document.documentElement.scrollTo({ top: 600, behavior: "smooth" });
+  document.body.scrollTo({ top: 600, behavior: "smooth" });
+  // const container = document.getElementById('calendar-container-move');
+  // if (container) {
+  //   container.scrollTo({ top: 600 });
+  // }
+});
+
+async function findBookPattern() {
+  const fd = new FormData();
+  fd.append('bookPatternID', props.id);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('aliasName', channel.value.myname);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/BookPatternGet/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  return res.bookPattern;
+  // bookPattern.value = res.bookPattern;
+  // parentBookPattern.times.forEach((time) => {
+  //   if (time.shiftStaffs) {
+  //     time.shiftStaffs.forEach((staff) => {
+  //       shiftStaffs.value.push({
+  //         shiftStaffID: props.id + time.date.replace(/-/g, "") + staff.shiftStart.replace(":", "") + staff.aliasName,
+  //         aliasName: staff.aliasName,
+  //         shiftStart: `${time.date}T${staff.shiftStart}`, // 日付と時間を結合
+  //         shiftEnd: `${time.date}T${staff.shiftEnd}`, // 日付と時間を結合
+  //         skills: staff.skills,
+  //         seq: staff.seq,
+  //       });
+  //     });
+  //   }
+  // });
+  // initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
+  // console.log('initialStaffs', initialStaffs);
+}
+
+const generateKey = (shift) => `${shift.date}T${shift.shiftStart}_${shift.role}`;
+
+const generateSchedules = () => {
+  bookPattern.value.shifts.forEach((shift, staffIndex) => {
+    const newSchedule = {
+      key: generateKey(shift),
+      date: shift.date,
+      aliasNames: [...shift.aliasNames],
+      timeStart: `${shift.date}T${shift.shiftStart}`,
+      timeEnd: `${shift.date}T${shift.shiftEnd}`,
+      role: shift.role,
+      open: shift.open,
+      start: shift.shiftStart,
+      end: shift.shiftEnd
+    };
+    schedules.value.push(newSchedule);
+    console.log('schedules', schedules.value);
   });
 };
 
-function onOffOK(timeSlot) {
-  const { date, start, end } = timeSlot;
-  const shiftStaffID = props.id + date.replace(/-/g, "") + start.replace(":", "") + channel.value.aliasName;
-  const existingIndex = shiftStaffs.value.findIndex(staff => staff.shiftStaffID === shiftStaffID);
-  if (existingIndex !== -1) {
-    shiftStaffs.value.splice(existingIndex, 1);
+const newSchedule = (day, hour) => {
+  const start = new Date(day);
+  start.setHours(hour, 0);
+  const timeStart = timeFormat('YYYYMMDDThhmmss', start);
+  window.open(`/calendarEdit/?dates=${timeStart}`);
+  // location.href = `/calendarEdit/?dates=${timeStart}`;
+};
+
+const openCalendar = (calendarID) => {
+  window.open(`/calendarEdit/${calendarID}/`);
+};
+
+function jump(days) {
+  const currentDate = new Date(today);
+  currentDate.setDate(currentDate.getDate() + days);
+  const formattedDate = currentDate.toISOString().split('T')[0];
+  location.href = `/calendar/${formattedDate}/`;
+}
+
+const moveStaffToTop = (list, aliasName) => {
+  const index = list.indexOf(aliasName);
+  if (index > 0) { // 0番目なら移動不要
+    list.unshift(list.splice(index, 1)[0]); // 指定した要素を削除し、先頭に追加
+  }
+};
+
+const onOffOK = (list, name) => {
+  const index = list.indexOf(name);
+  if (index === -1) {
+    list.push(name); // 存在しなければ追加
   } else {
-    const count = shiftStaffs.value.filter(staff => staff.shiftStart === date + "T" + start).length + 1;
-    const staff = {
-      shiftStaffID: shiftStaffID,
-      bookPatternID: props.id,
-      aliasName: channel.value.aliasName,
-      shiftStart: date + 'T' + start,
-      shiftEnd: date + 'T' + end,
-      skills: availableSkills.value,
-      seq: count
-    }
-    shiftStaffs.value.push(staff);    
+    list.splice(index, 1); // 存在すれば削除
   }
-}
+};
 
-function submitOK() {
-  const changedData = compareAndUpdateStaffs(initialStaffs, shiftStaffs.value);
-  if (changedData.length < 1) {
-    return
-  }
-  if (!confirm("実行▶️")) {
-    return;
-  }
-  const fd = new FormData();
-  let userIDs = [];
-  let names = [channel.value.aliasName];
-  let iamAdmin = false;
-  if (Array.isArray(channel.value.groupAliases)) {
-    for (const d of channel.value.groupAliases) {
-      if (bookPattern.value.adminGroup == d[0]) {
-        for (const d2 of d[2]) {
-          names.push(d2);
-          if (channel.value.aliasName == d2) {
-            iamAdmin = true;
-          }
-        }
-      }
-    }
-  }
-  if (Array.isArray(bookPattern.value.joinNames)) {
-    for (const d of bookPattern.value.joinNames) {
-      names.push(d);
-    }
-  }
-  for (const d of channel.value.allAliases) {
-    if (names.includes(d[0])) {
-      userIDs.push(d[2]);
-    }
-  }
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', localStorage.channelID);
-  fd.append('aliasName', channel.value.aliasName);
-  fd.append('shiftStaffs', JSON.stringify(changedData));
-  if (bookPattern.value.parentID) {
-    const request = new Request('/ShiftStaffEdit/', {
-      method: 'POST',
-      body: fd,
+const submitShift = async (confirmed) => {
+  const updatedShifts = bookPattern.value.shifts
+    .filter((shift) => {
+      const key = generateKey(shift);
+      const schedule = schedules.value.find(s => s.key === key);
+      return schedule && JSON.stringify(schedule.aliasNames) !== JSON.stringify(shift.aliasNames);
+    })
+    .map(shift => {
+      const key = generateKey(shift);
+      const schedule = schedules.value.find(s => s.key === key);
+      const hasDifferentLength = shift.aliasNames.length !== schedule.aliasNames.length;
+      const hasDifferentOrder = !hasDifferentLength && 
+        shift.aliasNames.some((name, index) => name !== schedule.aliasNames[index]);
+      return {
+        // key,
+        aliasNames: schedule.aliasNames,
+        date: schedule.date,
+        start: schedule.start,
+        end: schedule.end,
+        role: schedule.role,
+        addMinusFlag: hasDifferentLength ? 1 : 0,
+        confirmed: confirmed
+      };
     });
-    fetch(request)
-      .catch((reason)=>{
-        console.log(reason);
-      })
-  } else {
-    fd.append('pushTitle', 'shiftStaffEdit');
-    const request = new Request('/ContentsPush/', {
-      method: 'POST',
-      body: fd,
+  if (updatedShifts.length > 0) {
+    const fd = new FormData();
+    fd.append('bookPatternID', props.id);
+    fd.append('channelID', localStorage.getItem('channelID'));
+    fd.append('aliasName', channel.value.myname);
+    fd.append('csrf', localStorage.getItem('csrf'));
+    fd.append('updatedShifts', JSON.stringify(updatedShifts));
+    fd.append('availableSkills', JSON.stringify(availableSkills.value));
+    const res = await sendRequest('/BookPatternShift/', fd);
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    res.pushContents.forEach(content => {
+      pushReceive(content);
     });
-    fetch(request)
-      .catch((reason)=>{
-        console.log(reason);
-      })
+
   }
-}
-
-function compareAndUpdateStaffs(initialStaffs, updatedStaffs) {
-  console.log('initialStaffs, updatedStaffs', initialStaffs, updatedStaffs);
-  const changedRecords = [];
-  updatedStaffs.forEach((updatedRecord) => {
-    const initialRecord = initialStaffs.find(
-      (initial) =>
-        initial.aliasName === updatedRecord.aliasName &&
-        initial.shiftStart === updatedRecord.shiftStart
-    );
-    if (!initialRecord) {
-      changedRecords.push({
-        ...updatedRecord,
-      });
-    } else if (initialRecord.seq !== updatedRecord.seq) {
-      changedRecords.push({
-        ...updatedRecord,
-      });
-    }
-  });
-  initialStaffs.forEach((initialRecord) => {
-
-    const existsInUpdated = (updatedStaffs || []).some(
-      (updatedRecord) =>
-        updatedRecord.aliasName === initialRecord.aliasName &&
-        updatedRecord.shiftStart === initialRecord.shiftStart
-    );
-    console.log('existsInUpdated', existsInUpdated);
-    if (!existsInUpdated) {
-      changedRecords.push({
-        ...initialRecord,
-        shiftStaffID: initialRecord.shiftStaffID,
-        delete: true,
-      });
-    }
-  });
-  console.log('changedRecords', changedRecords);
-  const submitData = changedRecords.map(staff => {
-    const { shiftStaffID, bookPatternID, ...rest } = staff;
-    return {
-      ...rest,
-      bookPatternID: bookPattern.value.parentID,
-      shiftStaffID: shiftStaffID
-    };
-  });
-  return submitData;
-}
+};
 
 </script>
 
 <template>
-  <div class="book-pattern-page">
-    <h1>{{ bookPattern.bookTitle }}</h1>
-
-  <div>
-    <h3>スキルを選択:</h3>
-    <div v-for="(skill, index) in bookPattern.skills" :key="index">
-      <label>
-        <input
-          type="checkbox"
-          :value="skill"
-          v-model="availableSkills"
-        />
-        {{ skill }}
-      </label>
-    </div>
-
-    <p>選択されたスキル: {{ availableSkills }}</p>
+  <div id="drawer_column">
+    <label for="drawer_check" class="pc_disp_none for_drawer"></label>
+    <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
+    <table id="drawer">
+      <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr v-if="bookPattern">
+        <td>
+          <h3>スキルを選択:</h3>
+          <div v-for="(skill, index) in bookPattern.skills" :key="index">
+            <label>
+              <input
+                type="checkbox"
+                :value="skill"
+                v-model="availableSkills"
+              />
+              {{ skill }}
+            </label>
+          </div>
+          
+          <p>選択されたスキル: {{ availableSkills }}</p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <button @click="submitShift(0)">提出</button>
+          <button @click="submitShift(1)">確定</button>
+        </td>
+      </tr>
+      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+    </table>
   </div>
+  <div id="content">
+    <table id="calendar-container-move">
+      <thead>
+        <tr class="header">
+          <th>≡</th>
+          <th v-for="(day, index) in monthDates" :key="'day-header-' + index">
+            <span>{{ tF('WWW', day) }}</span>
+            <span>{{ tF('MM/DD', day) }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="hour in hours">
+          <td class="back-column" @click="jump(-30)">
+            <span v-if="hour % 6 == 5">
+              ⬅                
+            </span>
+          </td>
+          <td v-for="(day, index) in monthDates" :key="'day-' + index" 
+              class="day-slot"
+              :class="{'sunday': day.getDay() === 0}" >
+            <div v-for="d in getEventsForDayAndHour(day, hour)" 
+               :key="'event-' + d.id" 
+               class="event"
+               :style="decideHeightTop(d)" >
+               {{ d.role }} : <br>
+              <button
+                v-for="(aliasName, openIndex) in d.aliasNames"
+                :style="{
+                  color: aliasName === channel.myname ? 'black' : 'white', 
+                  backgroundColor: openIndex < d.open ? 'blue' : 'silver'
+                }"
+                @click="iamAdmin && moveStaffToTop(d.aliasNames, aliasName)"
 
-    <div v-for="(timeSlot, index) in bookPattern.times" :key="index" class="time-slot">
-      <p>{{ timeSlot.date }} {{ timeSlot.start }} {{ timeSlot.limitStart }} - {{ timeSlot.end }} {{ timeSlot.limitEnd }}</p>
+                >
+                {{ aliasName }}
+              </button>
+              <br>
+              <button 
+                @click="onOffOK(d.aliasNames, channel.myname)" 
+                :style="{ backgroundColor: d.aliasNames.includes(channel.myname) ? 'blue' : 'silver' }">
+                ◯
+              </button>
 
-      <p v-for="(staff, i1) in timeSlot.staffs" :key="i1" > {{ staff[1] ? staff[1] : 'スタッフ' }} : 
-        <button
-          v-for="(d2, i2) in getShiftStaffByDate(timeSlot)" :key="i2"
-          :style="{
-            color: d2.aliasName === channel.aliasName ? 'black' : 'white', 
-            backgroundColor: i2 < staff[0] ? 'blue' : 'silver'
-          }"
-          @click="IamAdmin() && moveStaffToTop(timeSlot, d2.aliasName)"
-          >
-          {{ d2.aliasName }}
-        </button>
-        <br>
-        <button 
-          @click="onOffOK(timeSlot)" 
-          :style="{ backgroundColor: myNameInclude(timeSlot) ? 'blue' : 'silver' }">
-          ◯
-        </button>        
-      </p>
-    </div>
-    <button @click="submitOK">提出</button>
+            </div>
+
+            <span v-if="index % 3 === 0 && getEventsForDayAndHour(day, hour).length === 0"
+                  class="time-hour">
+              {{ hour }}
+            </span>
+          </td>
+          <td class="back-column" @click="jump(30)">
+            <span v-if="hour % 6 == 5">
+              ➡               
+            </span>
+          </td>
+        </tr>
+      </tbody>
+      <thead>
+        <tr class="header">
+          <th>≡</th>
+          <th v-for="(day, index) in monthDates" :key="'day-header-' + index">
+            <span>{{ tF('DD', day) }}</span>
+            <span>{{ tF('WWW', day) }}</span>
+          </th>
+        </tr>
+      </thead>
+    </table>
   </div>
+  <NoticePopup />
 </template>
 
 <style scoped>
-.book-pattern-page {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+.header {
+  background-color: #f0f0f0;
+  height: 30px;
 }
 
-.time-slot {
+.back-column {
+  background-color: #fafafa;
+  padding: 0 2px;
+}
+
+.day-slot {
+  height: 57px;
+  min-width: 120px;
   border: 1px solid #ccc;
-  padding: 10px;
-  margin-bottom: 10px;
+  position: relative;
+}
+
+.event {
+  position: absolute;
+  top: 0px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  word-break: break-word;
+  background-color: rgba(0, 0, 255, 0.25);
+  padding: 2px;
+  z-index: 5
+}
+
+.event button {
+  padding: 4px;
+  margin: 4px;
   border-radius: 4px;
 }
 
-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  height: 36px;
-  margin-left: 4px;
+.time-hour {
+  display: inline-flex;
+  height: 100%;
+  align-items: start;
+  font-size: 0.5rem;
 }
 
-button:hover {
-  background-color: #0056b3;
+.sunday {
+  background-color: rgba(255, 0, 0, 0.1);
 }
+
+#drawer td {
+  background-color: #EEEEEE;
+}
+
+@media screen and (min-width : 701px) {
+  #drawer {
+    margin-top : -1px;
+    background-color: white;
+  }
+}
+
+@media screen and (max-width : 700px) {
+  #drawer {
+    width: 80%;
+    overflow: scroll;
+    position: absolute;
+    z-index: 30;
+    margin: 0;
+    background-color: white;
+    left: -100%;
+    top : 33px;
+    float: left;
+  }
+  .pulling {
+    position: absolute;
+    top: 0px;
+    height: 59px;
+    width: 50px;
+    opacity: 0;
+    z-index: 30;
+  }
+  .pulling:checked ~ #drawer{
+    left: 0px;
+  }
+  .for_drawer {
+    position: absolute;
+    font-size: 40px;
+    top: -10px;
+    width: 50px;
+    text-align: center;
+  }
+}
+
 </style>

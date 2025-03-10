@@ -21,7 +21,12 @@
             "35 ~"
         ]
     ],
-    "facilities": [2, "perm"],
+    "facilities": [
+        {
+            "facility_count": 1,
+            "facility_name": "perm"
+        }
+    ],
     "times": [
         {
             "date": "2024-11-19",
