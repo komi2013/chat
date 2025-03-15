@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "strconv"
@@ -21,20 +21,8 @@ import (
 )
 
 func BookAdd(w http.ResponseWriter, r *http.Request) {
-  _, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-    return
-  }
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Print(err)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
 
+	postBy := r.FormValue("postBy")
 	bookStart := r.FormValue("bookStart")
 	bookEnd := r.FormValue("bookEnd")
 	serviceID, err := strconv.Atoi(r.FormValue("serviceID"))
@@ -58,6 +46,33 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing bookStart or bookEnd", http.StatusBadRequest)
 		return
 	}
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  if err != nil {
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  }
+  defer c.Disconnect(ctx)
+  db1 := c.Database(common.MongoDb1)
+
+  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  if err != nil {
+    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+  }
+
+  trueAccess := false
+  for _, d := range session.ChannelAliases {
+    if d.Alias == postBy {
+      trueAccess = true
+    }
+  }
+  if !trueAccess {
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, r.URL.Path, r.Form)
+    return
+  }
 
   coll := db1.Collection("book_pattern")
   var bookPattern collection.BookPatternStruct
@@ -101,7 +116,7 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 
 	var requestedService *collection.Service
 	for _, service := range bookPattern.Services {
-		if service.ID == serviceID {
+		if service.ServiceID == serviceID {
 			requestedService = &service
 			break
 		}
@@ -110,76 +125,61 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Service ID %d not found", serviceID)
 		return
 	}
-
-	updatedTimes := make([]collection.TimeSlot, len(bookPattern.Times))
-	copy(updatedTimes, bookPattern.Times)
+	// log.Printf("bookPattern %d", bookPattern)
+	// updatedTimes := make([]collection.TimeSlot, len(bookPattern.Times))
+	// copy(updatedTimes, bookPattern.Times)
 	bookingAdded := false
 
-	for i, timeSlot := range updatedTimes {
-		if timeSlot.Date != bookStartTime.Format("2006-01-02") {
-			continue
+	// for _, timeSlot := range bookPattern.WorkStaffs {
+	// 	if timeSlot.Date != bookStartTime.Format("2006-01-02") {
+	// 		continue
+	// 	}
+
+	staffAvailable := false
+	for _, ws := range bookPattern.WorkStaffs {
+		workStart, _ := time.Parse("2006-01-02T15:04", ws.WorkStart)
+		workEnd, _ := time.Parse("2006-01-02T15:04", ws.WorkEnd)
+		if !bookStartTime.Before(workStart) && bookEndTime.Before(workEnd) {
+			staffAvailable = true
+			break
 		}
+	}
+	// log.Printf("staffAvailable %v", staffAvailable)
+	if staffAvailable {
+		overlaps := false
+		for _, booking := range bookPattern.Books { // TimeSlot ではなく bookPattern から Books を参照
+			bookedStart, _ := time.Parse("2006-01-02T15:04", booking.BookStart)
+			bookedEnd, _ := time.Parse("2006-01-02T15:04", booking.BookEnd)
 
-		staffAvailable := false
-		for _, staff := range timeSlot.WorkStaffs {
-			staffStart, _ := time.Parse("15:04", staff.WorkStart)
-			staffEnd, _ := time.Parse("15:04", staff.WorkEnd)
+			existingStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), bookedStart.Hour(), bookedStart.Minute(), 0, 0, bookStartTime.Location())
+			existingEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), bookedEnd.Hour(), bookedEnd.Minute(), 0, 0, bookEndTime.Location())
 
-			workStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), staffStart.Hour(), staffStart.Minute(), 0, 0, bookStartTime.Location())
-			workEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), staffEnd.Hour(), staffEnd.Minute(), 0, 0, bookEndTime.Location())
-			if !bookStartTime.Before(workStart) && bookEndTime.Before(workEnd) &&
-			    (requestedService.NeedSkill == "" || contains(staff.Skills, requestedService.NeedSkill)) {
-			    staffAvailable = true
-			    break
-			}
-		}
-
-		if staffAvailable {
-			overlaps := false
-			for _, booking := range timeSlot.Books {
-				bookedStart, _ := time.Parse("15:04", booking.BookStart)
-				bookedEnd, _ := time.Parse("15:04", booking.BookEnd)
-
-				existingStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), bookedStart.Hour(), bookedStart.Minute(), 0, 0, bookStartTime.Location())
-				existingEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), bookedEnd.Hour(), bookedEnd.Minute(), 0, 0, bookEndTime.Location())
-				if (bookEndTime.After(existingStart) && bookStartTime.Before(existingEnd)) {
-					overlaps = true
-					break
-				}
-			}
-
-			if !overlaps {
-				newBooking := collection.Books{
-					BookStart: bookStartTime.Format("15:04"),
-					BookEnd:   bookEndTime.Format("15:04"),
-					Answers:   answers,
-					ServiceID: serviceID,
-				}
-				updatedTimes[i].Books = append(updatedTimes[i].Books, newBooking)
-				bookingAdded = true
+			if bookEndTime.After(existingStart) && bookStartTime.Before(existingEnd) {
+				overlaps = true
 				break
 			}
 		}
-	}
 
-	if bookingAdded {
-		if requestedService.PrepaidPrice == 0 {
-			bookingAdded = false
-			// if requestedService.PrepaidPrice > ss.Yen {
-			// 	bookingAdded = false
-			// }
+		if !overlaps {
+			newBooking := collection.Book{ // collection.Books → collection.Book に修正
+				BookStart: bookStartTime.Format("2006-01-02T15:04"),
+				BookEnd:   bookEndTime.Format("2006-01-02T15:04"),
+				Answers:   answers,
+				ServiceID: serviceID,
+			}
+			bookPattern.Books = append(bookPattern.Books, newBooking) // TimeSlot ではなく bookPattern に追加
+			bookingAdded = true
+			// break
 		}
-	} else {
-		log.Printf("bookingAdded: %v", bookingAdded)
 	}
 
 	update := bson.M{
 		"$unset": bson.M{"lock": ""},
 	}
-
+	log.Printf("bookingAdded %d", bookingAdded)
 	if bookingAdded {
 		update["$set"] = bson.M{
-			"times": updatedTimes,
+			"books": bookPattern.Books,
 		}
 	}
 	opts := options.Update().SetUpsert(false)
@@ -190,124 +190,16 @@ func BookAdd(w http.ResponseWriter, r *http.Request) {
     log.Printf("Update error: %v", err)
     return
   }
-  w.WriteHeader(http.StatusOK)
-  fmt.Fprint(w, "Work staffs updated successfully")
+	responseData := struct {
+		Csrf         string        `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }
-
-// func AddBooking(ctx context.Context, db *mongo.Database, collectionName string, bookPatternID primitive.ObjectID, bookStart string, bookEnd string, menuID int, answers []string) (bool, error) {
-// 	collection := db.Collection(collectionName)
-
-// 	// Find the existing BookPatternStruct
-// 	var bookPattern collection.BookPatternStruct
-// 	err := collection.FindOne(ctx, bson.M{"_id": bookPatternID}).Decode(&bookPattern)
-// 	if err != nil {
-// 		return false, err
-// 	}
-
-// 	layout := "2006-01-02T15:04"
-// 	bookStartTime, err := time.Parse(layout, bookStart)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	bookEndTime, err := time.Parse(layout, bookEnd)
-// 	if err != nil {
-// 		return false, err
-// 	}
-
-// 	// Find the requested menu
-// 	var requestedMenu *collection.MenuItem
-// 	for _, menu := range bookPattern.Menus {
-// 		if menu.ID == menuID {
-// 			requestedMenu = &menu
-// 			break
-// 		}
-// 	}
-// 	if requestedMenu == nil {
-// 		log.Printf("Menu ID %d not found", menuID)
-// 		return false, nil
-// 	}
-
-// 	// Initialize updatedTimes
-// 	updatedTimes := make([]collection.TimeSlot, len(bookPattern.Times))
-// 	copy(updatedTimes, bookPattern.Times)
-
-// 	bookingAdded := false
-
-// 	// Process each time slot
-// 	for i, timeSlot := range updatedTimes {
-// 		if timeSlot.Date != bookStartTime.Format("2006-01-02") {
-// 			continue
-// 		}
-
-// 		staffAvailable := false
-// 		for _, staff := range timeSlot.ShiftStaffs {
-// 			staffStart, _ := time.Parse("15:04", staff.ShiftStart)
-// 			staffEnd, _ := time.Parse("15:04", staff.ShiftEnd)
-
-// 			shiftStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), staffStart.Hour(), staffStart.Minute(), 0, 0, bookStartTime.Location())
-// 			shiftEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), staffEnd.Hour(), staffEnd.Minute(), 0, 0, bookEndTime.Location())
-
-// 			// Check skill and time availability
-// 			if bookStartTime.After(shiftStart) && bookEndTime.Before(shiftEnd) &&
-// 				(requestedMenu.NeedSkill == "" || contains(staff.Skills, requestedMenu.NeedSkill)) {
-// 				staffAvailable = true
-// 				break
-// 			}
-// 		}
-
-// 		// Check booking overlaps
-// 		if staffAvailable {
-// 			overlaps := false
-// 			for _, booking := range timeSlot.Books {
-// 				bookedStart, _ := time.Parse("15:04", booking.BookStart)
-// 				bookedEnd, _ := time.Parse("15:04", booking.BookEnd)
-
-// 				existingStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), bookedStart.Hour(), bookedStart.Minute(), 0, 0, bookStartTime.Location())
-// 				existingEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), bookedEnd.Hour(), bookedEnd.Minute(), 0, 0, bookEndTime.Location())
-
-// 				if !(bookEndTime.Before(existingStart) || bookStartTime.After(existingEnd)) {
-// 					overlaps = true
-// 					break
-// 				}
-// 			}
-
-// 			// Add booking if no overlap
-// 			if !overlaps {
-// 				newBooking := collection.Books{
-// 					BookStart: bookStartTime.Format("15:04"),
-// 					BookEnd:   bookEndTime.Format("15:04"),
-// 					Answers:   answers,
-// 					MenuID:    menuID,
-// 				}
-// 				updatedTimes[i].Books = append(updatedTimes[i].Books, newBooking)
-// 				bookingAdded = true
-// 				break
-// 			}
-// 		}
-// 	}
-
-// 	if !bookingAdded {
-// 		log.Printf("bookingAdded: %v", bookingAdded)
-// 		return false, nil
-// 	}
-
-// 	// Update the MongoDB document
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"times": updatedTimes,
-// 		},
-// 		"$unset": bson.M{"lock": ""},
-// 	}
-// 	opts := options.Update().SetUpsert(false)
-
-// 	_, err = collection.UpdateOne(ctx, bson.M{"_id": bookPatternID}, update, opts)
-// 	if err != nil {
-// 		return false, err
-// 	}
-
-// 	log.Printf("Booking successfully added")
-// 	return true, nil
-// }
 
 func contains(slice []string, value string) bool {
 	for _, v := range slice {
@@ -318,14 +210,11 @@ func contains(slice []string, value string) bool {
 	return false
 }
 
-
-
-
 func isTimeInRange(targetStart, targetEnd, rangeStart, rangeEnd, date string) bool {
 	if date != targetStart[:10] {
 		return false
 	}
-	layout := "15:04"
+	layout := "2006-01-02T15:04"
 	tStart, _ := time.Parse(layout, targetStart)
 	tEnd, _ := time.Parse(layout, targetEnd)
 	rStart, _ := time.Parse(layout, rangeStart)
@@ -334,8 +223,8 @@ func isTimeInRange(targetStart, targetEnd, rangeStart, rangeEnd, date string) bo
 	return !tStart.Before(rStart) && !tEnd.After(rEnd)
 }
 
-func countBookings(bookings []collection.Books, targetStart, targetEnd string) int {
-	layout := "15:04"
+func countBookings(bookings []collection.Book, targetStart, targetEnd string) int {
+	layout := "2006-01-02T15:04"
 	tStart, _ := time.Parse(layout, targetStart)
 	tEnd, _ := time.Parse(layout, targetEnd)
 

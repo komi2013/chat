@@ -13,22 +13,13 @@ a {
   word-break: break-all;
 }
 
-/*.emoji {
-  font-size: 40px;
-}
-.icon {
-  max-height: 48px;
-  vertical-align: middle;
-}*/
 @media screen and (min-width : 701px) { 
   #drawer_column {
     width : 300px;
-    /*float : left;*/
     position: absolute;
   }
   #content{
     width: 400px;
-    /*float:left;*/
     margin: 0px 4px 0px 300px;
     position: absolute;
   }
@@ -49,10 +40,5 @@ a {
   }
   .sp_disp_none{
     display: none;
-  }
-  .menu{
-    width: 50px;
-    height: 50px;
-    font-size: 40px;
   }
 }

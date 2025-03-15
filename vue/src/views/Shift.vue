@@ -1,11 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 
-import NoticePopup from '@/components/NoticePopup.vue';
-import SelectPeople from '@/components/SelectPeople.vue';
-import { useCalendarsStore } from '@/stores/calendars.js';
-// import { useNoticesStore } from '@/stores/notices.js';
-
 import { userIDsByName } from '@/my/channelFunc';
 
 const props = defineProps({
@@ -15,8 +10,13 @@ const props = defineProps({
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
-const calendarsStore = useCalendarsStore();
-const schedules = computed(() => calendarsStore.calendars);
+// const calendarsStore = useCalendarsStore();
+// const schedules = computed(() => calendarsStore.calendars);
+
+// const schedules = computed(() => {
+//   console.log("schedules recalculated!", calendarsStore.calendars);
+//   return calendarsStore.calendars;
+// });
 
 const today = props.date || timeFormat('YYYY-MM-DD');
 const getNext30Days = () => {
@@ -27,10 +27,44 @@ const getNext30Days = () => {
   });
 };
 const monthDates = getNext30Days();
+
+async function findBookPattern() {
+  const fd = new FormData();
+  fd.append('bookPatternID', props.id);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('aliasName', channel.value.myname);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  const res = await sendRequest('/BookPatternGet/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  return res.bookPattern;
+}
+
+const generateKey = (shift) => `${shift.shiftStart}_${shift.role}`;
+
+const generateSchedules = () => {
+  console.log('times', bookPattern.value.times);
+  bookPattern.value.shifts.forEach((shift, staffIndex) => {
+    const newSchedule = {
+      key: generateKey(shift),
+      aliasNames: [...shift.aliasNames],
+      timeStart: `${shift.shiftStart}`,
+      timeEnd: `${shift.shiftEnd}`,
+      role: shift.role,
+      open: shift.open,
+      start: shift.shiftStart,
+      end: shift.shiftEnd,
+      fix: shift.fix
+    };
+    schedules.value.push(newSchedule);
+  });
+};
+
 const getEventsForDayAndHour = (day, hour) => {
   const events = schedules.value.filter((event) => {
     const start = new Date(event.timeStart);
-
     return (
       start.getFullYear() === day.getFullYear() &&
       start.getMonth() === day.getMonth() &&
@@ -50,12 +84,12 @@ const decideHeightTop = (schedule) => {
   console.log('height', height);
   const opacity = schedule.index === 0 ? 1 : 0.5;
   const zindex = (schedule.index + 1) * 4;
-  const width = 120 / schedule.total;
+  const width = 118 / schedule.total;
   const left = schedule.index * width;
   const colors = ["rgba(255, 0, 0, 0.25)", "rgba(255, 255, 0, 0.25)", "rgba(128, 0, 128, 0.25)", "rgba(0, 0, 255, 0.25)"];
   const backgroundColor = colors[schedule.nameCount - 1] || colors[3];
   return {
-    height: `${height}px`,
+    height: `${height -6}px`,
     top: `${top}px`,
     opacity: `${opacity}`,
     "z-index": `${zindex}`,
@@ -72,7 +106,9 @@ const bookPattern = ref(null);
 const availableSkills = ref([]);
 const iamAdmin = ref(false);
 const shiftStaffs = ref([]);
-let initialStaffs = [];
+// let initialStaffs = [];
+const schedules = ref([]);
+
 onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
@@ -82,95 +118,17 @@ onMounted(async() => {
   } else {
     bookPattern.value = await getIDB('bookPattern', props.id);
   }
-  console.log(bookPattern.value);
-  // if (bookPattern.value && bookPattern.value.parentID) {
-  //   await findParent(bookPattern.value.parentID);
-  // } else {
-  //   shiftStaffs.value = await getIDBs('shiftStaff', 'bookPatternIDIndex', props.id);
-  //   initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
-  // }
   const matchingGroup = groups.value.find(group => group.groupName === bookPattern.value.adminGroup);
   if (matchingGroup && matchingGroup.aliasNames.includes(channel.value.myname)) {
     iamAdmin.value = true;
   }
+  const matchedStaff = bookPattern.value.staffSkills.find(
+    (staff) => staff.aliasName === channel.value.myname
+  );
+  availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
   generateSchedules();
-  // const calendarData = await getAllIDBs('calendar');
-  // console.log('schedules.value', schedules.value, bookPattern.value);
-  schedules.value.forEach((d) => {
-    // console.log('d', d);
-    calendarsStore.upsert(d);
-  });
-  // window.scrollTo({top: 600, behavior: "smooth"});
-  document.documentElement.scrollTo({ top: 600, behavior: "smooth" });
-  document.body.scrollTo({ top: 600, behavior: "smooth" });
-  // const container = document.getElementById('calendar-container-move');
-  // if (container) {
-  //   container.scrollTo({ top: 600 });
-  // }
+  window.scrollTo({top: 600, behavior: "smooth"});
 });
-
-async function findBookPattern() {
-  const fd = new FormData();
-  fd.append('bookPatternID', props.id);
-  fd.append('channelID', localStorage.getItem('channelID'));
-  fd.append('aliasName', channel.value.myname);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/BookPatternGet/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  return res.bookPattern;
-  // bookPattern.value = res.bookPattern;
-  // parentBookPattern.times.forEach((time) => {
-  //   if (time.shiftStaffs) {
-  //     time.shiftStaffs.forEach((staff) => {
-  //       shiftStaffs.value.push({
-  //         shiftStaffID: props.id + time.date.replace(/-/g, "") + staff.shiftStart.replace(":", "") + staff.aliasName,
-  //         aliasName: staff.aliasName,
-  //         shiftStart: `${time.date}T${staff.shiftStart}`, // 日付と時間を結合
-  //         shiftEnd: `${time.date}T${staff.shiftEnd}`, // 日付と時間を結合
-  //         skills: staff.skills,
-  //         seq: staff.seq,
-  //       });
-  //     });
-  //   }
-  // });
-  // initialStaffs = JSON.parse(JSON.stringify(shiftStaffs.value));
-  // console.log('initialStaffs', initialStaffs);
-}
-
-const generateKey = (shift) => `${shift.date}T${shift.shiftStart}_${shift.role}`;
-
-const generateSchedules = () => {
-  bookPattern.value.shifts.forEach((shift, staffIndex) => {
-    const newSchedule = {
-      key: generateKey(shift),
-      date: shift.date,
-      aliasNames: [...shift.aliasNames],
-      timeStart: `${shift.date}T${shift.shiftStart}`,
-      timeEnd: `${shift.date}T${shift.shiftEnd}`,
-      role: shift.role,
-      open: shift.open,
-      start: shift.shiftStart,
-      end: shift.shiftEnd
-    };
-    schedules.value.push(newSchedule);
-    console.log('schedules', schedules.value);
-  });
-};
-
-const newSchedule = (day, hour) => {
-  const start = new Date(day);
-  start.setHours(hour, 0);
-  const timeStart = timeFormat('YYYYMMDDThhmmss', start);
-  window.open(`/calendarEdit/?dates=${timeStart}`);
-  // location.href = `/calendarEdit/?dates=${timeStart}`;
-};
-
-const openCalendar = (calendarID) => {
-  window.open(`/calendarEdit/${calendarID}/`);
-};
 
 function jump(days) {
   const currentDate = new Date(today);
@@ -181,44 +139,52 @@ function jump(days) {
 
 const moveStaffToTop = (list, aliasName) => {
   const index = list.indexOf(aliasName);
-  if (index > 0) { // 0番目なら移動不要
-    list.unshift(list.splice(index, 1)[0]); // 指定した要素を削除し、先頭に追加
+  if (index > 0) {
+    list.unshift(list.splice(index, 1)[0]);
   }
 };
 
 const onOffOK = (list, name) => {
   const index = list.indexOf(name);
   if (index === -1) {
-    list.push(name); // 存在しなければ追加
+    list.push(name);
   } else {
-    list.splice(index, 1); // 存在すれば削除
+    list.splice(index, 1);
   }
 };
 
-const submitShift = async (confirmed) => {
+const toggleFix = (scheduleKey) => {
+  const schedule = schedules.value.find(s => s.key === scheduleKey);
+  if (schedule) {
+    schedule.fix = !schedule.fix; // fixの状態を切り替え
+    console.log(`Updated fix for ${scheduleKey}:`, schedule.fix);
+  }
+};
+
+const submitShift = async () => {
   const updatedShifts = bookPattern.value.shifts
-    .filter((shift) => {
+    .filter(shift => {
       const key = generateKey(shift);
       const schedule = schedules.value.find(s => s.key === key);
-      return schedule && JSON.stringify(schedule.aliasNames) !== JSON.stringify(shift.aliasNames);
+      return schedule &&
+        (
+          JSON.stringify(schedule.aliasNames) !== JSON.stringify(shift.aliasNames)
+          || (schedule.fix && !shift.fix)
+        );
     })
     .map(shift => {
       const key = generateKey(shift);
       const schedule = schedules.value.find(s => s.key === key);
-      const hasDifferentLength = shift.aliasNames.length !== schedule.aliasNames.length;
-      const hasDifferentOrder = !hasDifferentLength && 
-        shift.aliasNames.some((name, index) => name !== schedule.aliasNames[index]);
       return {
-        // key,
         aliasNames: schedule.aliasNames,
-        date: schedule.date,
-        start: schedule.start,
-        end: schedule.end,
+        shiftStart: schedule.start,
+        shiftEnd: schedule.end,
         role: schedule.role,
-        addMinusFlag: hasDifferentLength ? 1 : 0,
-        confirmed: confirmed
+        fix: schedule.fix,
+        open: schedule.open
       };
     });
+
   if (updatedShifts.length > 0) {
     const fd = new FormData();
     fd.append('bookPatternID', props.id);
@@ -226,6 +192,7 @@ const submitShift = async (confirmed) => {
     fd.append('aliasName', channel.value.myname);
     fd.append('csrf', localStorage.getItem('csrf'));
     fd.append('updatedShifts', JSON.stringify(updatedShifts));
+    // fd.append('confirmed', confirmed);
     fd.append('availableSkills', JSON.stringify(availableSkills.value));
     const res = await sendRequest('/BookPatternShift/', fd);
     res.csrf && localStorage.setItem('csrf', res.csrf);
@@ -263,8 +230,8 @@ const submitShift = async (confirmed) => {
       </tr>
       <tr>
         <td>
-          <button @click="submitShift(0)">提出</button>
-          <button @click="submitShift(1)">確定</button>
+          <button @click="submitShift">提出</button>
+          <!-- <button @click="submitShift(1)">確定</button> -->
         </td>
       </tr>
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
@@ -311,9 +278,13 @@ const submitShift = async (confirmed) => {
               <button 
                 @click="onOffOK(d.aliasNames, channel.myname)" 
                 :style="{ backgroundColor: d.aliasNames.includes(channel.myname) ? 'blue' : 'silver' }">
-                ◯
+                登録
               </button>
-
+              <button 
+                @click="toggleFix(d.key)"
+                :style="{ backgroundColor: d.fix ? 'blue' : 'silver' }">
+                確定
+              </button>
             </div>
 
             <span v-if="index % 3 === 0 && getEventsForDayAndHour(day, hour).length === 0"
@@ -330,7 +301,7 @@ const submitShift = async (confirmed) => {
       </tbody>
       <thead>
         <tr class="header">
-          <th>≡</th>
+          <th></th>
           <th v-for="(day, index) in monthDates" :key="'day-header-' + index">
             <span>{{ tF('DD', day) }}</span>
             <span>{{ tF('WWW', day) }}</span>
@@ -339,7 +310,6 @@ const submitShift = async (confirmed) => {
       </thead>
     </table>
   </div>
-  <NoticePopup />
 </template>
 
 <style scoped>

@@ -55,7 +55,6 @@ func BookPatternGet(w http.ResponseWriter, r *http.Request) {
   }
 
 	coll := db1.Collection("book_pattern")
-
 	var bookPattern collection.BookPatternStruct
 	filter := bson.M{"_id": bookPatternID}
 	err = coll.FindOne(ctx, filter).Decode(&bookPattern)

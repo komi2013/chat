@@ -29,7 +29,7 @@ func main() {
 		http.HandleFunc("/ReceptionDelete/", controller.ReceptionDelete)
 		http.HandleFunc("/ReceptionGet/", controller.ReceptionGet)
 		http.HandleFunc("/ReceptionOrder/", controller.ReceptionOrder)
-		http.HandleFunc("/ShiftStaffEdit/", controller.ShiftStaffEdit)
+		// http.HandleFunc("/ShiftStaffEdit/", controller.ShiftStaffEdit)
 		// http.HandleFunc("/StorePush/", controller.StorePush)
 		// http.HandleFunc("/StoreSelect/", controller.StoreSelect)
 		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
