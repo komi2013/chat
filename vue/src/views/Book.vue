@@ -47,180 +47,158 @@ async function findBookPattern() {
   return res.bookPattern;
 }
 
-// const generateKey = (shift) => `${shift.shiftStart}_${shift.role}`;
-
-// const generateSchedules = (del = false) => {
-//   schedules.value = [];
-//   if (del) {
-//     return
-//   } else {
-//     serviceID.value;
-//     bookPattern.value.workStaffs.forEach((work) => {
-//       const newSchedule = {
-//         timeStart: `${work.workStart}`,
-//         timeEnd: `${work.workEnd}`
-//       };
-//       schedules.value.push(newSchedule);
-//     });    
-//   }
-// };
-
 const generateSchedules = () => {
   if (!bookPattern.value) return;
+  schedules.value = []; // 既存のデータをリセット
 
-  // `serviceID.value` が設定されていない場合 → 元のロジック
-  // serviceID.value = 2;
-  if (!serviceID.value) {
-    bookPattern.value.workStaffs.forEach((work) => {
-      const newSchedule = {
-        timeStart: work.workStart,
-        timeEnd: work.workEnd,
-        aliasName: work.aliasName
-      };
-      schedules.value.push(newSchedule);
-    });
-    return;
-  }
-
-  // `serviceID.value` に該当するサービスを取得
-  const selectedService = bookPattern.value.services.find(service => service.serviceID === serviceID.value);
-  if (!selectedService) return;
-
-  // `needSkill` を取得（無い場合は制限なし）
-  const requiredSkill = selectedService.needSkill || null;
-
-  // `needSkill` を持つスタッフ (`staffSkills` から取得)
-  let skilledStaffAliases = new Set();
-  if (requiredSkill) {
-    skilledStaffAliases = new Set(
-      bookPattern.value.staffSkills
-        .filter(staff => staff.skills.includes(requiredSkill))
-        .map(staff => staff.aliasName)
-    );
-  }
-
-  // `workStaffs` の `aliasName` が `skilledStaffAliases` に含まれる場合のみ `schedules.value` に追加
-  bookPattern.value.workStaffs.forEach((work) => {
-    if (!requiredSkill || skilledStaffAliases.has(work.aliasName)) {
-      const newSchedule = {
-        timeStart: work.workStart,
-        timeEnd: work.workEnd,
-        aliasName: work.aliasName,
-        serviceID: serviceID.value
-      };
-      schedules.value.push(newSchedule);
-    }
+  const today = props.date || timeFormat("YYYY-MM-DD");
+  const monthDates = Array.from({ length: 30 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    return date.toISOString().split("T")[0]; // "YYYY-MM-DD" の形式
   });
+
+  let tempSchedules = []; // 各 `workStaffs` の処理結果を一時保存
+
+  monthDates.forEach(date => {
+    // `books` のフラグをリセット（毎回 `workStaffs` のループごとにリセットしない）
+    bookPattern.value.books.forEach(book => (book.splitted = false));
+
+    bookPattern.value.workStaffs.forEach(work => {
+      if (!isSameDate(work.workStart, date)) return;
+
+      let start = new Date(work.workStart);
+      let end = new Date(work.workEnd);
+
+      console.log(`【workStaffsループ】${formatDateTime(start)} ~ ${formatDateTime(end)}`);
+
+      let splitBlocks = splitWorkTime(start, end, bookPattern.value.books);
+
+      splitBlocks.forEach(({ start, end }) => {
+        tempSchedules.push({
+          timeStart: start,
+          timeEnd: end,
+        });
+      });
+    });
+  });
+
+  // **最終的に分割された `schedule` を統合**
+  console.log('tempSchedules', tempSchedules);
+  schedules.value = mergeSchedules(tempSchedules);
+
+  console.log("【最終 schedules】", JSON.stringify(schedules.value, null, 2));
 };
+
+const splitWorkTime = (workStart, workEnd, books) => {
+  console.log(`【splitWorkTime】処理開始: ${formatDateTime(workStart)} ~ ${formatDateTime(workEnd)}`);
+
+  let blocks = [{ start: new Date(workStart), end: new Date(workEnd) }];
+  let remainingBooks = books
+    .filter(book => isOverlapping(workStart, workEnd, book.bookStart, book.bookEnd) && !book.splitted)
+    .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
+
+  remainingBooks.forEach(book => {
+    let bookStart = new Date(book.bookStart);
+    let bookEnd = new Date(book.bookEnd);
+
+    console.log(`  【予約判定】${formatDateTime(bookStart)} ~ ${formatDateTime(bookEnd)}`);
+
+    let newBlocks = [];
+
+    blocks.forEach(({ start, end }) => {
+      console.log('start:', formatDateTime(start), 'end:', formatDateTime(end));
+      if (bookStart > start && bookStart < end) {
+        console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
+        newBlocks.push({ start: new Date(start), end: new Date(bookStart) });
+        book.splitted = true;
+      }
+
+      console.log(formatDateTime(bookEnd), '>', formatDateTime(start), '&&', formatDateTime(bookEnd), '<', formatDateTime(end));
+      // 17:30 ~ 18:30 book
+
+      if (bookStart > start && bookEnd < end) {
+        console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
+        newBlocks.push({ start: new Date(bookEnd), end: new Date(end) });
+      }
+    });
+
+    blocks = newBlocks.length > 0 ? newBlocks : blocks;
+  });
+
+  return blocks;
+};
+
+const mergeSchedules = (schedules) => {
+  if (schedules.length === 0) return [];
+
+  schedules.sort((a, b) => new Date(a.timeStart) - new Date(b.timeStart));
+
+  let mergedSchedules = [schedules[0]];
+
+  for (let i = 1; i < schedules.length; i++) {
+    let lastSchedule = mergedSchedules[mergedSchedules.length - 1];
+    let currentSchedule = schedules[i];
+
+    if (new Date(lastSchedule.timeEnd) >= new Date(currentSchedule.timeStart)) {
+      lastSchedule.timeEnd = new Date(Math.max(new Date(lastSchedule.timeEnd).getTime(), new Date(currentSchedule.timeEnd).getTime()));
+    } else {
+      mergedSchedules.push(currentSchedule);
+    }
+  }
+
+  return mergedSchedules.map(schedule => ({
+    timeStart: formatDateTime(schedule.timeStart),
+    timeEnd: formatDateTime(schedule.timeEnd),
+  }));
+};
+
+// **関数はそのまま**
+const isSameDate = (workStart, date) => workStart.split("T")[0] === date;
+const isOverlapping = (startA, endA, startB, endB) => !(new Date(startA) >= new Date(endB) || new Date(endA) <= new Date(startB));
+const formatDateTime = (date) => date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0") + "T" + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
 
 
 const getEventsForDayAndHour = (day, hour) => {
-  if (!bookPattern.value) return [];
-
-  // `bookStart` の日付と時間を `YYYY-MM-DD-HH` の形式で取得（重複なし）
-  const bookedHours = new Set(
-    bookPattern.value.books.map(book => {
-      const bookDate = new Date(book.bookStart);
-      return `${bookDate.toISOString().split('T')[0]}-${bookDate.getHours()}`;
-    })
-  );
-
-  // console.log('bookedHours', bookedHours); // 確認用ログ
-
-  return schedules.value
-    .filter((event) => {
-      const start = new Date(event.timeStart);
-      const end = new Date(event.timeEnd);
-
-      // 対象の日付と時間を `YYYY-MM-DD-HH` 形式に変換
-      const eventKey = `${start.toISOString().split('T')[0]}-${hour}`;
-
-      // 指定した `hour` に該当するイベントを抽出
-      const isWithinHour =
-        start.getFullYear() === day.getFullYear() &&
-        start.getMonth() === day.getMonth() &&
-        start.getDate() === day.getDate() &&
-        (
-          (start.getHours() === hour) ||
-          (start.getHours() < hour && end.getHours() > hour)
-        );
-
-      if (!isWithinHour) return false;
-
-      // 予約のある `hour`（かつ同じ日）のみ、予約数チェックを行う
-      if (bookedHours.has(eventKey)) {
-        let bookCount = bookPattern.value.books.reduce((count, book) => {
-          const bookStart = new Date(book.bookStart);
-          const bookEnd = new Date(book.bookEnd);
-
-          const isOverlapping =
-            (start >= bookStart && start < bookEnd) ||
-            (end > bookStart && end <= bookEnd) ||
-            (start <= bookStart && end >= bookEnd);
-
-          return isOverlapping ? count + 1 : count;
-        }, 0);
-
-        // 同じ時間帯のスケジュール数を取得
-        const sameHourCount = schedules.value.filter(e => {
-          const eStart = new Date(e.timeStart);
-          const eEnd = new Date(e.timeEnd);
-          return (
-            eStart.getFullYear() === day.getFullYear() &&
-            eStart.getMonth() === day.getMonth() &&
-            eStart.getDate() === day.getDate() &&
-            (
-              (eStart.getHours() === hour) ||
-              (eStart.getHours() < hour && eEnd.getHours() > hour)
-            )
-          );
-        }).length;
-
-        // 施設のカウントを考慮する
-        let facilityLimitExceeded = false;
-
-        // 予約されているサービスの `needFacility` を取得
-        bookPattern.value.books.forEach(book => {
-          const service = bookPattern.value.services.find(s => s.serviceID === book.serviceID);
-          if (service?.needFacility) {
-            // `facilityName` が `needFacility` に一致する `facilityCount` を取得
-            const facility = bookPattern.value.facilities.find(f => f.facilityName === service.needFacility);
-            if (facility) {
-              // 同じ `needFacility` を持つ予約の数をカウント
-              const bookedFacilityCount = bookPattern.value.books.filter(b => {
-                const bService = bookPattern.value.services.find(s => s.serviceID === b.serviceID);
-                return bService?.needFacility === service.needFacility;
-              }).length;
-
-              // 予約数が施設のカウントを超えたら制限
-              if (bookedFacilityCount >= facility.facilityCount) {
-                facilityLimitExceeded = true;
-              }
-            }
-          }
-        });
-
-        // 予約数が `同じ時間帯のスケジュール数` 以上、または `施設制限` を超えていたら除外
-        if (bookCount >= sameHourCount || facilityLimitExceeded) return false;
-      }
-
-      return true;
-    })
-    .map((event, index, array) => ({ ...event, index, total: array.length }));
+  const events = schedules.value.filter((event) => {
+    const start = new Date(event.timeStart);
+    const end = new Date(event.timeEnd);
+    if ( hour == 17 && day.getDate() == 18) {
+      console.log('getEventsForDayAndHour', hour, start.getHours(), '<=', hour, '&&', end.getHours(), '>=', hour);
+    }
+    return (
+      start.getFullYear() === day.getFullYear() &&
+      start.getMonth() === day.getMonth() &&
+      start.getDate() === day.getDate() &&
+      start.getHours() <= hour &&
+      end.getHours() >= hour
+    );
+  });
+  return events.map((event, index) => ({ ...event, index, total: events.length }));
 };
 
 
-const decideHeightTop = (schedule) => {
+const decideHeightTop = (schedule, hour) => {
   const start = new Date(schedule.timeStart);
   const end = new Date(schedule.timeEnd);
   const minuteHeight = 1;
-  const top = start.getMinutes() * minuteHeight;
-  let height = (end - start) / (1000 * 60) * minuteHeight;
-  // console.log('height', height);
-  if (height > 60) {
-    height = 60;
+  let top = start.getMinutes() * minuteHeight;
+  if (hour > start.getHours()) {
+    top = 0;
   }
+  let height;
+  // let height = (end - start) / (1000 * 60) * minuteHeight;
+  // if ( (hour == 17 || hour == 18 || hour == 19) && start.getDate()) {
+  //   console.log('decideHeightTop', hour, height, start, end);
+  // }
+  if (end.getHours() > hour) {
+    height = 60;
+  } else {
+    height = end.getMinutes();
+  }
+  // height = height - top;
   // const opacity = schedule.index === 0 ? 1 : 0.5;
+
   const opacity = 1;
   const zindex = 2;
   const width = 118;
@@ -263,6 +241,7 @@ onMounted(async() => {
   );
   availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
   generateSchedules();
+  console.log(schedules.value);
   window.scrollTo({top: 600, behavior: "smooth"});
   document.title = bookPattern.value.bookTitle;
 });
@@ -350,16 +329,19 @@ const closeModal = () => {
               ⬅                
             </span>
           </td>
-          <td v-for="(day, index) in monthDates" :key="'day-' + index" class="day-slot" >
+
+          <td v-for="(day, index) in monthDates" :key="'day-' + index" 
+              class="day-slot"
+              :class="{'sunday': day.getDay() === 0}"
+              @click="newSchedule(day, hour)">
             <div v-for="d in getEventsForDayAndHour(day, hour)" 
                :key="'event-' + d.id" 
                class="event"
-               :style="decideHeightTop(d)"
-               @click="openModal(day, hour)"
+               :style="decideHeightTop(d, hour)"
+               @click.stop="openCalendar(d.calendarID)"
                >
-               予約可
+               {{ d.title }}
             </div>
-
             <span v-if="index % 3 === 0 && getEventsForDayAndHour(day, hour).length === 0"
                   class="time-hour">
               {{ hour }}
