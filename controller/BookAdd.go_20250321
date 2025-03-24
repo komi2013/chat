@@ -1,0 +1,240 @@
+package controller
+
+import (
+  "context"
+  "encoding/json"
+  // "fmt"
+  "log"
+  "net/http"
+  "strconv"
+  "time"
+
+  "go.mongodb.org/mongo-driver/mongo"
+  "go.mongodb.org/mongo-driver/bson"
+  "go.mongodb.org/mongo-driver/mongo/options"
+  "go.mongodb.org/mongo-driver/bson/primitive"
+
+  // "github.com/mitchellh/mapstructure"
+
+  "chat/collection"
+  "chat/common"
+)
+
+func BookAdd(w http.ResponseWriter, r *http.Request) {
+
+  postBy := r.FormValue("postBy")
+  bookStart := r.FormValue("bookStart")
+  bookEnd := r.FormValue("bookEnd")
+  serviceID, err := strconv.Atoi(r.FormValue("serviceID"))
+  if err != nil {
+    http.Error(w, "Invalid serviceID format", http.StatusBadRequest)
+    return
+  }
+
+  var answers []string
+  if err := json.Unmarshal([]byte(r.FormValue("answers")), &answers); err != nil {
+    http.Error(w, "Invalid JSON answers", http.StatusBadRequest)
+    return
+  }
+  bookPatternID, err := primitive.ObjectIDFromHex(r.FormValue("bookPatternID"))
+  if err != nil {
+    http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
+    return
+  }
+
+  if bookStart == "" || bookEnd == "" {
+    http.Error(w, "Missing bookStart or bookEnd", http.StatusBadRequest)
+    return
+  }
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  if err != nil {
+    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  }
+  defer c.Disconnect(ctx)
+  db1 := c.Database(common.MongoDb1)
+
+  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  if err != nil {
+    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+  }
+
+  trueAccess := false
+  for _, d := range session.ChannelAliases {
+    if d.Alias == postBy {
+      trueAccess = true
+    }
+  }
+  if !trueAccess {
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, r.URL.Path, r.Form)
+    return
+  }
+
+  coll := db1.Collection("book_pattern")
+  var bookPattern collection.BookPatternStruct
+  filter := bson.M{"_id": bookPatternID}
+  for attempt := 0; attempt < 3; attempt++ {
+    update := bson.M{
+      "$set": bson.M{"lock": true},
+    }
+    options := options.FindOneAndUpdate().SetReturnDocument(options.After)
+    err := coll.FindOneAndUpdate(ctx, bson.M{
+      "$and": []bson.M{
+        filter,
+        {"lock": bson.M{"$ne": true}},
+      },
+    }, update, options).Decode(&bookPattern)
+    if err == nil {
+      break
+    } else if err == mongo.ErrNoDocuments {
+      log.Printf("Attempt %d: Document is locked, retrying...", attempt+1)
+      time.Sleep(1 * time.Second)
+      continue
+    } else {
+      log.Printf("Failed to lock and retrieve document: %v", err)
+      return
+    }
+    if attempt == 2 {
+      log.Println("Failed to acquire lock after 3 attempts")
+      return
+    }
+  }
+
+  layout := "2006-01-02T15:04"
+  bookStartTime, err := time.Parse(layout, bookStart)
+  if err != nil {
+    return
+  }
+  bookEndTime, err := time.Parse(layout, bookEnd)
+  if err != nil {
+    return
+  }
+
+  var requestedService *collection.Service
+  for _, service := range bookPattern.Services {
+    if service.ServiceID == serviceID {
+      requestedService = &service
+      break
+    }
+  }
+  if requestedService == nil {
+    log.Printf("Service ID %d not found", serviceID)
+    return
+  }
+  // log.Printf("bookPattern %d", bookPattern)
+  // updatedTimes := make([]collection.TimeSlot, len(bookPattern.Times))
+  // copy(updatedTimes, bookPattern.Times)
+  bookingAdded := false
+
+  // for _, timeSlot := range bookPattern.WorkStaffs {
+  //  if timeSlot.Date != bookStartTime.Format("2006-01-02") {
+  //    continue
+  //  }
+
+  staffAvailable := false
+  for _, ws := range bookPattern.WorkStaffs {
+    workStart, _ := time.Parse("2006-01-02T15:04", ws.WorkStart)
+    workEnd, _ := time.Parse("2006-01-02T15:04", ws.WorkEnd)
+    if !bookStartTime.Before(workStart) && bookEndTime.Before(workEnd) {
+      staffAvailable = true
+      break
+    }
+  }
+  // log.Printf("staffAvailable %v", staffAvailable)
+  if staffAvailable {
+    overlaps := false
+    for _, booking := range bookPattern.Books { // TimeSlot ではなく bookPattern から Books を参照
+      bookedStart, _ := time.Parse("2006-01-02T15:04", booking.BookStart)
+      bookedEnd, _ := time.Parse("2006-01-02T15:04", booking.BookEnd)
+
+      existingStart := time.Date(bookStartTime.Year(), bookStartTime.Month(), bookStartTime.Day(), bookedStart.Hour(), bookedStart.Minute(), 0, 0, bookStartTime.Location())
+      existingEnd := time.Date(bookEndTime.Year(), bookEndTime.Month(), bookEndTime.Day(), bookedEnd.Hour(), bookedEnd.Minute(), 0, 0, bookEndTime.Location())
+
+      if bookEndTime.After(existingStart) && bookStartTime.Before(existingEnd) {
+        overlaps = true
+        break
+      }
+    }
+
+    if !overlaps {
+      newBooking := collection.Book{ // collection.Books → collection.Book に修正
+        BookStart: bookStartTime.Format("2006-01-02T15:04"),
+        BookEnd:   bookEndTime.Format("2006-01-02T15:04"),
+        Answers:   answers,
+        ServiceID: serviceID,
+      }
+      bookPattern.Books = append(bookPattern.Books, newBooking) // TimeSlot ではなく bookPattern に追加
+      bookingAdded = true
+      // break
+    }
+  }
+
+  update := bson.M{
+    "$unset": bson.M{"lock": ""},
+  }
+  log.Printf("bookingAdded %d", bookingAdded)
+  if bookingAdded {
+    update["$set"] = bson.M{
+      "books": bookPattern.Books,
+    }
+  }
+  opts := options.Update().SetUpsert(false)
+
+  _, err = coll.UpdateOne(ctx, filter, update, opts)
+  if err != nil {
+    http.Error(w, "Failed to update work staff", http.StatusInternalServerError)
+    log.Printf("Update error: %v", err)
+    return
+  }
+  responseData := struct {
+    Csrf         string        `json:"csrf"`
+    PushContents []string `json:"pushContents"`
+  }{
+    Csrf:         session.Csrf,
+    PushContents: session.PushContents,
+  }
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(responseData)
+}
+
+func contains(slice []string, value string) bool {
+  for _, v := range slice {
+    if v == value {
+      return true
+    }
+  }
+  return false
+}
+
+func isTimeInRange(targetStart, targetEnd, rangeStart, rangeEnd, date string) bool {
+  if date != targetStart[:10] {
+    return false
+  }
+  layout := "2006-01-02T15:04"
+  tStart, _ := time.Parse(layout, targetStart)
+  tEnd, _ := time.Parse(layout, targetEnd)
+  rStart, _ := time.Parse(layout, rangeStart)
+  rEnd, _ := time.Parse(layout, rangeEnd)
+
+  return !tStart.Before(rStart) && !tEnd.After(rEnd)
+}
+
+func countBookings(bookings []collection.Book, targetStart, targetEnd string) int {
+  layout := "2006-01-02T15:04"
+  tStart, _ := time.Parse(layout, targetStart)
+  tEnd, _ := time.Parse(layout, targetEnd)
+
+  count := 0
+  for _, booking := range bookings {
+    bStart, _ := time.Parse(layout, booking.BookStart)
+    bEnd, _ := time.Parse(layout, booking.BookEnd)
+    if !(tEnd.Before(bStart) || tStart.After(bEnd)) {
+      count++
+    }
+  }
+  return count
+}

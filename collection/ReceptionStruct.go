@@ -33,15 +33,15 @@ type MenuOption struct {
 }
 
 // Menu represents a menu item with its details
-type Menu struct {
-	ID                int          `bson:"id" json:"id"`
-	MenuName          string       `bson:"menu_name" json:"menuName"`
-	Price             int          `bson:"price" json:"price"`
-	Items             []int        `bson:"items" json:"items"`
-	PaidOptions       [][]int      `bson:"paid_options,omitempty" json:"paidOptions,omitempty"`         // [[item_id, price]]
-	FreeOptions       [][]int      `bson:"free_options,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
-	FreeMultiOptions  []int        `bson:"free_multi_options,omitempty" json:"freeMultiOptions,omitempty"` // [item_id, ...]
-}
+// type Menu struct {
+// 	ID                int          `bson:"id" json:"id"`
+// 	MenuName          string       `bson:"menu_name" json:"menuName"`
+// 	Price             int          `bson:"price" json:"price"`
+// 	Items             []int        `bson:"items" json:"items"`
+// 	PaidOptions       [][]int      `bson:"paid_options,omitempty" json:"paidOptions,omitempty"`         // [[item_id, price]]
+// 	FreeOptions       [][]int      `bson:"free_options,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
+// 	FreeMultiOptions  []int        `bson:"free_multi_options,omitempty" json:"freeMultiOptions,omitempty"` // [item_id, ...]
+// }
 
 // ItemDetail represents detailed information about an item
 type ItemDetail struct {

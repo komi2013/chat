@@ -7,13 +7,13 @@ import { userIDsByName } from '@/my/channelFunc';
 const props = defineProps({
   id: String,
   date: String,
-  serviceID: Number
+  menuID: Number
 });
 
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
-const serviceID = ref(props.serviceID || null);
+const menuID = ref(props.menuID || null);
 // const calendarsStore = useCalendarsStore();
 // const schedules = computed(() => calendarsStore.calendars);
 
@@ -32,7 +32,6 @@ const getNext30Days = () => {
 };
 const monthDates = getNext30Days();
 
-
 async function findBookPattern() {
   const fd = new FormData();
   fd.append('bookPatternID', props.id);
@@ -47,7 +46,9 @@ async function findBookPattern() {
   return res.bookPattern;
 }
 
-const generateSchedules = () => {
+//bookのsericeIDのロジックを詰め込む前
+
+const generateSchedules = (menuID) => {
   if (!bookPattern.value) return;
   schedules.value = []; // 既存のデータをリセット
 
@@ -58,12 +59,27 @@ const generateSchedules = () => {
     return date.toISOString().split("T")[0]; // "YYYY-MM-DD" の形式
   });
 
+  let selectedService = null;
+  let needSkill = null;
+  let needFacility = null;
+
+  // **serviceID がある場合のみ、関連する `services` を取得**
+  if (menuID) {
+    selectedService = bookPattern.value.menus.find(service => service.menuID === menuID);
+    if (!selectedService) return;
+
+    needSkill = selectedService.needSkill;
+    needFacility = selectedService.needFacility;
+  }
+
   let tempSchedules = []; // 各 `workStaffs` の処理結果を一時保存
+  let unavailableTimes = []; // 予約不可の時間を保存
 
   monthDates.forEach(date => {
-    // `books` のフラグをリセット（毎回 `workStaffs` のループごとにリセットしない）
-    bookPattern.value.books.forEach(book => (book.splitted = false));
+    bookPattern.value.books.forEach(book => (book.splitted = false)); // `books` のフラグをリセット
 
+    // **workStaffs をスケジュールに適用**
+    let workStaffTime = false;
     bookPattern.value.workStaffs.forEach(work => {
       if (!isSameDate(work.workStart, date)) return;
 
@@ -72,31 +88,82 @@ const generateSchedules = () => {
 
       console.log(`【workStaffsループ】${formatDateTime(start)} ~ ${formatDateTime(end)}`);
 
-      let splitBlocks = splitWorkTime(start, end, bookPattern.value.books);
+      // **needSkill に対応できるスタッフのみ対象**
+      if (needSkill) {
+        const validStaffs = getValidWorkStaffs(work, needSkill);
+        console.log('validStaffs', validStaffs);
+        if (!validStaffs) return; // 該当するスタッフがいない場合はスキップ
+      }
 
+      let splitBlocks = splitWorkTime(start, end, bookPattern.value.books);
       splitBlocks.forEach(({ start, end }) => {
         tempSchedules.push({
           timeStart: start,
           timeEnd: end,
         });
       });
+      // console.log('splitBlocks.forEach tempSchedules', JSON.stringify(tempSchedules));
+      workStaffTime = true;
     });
+    // **予約不可の時間を `makeUnavailableTime()` で作成**
+    if (needFacility) {
+      let newUnavailableTimes = makeUnavailableTime(date, needFacility);
+      // console.log('newUnavailableTimes', newUnavailableTimes);
+      // **重複データを削除**
+      let uniqueTimes = new Set(unavailableTimes.map(time => JSON.stringify(time)));
+      newUnavailableTimes.forEach(time => uniqueTimes.add(JSON.stringify(time)));
+
+      unavailableTimes = Array.from(uniqueTimes).map(time => JSON.parse(time));
+    }
   });
 
   // **最終的に分割された `schedule` を統合**
-  console.log('tempSchedules', tempSchedules);
-  schedules.value = mergeSchedules(tempSchedules);
+  // console.log('tempSchedules json', JSON.stringify(tempSchedules));
+  let mergedSchedules = mergeSchedules(tempSchedules);
+  // **予約不可の時間を適用**
+  console.log('mergedSchedules', mergedSchedules);
+  console.log('unavailableTimes', unavailableTimes);
 
+  tempSchedules = [];
+  mergedSchedules.forEach(schedule => {
+    let splitBlocks = splitWorkTime(schedule.timeStart, schedule.timeEnd, unavailableTimes);
+    splitBlocks.forEach(({ start, end }) => {
+      console.log('splitBlocks.forEach', start, end);
+      tempSchedules.push({
+        timeStart: start,
+        timeEnd: end,
+      });
+    });
+  });
+  console.log('tempSchedules 2', JSON.stringify(tempSchedules));
+  mergedSchedules = mergeSchedules(tempSchedules);
+  console.log('mergedSchedules 2', mergedSchedules);
+  schedules.value = mergedSchedules;
   console.log("【最終 schedules】", JSON.stringify(schedules.value, null, 2));
+};
+
+const getValidWorkStaffs = (work, needSkill) => {
+  return bookPattern.value.staffSkills.some(staff => 
+    staff.skills.includes(needSkill) && staff.aliasName === work.aliasName
+  );
+};
+
+const needsFacility = (book, needFacility) => {
+  const service = bookPattern.value.menus.find(service => service.menuID === book.menuID);
+  return service?.needFacility === needFacility;
 };
 
 const splitWorkTime = (workStart, workEnd, books) => {
   console.log(`【splitWorkTime】処理開始: ${formatDateTime(workStart)} ~ ${formatDateTime(workEnd)}`);
 
   let blocks = [{ start: new Date(workStart), end: new Date(workEnd) }];
+  console.log('対象範囲:', workStart, '~', workEnd, '適用する books:', books);
+
   let remainingBooks = books
-    .filter(book => isOverlapping(workStart, workEnd, book.bookStart, book.bookEnd) && !book.splitted)
+    .filter(book => isOverlapping(workStart, workEnd, book.bookStart, book.bookEnd))
     .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
+
+  console.log('対象の予約 (remainingBooks):', remainingBooks);
 
   remainingBooks.forEach(book => {
     let bookStart = new Date(book.bookStart);
@@ -107,45 +174,116 @@ const splitWorkTime = (workStart, workEnd, books) => {
     let newBlocks = [];
 
     blocks.forEach(({ start, end }) => {
-      console.log('start:', formatDateTime(start), 'end:', formatDateTime(end));
-      if (bookStart > start && bookStart < end) {
-        console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
-        newBlocks.push({ start: new Date(start), end: new Date(bookStart) });
-        book.splitted = true;
-      }
+      if (bookStart <= end && bookEnd >= start) {
+        if (bookStart > start) {
+          console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
+          newBlocks.push({ start: new Date(start), end: new Date(bookStart) });
+        }
 
-      console.log(formatDateTime(bookEnd), '>', formatDateTime(start), '&&', formatDateTime(bookEnd), '<', formatDateTime(end));
-      // 17:30 ~ 18:30 book
-
-      if (bookStart > start && bookEnd < end) {
-        console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
-        newBlocks.push({ start: new Date(bookEnd), end: new Date(end) });
+        if (bookEnd < end) {
+          console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
+          newBlocks.push({ start: new Date(bookEnd), end: new Date(end) });
+        }
+      } else {
+        newBlocks.push({ start, end });
       }
     });
 
     blocks = newBlocks.length > 0 ? newBlocks : blocks;
   });
 
+  console.log('【分割後のブロック】', blocks);
   return blocks;
+};
+
+const makeUnavailableTime = (date, needFacility) => {
+  let unavailableTimes = [];
+
+  if (!needFacility) return unavailableTimes;
+
+  const relatedFacility = bookPattern.value.facilities.find(facility => facility.facilityName === needFacility);
+  if (!relatedFacility) return unavailableTimes;
+
+  const facilityCount = relatedFacility.facilityCount;
+
+  let facilityBooks = bookPattern.value.books
+    .filter(book => needsFacility(book, needFacility))
+    .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
+
+  let mergedBookings = [];
+  let currentStart = null;
+  let currentEnd = null;
+
+  facilityBooks.forEach(book => {
+    let bookStart = new Date(book.bookStart);
+    let bookEnd = new Date(book.bookEnd);
+
+    // **初回または前の予約と時間が空いている場合、新しいブロックを作成**
+    if (!currentStart || bookStart > currentEnd) {
+      if (currentStart) {
+        mergedBookings.push({ bookStart: currentStart, bookEnd: currentEnd });
+      }
+      currentStart = bookStart;
+      currentEnd = bookEnd;
+    } else {
+      // **時間が重なっている場合、終了時間を更新**
+      currentEnd = new Date(Math.max(currentEnd.getTime(), bookEnd.getTime()));
+    }
+  });
+
+  // **最後のブロックを追加**
+  if (currentStart) {
+    mergedBookings.push({ bookStart: currentStart, bookEnd: currentEnd });
+  }
+
+  // **フォーマットを統一**
+  return mergedBookings.map(({ bookStart, bookEnd }) => ({
+    bookStart: formatDateTime(bookStart),
+    bookEnd: formatDateTime(bookEnd),
+  }));
 };
 
 const mergeSchedules = (schedules) => {
   if (schedules.length === 0) return [];
 
+  schedules = schedules.filter(schedule => 
+    new Date(schedule.timeStart).getTime() !== new Date(schedule.timeEnd).getTime()
+  );
+
+  // **時間順にソート**
   schedules.sort((a, b) => new Date(a.timeStart) - new Date(b.timeStart));
 
-  let mergedSchedules = [schedules[0]];
+  let mergedSchedules = [];
 
-  for (let i = 1; i < schedules.length; i++) {
+  console.log('before schedules', JSON.stringify(schedules));
+
+  for (let i = 0; i < schedules.length; i++) {
+    let currentSchedule = Object.assign({}, schedules[i]); // **オブジェクトをコピー**
+    
+    if (mergedSchedules.length === 0) {
+      mergedSchedules.push(currentSchedule);
+      continue;
+    }
+
     let lastSchedule = mergedSchedules[mergedSchedules.length - 1];
-    let currentSchedule = schedules[i];
 
+    // **時間帯が完全に一致するデータをマージしない**
+    if (
+      new Date(lastSchedule.timeStart).getTime() === new Date(currentSchedule.timeStart).getTime() &&
+      new Date(lastSchedule.timeEnd).getTime() === new Date(currentSchedule.timeEnd).getTime()
+    ) {
+      continue;
+    }
+
+    // **時間が重なっている場合のみ `timeEnd` を正しく更新**
     if (new Date(lastSchedule.timeEnd) >= new Date(currentSchedule.timeStart)) {
       lastSchedule.timeEnd = new Date(Math.max(new Date(lastSchedule.timeEnd).getTime(), new Date(currentSchedule.timeEnd).getTime()));
     } else {
       mergedSchedules.push(currentSchedule);
     }
   }
+
+  console.log('after schedules', JSON.stringify(schedules));
 
   return mergedSchedules.map(schedule => ({
     timeStart: formatDateTime(schedule.timeStart),
@@ -155,23 +293,47 @@ const mergeSchedules = (schedules) => {
 
 // **関数はそのまま**
 const isSameDate = (workStart, date) => workStart.split("T")[0] === date;
-const isOverlapping = (startA, endA, startB, endB) => !(new Date(startA) >= new Date(endB) || new Date(endA) <= new Date(startB));
-const formatDateTime = (date) => date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0") + "T" + String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+const isOverlapping = (startA, endA, startB, endB) => {
+  return !(new Date(startA) > new Date(endB) || new Date(endA) < new Date(startB));
+};
+
+const formatDateTime = (date) => {
+  if (!date) return "1000-01-01T00:00:00"; // **デフォルト値**
+
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+
+    if (isNaN(d.getTime())) {
+      console.warn("Invalid date detected:", date);
+      return "1000-01-01T00:00:00"; // **無効な日付もデフォルト値を返す**
+    }
+
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0") + "T" +
+      String(d.getHours()).padStart(2, "0") + ":" +
+      String(d.getMinutes()).padStart(2, "0");
+  } catch (error) {
+    console.error("formatDateTime error:", error, "date value:", date);
+    return "1000-01-01T00:00:00"; // **エラー時もデフォルト値を返す**
+  }
+};
 
 
 const getEventsForDayAndHour = (day, hour) => {
   const events = schedules.value.filter((event) => {
     const start = new Date(event.timeStart);
     const end = new Date(event.timeEnd);
-    if ( hour == 17 && day.getDate() == 18) {
-      console.log('getEventsForDayAndHour', hour, start.getHours(), '<=', hour, '&&', end.getHours(), '>=', hour);
-    }
+    // if ( day.getDate() == 22 && hour == 16) {
+    //   console.log('getEventsForDayAndHour', hour, start.getHours(), '<=', hour, '&&', end.getMinutes(), '>=', hour);
+    //   console.log('start, end', start, end);
+    // }
     return (
       start.getFullYear() === day.getFullYear() &&
       start.getMonth() === day.getMonth() &&
       start.getDate() === day.getDate() &&
       start.getHours() <= hour &&
-      end.getHours() >= hour
+      (end.getHours() * 60 + end.getMinutes() > hour * 60)
     );
   });
   return events.map((event, index) => ({ ...event, index, total: events.length }));
@@ -187,8 +349,7 @@ const decideHeightTop = (schedule, hour) => {
     top = 0;
   }
   let height;
-  // let height = (end - start) / (1000 * 60) * minuteHeight;
-  // if ( (hour == 17 || hour == 18 || hour == 19) && start.getDate()) {
+  // if (start.getDate() && hour == 16) {
   //   console.log('decideHeightTop', hour, height, start, end);
   // }
   if (end.getHours() > hour) {
@@ -196,15 +357,10 @@ const decideHeightTop = (schedule, hour) => {
   } else {
     height = end.getMinutes();
   }
-  // height = height - top;
-  // const opacity = schedule.index === 0 ? 1 : 0.5;
-
   const opacity = 1;
   const zindex = 2;
   const width = 118;
   const left = schedule.index * width;
-  // const colors = ["rgba(255, 0, 0, 0.25)", "rgba(255, 255, 0, 0.25)", "rgba(128, 0, 128, 0.25)", "rgba(0, 0, 255, 0.25)"];
-  // const backgroundColor = colors[schedule.nameCount - 1] || colors[3];
   return {
     height: `${height -6}px`,
     top: `${top}px`,
@@ -212,7 +368,6 @@ const decideHeightTop = (schedule, hour) => {
     "z-index": `${zindex}`,
     "background-color": 'white',
     width: `${width}px`,
-    // left: `${left}px`,
   };
 };
 
@@ -254,10 +409,11 @@ function jump(days) {
 }
 
 const selectedServiceId = ref(null);
-function handleServiceChange(serviceId) {
-  const selected = bookPattern.value.services.find(service => service.id === serviceId);
+function handleServiceChange(menuID) {
+  console.log('selected', bookPattern.value.menus);
+  const selected = bookPattern.value.menus.find(service => service.menuID === menuID);
   console.log('selected', selected);
-  generateSchedules(true);
+  generateSchedules(selected.menuID);
   // generateOpenTimes(selected);
 }
 
@@ -296,8 +452,8 @@ const closeModal = () => {
         <td>
           <select id="menu-select" class="menu" v-model="selectedServiceId" @change="handleServiceChange(selectedServiceId)">
             <option disabled value="">メニュー</option>
-            <option v-for="service in bookPattern.services" :key="service.id" :value="service.id">
-              {{ service.serviceName }} - {{ service.price }}円
+            <option v-for="service in bookPattern.menus" :key="service.menuID" :value="service.menuID">
+              {{ service.menuName }} - {{ service.price }}円
             </option>
           </select>
         </td>
@@ -334,18 +490,18 @@ const closeModal = () => {
               class="day-slot"
               :class="{'sunday': day.getDay() === 0}"
               @click="newSchedule(day, hour)">
+            <span v-if="index % 3 === 0"
+                  class="time-hour">
+              {{ hour }}
+            </span>
             <div v-for="d in getEventsForDayAndHour(day, hour)" 
                :key="'event-' + d.id" 
                class="event"
                :style="decideHeightTop(d, hour)"
-               @click.stop="openCalendar(d.calendarID)"
+               @click.stop="openModal(day, hour)"
                >
                {{ d.title }}
             </div>
-            <span v-if="index % 3 === 0 && getEventsForDayAndHour(day, hour).length === 0"
-                  class="time-hour">
-              {{ hour }}
-            </span>
           </td>
           <td class="back-column" @click="jump(30)">
             <span v-if="hour % 6 == 5">
@@ -368,7 +524,7 @@ const closeModal = () => {
       v-if="showModal"
       :time="selectedEvent"
       :bookPattern="bookPattern"
-      :serviceID="selectedServiceId"
+      :menuID="selectedServiceId"
       :myname="channel.myname"
       @close="closeModal"
       @submit="submitEvent"
@@ -418,6 +574,8 @@ const closeModal = () => {
   height: 100%;
   align-items: start;
   font-size: 0.5rem;
+  z-index: 5;
+  position: relative;
 }
 
 /*.sunday {

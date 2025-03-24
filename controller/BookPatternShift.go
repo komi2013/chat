@@ -111,7 +111,7 @@ func BookPatternShift(w http.ResponseWriter, r *http.Request) {
     // ** 削除された AliasNames（updatedShifts にないもの + shift.Open から出たもの）**
     var removedAliases []string
     for alias := range existingStaffMap {
-      if !newAliasMap[alias] || !contains(newOpenAliases, alias) {
+      if !newAliasMap[alias] || !common.SliceStrContains(newOpenAliases, alias) {
         removedAliases = append(removedAliases, alias)
       }
     }
@@ -132,7 +132,7 @@ func BookPatternShift(w http.ResponseWriter, r *http.Request) {
     // ** 削除処理（removedAliases のデータを WorkStaffs から削除）**
     for j := 0; j < len(bookPattern.WorkStaffs); {
       staff := bookPattern.WorkStaffs[j]
-      if contains(removedAliases, staff.AliasName) && staff.WorkStart == shift.ShiftStart {
+      if common.SliceStrContains(removedAliases, staff.AliasName) && staff.WorkStart == shift.ShiftStart {
         // 削除
         bookPattern.WorkStaffs = append(bookPattern.WorkStaffs[:j], bookPattern.WorkStaffs[j+1:]...)
       } else {

@@ -1,6 +1,8 @@
 package collection
 
 import (
+  "time"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -8,7 +10,8 @@ type Book struct {
 	BookStart    string   `bson:"book_start" json:"bookStart"`
 	BookEnd      string   `bson:"book_end" json:"bookEnd"`
 	Answers      []string `bson:"answers,omitempty" json:"answers"`
-	ServiceID    int      `bson:"service_id,omitempty" json:"serviceID,omitempty"`
+	MenuID    int      `bson:"menu_id,omitempty" json:"menuID,omitempty"`
+	CreatedAt    time.Time `bson:"created_at,omitempty"`
 }
 
 type WorkStaff struct {
@@ -34,15 +37,15 @@ type OpenTime struct {
 	LimitEnd    string                 `bson:"limit_end" json:"limitEnd"`
 }
 
-type Service struct {
-	ServiceID    int    `bson:"service_id" json:"serviceID"`
-	ServiceName  string `bson:"service_name" json:"serviceName"`
-	Price        int    `bson:"price" json:"price"`
-	PrepaidPrice int    `bson:"prepaid_price" json:"prepaidPrice"`
-	NeedSkill    string `bson:"need_skill,omitempty" json:"needSkill,omitempty"`
-	NeedFacility string `bson:"need_facility,omitempty" json:"needFacility,omitempty"`
-	SpendMinute  int    `bson:"spend_minute,omitempty" json:"spendMinute,omitempty"`
-}
+// type Service struct {
+// 	ServiceID    int    `bson:"service_id" json:"serviceID"`
+// 	ServiceName  string `bson:"service_name" json:"serviceName"`
+// 	Price        int    `bson:"price" json:"price"`
+// 	PrepaidPrice int    `bson:"prepaid_price" json:"prepaidPrice"`
+// 	NeedSkill    string `bson:"need_skill,omitempty" json:"needSkill,omitempty"`
+// 	NeedFacility string `bson:"need_facility,omitempty" json:"needFacility,omitempty"`
+// 	SpendMinute  int    `bson:"spend_minute,omitempty" json:"spendMinute,omitempty"`
+// }
 
 type BookPatternStruct struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -56,7 +59,7 @@ type BookPatternStruct struct {
 	Facilities       []Facility         `bson:"facilities,omitempty" json:"facilities,omitempty"` // Mixed types require interface{}
 	OpenTimes        []OpenTime         `bson:"open_times,omitempty" json:"openTimes,omitempty"`
 	Shifts           []Shift            `bson:"shifts,omitempty" json:"shifts,omitempty"`
-	Services         []Service          `bson:"services,omitempty" json:"services,omitempty"`
+	Menus            []Menu          `bson:"menus,omitempty" json:"menus,omitempty"`
 	Skills           []string           `bson:"skills,omitempty" json:"skills,omitempty"`
 	StaffSkills      []StaffSkill       `bson:"staff_skills,omitempty" json:"staffSkills,omitempty"`
 	WorkStaffs       []WorkStaff        `bson:"work_staffs,omitempty" json:"workStaffs,omitempty"`
@@ -71,4 +74,24 @@ type Facility struct {
 type StaffSkill struct {
 	AliasName        string            `bson:"alias_name,omitempty" json:"aliasName,omitempty"`
   Skills           []string          `bson:"skills,omitempty" json:"skills,omitempty"`
+}
+
+type Menu struct {
+	MenuID            int         		`bson:"menu_id" json:"menuID"`
+	MenuName        	string      		`bson:"menu_name" json:"menuName"`
+	Price           	int         		`bson:"price" json:"price"`
+	PrepaidPrice 			int    					`bson:"prepaid_price" json:"prepaidPrice"`
+	NeedSkill    			string 					`bson:"need_skill,omitempty" json:"needSkill,omitempty"`
+	NeedFacility 			string 					`bson:"need_facility,omitempty" json:"needFacility,omitempty"`
+	SpendMinute  			int    					`bson:"spend_minute,omitempty" json:"spendMinute,omitempty"`
+	Items             []int       		`bson:"items" json:"items"`
+	PaidOptions       []ItemOption    `bson:"paid_options,omitempty" json:"paidOptions,omitempty"`         // [[item_id, price]]
+	FreeOptions       []ItemOption    `bson:"free_options,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
+	FreeMultiOptions  []int       		`bson:"free_multi_options,omitempty" json:"freeMultiOptions,omitempty"` // [item_id, ...]
+	SpecifyNameFlag int           		`bson:"specifyNameFlag" json:"specifyNameFlag"`
+}
+
+type ItemOption struct {
+	ItemID    int      `bson:"item_id" json:"itemID"`
+	Price     int      `bson:"price" json:"price"`
 }
