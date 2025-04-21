@@ -7,6 +7,7 @@ import { channelEdit } from './channelEdit.js';
 import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
 import { group } from './group.js';
+import { reception } from './reception.js';
 import { receptionOrder } from './receptionOrder.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { storeSelect } from './storeSelect.js';
@@ -34,6 +35,7 @@ export function pushReceive(notificationData) {
     chunk: chunk,
     emoji: emoji,
     group: group,
+    reception: reception,
     receptionOrder: receptionOrder,
     shiftStaffEdit: shiftStaffEdit,
     storeSelect: storeSelect,

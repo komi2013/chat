@@ -90,6 +90,7 @@ const indexedDBStores = [
   ['chunk', 'chunkID'],
   ['group', 'groupID'],
   ['log', 'logID'],
+  ['reception', 'receptionID'],
   ['receptionOrder', 'receptionOrderID'],
   ['shiftStaff', 'shiftStaffID'],
   ['thread', 'messageID'],
@@ -101,7 +102,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 95);
+    const request = indexedDB.open('chat', 96);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -389,3 +390,89 @@ const clearObjectStore = async (storeName) => {
     request.onerror = (event) => reject(`エラー: ${event.target.error}`);
   });
 };
+
+
+const reception = 
+
+    {
+      "receptionID": "123456",
+      "adminNames": [
+        "mik2"
+      ],
+      "joinNames": [
+        "ivan1",
+        "mik2"
+      ],
+      "receptionTitle": "サロンの公開用予約リンク",
+      "facilities": [
+        {
+          "facilityCount": 4,
+          "facilityName": "perm"
+        }
+      ],
+      "shifts": [
+        {
+          "aliasNames": [
+            "mik2",
+            "ivan1"
+          ],
+          "shiftStart": "2025-04-15T10:00",
+          "shiftEnd": "2025-04-15T23:00",
+          "open": 1,
+          "role": "stylist",
+          "fix": true
+        },
+        {
+          "aliasNames": [
+            "ivan1",
+            "mik2"
+          ],
+          "shiftStart": "2025-04-17T15:00",
+          "shiftEnd": "2025-04-17T20:00",
+          "open": 1,
+          "role": "helper"
+        }
+      ],
+      "skills": [
+        "cut",
+        "perm"
+      ],
+      "staffSkills": [
+        {
+          "aliasName": "ivan1",
+          "skills": [
+            "perm",
+            "cut"
+          ]
+        },
+        {
+          "aliasName": "mik2",
+          "skills": [
+            "perm"
+          ]
+        }
+      ],
+      "workStaffNeed": true,
+      "workStaffs": [
+        {
+          "aliasName": "mik3",
+          "workStart": "2025-04-05T10:00",
+          "workEnd": "2025-04-05T23:00",
+          "seq": 2
+        },
+        {
+          "aliasName": "ivan1",
+          "workStart": "2025-04-05T15:00",
+          "workEnd": "2025-04-05T20:00",
+          "seq": 2
+        },
+        {
+          "aliasName": "mik2",
+          "workStart": "2025-04-05T15:00",
+          "workEnd": "2025-04-05T20:00",
+          "seq": 3
+        }
+      ]
+    }
+
+upsertIDB(reception, 'reception', 'receptionID', reception.receptionID);

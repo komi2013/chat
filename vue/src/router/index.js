@@ -4,16 +4,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/book/:id/',
-      component: () => import('../views/Book.vue'),
-      props: route => ({id: route.params.id}),
-    },
-    {
-      path: '/bookPattern/:id?/',
-      component: () => import('../views/BookPattern.vue'),
-      props: route => ({id: route.params.id}),
-    },
-    {
       path: '/calendar/:date?/',
       component: () => import('../views/Calendar.vue'),
       props: route => ({
@@ -42,22 +32,6 @@ const router = createRouter({
       })
     },
     {
-      path: '/menu/:id/:code?/',
-      component: () => import('../views/Menu.vue'),
-      props: route => ({
-        id: route.params.id,
-        code: route.params.code
-      })
-    },
-    {
-      path: '/menuOrder/:id/:apiKey',
-      component: () => import('../views/MenuOrder.vue'),
-      props: route => ({
-        id: route.params.id,
-        apiKey: route.params.apiKey,
-      })
-    },
-    {
       path: '/people/:id/:name/',
       component: () => import('../views/People.vue'),
       props: route => ({
@@ -80,6 +54,41 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
+      path: '/receptionBook/:id/',
+      component: () => import('../views/ReceptionBook.vue'),
+      props: route => ({id: route.params.id}),
+    },
+    {
+      path: '/receptionMenu/:id/:code?/',
+      component: () => import('../views/ReceptionMenu.vue'),
+      props: route => ({
+        id: route.params.id,
+        code: route.params.code
+      })
+    },
+    {
+      path: '/receptionMenuOrder/:id/:apiKey',
+      component: () => import('../views/ReceptionMenuOrder.vue'),
+      props: route => ({
+        id: route.params.id,
+        apiKey: route.params.apiKey,
+      })
+    },
+    {
+      path: '/receptionOpen/:id/:menuID/:passkey/',
+      component: () => import('../views/ReceptionOpen.vue'),
+      props: route => ({
+        id: route.params.id,
+        menuID: route.params.menuID,
+        passkey: route.params.passkey
+      })
+    },
+    {
+      path: '/receptionShift/:id/',
+      component: () => import('../views/ReceptionShift.vue'),
+      props: route => ({id: route.params.id}),
+    },
+    {
       path: '/redirect/',
       name: 'redirect',
       component: () => import('../views/Redirect.vue')
@@ -87,11 +96,6 @@ const router = createRouter({
     {
       path: '/setting/',
       component: () => import('../views/Setting.vue')
-    },
-    {
-      path: '/shift/:id/',
-      component: () => import('../views/Shift.vue'),
-      props: route => ({id: route.params.id}),
     },
     {
       path: '/sign/',

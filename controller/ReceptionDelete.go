@@ -59,23 +59,23 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
     }
     return
   }
-  if reception.ApiKey != apiKey {
-  	http.Error(w, "apiKey is different", http.StatusInternalServerError)
-  	return
-  }
+  // if reception.ApiKey != apiKey {
+  // 	http.Error(w, "apiKey is different", http.StatusInternalServerError)
+  // 	return
+  // }
 
 	// Find the matching table and update CurrentCode and Passcodes
-	updatedTables := make([]collection.Table, 0, len(reception.Tables))
+	updatedTables := make([]collection.Seat, 0, len(reception.Seats))
 	var removedCode string
-	for _, table := range reception.Tables {
-		if table.TableName == tableName {
+	for _, table := range reception.Seats {
+		if table.SeatName == tableName {
 			// Save the current code for removal from Passcodes
 			removedCode = table.CurrentCode
 			table.CurrentCode = "" // Clear CurrentCode
 			// Remove the code from Passcodes
-			newPasscodes := make([]string, 0, len(table.Passcodes))
+			var newPasscodes []collection.Passcode
 			for _, passcode := range table.Passcodes {
-				if passcode != removedCode {
+				if passcode.Passkey != removedCode {
 					newPasscodes = append(newPasscodes, passcode)
 				}
 			}
@@ -100,7 +100,7 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
   var arr []interface{}
   arr = append(arr, "receptionOrder")
   arr = append(arr, tableName)
-  for _, subscription := range reception.Subscription {
+  for _, subscription := range reception.Subscriptions {
     pushID := common.StringRand(12)
     arrForPush := append([]interface{}{pushID}, arr...)
     jsonData, err := json.Marshal(arrForPush)

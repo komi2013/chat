@@ -59,7 +59,7 @@ async function aliasEdit() {
 }
 
 async function editAlias() {
-  const fd = new FormData()
+  const fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'alias');
