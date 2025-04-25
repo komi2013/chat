@@ -10,12 +10,11 @@ const selectedStore = ref("");
 const aliasNames = ref([]);
 const message = ref("");
 
-onBeforeMount(async () => {
-  // await loadStores;
-  channel.value = await getIDB('channel', localStorage.getItem('channelID'));
-  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
-});
-
+// onBeforeMount(async () => {
+//   // await loadStores;
+//   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
+//   aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+// });
 
 const loadStores = async () => {
   try {
@@ -24,17 +23,6 @@ const loadStores = async () => {
     message.value = `データベースエラー: ${error}`;
   }
 };
-
-// const shareStoreData = async () => {
-//   if (!selectedStore.value) {
-//     message.value = "共有するストアを選択してください。";
-//     return;
-//   }
-//   console.log('aliasNames', aliasNames);
-//   console.log('selectedStore', selectedStore.value);
-
-// };
-
 
 const deleteStoreData = async () => {
   if (!selectedStore.value) {
@@ -49,6 +37,16 @@ const deleteStoreData = async () => {
   }
 };
 
+const deleteAllStorage = async () => {
+  const allStores = await getObjectStoreNames();
+  for (const store of allStores) {
+    await clearObjectStore(store);
+  }
+  localStorage.clear();
+  message.value = 'すべてのIndexedDBストア、LocalStorage、Cookieを削除しました。';
+  await loadStores();
+};
+
 onMounted(loadStores);
 
 </script>
@@ -56,25 +54,8 @@ onMounted(loadStores);
 <template>
   <Drawer />
   <div class="content">
-
-<!--     <h2>ストアを共有</h2>
-
-    <label for="storeShare">共有するストアを選択:</label>
-    <select v-model="selectedStore" id="storeShare">
-      <option value="" disabled>選択してください</option>
-      <option v-for="store in storeNames" :key="store" :value="store">
-        {{ store }}
-      </option>
-    </select>
-
-    <SelectAlias v-model="aliasNames" :aliases="aliases" :editable="true" />
-
-    <button @click="shareStoreData">データ共有</button>
- -->
     <h2>IndexedDB ストア削除</h2>
     <p class="message">{{ message }}</p>
-
-
     <label for="storeSelect">削除するストアを選択:</label>
     <select v-model="selectedStore" id="storeSelect">
       <option value="" disabled>選択してください</option>
@@ -85,13 +66,16 @@ onMounted(loadStores);
 
     <button @click="deleteStoreData">データ削除</button>
     <p class="message">{{ message }}</p>
-
     <h2>現在のストア一覧</h2>
     <ul>
       <li v-for="[storeName] in indexedDBStores" :key="storeName">
         {{ storeName }}
       </li>
     </ul>
+    <h2>Cookie・LocalStorage・IndexedDB をすべて削除</h2>
+    <button @click="deleteAllStorage" style="background-color: crimson; color: white; padding: 10px;">
+      💥 Cookie・LocalStorage・IndexedDB をすべて削除
+    </button>
   </div>
 </template>
 
