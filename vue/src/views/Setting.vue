@@ -45,6 +45,7 @@ const deleteAllStorage = async () => {
   localStorage.clear();
   message.value = 'すべてのIndexedDBストア、LocalStorage、Cookieを削除しました。';
   await loadStores();
+  deleteIndexedDB();
 };
 
 onMounted(loadStores);
