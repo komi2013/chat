@@ -13,6 +13,9 @@ import (
 
 func main() {
 	if len(os.Args) == 1 {
+		http.HandleFunc("/AdEdit/", controller.AdEdit)
+		http.HandleFunc("/AdGet/", controller.AdGet)
+		http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)
 		http.HandleFunc("/ChannelInvite/", controller.ChannelInvite)

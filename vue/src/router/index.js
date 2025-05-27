@@ -4,6 +4,13 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/adSetting/:date?/',
+      component: () => import('../views/AdSetting.vue'),
+      props: route => ({
+        date: route.params.date
+      })
+    },
+    {
       path: '/calendar/:date?/',
       component: () => import('../views/Calendar.vue'),
       props: route => ({

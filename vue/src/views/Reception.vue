@@ -1,199 +1,347 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import SelectGroup from '../components/SelectGroup.vue';
+import { ref, reactive, onMounted } from 'vue'
 
 const props = defineProps({
-  id: '', // Reception ID
-});
+  id: String,
+  code: String
+})
 
+const reception = ref({
+  receptionID: '',
+  channelID: '',
+  receptionTitle: '',
+  adminNames: [''],
+  joinNames: [''],
+  passcodes: [{ passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
+  asks: [''],
+  askChoices: [[]],
+  askMultiChoices: [[]],
+  facilities: [{ facilityName: '', facilityCount: 1 }],
+  openTimes: [{ limitStart: '', limitEnd: '' }],
+  shifts: [{
+    aliasNames: [''],
+    shiftStart: '',
+    shiftEnd: '',
+    open: 1,
+    role: '',
+    fix: false
+  }],
+  menus: [{
+    menuID: 0,
+    menuName: '',
+    price: 0,
+    prepaidPrice: 0,
+    needSkill: '',
+    needFacility: '',
+    specifyNameFlag: 0,
+    spendMinute: 0,
+    items: [],
+    paidOptions: [],
+    freeOptions: [],
+    freeMultiOptions: []
+  }],
+  skills: [''],
+  staffSkills: [{ aliasName: '', skills: [''] }],
+  workStaffNeed: false,
+  seats: [{
+    seatName: '',
+    capacity: 1,
+    passcodes: [],
+    currentCode: ''
+  }],
+  itemDetails: [{
+    itemID: 0,
+    itemName: '',
+    imgPath: '',
+    choices: [[]]
+  }],
+  waitConfigs: [{
+    guestRange: [1, 5],
+    waitRatio: 0
+  }]
+})
 
-const channel = ref('');
-const groups = ref([]);
-const selectedGroup = ref('');
-const reception = ref(null);
-const selectedMenu = ref(null);
+const channel = ref(null)
 
-async function fetchChannel() {
-  try {
-    const data = await getIDB('channel', localStorage.channelID);
-    channel.value = data;
-    for (let i = 0; i < data.groupAliases.length; i++) {
-      groups.value.push([data.groupAliases[i][0], data.groupAliases[i][1]]);
-    }
-    console.log('groups', groups);
-  } catch (error) {
-    console.log('error', error);
-    channel.value = null;
+onMounted(async () => {
+  channel.value = await getIDB('channel', localStorage.getItem('channelID'))
+  if (props.id) {
+    await findReception()
   }
+})
+
+async function findReception() {
+  const fd = new FormData()
+  fd.append('receptionID', props.id)
+  fd.append('channelID', localStorage.getItem('channelID'))
+  fd.append('aliasName', channel.value.myname)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  fd.append('code', props.code)
+
+  const res = await sendRequest('/ReceptionGet/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+
+  res.pushContents.forEach(content => {
+    pushReceive(content)
+  })
+
+  reception.value = res.reception || {}
 }
 
-async function fetchReception() {
-  try {
-    const fd = new FormData();
-    fd.append('receptionID', props.id);
-    const data = await sendRequest('/ReceptionGet/', fd); // データ取得リクエスト
-    if (data) {
-      reception.value = data;
-      selectedGroup.value = data.adminGroup || '';
-      console.log('Reception data:', reception.value);
-    }
-  } catch (error) {
-    console.error('Error fetching reception data:', error);
-  }
+// ユーティリティ関数
+function addArrayItem(field) {
+  reception.value[field].push('')
+}
+function addObjectItem(field, item) {
+  reception.value[field].push(item)
+}
+function removeItem(field, index) {
+  reception.value[field].splice(index, 1)
+}
+function addNestedItem(array, index, nestedField, initValue = '') {
+  reception.value[array][index][nestedField].push(initValue)
 }
 
-function selectMenu(menu) {
-  selectedMenu.value = menu;
-  console.log('Selected menu:', selectedMenu.value);
+function submit() {
+  console.log(reception.value);
 }
 
-// 初期化
-onMounted(() => {
-  fetchChannel();
-  fetchReception();
-});
 </script>
 
 <template>
-  <div>
-    <h1>Reception: {{ reception?.id }}</h1>
+<!--   <form> -->
+    <h2>予約フォーム</h2>
 
-    <div v-if="reception">
-      <!-- メニューのリスト -->
-      <h2>メニュー</h2>
-      <ul>
-        <li v-for="menu in reception.menus" :key="menu.id">
-          <div>
-            <input v-model="menu.menuName" type="text" />
-            <input v-model.number="menu.price" type="number" />
-          </div>
-          <div v-if="menu.paidOptions?.length">
-            <h4>有料オプション:</h4>
-            <ul>
-              <li v-for="(option, index) in menu.paidOptions" :key="index">
-                <label>オプション{{ index + 1 }}:</label>
-                <input v-model="menu.paidOptions[index][0]" placeholder="オプションID" type="number" />
-                <input v-model.number="menu.paidOptions[index][1]" placeholder="価格" type="number" />
-              </li>
-              <button @click="menu.paidOptions.push([null, null])">+ オプションを追加</button>
-            </ul>
-          </div>
-          <div v-if="menu.freeOptions?.length">
-            <h4>無料オプション:</h4>
-            <ul>
-              <li v-for="(option, index) in menu.freeOptions" :key="index">
-                <label>無料オプション{{ index + 1 }}:</label>
-                <input v-model="menu.freeOptions[index]" placeholder="無料オプションID" type="number" />
-              </li>
-              <button @click="menu.freeOptions.push(null)">+ 無料オプションを追加</button>
-            </ul>
-          </div>
-        </li>
-        <button @click="reception.menus.push({ id: Date.now(), menuName: '', price: 0, items: [] })">
-          + メニューを追加
-        </button>
-      </ul>
+    <label>Reception ID:
+      <input v-model="reception.receptionID" type="text" />
+    </label>
 
-      <!-- 部屋リスト -->
-      <h2>部屋</h2>
-      <ul>
-        <li v-for="(room, index) in reception.rooms" :key="index">
-          <label>部屋名:</label>
-          <input v-model="room[1]" type="text" />
-          <label>定員:</label>
-          <input v-model.number="room[0]" type="number" />
-          <button @click="reception.rooms.splice(index, 1)">削除</button>
-        </li>
-        <button @click="reception.rooms.push([0, ''])">+ 部屋を追加</button>
-      </ul>
+    <label>Channel ID:
+      <input v-model="reception.channelID" type="text" />
+    </label>
 
-      <!-- 入室パスコード -->
-      <h2>入室パスコード</h2>
-      <ul>
-        <li v-for="(pass, index) in reception.enterPass" :key="index">
-          <label>開始時間:</label>
-          <input v-model="pass.passStart" type="datetime-local" />
-          <label>終了時間:</label>
-          <input v-model="pass.passEnd" type="datetime-local" />
-          <ul>
-            <li v-for="(code, codeIndex) in pass.passcodes" :key="codeIndex">
-              <label>パスコード{{ codeIndex + 1 }}:</label>
-              <input v-model="pass.passcodes[codeIndex]" type="text" />
-              <button @click="pass.passcodes.splice(codeIndex, 1)">削除</button>
-            </li>
-            <button @click="pass.passcodes.push('')">+ パスコードを追加</button>
-          </ul>
-          <button @click="reception.enterPass.splice(index, 1)">削除</button>
-        </li>
-        <button @click="reception.enterPass.push({ passStart: '', passEnd: '', passcodes: [] })">
-          + パスを追加
-        </button>
-      </ul>
+    <label>タイトル:
+      <input v-model="reception.receptionTitle" type="text" />
+    </label>
 
-      <!-- アイテムリスト -->
-      <h2>アイテムリスト</h2>
-      <ul>
-        <li v-for="(item, index) in reception.itemDetails" :key="item.itemId">
-          <div>
-            <label>アイテム名:</label>
-            <input v-model="item.itemName" type="text" />
-          </div>
-          <div>
-            <label>画像パス:</label>
-            <input v-model="item.imgPath" type="text" />
-          </div>
-          <div v-if="item.choices">
-            <h4>選択肢:</h4>
-            <ul>
-              <li v-for="(choice, choiceIndex) in item.choices" :key="choiceIndex">
-                <input v-model="item.choices[choiceIndex]" type="text" placeholder="選択肢" />
-                <button @click="item.choices.splice(choiceIndex, 1)">削除</button>
-              </li>
-              <button @click="item.choices.push('')">+ 選択肢を追加</button>
-            </ul>
-          </div>
-          <div v-else>
-            <button @click="addChoicesToItem(item)">選択肢を追加</button>
-          </div>
-          <button @click="removeItem(index)">アイテムを削除</button>
-        </li>
-      </ul>
-      <button @click="addItem">+ アイテムを追加</button>
-
-      <SelectGroup 
-        :groups="groups"
-        v-model="selectedGroup"
-      />
-
+    <div>
+      <label>Admin Names:</label>
+      <div v-for="(name, i) in reception.adminNames" :key="i">
+        <input v-model="reception.adminNames[i]" />
+        <button v-if="reception.adminNames.length > 1" @click.prevent="removeItem('adminNames', i)">−</button>
+      </div>
+      <button @click.prevent="addArrayItem('adminNames')">＋</button>
     </div>
-    <div v-else>
-      <p>データをロードしています...</p>
+
+    <div>
+      <label>Join Names:</label>
+      <div v-for="(name, i) in reception.joinNames" :key="i">
+        <input v-model="reception.joinNames[i]" />
+        <button v-if="reception.joinNames.length > 1" @click.prevent="removeItem('joinNames', i)">−</button>
+      </div>
+      <button @click.prevent="addArrayItem('joinNames')">＋</button>
     </div>
-  </div>
+
+    <div>
+      <label>Skills:</label>
+      <div v-for="(skill, i) in reception.skills" :key="i">
+        <input v-model="reception.skills[i]" />
+        <button v-if="reception.skills.length > 1" @click.prevent="removeItem('skills', i)">−</button>
+      </div>
+      <button @click.prevent="addArrayItem('skills')">＋</button>
+    </div>
+
+    <div>
+      <label>スタッフスキル:</label>
+      <div v-for="(staff, i) in reception.staffSkills" :key="i">
+        <input v-model="staff.aliasName" placeholder="スタッフ名" />
+        <div v-for="(s, j) in staff.skills" :key="j">
+          <input v-model="staff.skills[j]" placeholder="スキル" />
+          <button @click.prevent="staff.skills.splice(j, 1)" v-if="staff.skills.length > 1">−</button>
+        </div>
+        <button @click.prevent="addNestedItem('staffSkills', i, 'skills')">＋スキル</button>
+        <button @click.prevent="removeItem('staffSkills', i)" v-if="reception.staffSkills.length > 1">−スタッフ</button>
+      </div>
+      <button @click.prevent="addObjectItem('staffSkills', { aliasName: '', skills: [''] })">＋スタッフ</button>
+    </div>
+
+    <div>
+      <label>作業スタッフ必要:
+        <input type="checkbox" v-model="reception.workStaffNeed" />
+      </label>
+    </div>
+
+    <!-- Menus -->
+    <div>
+      <label>メニュー:</label>
+      <div v-for="(m, i) in reception.menus" :key="i">
+        <input v-model.number="m.menuID" type="number" placeholder="メニューID" />
+        <input v-model="m.menuName" placeholder="メニュー名" />
+        <input v-model.number="m.price" type="number" placeholder="価格" />
+        <input v-model.number="m.prepaidPrice" type="number" placeholder="前払価格" />
+        <input v-model="m.needSkill" placeholder="必要スキル" />
+        <input v-model="m.needFacility" placeholder="必要設備" />
+        <input v-model.number="m.specifyNameFlag" type="number" placeholder="指名可" />
+        <input v-model.number="m.spendMinute" type="number" placeholder="所要時間(分)" />
+        <button @click.prevent="reception.menus.splice(i, 1)" v-if="reception.menus.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('menus', {
+        menuID: 0, menuName: '', price: 0, prepaidPrice: 0, needSkill: '', needFacility: '',
+        specifyNameFlag: 0, spendMinute: 0, items: [], paidOptions: [], freeOptions: [], freeMultiOptions: []
+      })">＋メニュー</button>
+    </div>
+
+    <!-- Asks -->
+    <div>
+      <label>アンケート質問:</label>
+      <div v-for="(ask, i) in reception.asks" :key="i">
+        <input v-model="reception.asks[i]" placeholder="質問文" />
+        <input
+          v-model="reception.askChoices[i]"
+          placeholder="単一選択肢（カンマ区切り）"
+          @blur="reception.askChoices[i] = typeof reception.askChoices[i] === 'string' ? reception.askChoices[i].split(',').map(s => s.trim()) : reception.askChoices[i]"
+        />
+        <input
+          v-model="reception.askMultiChoices[i]"
+          placeholder="複数選択肢（カンマ区切り）"
+          @blur="reception.askMultiChoices[i] = typeof reception.askMultiChoices[i] === 'string' ? reception.askMultiChoices[i].split(',').map(s => s.trim()) : reception.askMultiChoices[i]"
+        />
+        <button @click.prevent="() => {
+          reception.asks.splice(i, 1);
+          reception.askChoices.splice(i, 1);
+          reception.askMultiChoices.splice(i, 1);
+        }" v-if="reception.asks.length > 1">−</button>
+      </div>
+      <button @click.prevent="() => {
+        reception.asks.push('');
+        reception.askChoices.push([]);
+        reception.askMultiChoices.push([]);
+      }">＋質問</button>
+    </div>
+
+    <!-- Facilities -->
+    <div>
+      <label>施設:</label>
+      <div v-for="(f, i) in reception.facilities" :key="i">
+        <input v-model="f.facilityName" placeholder="施設名" />
+        <input v-model.number="f.facilityCount" type="number" placeholder="数" />
+        <button @click.prevent="reception.facilities.splice(i, 1)" v-if="reception.facilities.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('facilities', { facilityName: '', facilityCount: 1 })">＋施設</button>
+    </div>
+
+    <!-- OpenTimes -->
+    <div>
+      <label>利用可能時間帯:</label>
+      <div v-for="(t, i) in reception.openTimes" :key="i">
+        <input type="datetime-local" v-model="t.limitStart" />
+        <input type="datetime-local" v-model="t.limitEnd" />
+        <button @click.prevent="reception.openTimes.splice(i, 1)" v-if="reception.openTimes.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('openTimes', { limitStart: '', limitEnd: '' })">＋時間帯</button>
+    </div>
+
+    <!-- Shifts -->
+    <div>
+      <label>シフト:</label>
+      <div v-for="(s, i) in reception.shifts" :key="i">
+        <input v-model="s.role" placeholder="役割" />
+        <input type="datetime-local" v-model="s.shiftStart" />
+        <input type="datetime-local" v-model="s.shiftEnd" />
+        <input
+          v-model="s.aliasNames[0]"
+          @blur="s.aliasNames = s.aliasNames[0].split(',').map(s => s.trim())"
+          placeholder="担当者 (カンマ区切り)"
+        />
+        <label><input type="checkbox" v-model="s.open" true-value="1" false-value="0" /> 公開</label>
+        <label><input type="checkbox" v-model="s.fix" /> 固定</label>
+        <button @click.prevent="reception.shifts.splice(i, 1)" v-if="reception.shifts.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('shifts', {
+        aliasNames: [''], shiftStart: '', shiftEnd: '', open: 1, role: '', fix: false
+      })">＋シフト</button>
+    </div>
+
+    <!-- Seats -->
+    <div>
+      <label>座席:</label>
+      <div v-for="(s, i) in reception.seats" :key="i">
+        <input v-model="s.seatName" placeholder="座席名" />
+        <input v-model.number="s.capacity" type="number" placeholder="定員" />
+        <input v-model="s.currentCode" placeholder="現在コード" />
+        <button @click.prevent="reception.seats.splice(i, 1)" v-if="reception.seats.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('seats', {
+        seatName: '', capacity: 1, passcodes: [], currentCode: ''
+      })">＋座席</button>
+    </div>
+
+    <!-- ItemDetails -->
+    <div>
+      <label>アイテム詳細:</label>
+      <div v-for="(item, i) in reception.itemDetails" :key="i">
+        <input v-model.number="item.itemID" type="number" placeholder="ID" />
+        <input v-model="item.itemName" placeholder="名前" />
+        <input v-model="item.imgPath" placeholder="画像パス" />
+        <input
+          v-model="item.choices[0]"
+          placeholder="選択肢 (カンマ区切り)"
+          @blur="item.choices[0] = item.choices[0].split(',').map(s => s.trim())"
+        />
+        <button @click.prevent="reception.itemDetails.splice(i, 1)" v-if="reception.itemDetails.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('itemDetails', {
+        itemID: 0, itemName: '', imgPath: '', choices: [[]]
+      })">＋アイテム</button>
+    </div>
+
+    <!-- WaitConfigs -->
+    <div>
+      <label>待機設定:</label>
+      <div v-for="(cfg, i) in reception.waitConfigs" :key="i">
+        <input v-model.number="cfg.guestRange[0]" type="number" placeholder="最小" />
+        <input v-model.number="cfg.guestRange[1]" type="number" placeholder="最大" />
+        <input v-model.number="cfg.waitRatio" type="number" placeholder="待機率 (%)" />
+        <button @click.prevent="reception.waitConfigs.splice(i, 1)" v-if="reception.waitConfigs.length > 1">−</button>
+      </div>
+      <button @click.prevent="addObjectItem('waitConfigs', {
+        guestRange: [1, 5], waitRatio: 0
+      })">＋設定</button>
+    </div>
+
+    <button type="submit" @click="submit">送信</button>
+  <!-- </form> -->
 </template>
 
 <style scoped>
-h1, h2, h3, h4 {
-  margin: 10px 0;
+form {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background: #f9f9f9;
+  border: 1px solid #ccc;
+  border-radius: 8px;
 }
-
-ul {
-  list-style: none;
-  padding: 0;
+input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.2rem;
 }
-
-ul li {
-  margin: 5px 0;
-}
-
 button {
-  padding: 5px 10px;
-  margin: 5px 0;
+  margin: 0.2rem;
+  padding: 0.4rem 0.6rem;
+  background-color: #42b983;
+  color: white;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
 }
-
-select {
-  padding: 5px;
-  margin-bottom: 15px;
+button:hover {
+  background-color: #2d9365;
+}
+label {
+  display: block;
+  font-weight: bold;
+  margin-top: 1rem;
 }
 </style>
