@@ -1,5 +1,8 @@
 <template>
   <div class="dropdown-menu">
+    <div v-if="groups.length === 0" class="dropdown-item">
+      グループはありません
+    </div>
     <div 
       v-for="group in groups"
       :key="group.groupID"

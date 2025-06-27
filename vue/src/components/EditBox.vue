@@ -12,8 +12,8 @@
       </select>
       <button class="emoji" @click="attach(messageID)">🌄</button>
       <button class="emoji" v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
-      <button class="emoji" @click="tasking" :class="{ 'task': task }">🔖</button>
-      <button class="emoji" @click="isEditOption = true" :class="{ 'task': task }">👥</button>
+      <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
+      <button class="emoji" @click="asGroup = true" :class="{ 'selected': selectedGroup.groupID }">👥</button>
       <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
@@ -24,7 +24,7 @@
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
 
-  <EditOptionModal :show="isEditOption" @close="isEditOption = false">
+  <EditOptionModal :show="asGroup" @close="asGroup = false">
     <SelectGroup
       :groups="myGroups"
       v-model="selectedGroup"
@@ -108,7 +108,6 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
-  console.log('messageData', messageData);
   const pushTitle = messageID ? 'threadEdit' : 'thread';
   const SecondMsgID = messageID ? 
   	messageID.replace(props.channel.channelID, '') :
@@ -199,6 +198,7 @@ const msgUpsert = async (messageID, delMessage) => {
   quill.root.innerHTML = '';
   fileInfo.value = [];
   task.value = false;
+  asGroup.value = false;
   clicked = false;
 }
 
@@ -279,12 +279,12 @@ onMounted(() => {
   });
 });
 
-const isEditOption = ref(false);
+const asGroup = ref(false);
 const selectedGroup = ref({groupID:'', groupName:'', groupImg:''}); 
 const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(props.channel.myname)));
 function handleSelection(group) {
   selectedGroup.value = group;
-  isEditOption.value = false;
+  asGroup.value = false;
 }
 </script>
 
@@ -321,7 +321,7 @@ function handleSelection(group) {
   font-size: 12px;
   padding-top: 0px;
 }
-.ql-snow.ql-toolbar .task {
+.ql-snow.ql-toolbar .selected {
   background-color: #92a7b54a;
   border-radius: 5px;
 }

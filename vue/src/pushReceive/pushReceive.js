@@ -1,3 +1,4 @@
+import { advertisement } from './advertisement.js';
 import { alias } from './alias.js';
 import { bookmark } from './bookmark.js';
 import { bookPattern } from './bookPattern.js';
@@ -25,6 +26,7 @@ export function pushReceive(notificationData) {
   const data = JSON.parse(notificationData);
 
   const actions = {
+    advertisement: advertisement,
     alias: alias,
     bookmark: bookmark,
     bookPattern: bookPattern,

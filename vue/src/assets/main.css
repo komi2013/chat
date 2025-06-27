@@ -14,21 +14,34 @@ a {
 }
 
 @media screen and (min-width : 701px) { 
-  #drawer_column {
-    width : 300px;
-    position: absolute;
+  #app {
+    display: flex;
+    min-width: 1000px;
   }
-  #content{
-    width: 400px;
-    margin: 0px 4px 0px 300px;
-    position: absolute;
+
+  #container {
+    display: flex;
+    min-width: 1012px; /* 300 + 400 + 300 = 1000pxが最低 */
+  }
+
+  #drawer_column {
+    width: 300px;
+    flex-shrink: 0;
+  }
+
+  #content {
+    min-width: 400px;
+    flex-grow: 1;
+    margin: 0 4px;
+  }
+
+  #ad_right {
+    width: 300px;
+    margin-left: 4px;
   }
 
   .pc_disp_none{
     display: none;
-  }
-  #ad_right{
-    margin:2px;
   }
 }
 

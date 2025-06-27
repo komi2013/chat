@@ -102,12 +102,14 @@ export async function thread(pushData) {
     threadHead.channelID = channelID;
     newThreadHeadFlag = true;
   }
-  if (displayStatus == 2 && pushThread.emojis) {
+  if (displayStatus == 2 && pushThread.emojis.length > 0) {
+    console.log('pushThread', pushThread);
     const bm = {
       messageID: pushThread.messageID,
       channelID: pushThread.channelID,
       title: getSubstring(removeMark(pushThread.messageTxt), 0, 20),
-      displayStatus: 1
+      displayStatus: 1,
+      backID: pushThread.parentID
     };
     upsertIDB(bm, 'bookmark', 'messageID', pushThread.messageID);
     bookmarksStore.insert(bm);

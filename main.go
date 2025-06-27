@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"chat/common"
-	// "chat/console"
+	"chat/console"
 	"chat/controller"
 )
 
@@ -43,5 +43,13 @@ func main() {
 		log.Fatal(http.ListenAndServe(common.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
+		switch os.Args[1] {
+		case "AdPublish":
+			console.AdPublish()
+		case "TestPush":
+			console.TestPush()
+		// case "TestPush":
+		// 	console.TestPush()
+		}
 	}
 }

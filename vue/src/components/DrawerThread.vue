@@ -1,172 +1,53 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
-import { useBookmarksStore } from '../stores/bookmarks.js';
-import { useThreadHeadsStore } from '../stores/threadHeads.js';
-import { useChannelsStore } from '../stores/channels.js';
+import { useBookmarksStore } from '@/stores/bookmarks.js';
+import { useThreadHeadsStore } from '@/stores/threadHeads.js';
+import Advertisement from '@/components/Advertisement.vue';
 
 const threadHeadsStore = useThreadHeadsStore()
 const threadHeads = computed(() => {
   return threadHeadsStore.threadHeads
 })
 
+const fetchAllThreadHeads = async () => {
+  const th = await getAllIDBs('threadHead');
+  if (Array.isArray(th) && th.length > 0) {
+    const data = th.filter(d => d.channelID === localStorage.getItem('channelID'));
+    if (data.length > 0) {
+      const sorted = [
+        ...data.filter(d => d.displayStatus === 2), // mention
+        ...data.filter(d => d.displayStatus === 1), // unread
+        ...data.filter(d => d.displayStatus === 0), // read
+        ...data.filter(d => d.displayStatus === 3)  // mute
+      ];
+
+      sorted.forEach(d => {
+        threadHeadsStore.insert(d);
+      });
+
+      if (sorted.some(d => d.displayStatus === 2)) {
+        addFaviconBadge();
+      }
+    }
+  }
+};
+
 const bookmarksStore = useBookmarksStore()
 const bookmarks = computed(() => {
   return bookmarksStore.bookmarks
 })
 
-const channelsStore = useChannelsStore()
-const channels = computed(() => {
-  return channelsStore.channels
-})
-
-const fetchMention = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('threadHead', 'displayStatusIndex', 2)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          threadHeadsStore.insert(d);
-        });
-        if (data.length > 0) {
-          addFaviconBadge();
-        }
-        resolve();
-      })
-      .catch((error) => {
-        console.error(error);
-        resolve();
-      });
+const fetchBookmarks = async () => {
+  const data = await getAllIDBs('bookmark');
+  data.forEach(d => {
+    bookmarksStore.insert(d);
   });
 };
 
-const fetchUnread = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('threadHead', 'displayStatusIndex', 1)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          threadHeadsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
+const addFaviconBadge = () => {
+  const favicon = document.querySelector('link[rel="icon"]');
+  favicon.href = '/me.jpg';
 };
-
-const fetchRead = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('threadHead', 'displayStatusIndex', 0)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          threadHeadsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
-
-const fetchMute = () => {
-  return new Promise((resolve, reject) => {
-    getIDBs('threadHead', 'displayStatusIndex', 3)
-      .then((data) => {
-        const latest = data.reverse();
-        latest.forEach(d => {
-          threadHeadsStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
-
-const fetchBookmarks = () => {
-  return new Promise((resolve, reject) => {
-    getAllIDBs('bookmark')
-      .then((data) => {
-        data.forEach(d => {
-          bookmarksStore.insert(d);
-        });
-        resolve();
-      })
-      .catch((error) => {
-        reject(error);
-      });
-  });
-};
-
-
-// const mentionChannel = () => {
-//   return new Promise((resolve, reject) => {
-//     getIDBs('channel', 'displayStatusIndex', 2)
-//       .then((data) => {
-//         const latest = data.reverse();
-//         latest.forEach(d => {
-//           channelsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
-
-// const unreadChannel = () => {
-//   return new Promise((resolve, reject) => {
-//     getIDBs('channel', 'displayStatusIndex', 1)
-//       .then((data) => {
-//         const latest = data.reverse();
-//         latest.forEach(d => {
-//           channelsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
-
-// const readChannel = () => {
-//   return new Promise((resolve, reject) => {
-//     getIDBs('channel', 'displayStatusIndex', 0)
-//       .then((data) => {
-//         const latest = data.reverse();
-//         latest.forEach(d => {
-//           channelsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
-
-// const muteChannel = () => {
-//   return new Promise((resolve, reject) => {
-//     getIDBs('channel', 'displayStatusIndex', 3)
-//       .then((data) => {
-//         const latest = data.reverse();
-//         latest.forEach(d => {
-//           channelsStore.insert(d);
-//         });
-//         resolve();
-//       })
-//       .catch((error) => {
-//         reject(error);
-//       });
-//   });
-// };
-
 
 function getStatusClass(status) {
   return {
@@ -176,11 +57,6 @@ function getStatusClass(status) {
     'mute': status === 3
   };
 }
-
-const addFaviconBadge = () => {
-  const favicon = document.querySelector('link[rel="icon"]');
-  favicon.href = '/me.jpg';
-};
 
 function paramParent(d) {
   const modifiedParentID = d.parentID.replace(d.channelID, '');
@@ -195,25 +71,14 @@ function paramMsg(d) {
 function goBookmarkThread (bookmark) {
   const channelID = bookmark.channelID;
   const msgSecondID = bookmark.messageID.replace(channelID, '');
-  const backID = bookmark.backID.replace(channelID, '');
-  location.href = '/thread/' + channelID + '/' + msgSecondID + '/?backID=' + backID;
+  // const backID = bookmark.backID.replace(channelID, '');
+  location.href = '/thread/' + channelID + '/' + msgSecondID + '/?backID=' + bookmark.backID;
   // :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)"
 }
 
 onBeforeMount(async () => {
-  // await messagesStore.deleteAll();
-
-  await fetchMention();
-  await fetchUnread();
-  await fetchRead();
-  await fetchMute();
+  await fetchAllThreadHeads();
   await fetchBookmarks();
-  console.log(bookmarks.value.length);
-  // const bookmarks = await getAllIDBs('bookmark');
-  // await mentionChannel();
-  // await unreadChannel();
-  // await readChannel();
-  // await muteChannel();
 
 });
 
@@ -226,6 +91,7 @@ onBeforeMount(async () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr><td><a href="/channel/" > 🏠 組織チャネル </a></td></tr>
       <tr><td>スレッド</td></tr>
       <tr v-for="d in threadHeads">
@@ -253,11 +119,6 @@ onBeforeMount(async () => {
 #drawer td {
   background-color: #EEEEEE;
 }
-/*#drawer td a {
-  display: inline-block;
-  width: 100%;
-}
-*/
 
 .mention a {
   color: red;
