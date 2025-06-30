@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import SelectPeople from '@/components/SelectPeople.vue';
+
 import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
@@ -40,7 +42,8 @@ const calendar = ref({
   timeStart: timeFormat('YYYY-MM-DDThh:mm', start),
   timeEnd: timeFormat('YYYY-MM-DDThh:mm', end),
   todo: props.text ?? '',
-  aliasNames: []
+  aliasNames: [],
+  repeatOption: 'none'
 });
 
 const googleURL = computed(() => {
@@ -152,33 +155,33 @@ const generateRepeatedEvents = (calendar) => {
 <template>
 <Drawer />
 <div id="content">
-  <div class="modal">
-    <div class="modal-content">
-      <input type="datetime-local" v-model="calendar.timeStart" />
-      <span> ~ </span>
-      <input type="datetime-local" v-model="calendar.timeEnd" />
-      <textarea type="text" placeholder="Todo" v-model="calendar.todo" required></textarea>
-      <button @click="submit" :disabled="!calendar.todo">▶️</button>
-      <button @click="delCalendar" :disabled="!calendar.calendarID">🗑</button>
-      <button><a onclick="window.close();">x</a></button>
-      <SelectPeople v-if="fetched"
-        :aliases="aliases"
-        :groups="groups"
-        :placeholder="'参加ユーザー'"
-        v-model="calendar.aliasNames"
-        />
-      <div>
-        <label>繰り返しオプション:</label>
-        <select v-model="calendar.repeatOption">
-          <option value="none">繰り返しなし</option>
-          <option value="weekly">毎週同じ曜日</option>
-          <option value="monthly">毎月同じ日</option>
-        </select>
-      </div>
+  <div class="modal-content">
+    <input type="datetime-local" v-model="calendar.timeStart" />
+    <span> ~ </span>
+    <input type="datetime-local" v-model="calendar.timeEnd" />
+    <textarea type="text" placeholder="Todo" v-model="calendar.todo" required></textarea>
+    <button @click="submit" :disabled="!calendar.todo">▶️</button>
+    <button @click="delCalendar" :disabled="!calendar.calendarID">🗑</button>
+    <button><a onclick="window.close();">x</a></button>
+    <SelectPeople v-if="fetched"
+      :aliases="aliases"
+      :groups="groups"
+      :placeholder="'参加ユーザー'"
+      v-model="calendar.aliasNames"
+      />
+    <div>
+      <label>繰り返しオプション:</label>
+      <select v-model="calendar.repeatOption">
+        <option value="none">繰り返しなし</option>
+        <option value="weekly">毎週同じ曜日</option>
+        <option value="monthly">毎月同じ日</option>
+      </select>
     </div>
   </div>
   <textarea class="google-url">{{googleURL}}</textarea>
 </div>
+<div id="ad_right"> <br><br><br> <Advertisement /> <br><br><br> <Advertisement /> <br><br><br> <Advertisement /> </div>
+
 </template>
 
 <style scoped>
@@ -189,11 +192,6 @@ button {
   margin: 8px;
 }
 
-.modal {
-  display: flex;
-  justify-content: center;
-}
-
 .modal-content {
   background-color: white;
   padding: 20px;
@@ -202,16 +200,11 @@ button {
   width: 100%;
 }
 
-.modal-content textarea {
-  width: 100%;
-}
-
-
-.google-url {
-  width: 80%;
+textarea {
+  width: 90%;
   height: 50px;
-  margin: 8px;
-  padding: 8px;
+  margin: 2px;
+  padding: 2px;
 }
 
 </style>

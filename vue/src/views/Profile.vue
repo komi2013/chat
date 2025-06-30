@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeMount, onMounted } from 'vue';
+
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
@@ -107,10 +109,11 @@ async function switchAlias (aliasName) {
 <div id="content" v-if="fetched">
   <div class="headTitle">
     <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
-    <span>
+<!--     <span>
       <a :href="'/profile/' + id + '/'"> ⬅ </a>
-    </span>
+    </span> -->
   </div>
+  <br>
   <div class="join">
     <div class="icon-name">
       <template v-if="!isEditable">
@@ -173,7 +176,9 @@ async function switchAlias (aliasName) {
     </div>
   </div>
 </div>
-<div v-if="!fetched"> Loading... or Something Went </div>
+  <div v-if="!fetched"> Loading... or Something Went </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>

@@ -5,6 +5,9 @@
 // when community join, decide alias
 // aliasImg is changeble
 // aliasName is not changeble
+// groupLockUntilDate prevent join group 
+// because invitation URL is open for anybody
+// changing group is possible by anybody who join
 
 export async function channelEdit(pd) {
   const channelID = pd[2];

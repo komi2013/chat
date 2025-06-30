@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 
 const props = defineProps({
@@ -11,7 +13,7 @@ const props = defineProps({
 <template>
 <Drawer />
 <div id="content">
-<h2>ホーム</h2>
+  <h2>ホーム</h2>
   <div class="block"><a href="/">チャット</a></div>
   <div class="block"><a href="/channel/" > 👪 組織・チャネル </a></div>
   <div class="block"><a href="/timestampCode/">タイムスタンプ</a></div>
@@ -20,6 +22,9 @@ const props = defineProps({
   <div class="block"><a href="/bookPattern/">bookPattern</a></div>
   <div class="block"><a href="/setting/">setting</a></div>
 </div>
+
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>

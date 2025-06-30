@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue'
 
+import Advertisement from '@/components/Advertisement.vue';
+
 </script>
 
 <template>
@@ -9,6 +11,7 @@ import { ref, computed, onBeforeMount } from 'vue'
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr><td><a href="/channel/" > 👪 組織・チャネル </a></td></tr>
       <tr><td><a href="/calendar/">カレンダー</a></td></tr>
       <tr><td><a href="/timestampCode/">タイムスタンプ</a></td></tr>
@@ -23,11 +26,6 @@ import { ref, computed, onBeforeMount } from 'vue'
 #drawer td {
   background-color: #EEEEEE;
 }
-/*#drawer td a {
-  display: inline-block;
-  width: 100%;
-}
-*/
 
 @media screen and (min-width : 701px) {
   #drawer {

@@ -151,10 +151,8 @@ const validateEmoji = () => {
 }
 
 .new-alias-img {
-/*  width: 40px;
-  height: 40px;*/
-  max-height: 50px;
-  max-width: 50px;
+  height: 50px;
+  width: 50px;
   margin: 6px;
   display: inline-block;
   font-size: 36px;

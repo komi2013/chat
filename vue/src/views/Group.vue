@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
+
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '../components/Drawer.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
@@ -31,14 +33,14 @@ onBeforeMount(async () => {
   groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
   groups.value.forEach(group => {
     if (group.aliasNames.includes(channel.value.myname) && today > groupLockUntilDate) {
+    // if (group.aliasNames.includes(channel.value.myname)) {
       group.editable = true;
     } else {
       group.editable = false;
     }
   });
-  fetched.value = true;
 
-  // console.log(aliases.value.map(d => ));
+  fetched.value = true;
 });
 
 // const groupName = ref(props.groupName);
@@ -124,18 +126,12 @@ function getAliasesByNames(aliasNames) {
     <div>
       <a :href="'/channel/' + channel.channelID"> {{ channel.channelName }} </a>
     </div>
-<!--     <div v-if="groupName">
-      {{groupName}}
-    </div>
-    <span v-if="groupName">
-      <a :href="'/group/' + props.id + '/'"> ⬅ </a>
-    </span> -->
   </div>
 
-<table>
-  <template v-for="(groupAlias, i) in groups">
-    <tr><td colspan="3">
-      <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
+  <table>
+    <template v-for="(groupAlias, i) in groups">
+      <tr><td colspan="3">
+        <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
         <PeopleImg v-if="groupAlias.editable" v-model="groupAlias.groupImg" />
         <template v-if="!groupAlias.editable">
           <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
@@ -151,37 +147,38 @@ function getAliasesByNames(aliasNames) {
         <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
           <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
         </a>
-    </td></tr>
-    <tr>
-      <td colspan="3" class="height">
-        <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="groupAlias.editable" />
-      </td>
-    </tr>
-    <tr>
-      <td class="center">&nbsp;
-        <!-- <button @click="removeGroup(groupAlias)"> ✉️ </button> -->
-        <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
-      </td>
+      </td></tr>
+      <tr>
+        <td colspan="3" class="height">
+          <SelectAlias v-model="groupAlias.aliasNames" :aliases="aliases" :editable="groupAlias.editable" />
+        </td>
+      </tr>
+      <tr>
+        <td class="center">&nbsp;
+          <!-- <button @click="removeGroup(groupAlias)"> ✉️ </button> -->
+          <!-- <a v-if="!groupName" :href="'/group/' + props.id + '/' + groupAlias.groupName + '/' "> ⏭️ </a> -->
+        </td>
 
-      <td v-if="groupAlias.editable" class="center">
-        <button @click="removeGroup(groupAlias)"> 🗑 </button>
-      </td>
-      <td v-if="groupAlias.editable" class="center">
-        <button @click="editGroup(groupAlias)">▶️</button>
-      </td>
-    </tr>
-    <div >
-    </div>
-    <tr><td colspan="3"><hr></td></tr>
-  </template>
-</table>
+        <td v-if="groupAlias.editable" class="center">
+          <button @click="removeGroup(groupAlias)"> 🗑 </button>
+        </td>
+        <td v-if="groupAlias.editable" class="center">
+          <button @click="editGroup(groupAlias)">▶️</button>
+        </td>
+      </tr>
+      <div >
+      </div>
+      <tr><td colspan="3"><hr></td></tr>
+    </template>
+  </table>
 
-<div class="center">
-  <button @click="newGroup"> + </button>
+  <div class="center">
+    <button @click="newGroup"> + </button>
+  </div>
+
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 
-</div>
-<div v-if="!fetched"> Loading... or Something Went </div>
 </template>
 
 <style>
@@ -195,11 +192,6 @@ function getAliasesByNames(aliasNames) {
 .headTitle span {
   line-height: 50px;
   width: 50px;
-}
-
-img {
-  max-width: 50px;
-  max-height: 50px;
 }
 
 hr {

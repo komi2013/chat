@@ -44,8 +44,8 @@ onUnmounted(() => {
 
 <style scoped>
 .ad-image {
-  width: 150px;
-  height: 150px;
+  width: 250px;
+  height: 250px;
   object-fit: cover;
   border: 1px solid #ccc;
   border-radius: 8px;

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 
+import Advertisement from '@/components/Advertisement.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 import SelectPeople from '@/components/SelectPeople.vue';
 import { useCalendarsStore } from '@/stores/calendars.js';
@@ -154,6 +155,7 @@ function jump(days) {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr>
         <td>
           <SelectPeople v-if="aliases"

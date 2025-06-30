@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeMount, onMounted } from 'vue';
+
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
@@ -18,7 +20,7 @@ const person = ref(null);
 const groups = ref([]);
 const aliases = ref([]);
 const fetched = ref(false);
-const isEditable = ref(false);
+// const isEditable = ref(false);
 // const image = ref(',' + getRandomEmoji() + ',' + getRandomColor());
 const myAliases = ref([]);
 let joinGroups;
@@ -75,11 +77,11 @@ async function directMessage() {
 <div id="content" v-if="fetched">
   <div class="headTitle">
     <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
-    <span v-if="!isGroup">
-      <a :href="'/profile/' + id + '/'"> ⬅ </a>
+    <span v-if="!isGroup && person.name === channel.myname">
+      <a :href="'/profile/' + id + '/'"> ✏️ </a>
     </span>
     <span v-if="isGroup">
-      <a :href="'/group/' + id + '/'"> ⬅ </a>
+      <a :href="'/group/' + id + '/'"> ⬅️ </a>
     </span>
   </div>
   <div class="join">
@@ -130,9 +132,11 @@ async function directMessage() {
     </div>
   </div>
 
-  <button @click="directMessage"> ✉️ </button>
+  <button @click="directMessage"> メッセージ送信 </button>
 </div>
-<div v-if="!fetched"> Loading... or Something Went </div>
+
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>

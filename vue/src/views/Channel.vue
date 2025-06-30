@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import PeopleImg from '@/components/PeopleImg.vue'
 
@@ -42,23 +43,13 @@ function initQuill() {
 
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 
-// function removable(alias) {
-//   const isAdmin = channel.value.adminNames.includes(myname.value);
-//   if ( alias.userID === userID.value || isAdmin ) {
-//     return true;
-//   } else {
-//     return false;
-//   }
-// }
-
 onMounted(async () => {
   channels.value = await getAllIDBs('channel');
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
   threadHeads.value = threadHeadsAll.filter(d => !d.backID);
-  // await fetchThreadHead();
-  // groups.value = await fetchGroups(props.id);
+
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
   }
@@ -200,7 +191,7 @@ const removeNames = async () => {
 <Drawer />
 
 <div id="content">
-<br><br>
+  <br><br>
   <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
@@ -220,6 +211,9 @@ const removeNames = async () => {
   </template>
 
   <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname">▶️</button><br>
+
+  <div v-if="id"> このチャネルのニックネーム: {{channel.myname}} </div>
+
   <div v-if="id" class="invitation">
     <button @click="invite" class="postButton"> <span>✉️</span> <span>招待URL</span> </button>
     <div class="optionRight">
@@ -252,30 +246,29 @@ const removeNames = async () => {
   </div>
   <button @click="removeNames" class="postButton">▶️</button>
 
+  <template v-if="id">
+    <h3>スレッド一覧</h3>
+    <ul v-if="threadHeads">
+      <li v-for="d in threadHeads">
+        <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
+          {{d.title}}
+        </a>
+      </li>
+      <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
+    </ul>
+  </template>
 
-
-<template v-if="id">
-  <h3>スレッド一覧</h3>
-  <ul v-if="threadHeads">
-    <li v-for="d in threadHeads">
-      <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
-        {{d.title}}
-      </a>
+  <h3>チャネル一覧</h3>
+  <ul v-if="channels">
+    <li v-for="d in channels" :key="d.channelID">
+      <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
     </li>
-    <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
+    <li><a href="/channel/"><button> + 新規 </button></a></li>
   </ul>
-</template>
-
-<h3>チャネル一覧</h3>
-<ul v-if="channels">
-  <li v-for="d in channels" :key="d.channelID">
-    <a :href="'/channel/' + d.channelID + '/'">{{ d.channelName }}</a>
-  </li>
-  <li><a href="/channel/"><button> + 新規 </button></a></li>
-</ul>
 
 </div>
-<!-- <div v-if="!fetched"> <br><br> Loading... or Something Went </div> -->
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>
@@ -286,6 +279,10 @@ const removeNames = async () => {
 .ql-snow.ql-toolbar .attachment {
   font-size: 12px;
   padding-top: 0px;
+}
+
+#description {
+  height: auto;
 }
 
 .inputText {

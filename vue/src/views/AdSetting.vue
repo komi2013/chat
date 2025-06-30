@@ -330,7 +330,7 @@ function removeImage(type) {
       </li>
     </ul>
   </div>
-  <div id="ad_right"> <br><br><br> <Advertisement /> <br><br><br> <Advertisement /> <br><br><br> <Advertisement /> </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>
