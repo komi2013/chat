@@ -21,6 +21,9 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	var session collection.SessionStruct
 	var tmplPath string
 	switch {
+	case strings.Contains(r.URL.Path, "/sign/"):
+		tmplPath = "view/signTmp.tmpl"
+		// tmplPath = "view/signGoogle.tmpl"
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.tmpl"
 	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

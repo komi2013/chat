@@ -12,7 +12,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  "go.mongodb.org/mongo-driver/bson/primitive"
+  // "go.mongodb.org/mongo-driver/bson/primitive"
 
   webpush "github.com/SherClockHolmes/webpush-go"
 
@@ -22,15 +22,10 @@ import (
 
 func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 	postBy := r.FormValue("postBy")
+	receptionID := r.FormValue("receptionID")
   menuID, err := strconv.Atoi(r.FormValue("menuID"))
   if err != nil {
     http.Error(w, "menuID is not correct", http.StatusNotFound)
-    return
-  }
-
-  receptionID, err := primitive.ObjectIDFromHex(r.FormValue("receptionID"))
-  if err != nil {
-    http.Error(w, "Invalid receptionID format", http.StatusBadRequest)
     return
   }
 
@@ -143,12 +138,14 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 
 	// FreeOptions (単純なintスライスに対応)
 	for _, freeID := range freeOptions {
-		for _, ID := range selectedMenu.FreeOptions {
-			if freeID == ID {
-				for _, item := range reception.ItemDetails {
-					if item.ItemID == freeID {
-						itemIDs = append(itemIDs, item.ItemID)
-						break
+		for _, IDs := range selectedMenu.FreeOptions {
+			for _, ID := range IDs {
+				if freeID == ID {
+					for _, item := range reception.ItemDetails {
+						if item.ItemID == freeID {
+							itemIDs = append(itemIDs, item.ItemID)
+							break
+						}
 					}
 				}
 			}

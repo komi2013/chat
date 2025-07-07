@@ -1,15 +1,19 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 
+import Advertisement from '@/components/Advertisement.vue';
+import Drawer from '@/components/Drawer.vue';
+
 const props = defineProps({
   id: '',
   apiKey: '',
 });
 
-async function fetchReception() {
+async function findReception() {
   try {
     const fd = new FormData();
     fd.append('receptionID', props.id);
+    fd.append('passkey', props.apiKey);
     const reception = await sendRequest('/ReceptionGet/', fd);
     if (reception?.menus) {
       await fetchOrder(reception);
@@ -62,7 +66,7 @@ function getItemNames(itemDetailIDs, itemDetails) {
 }
 
 onMounted(() => {
-  fetchReception();
+  findReception();
 });
 
 async function deleteOrders(tableName) {
@@ -80,9 +84,9 @@ async function deleteOrders(tableName) {
 </script>
 
 <template>
-
-  <div>
-    <h1>注文履歴</h1>
+<Drawer />
+  <div id="content">
+    <h1 class="sp_head">注文履歴</h1>
     <div v-for="(orders, tableName) in groupedOrders" :key="tableName" class="order-group">
       <h2>{{ tableName }}</h2>
       <div v-for="(order, index) in orders" :key="index" class="order">
@@ -99,6 +103,7 @@ async function deleteOrders(tableName) {
       <button @click="deleteOrders(tableName)">このテーブルの履歴を削除</button>
     </div>
   </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>

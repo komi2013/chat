@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted, onBeforeMount } from "vue";
+
+import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import SelectAlias from '@/components/SelectAlias.vue'
 
@@ -78,6 +80,7 @@ onMounted(loadStores);
       💥 Cookie・LocalStorage・IndexedDB をすべて削除
     </button>
   </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>

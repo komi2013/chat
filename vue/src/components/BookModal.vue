@@ -5,23 +5,23 @@
       <label for="timeStart">開始時間:</label>
       <input type="datetime-local" v-model="localEvent.timeStart" />
       <div>
-        <div v-for="(question, i) in bookPattern.asks" :key="`ask-${i}`">
+        <div v-for="(question, i) in reception.asks" :key="`ask-${i}`">
           <label>{{ question[0] }}</label>
           <input type="text" v-model="localEvent.answers[i]" />
         </div>
 
-        <div v-for="(question, i) in bookPattern.askChoices" :key="`choice-${i}`">
+        <div v-for="(question, i) in reception.askChoices" :key="`choice-${i}`">
           <label>{{ question[0] }}</label>
-          <select v-model="localEvent.answers[bookPattern.asks.length + i]">
+          <select v-model="localEvent.answers[reception.asks.length + i]">
             <option v-for="(choice, choiceIndex) in question.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
           </select>
         </div>
 
-        <div v-for="(question, i) in bookPattern.askMultiChoices" :key="`multi-${i}`">
+        <div v-for="(question, i) in reception.askMultiChoices" :key="`multi-${i}`">
           <label>{{ question[0] }}</label>
-          <select v-model="localEvent.answers[bookPattern.asks.length + bookPattern.askChoices.length + i]">
+          <select v-model="localEvent.answers[reception.asks.length + reception.askChoices.length + i]">
             <option v-for="(choice, choiceIndex) in question.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
@@ -31,7 +31,7 @@
       <div>
         <label>メニュー:</label>
         <select v-model="localEvent.menuID">
-          <option v-for="(serviceItem, serviceIndex) in bookPattern.menus" :key="serviceItem.id" :value="serviceItem.menuID">
+          <option v-for="(serviceItem, serviceIndex) in reception.menus" :key="serviceItem.id" :value="serviceItem.menuID">
             {{ serviceItem.menuName }} - {{ serviceItem.price }}円
           </option>
         </select>
@@ -47,7 +47,7 @@
 import { ref, computed } from 'vue';
 const props = defineProps({
   time: Object,
-  bookPattern: Object,
+  reception: Object,
   menuID: Number,
   myname: String
 });
@@ -55,28 +55,28 @@ const emit = defineEmits(['submit', 'close']);
 
 const localEvent = ref({
   ...props.time,
-  bookPatternID: props.bookPattern.id,
+  receptionID: props.reception.receptionID,
   answers: [],   // askChoicesの回答を格納する配列
   serviceID: props.menuID   // 選択されたmenuのIDを格納
 });
 
-const bookPattern = props.bookPattern;
+const reception = props.reception;
 
-console.log('props', props);
-// console.log('props.bookPattern', props.bookPattern);
+// console.log('props', props);
+console.log('props.reception', props.reception);
 
 async function submit() {
   const fd = new FormData();
   
   fd.append('postBy', props.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
-  fd.append('bookPatternID', localEvent.value.bookPatternID);
+  fd.append('receptionID', localEvent.value.receptionID);
   fd.append('bookStart', localEvent.value.timeStart);
   fd.append('bookEnd', localEvent.value.timeEnd);
   fd.append('answers', JSON.stringify(localEvent.value.answers));
   fd.append('menuID', localEvent.value.menuID);
 
-  const res = await sendRequest('/BookAdd/', fd);
+  const res = await sendRequest('/ReceptionBook/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);

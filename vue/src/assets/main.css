@@ -51,10 +51,13 @@ a {
     text-align: left;
     background-color: #EEEEEE;
   }
+  #ad_right {
+    display: none;
+  }
   .sp_disp_none{
     display: none;
   }
-  #ad_right {
-    display: none;
+  .sp_head {
+    margin: 0px 0px 0px 50px;
   }
 }

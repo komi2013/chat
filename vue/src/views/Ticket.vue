@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+
+import Advertisement from '@/components/Advertisement.vue';
 import TimestampDrawer from '@/components/DrawerTimestamp.vue';
 import { takeUserIDs } from '@/my/channelFunc.js';
 
@@ -16,49 +18,30 @@ const statusOptions = ref([
 
 function tF(a, b = null){ return timeFormat(a, b) }
 
-onMounted(() => {
-  fetchChannel();
+const channel = ref(null);
+const aliases = ref(null);
+const groups = ref(null);
+onMounted(async () => {
+  channel.value = await getIDB('channel', props.channel_id);
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
+  ticket.value = await getIDB('ticket', props.ticketID);
+  await fetchTicket();
 });
 
-let channel;
-let assigneeOptions = ref('');
-async function fetchChannel() {
-  try {
-    channel = await getIDB('channel', localStorage.channelID);
-    if (props.ticketID) {
-      fetchTicket();
-    }
-    const individualAliases = channel.allAliases.map(alias => alias[0]);
-    const groupAliases = channel.groupAliases.map(group => group[0]);
-    assigneeOptions.value = [...new Set([...individualAliases, ...groupAliases])];
-  } catch (error) {
-    console.log('channel error', error);
-  }
-}
-
-async function fetchTicket() {
-  try {
-    ticket.value = await getIDB('ticket', props.ticketID);
-    console.log(ticket.value);
-
-    // ticket.value = data.ticket;
-    // ticketLogs.value = data.ticketLogs;
-    selectedStatus.value = statusOptions.value.find(option => option.value === ticket.value.status)?.value || 0
-    selectedAssignee.value = assigneeOptions.value.includes(ticket.value.assignee) ? ticket.value.assignee : assigneeOptions.value[0];
-    if (ticket.value.contentsType == 2) {
-      timestamps = ticket.value.contents;
-      await fetchTimestamp(timestamps);
-      const latestEntry = timestamps.reduce((max, obj) => 
-        obj.timeIn > max.timeIn ? obj : max, timestamps[0]);
-      const year = tF('YYYY', latestEntry.timeIn);
-      const month = tF('MM', latestEntry.timeIn);
-      thisMonth.value = tF('YYYY年MM月', latestEntry.timeIn);
-      daysInMonth.value = generateDaysInMonth(year, month);
-    }
-  } catch (error) {
-    console.log('channel error', error);
-  }
-}
+// async function fetchChannel() {
+//   try {
+//     channel = await getIDB('channel', localStorage.channelID);
+//     if (props.ticketID) {
+//       fetchTicket();
+//     }
+//     const individualAliases = channel.allAliases.map(alias => alias[0]);
+//     const groupAliases = channel.groupAliases.map(group => group[0]);
+//     assigneeOptions.value = [...new Set([...individualAliases, ...groupAliases])];
+//   } catch (error) {
+//     console.log('channel error', error);
+//   }
+// }
 
 const ticket = ref({
   ticketID: localStorage.channelID + generateRandomCode(4),
@@ -72,9 +55,31 @@ const ticket = ref({
   contentsType: 1,     // Example default contentsType, set to 1 or whatever your use case is
   contents: []         // Empty array for contents, assuming this might hold timestamp data
 });
+
+const assigneeOptions = ref('');
+const selectedStatus = ref('');
+const selectedAssignee = ref('');
+async function fetchTicket() {
+  ticket.value = await getIDB('ticket', props.ticketID);
+  // console.log(ticket.value);
+
+  // ticket.value = data.ticket;
+  // ticketLogs.value = data.ticketLogs;
+  selectedStatus.value = statusOptions.value.find(option => option.value === ticket.value.status)?.value || 0
+  selectedAssignee.value = assigneeOptions.value.includes(ticket.value.assignee) ? ticket.value.assignee : assigneeOptions.value[0];
+  if (ticket.value.contentsType == 2) {
+    timestamps = ticket.value.contents;
+    await fetchTimestamp(timestamps);
+    const latestEntry = timestamps.reduce((max, obj) => 
+      obj.timeIn > max.timeIn ? obj : max, timestamps[0]);
+    const year = tF('YYYY', latestEntry.timeIn);
+    const month = tF('MM', latestEntry.timeIn);
+    thisMonth.value = tF('YYYY年MM月', latestEntry.timeIn);
+    daysInMonth.value = generateDaysInMonth(year, month);
+  }
+}
+
 // const ticketLogs = ref(null);
-let selectedStatus = ref('');
-let selectedAssignee = ref('');
 
 const newComment = ref('');
 function saveChanges() {
@@ -193,7 +198,6 @@ function formatBreaksTotal(breaks) {
 
 <template>
 <TimestampDrawer />
-
 <div id="content">
   <div class="ticket-edit-page">
     <br>
@@ -273,6 +277,8 @@ function formatBreaksTotal(breaks) {
     </div>
   </div>
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style scoped>

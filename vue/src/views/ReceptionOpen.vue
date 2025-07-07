@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+import Advertisement from '@/components/Advertisement.vue';
+import Drawer from '@/components/Drawer.vue';
+
 // Props: receptionID, menuID, code を受け取る
 const props = defineProps({
   id: String,
@@ -106,8 +109,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="reception">
-    <h2>受付待ち時間</h2>
+
+<Drawer />
+  <div id="content" v-if="reception">
+    <h2 class="sp_head">受付待ち時間</h2>
 
     <div style="margin-bottom: 10px;">
       <label for="guestCount">何名さまですか？</label>
@@ -129,4 +134,5 @@ onMounted(async () => {
     <p v-else>すぐにご案内可能です 🙌</p>
   </div>
   <p v-else>URLが違います</p>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>

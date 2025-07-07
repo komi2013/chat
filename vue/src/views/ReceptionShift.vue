@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 
-import { userIDsByName } from '@/my/channelFunc';
+import Advertisement from '@/components/Advertisement.vue';
 
 const props = defineProps({
   id: String,
@@ -240,6 +240,7 @@ const submitShift = async () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr v-if="reception">
         <td>
           <h3>スキルを選択:</h3>
@@ -339,6 +340,7 @@ const submitShift = async () => {
       </thead>
     </table>
   </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>

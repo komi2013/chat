@@ -69,7 +69,7 @@ func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, t
   }
 	if session.Csrf != token {
 		// return session, errors.New("token error")
-		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
+		LogError("SessionCheck:", nil, session.Csrf, token)
 	}
   session, err = CheckMakeCSRFToken(db1, session, token)
   return session, err
@@ -97,6 +97,7 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 			{"push_contents", bson.A{}}, // これを明示的にセット
 		}},
 	}
+	LogError("ReGenerateData:", nil, session.Csrf, token)
 	opts := options.Update().SetUpsert(false)
 	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
 	session.PushContents = contents

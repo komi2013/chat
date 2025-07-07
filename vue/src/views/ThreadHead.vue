@@ -4,6 +4,7 @@ import { ref, computed, onBeforeMount, onMounted } from 'vue'
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 
+import Advertisement from '@/components/Advertisement.vue';
 import DrawerThread from '@/components/DrawerThread.vue';
 import SelectPeople from '@/components/SelectPeople.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
@@ -123,6 +124,8 @@ function backTo() {
 
   <button @click="postThreadHead" class="postButton">➡️</button>
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>

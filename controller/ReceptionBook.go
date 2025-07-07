@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	// "go.mongodb.org/mongo-driver/bson/primitive"
 
 	"chat/collection"
 	"chat/common"
@@ -22,6 +22,8 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	bookStart := r.FormValue("bookStart")
 	bookEnd := r.FormValue("bookEnd")
 	menuID, err := strconv.Atoi(r.FormValue("menuID"))
+	receptionID := r.FormValue("receptionID")
+
 	if err != nil {
 		http.Error(w, "Invalid menuID format", http.StatusBadRequest)
 		return
@@ -33,11 +35,6 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bookPatternID, err := primitive.ObjectIDFromHex(r.FormValue("bookPatternID"))
-	if err != nil {
-		http.Error(w, "Invalid bookPatternID format", http.StatusBadRequest)
-		return
-	}
 
 	if bookStart == "" || bookEnd == "" {
 		http.Error(w, "Missing bookStart or bookEnd", http.StatusBadRequest)
@@ -89,10 +86,10 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// bookPattern を取得
+	// reception を取得
 	var reception collection.ReceptionStruct
-	filter := bson.M{"_id": bookPatternID}
-	coll := db1.Collection("book_pattern")
+	filter := bson.M{"_id": receptionID}
+	coll := db1.Collection("reception")
 
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {

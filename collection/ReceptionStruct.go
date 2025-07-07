@@ -82,11 +82,11 @@ type Menu struct {
 	PrepaidPrice 			int    					`bson:"prepaid_price" json:"prepaidPrice"`
 	NeedSkill    			string 					`bson:"need_skill,omitempty" json:"needSkill,omitempty"`
 	NeedFacility 			string 					`bson:"need_facility,omitempty" json:"needFacility,omitempty"`
-	SpecifyNameFlag int           		`bson:"specifyNameFlag" json:"specifyNameFlag"`
+	SpecifyNameFlag   bool           	`bson:"specify_name_flag" json:"specifyNameFlag"`
 	SpendMinute  			int    					`bson:"spend_minute,omitempty" json:"spendMinute,omitempty"`
 	Items             []int       		`bson:"items" json:"items"`
 	PaidOptions       []ItemOption    `bson:"paid_options,omitempty" json:"paidOptions,omitempty"`         // [[item_id, price]]
-	FreeOptions       []int           `bson:"free_options,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
+	FreeOptions       [][]int         `bson:"free_options,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
 	FreeMultiOptions  []int       		`bson:"free_multi_options,omitempty" json:"freeMultiOptions,omitempty"` // [item_id, ...]
 }
 
@@ -94,7 +94,7 @@ type ItemDetail struct {
 	ItemID   int      `bson:"item_id" json:"itemID"`
 	ItemName string   `bson:"item_name" json:"itemName"`
 	ImgPath  string   `bson:"img_path,omitempty" json:"imgPath,omitempty"`
-	Choices  [][]string `bson:"choices,omitempty" json:"choices,omitempty"`
+	Choices  [][]string `bson:"choices,omitempty" json:"choices,omitempty"` // choices: [['硬い','普通','柔らかい'],['油多め','普通','油少なめ']]
 }
 
 type ItemOption struct {

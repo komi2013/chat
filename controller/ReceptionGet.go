@@ -21,7 +21,7 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
-  bookPatternID := r.FormValue("receptionID")
+  receptionID := r.FormValue("receptionID")
   passkey := r.FormValue("passkey")
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -47,19 +47,32 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
     }
   }
 
+  var reception collection.ReceptionStruct
+  responseData := struct {
+    Csrf         string        `json:"csrf"`
+    PushContents []string `json:"pushContents"`
+    Reception collection.ReceptionStruct `json:"reception"`
+  }{
+    Csrf:         session.Csrf,
+    PushContents: session.PushContents,
+    Reception: reception,
+  }
+
 	coll := db1.Collection("reception")
-	var reception collection.ReceptionStruct
-	filter := bson.M{"_id": bookPatternID}
+	filter := bson.M{"_id": receptionID}
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {
-		log.Print(err, " reception ", bookPatternID)
-		http.Error(w, "Book pattern not found", http.StatusNotFound)
+		log.Print(err, " reception ", receptionID)
+		// http.Error(w, "reception not found", http.StatusNotFound)
+	  w.Header().Set("Content-Type", "application/json")
+	  json.NewEncoder(w).Encode(responseData)
 		return
 	}
 
   now := time.Now()
   valid := false
   for _, pc := range reception.Passcodes {
+  	log.Printf("Invalid or expired passkey: Req: ", pc)
     if pc.Passkey == passkey {
       startTime, err1 := time.Parse("2006-01-02T15:04", pc.PassStart)
       endTime, err2 := time.Parse("2006-01-02T15:04", pc.PassEnd)
@@ -91,18 +104,8 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	    reception.Seats[i].Passcodes = nil
 	  }
 	}
-
-  responseData := struct {
-    Csrf         string        `json:"csrf"`
-    PushContents []string `json:"pushContents"`
-    Reception collection.ReceptionStruct `json:"reception"`
-  }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
-    Reception: reception,
-  }
+  // reception の値だけここでセット
+  responseData.Reception = reception
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(responseData)
-
-
 }

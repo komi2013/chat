@@ -58,10 +58,13 @@ const router = createRouter({
       path: '/reception/:id?/',
       name: 'reception',
       component: () => import('../views/Reception.vue'),
-      props: route => ({id: route.params.id}),
+      props: route => ({
+        id: route.params.id,
+        reception: route.query.reception
+      }),
     },
     {
-      path: '/receptionBook/:id/',
+      path: '/receptionBook/:id?/',
       component: () => import('../views/ReceptionBook.vue'),
       props: route => ({id: route.params.id}),
     },
@@ -104,11 +107,11 @@ const router = createRouter({
       path: '/setting/',
       component: () => import('../views/Setting.vue')
     },
-    {
-      path: '/sign/',
-      name: 'sign',
-      component: () => import('../views/SignView.vue')
-    },
+    // {
+    //   path: '/sign/',
+    //   name: 'sign',
+    //   component: () => import('../views/SignView.vue')
+    // },
     {
       path: '/threadHead/:parent_id/',
       name: 'threadHead',

@@ -1,7 +1,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 
-// Props と リアクティブデータ
+import Advertisement from '@/components/Advertisement.vue';
+import Drawer from '@/components/Drawer.vue';
+
 const props = defineProps({
   id: '', // Reception ID
   code: '',
@@ -10,28 +12,6 @@ const props = defineProps({
 const reception = ref(null); // Reception データ
 const selectedOptions = ref([]);
 const selectedChoices = ref([]);
-async function fetchReception() {
-  try {
-    const fd = new FormData();
-    fd.append('receptionID', props.id);
-    fd.append('code', props.code);
-    const data = await sendRequest('/ReceptionCheck/', fd);
-    if (data) {
-      reception.value = data;
-      data.menus.forEach(menu => {
-        selectedOptions[menu.menuID] = {
-          paidOptions: [],
-          freeOptions: [],
-          freeMultiOptions: []
-        };
-      });
-
-      console.log('Reception data:', reception.value);
-    }
-  } catch (error) {
-    console.error('Error fetching reception data:', error);
-  }
-}
 
 async function findReception() {
   const fd = new FormData();
@@ -49,11 +29,6 @@ async function findReception() {
   const itemMap = {};
   res.reception.itemDetails.forEach(item => {
     itemMap[item.itemID] = item;
-    // if (item.choices) {
-    //   item.choices.forEach((group, groupIndex) => {
-    //     selectedChoices.value['item-' + item.itemID + '-' + groupIndex] = '';
-    //   });
-    // }
   });
 
   res.reception.menus.forEach(menu => {
@@ -70,7 +45,6 @@ async function findReception() {
       }
     });
 
-    // その他の選択肢構造（必要なら）
     selectedOptions.value[menu.menuID] = {
       paidOptions: [],
       freeOptions: [],
@@ -78,11 +52,7 @@ async function findReception() {
     };
 
   });
-// v-model="selectedChoices['item-choice-' + item.itemID]"
   reception.value = res.reception;
-  console.log('menus', reception.value.menus);
-  console.log('selectedChoices', selectedChoices.value);
-  // return res.reception;
 }
 
 function getItemName(itemID) {
@@ -118,9 +88,8 @@ async function addCart(menu) {
     freeMultiOptions: selectedOptions.value[menu.menuID]?.freeMultiOptions || []
   };
 
-  // upsertIDB(cartItem, 'receptionOrder', 'receptionOrderID', receptionOrder.receptionOrderID);
-
   const fd = new FormData();
+  fd.append('postBy', channel.value.myname);
   fd.append('menuID', menu.menuID);
   fd.append('itemChoices', JSON.stringify(pureChoices));
   fd.append('freeOptions', JSON.stringify(selectedOptions.value[menu.menuID].freeOptions));
@@ -156,7 +125,6 @@ async function addCart(menu) {
   };
 }
 
-// メニュー名を取得する関数
 function getMenuName(menuId, menus) {
   const menu = menus.find(m => m.id === menuId);
   return menu ? menu.menuName : "不明なメニュー";
@@ -175,16 +143,14 @@ function getItemNames(itemIds, itemDetails) {
 const channel = ref(null);
 onMounted(async() => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
-  // groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
-  // aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  // fetchReception();
   await findReception();
 });
 </script>
 
 <template>
-  <div>
-    <h1>メニュー一覧</h1>
+<Drawer />
+  <div id="content">
+    <h1 class="sp_head">メニュー一覧</h1>
 
     <!-- メニューリスト -->
     <div v-if="reception && reception.menus.length">
@@ -244,7 +210,6 @@ onMounted(async() => {
                 :value="optionId"
                 :name="`freeOption-${menu.menuID}-pattern-${patternIndex}`"
                 v-model="selectedOptions[menu.menuID].freeOptions[patternIndex]"
-                @click="handleMenuSelect(menu)"
               />
               {{ getItemName(optionId) }}
             </label>
@@ -287,6 +252,7 @@ onMounted(async() => {
       </ul>
     </div>
   </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 

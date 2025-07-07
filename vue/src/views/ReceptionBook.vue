@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
+import Advertisement from '@/components/Advertisement.vue';
 import BookModal from '@/components/BookModal.vue';
 import { userIDsByName } from '@/my/channelFunc';
 
@@ -14,14 +15,6 @@ const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
 const menuID = ref(props.menuID || null);
-// const calendarsStore = useCalendarsStore();
-// const schedules = computed(() => calendarsStore.calendars);
-
-// const schedules = computed(() => {
-//   console.log("schedules recalculated!", calendarsStore.calendars);
-//   return calendarsStore.calendars;
-// });
-
 const today = props.date || timeFormat('YYYY-MM-DD');
 const getNext30Days = () => {
   return Array.from({ length: 30 }, (_, i) => {
@@ -34,7 +27,7 @@ const monthDates = getNext30Days();
 
 async function findReception() {
   const fd = new FormData();
-  fd.append('receptionID', props.id);
+  fd.append('receptionID', localStorage.getItem('channelID'));
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
@@ -46,24 +39,18 @@ async function findReception() {
   return res.reception;
 }
 
-//bookのsericeIDのロジックを詰め込む前
-
 const generateSchedules = (menuID) => {
   if (!reception.value) return;
-  schedules.value = []; // 既存のデータをリセット
-
+  schedules.value = [];
   const today = props.date || timeFormat("YYYY-MM-DD");
   const monthDates = Array.from({ length: 30 }, (_, i) => {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
-    return date.toISOString().split("T")[0]; // "YYYY-MM-DD" の形式
+    return date.toISOString().split("T")[0];
   });
-
   let selectedService = null;
   let needSkill = null;
   let needFacility = null;
-
-  // **serviceID がある場合のみ、関連する `services` を取得**
   if (menuID) {
     selectedService = reception.value.menus.find(service => service.menuID === menuID);
     if (!selectedService) return;
@@ -71,27 +58,18 @@ const generateSchedules = (menuID) => {
     needSkill = selectedService.needSkill;
     needFacility = selectedService.needFacility;
   }
-
-  let tempSchedules = []; // 各 `workStaffs` の処理結果を一時保存
-  let unavailableTimes = []; // 予約不可の時間を保存
-
+  let tempSchedules = [];
+  let unavailableTimes = [];
   monthDates.forEach(date => {
-    reception.value.books.forEach(book => (book.splitted = false)); // `books` のフラグをリセット
-
-    // **workStaffs をスケジュールに適用**
+    reception.value.books.forEach(book => (book.splitted = false));
     let workStaffTime = false;
     reception.value.workStaffs.forEach(work => {
       if (!isSameDate(work.workStart, date)) return;
-
       let start = new Date(work.workStart);
       let end = new Date(work.workEnd);
-
-      console.log(`【workStaffsループ】${formatDateTime(start)} ~ ${formatDateTime(end)}`);
-
-      // **needSkill に対応できるスタッフのみ対象**
       if (needSkill) {
         const validStaffs = getValidWorkStaffs(work, needSkill);
-        console.log('validStaffs', validStaffs);
+        // console.log('validStaffs', validStaffs);
         if (!validStaffs) return; // 該当するスタッフがいない場合はスキップ
       }
 
@@ -102,44 +80,31 @@ const generateSchedules = (menuID) => {
           timeEnd: end,
         });
       });
-      // console.log('splitBlocks.forEach tempSchedules', JSON.stringify(tempSchedules));
+
       workStaffTime = true;
     });
-    // **予約不可の時間を `makeUnavailableTime()` で作成**
     if (needFacility) {
       let newUnavailableTimes = makeUnavailableTime(date, needFacility);
-      // console.log('newUnavailableTimes', newUnavailableTimes);
-      // **重複データを削除**
       let uniqueTimes = new Set(unavailableTimes.map(time => JSON.stringify(time)));
       newUnavailableTimes.forEach(time => uniqueTimes.add(JSON.stringify(time)));
-
       unavailableTimes = Array.from(uniqueTimes).map(time => JSON.parse(time));
     }
   });
 
-  // **最終的に分割された `schedule` を統合**
-  // console.log('tempSchedules json', JSON.stringify(tempSchedules));
   let mergedSchedules = mergeSchedules(tempSchedules);
-  // **予約不可の時間を適用**
-  console.log('mergedSchedules', mergedSchedules);
-  console.log('unavailableTimes', unavailableTimes);
-
   tempSchedules = [];
   mergedSchedules.forEach(schedule => {
     let splitBlocks = splitWorkTime(schedule.timeStart, schedule.timeEnd, unavailableTimes);
     splitBlocks.forEach(({ start, end }) => {
-      console.log('splitBlocks.forEach', start, end);
+      // console.log('splitBlocks.forEach', start, end);
       tempSchedules.push({
         timeStart: start,
         timeEnd: end,
       });
     });
   });
-  console.log('tempSchedules 2', JSON.stringify(tempSchedules));
   mergedSchedules = mergeSchedules(tempSchedules);
-  console.log('mergedSchedules 2', mergedSchedules);
   schedules.value = mergedSchedules;
-  console.log("【最終 schedules】", JSON.stringify(schedules.value, null, 2));
 };
 
 const getValidWorkStaffs = (work, needSkill) => {
@@ -154,34 +119,34 @@ const needsFacility = (book, needFacility) => {
 };
 
 const splitWorkTime = (workStart, workEnd, books) => {
-  console.log(`【splitWorkTime】処理開始: ${formatDateTime(workStart)} ~ ${formatDateTime(workEnd)}`);
+  // console.log(`【splitWorkTime】処理開始: ${formatDateTime(workStart)} ~ ${formatDateTime(workEnd)}`);
 
   let blocks = [{ start: new Date(workStart), end: new Date(workEnd) }];
-  console.log('対象範囲:', workStart, '~', workEnd, '適用する books:', books);
+  // console.log('対象範囲:', workStart, '~', workEnd, '適用する books:', books);
 
   let remainingBooks = books
     .filter(book => isOverlapping(workStart, workEnd, book.bookStart, book.bookEnd))
     .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
 
-  console.log('対象の予約 (remainingBooks):', remainingBooks);
+  // console.log('対象の予約 (remainingBooks):', remainingBooks);
 
   remainingBooks.forEach(book => {
     let bookStart = new Date(book.bookStart);
     let bookEnd = new Date(book.bookEnd);
 
-    console.log(`  【予約判定】${formatDateTime(bookStart)} ~ ${formatDateTime(bookEnd)}`);
+    // console.log(`  【予約判定】${formatDateTime(bookStart)} ~ ${formatDateTime(bookEnd)}`);
 
     let newBlocks = [];
 
     blocks.forEach(({ start, end }) => {
       if (bookStart <= end && bookEnd >= start) {
         if (bookStart > start) {
-          console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
+          // console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
           newBlocks.push({ start: new Date(start), end: new Date(bookStart) });
         }
 
         if (bookEnd < end) {
-          console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
+          // console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
           newBlocks.push({ start: new Date(bookEnd), end: new Date(end) });
         }
       } else {
@@ -192,7 +157,7 @@ const splitWorkTime = (workStart, workEnd, books) => {
     blocks = newBlocks.length > 0 ? newBlocks : blocks;
   });
 
-  console.log('【分割後のブロック】', blocks);
+  // console.log('【分割後のブロック】', blocks);
   return blocks;
 };
 
@@ -255,7 +220,7 @@ const mergeSchedules = (schedules) => {
 
   let mergedSchedules = [];
 
-  console.log('before schedules', JSON.stringify(schedules));
+  // console.log('before schedules', JSON.stringify(schedules));
 
   for (let i = 0; i < schedules.length; i++) {
     let currentSchedule = Object.assign({}, schedules[i]); // **オブジェクトをコピー**
@@ -283,7 +248,7 @@ const mergeSchedules = (schedules) => {
     }
   }
 
-  console.log('after schedules', JSON.stringify(schedules));
+  // console.log('after schedules', JSON.stringify(schedules));
 
   return mergedSchedules.map(schedule => ({
     timeStart: formatDateTime(schedule.timeStart),
@@ -304,7 +269,7 @@ const formatDateTime = (date) => {
     const d = date instanceof Date ? date : new Date(date);
 
     if (isNaN(d.getTime())) {
-      console.warn("Invalid date detected:", date);
+      // console.warn("Invalid date detected:", date);
       return "1000-01-01T00:00:00"; // **無効な日付もデフォルト値を返す**
     }
 
@@ -382,13 +347,13 @@ onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  if (props.id && props.id.length > 5) {
+  if (props.id && props.id.length > 3) {
     reception.value = await findReception();
   } else {
     reception.value = await getIDB('reception', props.id);
   }
-  const matchingGroup = groups.value.find(group => group.groupName === reception.value.adminGroup);
-  if (matchingGroup && matchingGroup.aliasNames.includes(channel.value.myname)) {
+
+  if (reception.value.adminNames && reception.value.adminNames.includes(channel.value.myname)) {
     iamAdmin.value = true;
   }
   const matchedStaff = reception.value.staffSkills.find(
@@ -396,9 +361,8 @@ onMounted(async() => {
   );
   availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
   generateSchedules();
-  console.log(schedules.value);
   window.scrollTo({top: 600, behavior: "smooth"});
-  document.title = reception.value.bookTitle;
+  document.title = reception.value.receptionTitle;
 });
 
 function jump(days) {
@@ -410,11 +374,9 @@ function jump(days) {
 
 const selectedServiceId = ref(null);
 function handleServiceChange(menuID) {
-  console.log('selected', reception.value.menus);
+  // console.log('selected', reception.value.menus);
   const selected = reception.value.menus.find(service => service.menuID === menuID);
-  console.log('selected', selected);
   generateSchedules(selected.menuID);
-  // generateOpenTimes(selected);
 }
 
 const showModal = ref(false);
@@ -424,7 +386,6 @@ const selectedEvent = ref({
 });
 
 const openModal = (day, hour) => {
-  console.log('hour', hour);
   showModal.value = true;
   const start = new Date(day);
   start.setHours(hour, 0);
@@ -448,6 +409,7 @@ const closeModal = () => {
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr v-if="reception">
         <td>
           <select id="menu-select" class="menu" v-model="selectedServiceId" @change="handleServiceChange(selectedServiceId)">
@@ -465,6 +427,8 @@ const closeModal = () => {
         </td>
       </tr>
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
+      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
     </table>
   </div>
   <div id="content">
@@ -500,7 +464,7 @@ const closeModal = () => {
                :style="decideHeightTop(d, hour)"
                @click.stop="openModal(day, hour)"
                >
-               {{ d.title }}
+               {{ d.title }} <!-- maybe number of people is better? -->
             </div>
           </td>
           <td class="back-column" @click="jump(30)">

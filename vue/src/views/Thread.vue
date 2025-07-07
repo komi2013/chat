@@ -2,6 +2,7 @@
 import { ref, computed, onBeforeMount, onMounted, nextTick } from 'vue';
 import { onBeforeRouteUpdate, useRouter } from 'vue-router';
 
+import Advertisement from '@/components/Advertisement.vue';
 import DrawerThread from '@/components/DrawerThread.vue';
 import EditBox from '@/components/EditBox.vue';
 import Messages from '@/components/Messages.vue';
@@ -163,8 +164,10 @@ function backTo() {
     </div>
   <br>
   </div>
+  <div v-if="!fetched"><br><br> Loading... or Something Went </div>
 </div>
-<div v-if="!fetched"><br><br> Loading... or Something Went </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
 </template>
 
 <style>
