@@ -44,7 +44,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
     return
 	}
   channelID := common.StringRand(4)
-	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID)
+	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

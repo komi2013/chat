@@ -37,6 +37,10 @@ func main() {
 		// http.HandleFunc("/StoreSelect/", controller.StoreSelect)
 		http.HandleFunc("/TmpLogin/", controller.TmpLogin)
 		http.HandleFunc("/upload/", controller.Upload)
+		http.HandleFunc("/UserEdit/", controller.UserEdit)
+		http.HandleFunc("/UserGet/", controller.UserGet)
+
+		// default
 		http.HandleFunc("/", controller.Top)
 
 		fmt.Println("starting.." + common.CacheV)

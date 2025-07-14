@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeMount } from "vue";
+import { ref, onMounted } from "vue";
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
@@ -11,12 +11,6 @@ const storeNames = ref([]);
 const selectedStore = ref("");
 const aliasNames = ref([]);
 const message = ref("");
-
-// onBeforeMount(async () => {
-//   // await loadStores;
-//   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
-//   aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
-// });
 
 const loadStores = async () => {
   try {

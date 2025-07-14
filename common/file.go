@@ -23,7 +23,7 @@ import (
 
 )
 
-func ImgSave(db1 *mongo.Database, img string, userID string, name string, channelID string) (string, error) {
+func ImgSave(db1 *mongo.Database, img string, userID string, name string, channelID string, fileIDLength int) (string, error) {
 	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
@@ -33,14 +33,17 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
 			LogError("failed to decode base64", err)
 			return "", fmt.Errorf("failed to decode base64: %w", err)
 		}
-		fileID := StringRand(3)
-		dirPath := "/upload_data/img/" + channelID + "/" + fileID + "/"
+		fileID := StringRand(fileIDLength)
+    if channelID == "" {
+      channelID = "tweet"
+    }
+		dirPath := OSImgDir + "/img/" + channelID + "/" + fileID + "/"
 		err = os.MkdirAll("."+dirPath, 0755)
 		if err != nil {
 			LogError("failed to create directory", err)
 			return "", fmt.Errorf("failed to create directory: %w", err)
 		}
-		imgPath = "/upload/img/" + channelID + "/" + fileID + "/" + name + ".png"
+		imgPath = PublicImgPath + "/img/" + channelID + "/" + fileID + "/" + name + ".png"
 		filePath := "." + dirPath + name + ".png"
 		err = ioutil.WriteFile(filePath, imageData, 0644)
 		if err != nil {

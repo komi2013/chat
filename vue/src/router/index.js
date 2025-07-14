@@ -138,6 +138,10 @@ const router = createRouter({
       })
     },
     {
+      path: '/tickets/',
+      component: () => import('../views/Tickets.vue')
+    },
+    {
       path: '/timestamp/:adminName/:code/',
       component: () => import('../views/Timestamp.vue'),
       props: route => ({
@@ -159,14 +163,12 @@ const router = createRouter({
       })
     },
     {
-      path: '/',
-      name: 'top',
-      component: () => import('../views/Top.vue')
+      path: '/user/',
+      component: () => import('../views/User.vue')
     },
     {
-      path: '/workflow/',
-      name: 'workflow',
-      component: () => import('../views/Workflow.vue')
+      path: '/',
+      component: () => import('../views/Top.vue')
     }
   ]
 })

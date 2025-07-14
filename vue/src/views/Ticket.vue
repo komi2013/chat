@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeMount } from 'vue';
 
 import Advertisement from '@/components/Advertisement.vue';
+import SelectAlias from '@/components/SelectAlias.vue';
 import TimestampDrawer from '@/components/DrawerTimestamp.vue';
-import { takeUserIDs } from '@/my/channelFunc.js';
+
+// import { takeUserIDs } from '@/my/channelFunc.js';
 
 const props = defineProps({
   ticketID: String,
@@ -15,18 +17,28 @@ const statusOptions = ref([
   { label: 'レビュー中', value: 2 },
   { label: '完了', value: 3 }
 ]);
+const selectedStatus = ref(0)
 
 function tF(a, b = null){ return timeFormat(a, b) }
 
 const channel = ref(null);
-const aliases = ref(null);
-const groups = ref(null);
+const aliases = ref([]);
+const groups = ref([]);
+const fetched = ref(false)
 onMounted(async () => {
-  channel.value = await getIDB('channel', props.channel_id);
-  aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
-  groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
-  ticket.value = await getIDB('ticket', props.ticketID);
-  await fetchTicket();
+  channel.value = await getIDB('channel', localStorage.getItem("channelID"));
+  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem("channelID"), 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem("channelID"), 10000);
+  if (props.ticketID) {
+    await fetchTicket(); 
+  } else {
+    ticket.value.accessNames = [channel.value.myname]
+    ticket.value.assignee = channel.value.myname
+  }
+  fetched.value = true
+  // const individualAliases = channel.allAliases.map(alias => alias[0]);
+  // const groupAliases = channel.groupAliases.map(group => group[0]);
+  // assigneeOptions.value = [...new Set([...individualAliases, ...groupAliases])];
 });
 
 // async function fetchChannel() {
@@ -44,23 +56,27 @@ onMounted(async () => {
 // }
 
 const ticket = ref({
-  ticketID: localStorage.channelID + generateRandomCode(4),
-  title: '',           // Default empty title
-  status: 0,           // Default status (e.g., 0 might mean "Draft")
-  assignee: '',        // Default assignee (empty)
-  description: '',     // Default empty description
-  createdBy: '',// Default createdBy value
-  createdAt: new Date().toISOString(),  // Set to current date by default
-  updatedAt: null,     // Default no updated date
-  contentsType: 1,     // Example default contentsType, set to 1 or whatever your use case is
-  contents: []         // Empty array for contents, assuming this might hold timestamp data
+  ticketID: localStorage.getItem("channelID") + generateRandomCode(4),
+  channelID: localStorage.getItem("channelID"),
+  title: '',
+  status: 0,
+  assignee: '',
+  description: '',
+  createdBy: '',
+  accessNames: [],
+  // createdAt: new Date().toISOString(),
+  // bellow option
+  contents: [],
+  contentsType: 1
+  // comments: []
+  // updatedAt: null,
 });
 
-const assigneeOptions = ref('');
-const selectedStatus = ref('');
+const assigneeOptions = ref([]);
+
 const selectedAssignee = ref('');
 async function fetchTicket() {
-  ticket.value = await getIDB('ticket', props.ticketID);
+  ticket.value = await getIDB('ticket', props.ticketID)
   // console.log(ticket.value);
 
   // ticket.value = data.ticket;
@@ -81,45 +97,10 @@ async function fetchTicket() {
 
 // const ticketLogs = ref(null);
 
-const newComment = ref('');
-function saveChanges() {
-  if (!confirm("実行▶️")) {
-    return;
-  }
-  const fd = new FormData();
-  const userIDs = takeUserIDs(channel);
-  fd.append('userIDs', JSON.stringify([...new Set(userIDs)]));
-  fd.append('channelID', localStorage.channelID);
-  ticket.value.channelID = localStorage.channelID;
-  fd.append('aliasName', channel.aliasName);
-  ticket.value.aliasName = channel.aliasName;
-  const newLog = {
-    createdAt: new Date().toISOString(),
-    createdBy: channel.aliasName,
-    changedTexts: [{ title: 'コメント', description: newComment.value }]
-  };
-  if (ticket.value.ticketLogs) {
-    ticket.value.ticketLogs.push({ ...newLog });    
-  } else if (newComment.value) {
-    ticket.value.ticketLogs = [newLog];
-  }
-  fd.append('contents', JSON.stringify(ticket.value));
-  fd.append('pushTitle', 'ticket');
-  const request = new Request('/ContentsPush/', {
-    method: 'POST',
-    body: fd,
-  });
-  fetch(request)
-    .catch((reason)=>{
-      console.log(reason)
-    })
-}
-
-
 async function fetchTimestamp(timestamps) {
   try {
     const ts = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
-      [localStorage.channelID, ticket.value.createdBy], 60, 0, 'desc');
+      [localStorage.getItem("channelID"), ticket.value.createdBy], 60, 0, 'desc');
     const checkMonth = ts.filter(entry => {
       return entry.stampStatus >= 20;
     });
@@ -194,13 +175,48 @@ function formatBreaksTotal(breaks) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+
+const newComment = ref('')
+async function saveChanges() {
+  if (!confirm("実行▶️")) {
+    return;
+  }
+
+  ticket.value.aliasName = channel.value.myname
+  ticket.value.accessNames = [...new Set([...ticket.value.accessNames, ticket.value.assignee])]
+  if (newComment.value) {
+    ticket.value.comments.push({
+      commentText: newComment.value,
+      commentedBy: channel.value.myname,
+      commentedAt: tF('YYYY-MM-DDThh:mm:ss')
+    })    
+  }
+
+  const fd = new FormData();
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  fd.append('channelID', localStorage.getItem("channelID"));
+  fd.append('updatedBy', channel.value.myname);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  fd.append('contents', JSON.stringify(ticket.value));
+  fd.append('pushTitle', 'ticket');
+  const res = await sendRequest('/ContentsPush/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content); // await で1件ずつ処理を保証
+    }
+  }
+  location.href = '/ticket/' + ticket.value.ticketID + '/'
+}
+
 </script>
 
 <template>
 <TimestampDrawer />
-<div id="content">
+<div id="content" v-if="fetched">
+  <div class="sp_head"><a href="/tickets/">チケット一覧</a></div>
   <div class="ticket-edit-page">
-    <br>
+
     <div class="ticket-form">
       <input v-model="ticket.title" type="text" />
       <div class="form-row">
@@ -213,9 +229,9 @@ function formatBreaksTotal(breaks) {
       </div>
       <div class="form-row">
         <label>担当者</label>
-        <select v-model="selectedAssignee">
-          <option v-for="assignee in assigneeOptions" :key="assignee" :value="assignee">
-            {{ assignee }}
+        <select v-model="ticket.assignee" >
+          <option v-for="alias in aliases" :value="alias.aliasName">
+            {{ alias.aliasName }}
           </option>
         </select>
       </div>
@@ -255,17 +271,15 @@ function formatBreaksTotal(breaks) {
         </tbody>
       </table>
       <p>
-        閲覧者: <span v-for="name in ticket.accessNames"> {{name}} </span>
+        参加者:
+        <SelectAlias v-model="ticket.accessNames" :aliases="aliases" :editable="true" />
       </p>
       <div>
-        <p v-for="d in ticket.ticketLogs">
-          <span>{{tF('YYYY-MM-DD hh:mm:ss', d.createdAt)}}</span>
+        <p v-for="d in ticket.comments">
+          <span>{{tF('YYYY-MM-DD hh:mm:ss', d.commentedAt)}}</span>
           &nbsp;
-          <span>{{d.createdBy}}</span>
-          <p v-for="d2 in d.changedTexts">
-            <span v-if="d2.title">{{d2.title}}:</span>
-            <span v-if="d2.description">{{d2.description}}</span>
-          </p>
+          <span>{{d.commentedBy}}</span>
+          <span>{{d.commentText}}</span>
           <div><hr></div>
         </p>
       </div>
@@ -285,7 +299,6 @@ function formatBreaksTotal(breaks) {
 .ticket-edit-page {
   margin: 0 auto;
   padding: 20px;
-  background-color: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

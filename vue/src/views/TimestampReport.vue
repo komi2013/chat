@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+
+import Advertisement from '@/components/Advertisement.vue';
 import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
@@ -38,7 +40,7 @@ const nextMonth = getRelativeMonth(thisMonth, 1);
 
 function formatBreaksTotal(breaks, status) {
   if ((!breaks || breaks.length === 0) && status === 2) return '';
-  if (!breaks || iamAdmin.value) return '';
+  if (!breaks || !myReport.value) return '';
   if (!breaks || breaks.length === 0) return '✏️';
 
   const totalMinutes = breaks.reduce((total, breakTime) => {
@@ -50,7 +52,7 @@ function formatBreaksTotal(breaks, status) {
 
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  
+  console.log(totalMinutes)
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
@@ -63,22 +65,27 @@ const groups = ref([]);
 const aliases = ref([]);
 const selectedGroup = ref(null);
 let targetName;
-let iamAdmin = ref(false);
+const iamAdmin = ref(false);
+const myReport = ref(false)
 const stampers = ref('');
 const daysInMonth = ref('');
 const timestamps = ref('');
 let thisMonthEntries;
 const approveds = ref(null);
-let userIDs = [];
+let userIDs = []
+const fetched = ref(false)
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
   groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
   const matchingGroup = groups.value.find(group => group.groupName === props.admin);
   if (matchingGroup && matchingGroup.aliasNames.includes(channel.value.myname)) {
-    iamAdmin.value = true;
+    iamAdmin.value = true
   }
-  targetName = props.stamper ? props.stamper : channel.value.myname;
+  targetName = props.stamper ? props.stamper : channel.value.myname
+  if (targetName == channel.value.myname) {
+    myReport.value = true
+  }
   if (iamAdmin.value) {
     const data = await getIDBs('timestamp', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
     stampers.value = [...new Set(data.map(item => item.aliasName))];
@@ -111,7 +118,8 @@ onMounted(async () => {
   userIDs = [...new Set([
     ...userIDsByGroups(aliases.value, groups.value, props.admin),
     ...userIDsByName(aliases.value, [channel.value.myname])
-  ])];
+  ])]
+  fetched.value = true
 });
 
 function generateDaysInMonth() {
@@ -134,7 +142,7 @@ function generateDaysInMonth() {
       error: { timeIn: false, timeOut: false, breaks: false }
     };
     // iamAdmin の場合、timestamp があるときだけ push
-    if (!iamAdmin.value || timestamp) {
+    if (myReport.value || timestamp) {
       days.push(dayData);
     }
   }
@@ -175,6 +183,7 @@ function saveBreaks() {
   }));
 
   daysInMonth.value[currentDayIndex.value].stampStatus = 1;
+  console.log(daysInMonth.value)
   closeBreaksModal();
 }
 
@@ -215,9 +224,12 @@ async function approve() {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
 }
 
 async function deleteReport() {
@@ -230,9 +242,12 @@ async function deleteReport() {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
 }
 
 async function submitReport() {
@@ -251,10 +266,12 @@ async function submitReport() {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  location.href = '';
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
 }
 
 function manualEdit() {
@@ -357,9 +374,12 @@ async function manualPost(changedRecords) {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
 }
 
 function copyToClipboard() {
@@ -385,10 +405,10 @@ function copyToClipboard() {
 <template>
 <DrawerTimestamp />
 
-<div id="content">
+<div id="content" v-if="fetched">
 
 <div>
-  <h2>
+  <h2 class="sp_head">
     <a :href="`/timestampReport/${props.admin}/?month=${preMonth}&stamper=${targetName}`">&lt;&lt;</a>
     {{month}}
     <a :href="`/timestampReport/${props.admin}/?month=${nextMonth}&stamper=${targetName}`">&gt;&gt;</a>
@@ -410,7 +430,7 @@ function copyToClipboard() {
           <th>開始</th>
           <th>終了</th>
           <th>休憩</th>
-          <th v-if="!iamAdmin">
+          <th v-if="myReport">
             提出<br>
             <input type="checkbox" @change="toggleAllSubmit" />
           </th>
@@ -428,7 +448,7 @@ function copyToClipboard() {
           <td contenteditable="true" @click="openBreaksModal(day, index)" :class="{'error': day.error.breaks}">
             {{ formatBreaksTotal(day.breaks, day.stampStatus) }}
           </td>
-          <td v-if="!iamAdmin">
+          <td v-if="myReport">
             <input type="checkbox" v-model="day.submit" />
           </td>
         </tr>
@@ -443,12 +463,11 @@ function copyToClipboard() {
         </span>
       </div>
       <div>次の承認グループ</div>
-      <SelectGroup v-if="selectedGroup" :groups="groups" v-model="selectedGroup"/>
-      <SelectGroup v-if="groups && !selectedGroup" :groups="groups" v-model="selectedGroup"/>
+      <SelectGroup :groups="groups" v-model="selectedGroup"/>
     </div>
 
-    <button v-if="!iamAdmin" @click="manualEdit">修正</button>
-    <button v-if="!iamAdmin" @click="submitReport">提出</button>
+    <button v-if="myReport" @click="manualEdit">修正</button>
+    <button v-if="myReport" @click="submitReport">提出</button>
     <button v-if="iamAdmin" @click="approve">承認</button>
     <button v-if="iamAdmin" @click="copyToClipboard">コピー</button>
     <button v-if="approveds" @click="deleteReport">削除</button>
@@ -469,15 +488,12 @@ function copyToClipboard() {
     <button @click="closeBreaksModal"> ❌ </button>
   </div>
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 <NoticePopup />
 </template>
 
 <style scoped>
-h2 {
-  position: relative;
-  left: 70px;
-  top: -20px;
-}
+
 select {
   padding: 8px;
   font-size: 14px;

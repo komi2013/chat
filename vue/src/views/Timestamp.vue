@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import QRCode from 'qrcode';
 
+import Advertisement from '@/components/Advertisement.vue';
 import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 
@@ -83,7 +84,9 @@ async function stamp(action) {
 
 <div id="content">
 
-<h2>タイムスタンプ</h2>
+<h2 class="sp_head">タイムスタンプ</h2>
+<div style="width: 100%; text-align: center;"><Advertisement /></div>
+<br>
 <div class="button"><button @click="stamp('startWork')">▶️勤務スタート</button></div>
 <br>
 <div class="button"><button @click="stamp('endWork')">⏹️勤務終了</button></div>
@@ -122,15 +125,11 @@ async function stamp(action) {
   </div>
 
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 <NoticePopup />
 </template>
 
 <style scoped>
-h2 {
-  position: relative;
-  left: 50px;
-  top: -10px;
-}
 
 .button {
   text-align: center;

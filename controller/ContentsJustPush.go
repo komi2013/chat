@@ -66,7 +66,7 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
     log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
-  imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID)
+  imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 3)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return

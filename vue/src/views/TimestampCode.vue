@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, watchEffect } from 'vue';
+
 import QRCode from 'qrcode';
+
+import Advertisement from '@/components/Advertisement.vue';
 import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
 
@@ -59,13 +62,24 @@ function tF(a, b = null){ return timeFormat(a, b) }
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
   groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
+  console.log('groups.value', groups.value)
   aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
   stampCodes.value = await getIDBs('timestampCode', 'channelIDIndex', localStorage.getItem('channelID'));
   currents = JSON.parse(JSON.stringify(stampCodes.value));
-  // selectedGroup.value = stampCodes.value.find(sc => sc.adminName);
-  const stampCode = stampCodes.value.find(sc => sc.adminName);
-  console.log('stampCode', stampCode.adminName);
-  selectedGroup.value = groups.value.find(group => group.groupName === stampCode.adminName);
+  // selectedGroup.value = stampCodes.value.find(sc => sc.adminGroup);
+  const stampCode = stampCodes.value.find(sc => sc.adminGroup);
+  // console.log('stampCode', stampCode.adminGroup);
+  // selectedGroup.value = groups.value.find(group => group.groupName === stampCode.adminGroup);
+  const foundGroup = groups.value.find(group => group.groupName === stampCode?.adminGroup);
+
+  if (foundGroup) {
+      selectedGroup.value = foundGroup;
+  } else if (groups.value.length > 0) {
+      selectedGroup.value = groups.value[0];
+  } else {
+      selectedGroup.value = null; // グループが空だった場合の安全処理
+  }
+
   console.log('selectedGroup.value', selectedGroup.value);
 });
 
@@ -98,7 +112,7 @@ async function handleSubmit(event) {
   const recordsToPost = [];
   for (let stampCode of stampCodes.value) {
     stampCode.channelID = localStorage.channelID;
-    stampCode.adminName = selectedGroup.value.groupName;
+    stampCode.adminGroup = selectedGroup.value.groupName;
     const dataToStore = JSON.parse(JSON.stringify(stampCode));
 
     if (currents) {
@@ -184,8 +198,8 @@ async function postData(stampCodes) {
     </form>
     <br>
     <div v-if="selectedGroup">
-      <a :href="'/timestampReport/' + selectedGroup.groupName + `/${tF('YYYY-MM')}/` + '_/'">
-      {{ '/timestampReport/' + selectedGroup.groupName + `/${tF('YYYY-MM')}/` + '_/' }} </a>
+      <a :href="'/timestampReport/' + selectedGroup.groupName + `/?month=${tF('YYYY-MM')}`">
+      {{ '/timestampReport/' + selectedGroup.groupName + `/?month=${tF('YYYY-MM')}` }} </a>
     </div>
   </div>
   <br>
@@ -196,8 +210,8 @@ async function postData(stampCodes) {
     <img :src="qr[0]"><br>
     <a :href="qrLink(qr[2])">{{qr[1]}}</a>
   </div>
-
 </div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>

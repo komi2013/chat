@@ -10,10 +10,7 @@ export async function ticket(pushData) {
   const ticket = pushData[4];
 
   if (ticket.channelID === pushData[2] && ticket.aliasName === pushData[3]) {
-    upsertIDB(ticket, 'ticket', 'ticketID', ticket.ticketID)
-      .catch((error) => {
-        console.error(error);
-      });
+    upsertIDB(ticket, 'ticket', 'ticketID', ticket.ticketID);
   }
 
 // thisMonth need to connect latestEntry

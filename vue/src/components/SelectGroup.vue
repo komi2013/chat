@@ -36,16 +36,12 @@ const props = defineProps({
   },
 });
 
-console.log('props',  props);
-console.log('modelValue', props.modelValue);
-
 const emit = defineEmits(['update:modelValue']);
 
 const selectedGroup = ref(props.modelValue);
 
 function selectGroup(group) {
   selectedGroup.value = group;
-  console.log(group);
   emit('update:modelValue', group);
 }
 </script>

@@ -1,0 +1,30 @@
+②
+bookPattern.services = [
+  {
+    "id": 1,
+    "serviceName": "パーマ",
+    "price": 10000,
+    "prepaidPrice": 0,
+    "needSkill": "perm",
+    "needFacility": "perm",
+    "spendMinute": 60
+  },
+  {
+    "id": 2,
+    "serviceName": "カット",
+    "price": 3000,
+    "prepaidPrice": 0,
+    "needSkill": "cut",
+    "spendMinute": 60
+  }
+]
+と
+bookPattern.facilities = [
+  {
+    "facilityCount": 1,
+    "facilityName": "perm"
+  }
+]のデータがあります。
+needFacilityがあった場合はその同じデータのここでいうpermというfacilityNameのfacilityCountを見てbookの回数と同等以下の場合はscheduleに入れないという要件②
+③servicesのデータにneedSkillがあった場合
+

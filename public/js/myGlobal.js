@@ -107,22 +107,22 @@ async function sendRequest(uri, fd) {
     body: fd,
   });
   try {
-    const response = await fetch(request);
+    const response = await fetch(request)
     if (response.ok) {
-      const data = await response.json();
+      const data = await response.json()
       if (data && Object.keys(data).length > 0) {
         return data; // データが存在する場合は data を返す
       } else {
-        console.error('no data');
-        return null;
+        console.error('no data')
+        return response.text()
       }
     } else {
-      console.error('response not ok', response.status);
-      return null;
+      console.error('response not ok', response.status)
+      return response.text()
     }
   } catch (error) {
-    console.error('Error fetch data:', error);
-    return null;
+    console.error('Error fetch data:', error)
+    return response.text()
   }
 }
 function editIDBLogging(title, channelID, aliasName, contents) {

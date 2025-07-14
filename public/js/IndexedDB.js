@@ -71,6 +71,7 @@ const setupDatabaseSchema = (db, transaction) => {
         ['channelIDIndex', 'channelID'],
         ['channelID_aliasName', ['channelID', 'aliasName']],
       ],
+      ticket: [['statusIndex', 'status']],
     };
     if (indexConfigs[tableName]) {
       indexConfigs[tableName].forEach(([indexName, keyPath]) => {

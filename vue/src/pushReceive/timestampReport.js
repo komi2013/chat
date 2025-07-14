@@ -13,7 +13,7 @@ export async function timestampReport(pushData) {
       }
       upsertIDB(record, 'timestamp', 'timestampID', record.timestampID);
     });
-  } else if (pushData[4][0] === 2) {
+  } else if (pushData[4][0] === 2) { //delete
     const timestamps = await getIDBbyMulti('timestamp', ['channelID', 'aliasName'], 
       [channelID, pushData[4][1]], 60, 0, 'asc');
     timestamps.forEach(timestamp => {

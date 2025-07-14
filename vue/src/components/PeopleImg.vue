@@ -5,14 +5,14 @@
       :style="{ backgroundColor: !emojiImg ? 'silver' : 'transparent' }"
       class="toggleEmoji"
     >
-      😃
+      😃絵文字
     </span>
     <span
       @click="emojiImg = false"
       :style="{ backgroundColor: emojiImg ? 'silver' : 'transparent' }"
       class="toggleEmoji"
     >
-      🌄
+      🌄画像
     </span>
   </div>
   <div v-if="emojiImg">
@@ -39,6 +39,7 @@
         <span>{{selectedEmoji}}</span>
       </span>
     </div>
+    <div>絵文字は手動入力できます</div>
   </div>
   <template v-if="!emojiImg">
     <img v-if="aliasImg && aliasImg.charAt(0) != ','" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">

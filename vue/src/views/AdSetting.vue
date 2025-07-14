@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
 import Drawer from '@/components/Drawer.vue'
 import Advertisement from '@/components/Advertisement.vue';

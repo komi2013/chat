@@ -97,7 +97,7 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 			{"push_contents", bson.A{}}, // これを明示的にセット
 		}},
 	}
-	LogError("ReGenerateData:", nil, session.Csrf, token)
+	// LogError("ReGenerateData:", nil, session.Csrf, token)
 	opts := options.Update().SetUpsert(false)
 	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
 	session.PushContents = contents

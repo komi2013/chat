@@ -1,0 +1,140 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+
+import Advertisement from '@/components/Advertisement.vue';
+import Drawer from '@/components/Drawer.vue';
+import NoticePopup from '@/components/NoticePopup.vue';
+import PeopleImg from '@/components/PeopleImg.vue';
+
+import { pushReceive } from '@/pushReceive/pushReceive.js';
+import { useNoticesStore } from '@/stores/notices.js';
+
+const user = ref(null)
+const nicknames = ref([])
+const nickname = ref(null)
+const nickImg = ref(null)
+const message = ref('')
+async function findUser() {
+  const fd = new FormData()
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/UserGet/', fd)
+  if (!res.csrf) message.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  res.pushContents.forEach(content => {
+    pushReceive(content)
+  })
+  user.value = res.user
+  nicknames.value = res.nicknames
+
+}
+
+const coordinateInput = ref(null)
+const fetched = ref(false)
+onMounted(async () => {
+  await findUser()
+  if (user.value && user.value.latitude) {
+    coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
+  }
+  if (user.value) {
+    fetched.value = true
+  }
+})
+
+function parseCoordinates() {
+  const parts = coordinateInput.value.split(',').map(s => s.trim())
+  if (parts.length !== 2) {
+    user.value.latitude = ''
+    user.value.longitude = ''
+    return
+  }
+
+  const lat = Number(parts[0])
+  const lng = Number(parts[1])
+
+  if (!isNaN(lat) && !isNaN(lng)) {
+    user.value.latitude = lat.toFixed(2)
+    user.value.longitude = lng.toFixed(2)
+  } else {
+    user.value.latitude = ''
+    user.value.longitude = ''
+  }
+}
+const noticesStore = useNoticesStore()
+async function submitUser(index) {
+  const fd = new FormData()
+  fd.append('csrf', localStorage.getItem('csrf'))
+  fd.append('latitude', user.value.latitude)
+  fd.append('longitude', user.value.longitude)
+  fd.append('nickname', nickname.value)
+  fd.append('nickImg', nickImg.value)
+  const res = await sendRequest('/UserEdit/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content)
+  })
+  noticesStore.setNotice(res.message)
+}
+
+</script>
+
+<template>
+  <Drawer />
+  <div id="content">
+    <form v-if="fetched" @submit.prevent="handleSubmit">
+      <h2 class="sp_head">ユーザーページ</h2>
+      <label>経緯度: Googleマップの右クリックで取得できます<br />
+        <input v-model="coordinateInput"
+               required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+               title="緯度と経度は「35.77, 139.57」の形式で入力してください"
+               @input="parseCoordinates" 
+               placeholder="35.72300346964341, 139.52507136879356" 
+               class="wide-text" />
+      </label>
+
+      <div v-if="user.latitude && user.longitude" style="margin-top: 5px; font-size: 14px;">
+        ➤ 緯度（latitude）: <strong>{{ user.latitude }}</strong><br />
+        ➤ 経度（longitude）: <strong>{{ user.longitude }}</strong>
+      </div>
+      <div>
+        <input type="text" v-model="nickname" placeholder="ニックネーム">
+      </div>
+      <PeopleImg v-model="nickImg" />
+      <br>
+      <button type="submit" @click="submitUser">更新</button>
+    </form>
+    <ul>
+      <li v-for="nick in nicknames">
+        <img v-if="nick.nickImg && nick.nickImg.charAt(0) != ','" 
+          :src="nick.nickImg" class="min-icon">
+        <span v-if="nick.nickImg && nick.nickImg.charAt(0) == ','"
+          :style="'background-color:' + nick.nickImg.split(',')[2] "
+          class="min-icon">
+            <span>{{nick.nickImg.split(',')[1]}}</span>
+        </span>
+        <span>{{nick.nickname}}</span>
+      </li>
+    </ul>
+    <div v-if="!fetched"> <br><br>{{message}} <br><a href="/sign/"> データ取得に失敗しました。一度サインインし直してください </a> </div>
+  </div>
+  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+  <NoticePopup />
+</template>
+
+<style scoped>
+.wide-text {
+  width: 100%;
+  max-width: 400px;
+}
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
+}
+
+</style>
