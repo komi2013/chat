@@ -33,7 +33,7 @@ onBeforeMount(async () => {
   channel.value = await getIDB('channel', props.channel_id);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
-  threadHead.value = await getIDB('threadHead', props.channel_id + props.message_id);
+  threadHead.value = await getIDB('threadHead', props.message_id);
   await makeThreadHead();
   fetched.value = await true;
   const content = await document.getElementById('content');
@@ -49,13 +49,10 @@ const messages = computed(() => {
   return messagesStore.messages;
 });
 
-// /thread/I0JH/I0JH1tamySv/?backID=I0JHvaj
-// /thread/I0JH/gdK/
-
 const msg = {
   messageTxt: '',
   messageID: '',
-  parentID: props.channel_id + props.message_id
+  parentID: props.message_id
 };
 
 async function makeThreadHead() {
@@ -93,7 +90,7 @@ async function makeThreadHead() {
     }
     threadHead.value = threadHeadValue;
     if (props.backID) {
-      const message = await getIDB('thread', props.channel_id + props.message_id);
+      const message = await getIDB('thread', props.message_id);
       threadHead.value = message;
       threadHead.value.parentID = props.message_id;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
@@ -108,10 +105,7 @@ async function makeThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updIDBone('threadHead', props.channel_id + props.message_id, 'displayStatus', 0)
-      .catch((error) => {
-        console.error(error);
-      });
+    updIDBone('threadHead', props.message_id, 'displayStatus', 0);
     const favicon = document.querySelector('link[rel="icon"]');
     favicon.href = '/favicon.ico';
   }

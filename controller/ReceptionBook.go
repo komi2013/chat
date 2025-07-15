@@ -35,7 +35,6 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if bookStart == "" || bookEnd == "" {
 		http.Error(w, "Missing bookStart or bookEnd", http.StatusBadRequest)
 		return
@@ -119,21 +118,21 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	    workStart, _ := time.Parse(layout, ws.WorkStart)
 	    workEnd, _ := time.Parse(layout, ws.WorkEnd)
 
-	    log.Printf("Checking workStaff: %s (WorkStart: %s, WorkEnd: %s)", ws.AliasName, ws.WorkStart, ws.WorkEnd)
+	    // log.Printf("Checking workStaff: %s (WorkStart: %s, WorkEnd: %s)", ws.AliasName, ws.WorkStart, ws.WorkEnd)
 
 	    // 予約時間がスタッフの勤務時間内にあるか
 	    if !(bookStartTime.Before(workStart) || bookEndTime.After(workEnd)) {
-	        log.Printf("Staff %s is within work hours", ws.AliasName)
+	        // log.Printf("Staff %s is within work hours", ws.AliasName)
 
 	        // スキルチェック（needSkill が設定されている場合のみ）
 	        if needSkill == "" || hasValidSkill(ws.AliasName, needSkill, reception.StaffSkills) {
-	            log.Printf("Staff %s has the required skill", ws.AliasName)
+	            // log.Printf("Staff %s has the required skill", ws.AliasName)
 	            validStaffCount++
 	        } else {
-	            log.Printf("Staff %s does NOT have the required skill (%s)", ws.AliasName, needSkill)
+	            // log.Printf("Staff %s does NOT have the required skill (%s)", ws.AliasName, needSkill)
 	        }
 	    } else {
-	        log.Printf("Staff %s is NOT available in the requested time slot", ws.AliasName)
+	        // log.Printf("Staff %s is NOT available in the requested time slot", ws.AliasName)
 	    }
 	}
 

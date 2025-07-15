@@ -36,7 +36,7 @@ func SendWebPushNotification(db1 *mongo.Database, arr []interface{}, pushID stri
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.M{
 		"$push": bson.M{
-			"push_contents": string(jsonData),
+			"pushContents": string(jsonData),
 		},
 	}
 	_, err = coll.UpdateOne(context.TODO(), filter, update)

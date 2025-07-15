@@ -111,7 +111,7 @@ const msgUpsert = async (messageID, delMessage) => {
   const pushTitle = messageID ? 'threadEdit' : 'thread';
   const SecondMsgID = messageID ? 
   	messageID.replace(props.channel.channelID, '') :
-  	base62Encode(Math.floor(Date.now() / 1000)) +  generateRandomCode(1);
+  	base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
   const fd = new FormData();
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
   let userIDs = [];

@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-	"chat/collection"
 	"context"
   "encoding/base64"
   "errors"
@@ -18,6 +17,9 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"chat/collection"
+
 )
 
 func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
@@ -80,7 +82,7 @@ func SaveBase64Image(base64Str, userID, suffix string) (string, error) {
     return "", err
   }
 
-  filename := "./vue/public/data/ad/" + userID + "_" + suffix + "." + format
+  filename := OSImgDir + "/ad/" + userID + "_" + suffix + "." + format
   outFile, err := createFileWithDirs(filename) // 自動ディレクトリ作成も
   if err != nil {
     return "", err
@@ -100,7 +102,7 @@ func SaveBase64Image(base64Str, userID, suffix string) (string, error) {
     return "", err
   }
 
-  return "/data/ad/" + userID + "_" + suffix + "." + format, nil
+  return PublicImgPath + "/ad/" + userID + "_" + suffix + "." + format, nil
 }
 
 func createFileWithDirs(path string) (*os.File, error) {

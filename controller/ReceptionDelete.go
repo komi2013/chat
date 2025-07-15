@@ -86,7 +86,7 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the update
 	update := bson.M{
-		"$set": bson.M{"tables": updatedTables},
+		"$set": bson.M{"seats": updatedTables},
 	}
 	opts := options.Update().SetUpsert(false)
 

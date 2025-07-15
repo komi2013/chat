@@ -53,8 +53,8 @@ func main() {
 			console.AdPublish()
 		case "TestPush":
 			console.TestPush()
-		// case "TestPush":
-		// 	console.TestPush()
+		case "TestCountUp":
+			console.TestCountUp()
 		}
 	}
 }

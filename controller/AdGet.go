@@ -35,7 +35,7 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
 
   coll := db1.Collection("ad")
   filter := bson.M{
-    "user_id": session.UserID,
+    "userID": session.UserID,
   }
 	var ads []collection.AdStruct
 	cursor, err := coll.Find(ctx, filter)

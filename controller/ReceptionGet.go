@@ -72,7 +72,7 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
   now := time.Now()
   valid := false
   for _, pc := range reception.Passcodes {
-  	log.Printf("Invalid or expired passkey: Req: ", pc)
+  	// log.Printf("Invalid or expired passkey: Req: ", pc)
     if pc.Passkey == passkey {
       startTime, err1 := time.Parse("2006-01-02T15:04", pc.PassStart)
       endTime, err2 := time.Parse("2006-01-02T15:04", pc.PassEnd)

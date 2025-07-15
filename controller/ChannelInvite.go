@@ -90,8 +90,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   var addSessions []collection.SessionStruct
   coll := db1.Collection("session")
   filter := bson.D{{
-    "user_id", bson.D{{"$in", userIDs}}}}
-  project := bson.D{{"created_at", 0}}
+    "userID", bson.D{{"$in", userIDs}}}}
+  project := bson.D{{"createdAt", 0}}
   opts4 := options.Find().SetProjection(project)
   cursor, err := coll.Find(context.TODO(), filter, opts4)
   if err != nil {
@@ -117,12 +117,12 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 	  }
 	}
 
-	coll = db1.Collection("invitation")
+	coll = db1.Collection("channel")
 	now := time.Now()
 	filterInvitation := bson.M{
     "$or": []interface{}{
-      bson.M{"channel_id": channelID},
-      bson.M{"until_date": bson.M{"$lt": now}},
+      bson.M{"channelID": channelID},
+      bson.M{"untilDate": bson.M{"$lt": now}},
     },
 	}
 
@@ -130,7 +130,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
     log.Printf("DeleteMany: %v; Request:", err, r.URL.Path, r.Form)
 	}
-  invitation := collection.InvitationStruct{
+  invitation := collection.ChannelStruct{
   	InvitationCode: common.StringRand(16),
 		ChannelID: channelID,
 		ChannelName: channelName,

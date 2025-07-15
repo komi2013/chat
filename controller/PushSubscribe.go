@@ -42,7 +42,7 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{{"$set", bson.D{
 		{"subscription", r.FormValue("subscription")},
-		{"updated_at", time.Now()}}}}
+		{"updatedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 

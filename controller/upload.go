@@ -93,7 +93,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
   }
 
 	filePath := fmt.Sprintf("%s/%s/%s", channelID, fileID, aliasName)
-	file, err := http.Dir("./upload_data/" + fileType).Open(filePath)
+	file, err := http.Dir(common.UploadDir + "/upload_data/" + fileType).Open(filePath)
 	if err != nil {
 		log.Printf("File not found: %v; Req: ", err, r.URL.Path, r.Form)
 		http.Error(w, "File not found", http.StatusNotFound)

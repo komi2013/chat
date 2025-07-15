@@ -134,7 +134,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 	  ad.PathSquare = path
 	}
 
-  coll := db1.Collection("ad_price")
+  coll := db1.Collection("adPrice")
 
   priceList, err := common.GetMatchedPrices(ctx, coll, ad)
   if err != nil {
@@ -157,7 +157,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   ad.UpdatedAt = time.Now()
 
   filter := bson.M{
-    "user_id":  ad.UserID,
+    "userID":  ad.UserID,
   }
 
   update := bson.M{

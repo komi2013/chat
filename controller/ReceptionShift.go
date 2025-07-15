@@ -64,7 +64,7 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  coll := db1.Collection("book_pattern")
+  coll := db1.Collection("reception")
 
   // Find the document by `_id`
   var reception collection.ReceptionStruct
@@ -170,8 +170,8 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 	update := bson.M{
 		"$set": bson.M{
 			"shifts": reception.Shifts,
-			"work_staffs":  reception.WorkStaffs,
-			"staff_skills":  reception.StaffSkills,
+			"workStaffs":  reception.WorkStaffs,
+			"staffSkills":  reception.StaffSkills,
 		},
 	}
 
@@ -183,7 +183,6 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Updated %d document(s)", updateResult.ModifiedCount)
-
 
   responseData := struct {
     Csrf         string        `json:"csrf"`

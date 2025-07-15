@@ -56,16 +56,16 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 
   var user collection.UserStruct
 	coll := db1.Collection("user")
-	filter := bson.D{{"google_jwt_sub", claims["sub"]}}
+	filter := bson.D{{"googleJWTSub", claims["sub"]}}
 	update := bson.D{{"$set", bson.D{
-		{"signed_at", time.Now()}}}}
+		{"signedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(true)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 
   coll = db1.Collection("user")
-	filter2 := bson.D{{"google_jwt_sub", claims["sub"]}}
+	filter2 := bson.D{{"googleJWTSub", claims["sub"]}}
   opts2 := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
+    {"userID", 1},
   })
   coll.FindOne(context.TODO(), filter2, opts2).Decode(&user)
   if err != nil {
@@ -86,12 +86,12 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 
   var ssAlready collection.SessionStruct
   coll = db1.Collection("session")
-	filter3 := bson.D{{"user_id", user.UserID}}
+	filter3 := bson.D{{"userID", user.UserID}}
   opts3 := options.FindOne().SetProjection(bson.D{
-    {"user_id", 1},
-    {"alias_array", 1},
+    {"userID", 1},
+    {"channelAliases", 1},
   }).SetSort(bson.D{
-    {"created_at", -1},
+    {"createdAt", -1},
 	})
   err = coll.FindOne(context.TODO(), filter3, opts3).Decode(&ssAlready)
 
@@ -118,7 +118,7 @@ func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
 	  session := collection.SessionStruct{
 			SessionID: sessionID,
 			UserID: user.UserID,
-			AliasArray: ssAlready.AliasArray,
+			ChannelAliases: ssAlready.ChannelAliases,
 			CreatedAt: time.Now(),
 		}
 		_, err := coll.InsertOne(context.TODO(), session)

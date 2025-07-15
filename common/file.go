@@ -118,7 +118,7 @@ func FileSave(r *http.Request, db1 *mongo.Database, channelID string, uploadedBy
 
 		fileID := StringRand(4)
 		filePath := fmt.Sprintf("/upload/file/%s/%s/%s", channelID, fileID, fileHeader.Filename)
-		saveDir := fmt.Sprintf("./upload_data/file/%s/%s/", channelID, fileID)
+		saveDir := fmt.Sprintf(UploadDir + "/upload_data/file/%s/%s/", channelID, fileID)
 
 		if err := os.MkdirAll(saveDir, 0755); err != nil {
 			log.Printf("Failed to create directory: %v", err)

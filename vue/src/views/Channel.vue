@@ -250,7 +250,7 @@ const removeNames = async () => {
     <h3>スレッド一覧</h3>
     <ul v-if="threadHeads">
       <li v-for="d in threadHeads">
-        <a :href="'/thread/' + d.parentID.slice(0, 4) + '/' + d.parentID.slice(4) + '/'">
+        <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">
           {{d.title}}
         </a>
       </li>

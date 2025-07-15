@@ -63,7 +63,7 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
 	coll = db1.Collection("user")
 	userFilter := bson.D{{"_id", userID}}
 	update := bson.D{{"$set", bson.D{
-		{"signed_at", time.Now()}}}}
+		{"signedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(true)
 	_, err = coll.UpdateOne(context.TODO(), userFilter, update, opts)
   http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)

@@ -6,17 +6,23 @@ import (
 
 type SessionStruct struct {
   SessionID  string    `bson:"_id,omitempty"`
-  UserID  string    `bson:"user_id,omitempty"`
-  CreatedAt  time.Time `bson:"created_at,omitempty"`
-  UpdatedAt  time.Time `bson:"updated_at,omitempty"`
-  AliasArray  [][]string      `bson:"alias_array,omitempty"`
-  // AliasChannels []AliasChannel `bson:"alias_channels,omitempty" json:"alias_channels,omitempty"`
-  ChannelAliases []ChannelAlias `bson:"channel_aliases,omitempty" json:"channel_aliases,omitempty"`
+  UserID  string    `bson:"userID,omitempty"`
+  CreatedAt  time.Time `bson:"createdAt,omitempty"`
+  UpdatedAt  time.Time `bson:"updatedAt,omitempty"`
+  AliasArray  [][]string      `bson:"aliasArray,omitempty"`
+  ChannelAliases []ChannelAlias `bson:"channelAliases,omitempty" json:"channelAliases,omitempty"`
   Subscription  string      `bson:"subscription,omitempty"`
   Csrf  string      `bson:"csrf,omitempty"`
-  PushContents []string `bson:"push_contents,omitempty"`
-  IsMobile bool `bson:"is_mobile,omitempty"`
+  PushContents []string `bson:"pushContents,omitempty"`
+  IsMobile bool `bson:"isMobile,omitempty" json:"isMobile,omitempty"`
 }
+
+
+type ChannelAlias struct {
+    ChannelID string `bson:"channelID" json:"channelID"`
+    Alias     string `bson:"alias" json:"alias"`
+}
+
 
 // type Content struct {
 // 	PushID string      `bson:"push_id"`

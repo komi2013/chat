@@ -59,9 +59,9 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	  UserID:     session.UserID,
 	}
 
-	collInvitation := db1.Collection("invitation")
+	collInvitation := db1.Collection("channel")
 	invitationFilter := bson.M{"_id": code}
-	var invitation collection.InvitationStruct
+	var invitation collection.ChannelStruct
 	err = collInvitation.FindOne(context.TODO(), invitationFilter).Decode(&invitation)
 	if err != nil {
 		log.Printf("invitation FindOne: %v; Req:", err, r.URL.Path, r.Form)
@@ -81,32 +81,32 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	}
 
 	if nameFound {
-	    collUser := db1.Collection("user")
-	    filterUser := bson.M{"_id": session.UserID}
-	    var user collection.UserStruct
-	    err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
-	    if err != nil {
-	        log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
-	    }
-	    userFound := false
-	    for _, ca := range user.ChannelAliases {
-	        if ca.ChannelID == channelID && ca.Alias == myname {
-	            userFound = true
-	            break
-	        }
-	    }
-			if !userFound {
-			    w.Header().Set("Content-Type", "application/json")
-			    w.WriteHeader(http.StatusConflict) // 409 Conflict
-			    json.NewEncoder(w).Encode(map[string]string{
-			        "error": "すでに同じ名前が存在しています。",
-			    })
-			    return
-			}
+    collUser := db1.Collection("user")
+    filterUser := bson.M{"_id": session.UserID}
+    var user collection.UserStruct
+    err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+    if err != nil {
+      log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+    }
+    userFound := false
+    for _, ca := range user.ChannelAliases {
+      if ca.ChannelID == channelID && ca.Alias == myname {
+        userFound = true
+        break
+      }
+    }
+		if !userFound {
+	    w.Header().Set("Content-Type", "application/json")
+	    w.WriteHeader(http.StatusConflict) // 409 Conflict
+	    json.NewEncoder(w).Encode(map[string]string{
+	      "error": "すでに同じ名前が存在しています。",
+	    })
+	    return
+		}
 	}
 
 	coll := db1.Collection("session")
-  filter := bson.M{"user_id": session.UserID}
+  filter := bson.M{"userID": session.UserID}
 	cursor, err := coll.Find(context.TODO(), filter)
 	if err != nil {
 	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
@@ -155,8 +155,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
     addSessions = append(addSessions, collection.SessionStruct{
-        SessionID:    d.SessionID,
-        Subscription: d.Subscription,
+      SessionID:    d.SessionID,
+      Subscription: d.Subscription,
     })
   }
 
@@ -177,11 +177,11 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 
 	msg, err := collInvitation.UpdateOne(context.TODO(), invitationFilter,
     bson.M{
-        "$push": bson.M{
-            "aliases": newAlias,
-            "alias_names": myname,
-            "push_sessions": bson.M{"$each": addSessions},
-        },
+	    "$push": bson.M{
+        "aliases": newAlias,
+        "aliasNames": myname,
+        "pushSessions": bson.M{"$each": addSessions},
+	    },
     },
 	)
 	log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)

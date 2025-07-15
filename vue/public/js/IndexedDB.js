@@ -279,9 +279,9 @@ async function updIDBone(table, key, columnName, columnValue) {
 
       // 更新したデータを保存
       const putRequest = objectStore.put(data);
-      putRequest.onsuccess = () => {
-        console.log(`${columnName} updated successfully`);
-      };
+      // putRequest.onsuccess = () => {
+      //   console.log(`${columnName} updated successfully`);
+      // };
       putRequest.onerror = (event) => {
         console.error(`Error updating ${columnName}: ${event.target.error}`);
       };

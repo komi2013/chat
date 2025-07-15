@@ -15,13 +15,14 @@ export async function thread(pushData) {
       filelinks += `＊f＊${filelink}・＊f＊ `;
     });
 	}
+
   const pushThread = {
-    messageID: channelID + secondPartMsgID,
+    messageID: secondPartMsgID,
     parentID: pushData[4][0],
     messageTxt: pushData[4][2] + filelinks,
     aliasName: pushData[4][7] || updatedBy,
     aliasImg: pushData[4][3],
-    createdAt: timeFormat('YYYY/MM/DD hh:mm:ss', unixtime * 1000),
+    createdAt: timeFormat('YYYY/MM/DD hh:mm:ss', unixtime),
     channelID: channelID,
     aliasNames: pushData[4][4],
     backID: pushData[4][5] || '',
@@ -47,15 +48,15 @@ export async function thread(pushData) {
     second = true;
   } else {
     parent = {
-      messageID: pushThread.parentID,
-      channelID: pushThread.channelID,
+      // messageID: pushThread.parentID,
+      // channelID: pushThread.channelID,
       messageTxt: pushThread.messageTxt,
       aliasName: pushThread.aliasName,
       aliasImg: pushThread.aliasImg,
       createdAt: pushThread.createdAt,
-      emojis: pushThread.emojis,
-      threadCount: 1
-    };    
+      emojis: pushThread.emojis
+      // threadCount: 1
+    };
   }
   let displayStatus = 1;
   let notify = false;

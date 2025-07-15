@@ -62,7 +62,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
   }
 
   coll := db1.Collection("session")
-  filter := bson.D{{"user_id", bson.D{{"$in", userIDs}}}}
+  filter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
   cursor, err := coll.Find(context.TODO(), filter)
   if err != nil {
     log.Printf("coll.Find: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
@@ -77,9 +77,9 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 
 	for _, del := range deleteAliases {
 		update := bson.M{
-			"$pull": bson.M{"channel_aliases": bson.M{"channel_id": channelID, "alias": del.AliasName}},
+			"$pull": bson.M{"channelAliases": bson.M{"channelID": channelID, "alias": del.AliasName}},
 		}
-		sessionFilter := bson.M{"user_id": del.UserID}
+		sessionFilter := bson.M{"userID": del.UserID}
 		_, err = sessionCol.UpdateMany(ctx, sessionFilter, update)
 		if err != nil {
 			log.Printf("Failed to update session: %v", err, del.UserID, r.URL.Path, r.Form)
@@ -100,8 +100,6 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 		common.ChunkPush(sessions, db1, arr)
 
 	}
-
-	// fmt.Println("Deletion completed successfully.")
 
   session, err = common.ReGenerateData(db1, session)
   if err != nil {

@@ -93,8 +93,8 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 	update := bson.D{
 		{"$set", bson.D{
 			{"csrf", session.Csrf},
-			{"updated_at", time.Now()},
-			{"push_contents", bson.A{}}, // これを明示的にセット
+			{"updatedAt", time.Now()},
+			{"pushContents", bson.A{}}, // これを明示的にセット
 		}},
 	}
 	// LogError("ReGenerateData:", nil, session.Csrf, token)

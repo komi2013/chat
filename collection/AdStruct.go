@@ -5,30 +5,30 @@ import (
 )
 
 type AdStruct struct {
-	PathBanner string  `bson:"path_banner" json:"pathBanner"`
-	PathSquare string  `bson:"path_square" json:"pathSquare"`
-	AdText     string  `bson:"ad_text" json:"adText"`
-	AdLink     string  `bson:"ad_link" json:"adLink"`
-	AdStart    int     `bson:"ad_start" json:"adStart"`    // 例: 100（日曜0時）
-	AdEnd      int     `bson:"ad_end" json:"adEnd"`        // 例: 223（月曜23時）
-	UserID     string  `bson:"user_id" json:"userID"`
+	PathBanner string  `bson:"pathBanner" json:"pathBanner"`
+	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
+	AdText     string  `bson:"adText" json:"adText"`
+	AdLink     string  `bson:"adLink" json:"adLink"`
+	AdStart    int     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
+	AdEnd      int     `bson:"adEnd" json:"adEnd"`        // 例: 223（月曜23時）
+	UserID     string  `bson:"userID" json:"userID"`
 	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
 	Distance   int     `bson:"distance" json:"distance"`   // 半径のスケール
-	AdYen      int     `bson:"ad_yen,omitempty" json:"adYen,omitempty"`
-	UpdatedAt  time.Time    `bson:"updated_at"`
-	ActiveFlag bool    `bson:"active_flag,omitempty" json:"activeFlag,omitempty"`
+	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
+	UpdatedAt  time.Time    `bson:"updatedAt"`
+	ActiveFlag bool    `bson:"activeFlag,omitempty" json:"activeFlag,omitempty"`
 }
 
 type AdPriceStruct struct {
-	LatitudeNorth  float64 `bson:"latitude_north" json:"latitudeNorth"`   // 例: 35.74
-	LatitudeSouth  float64 `bson:"latitude_south" json:"latitudeSouth"`   // 例: 35.72
-	LongitudeEast  float64 `bson:"longitude_east" json:"longitudeEast"`   // 例: 139.54
-	LongitudeWest  float64 `bson:"longitude_west" json:"longitudeWest"`   // 例: 139.52
-	AdStart        int     `bson:"ad_start" json:"adStart"`               // 例: 000
-	AdEnd          int     `bson:"ad_end" json:"adEnd"`                   // 例: 059
-	AdPriceYen     int     `bson:"ad_price_yen" json:"adPriceYen"`
-	UpdatedAt      time.Time    `bson:"updated_at"`
+	LatitudeNorth  float64 `bson:"latitudeNorth" json:"latitudeNorth"`   // 例: 35.74
+	LatitudeSouth  float64 `bson:"latitudeSouth" json:"latitudeSouth"`   // 例: 35.72
+	LongitudeEast  float64 `bson:"longitudeEast" json:"longitudeEast"`   // 例: 139.54
+	LongitudeWest  float64 `bson:"longitudeWest" json:"longitudeWest"`   // 例: 139.52
+	AdStart        int     `bson:"adStart" json:"adStart"`               // 例: 000
+	AdEnd          int     `bson:"adEnd" json:"adEnd"`                   // 例: 059
+	AdPriceYen     int     `bson:"adPriceYen" json:"adPriceYen"`
+	UpdatedAt      time.Time    `bson:"updatedAt"`
 }
 
 // 近畿の範囲

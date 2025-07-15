@@ -80,7 +80,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 	}
 
   coll := db1.Collection("session")
-  filter := bson.D{{"user_id", bson.D{{"$in", userIDs}}}}
+  filter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
   cursor, err := coll.Find(context.TODO(), filter)
   if err != nil {
     log.Printf("coll.Find: %v; Req: ", err, userIDs, r.URL.Path, r.Form)

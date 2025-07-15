@@ -105,7 +105,7 @@ func AdPriceGet(w http.ResponseWriter, r *http.Request) {
   }
   // var ad collection.AdStruct
 
-  coll := db1.Collection("ad_price")
+  coll := db1.Collection("adPrice")
 
 	priceList, err := common.GetMatchedPrices(ctx, coll, ad)
 	if err != nil {

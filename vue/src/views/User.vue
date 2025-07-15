@@ -96,7 +96,7 @@ async function submitUser(index) {
         ➤ 経度（longitude）: <strong>{{ user.longitude }}</strong>
       </div>
       <div>
-        <input type="text" v-model="nickname" placeholder="ニックネーム">
+        <input type="text" v-model="nickname" placeholder="ニックネーム" style="margin: 4px; padding: 4px;">
       </div>
       <PeopleImg v-model="nickImg" />
       <br>
@@ -124,7 +124,10 @@ async function submitUser(index) {
 .wide-text {
   width: 100%;
   max-width: 400px;
+  margin: 4px;
+  padding: 4px;
 }
+
 .min-icon {
   width: 26px;
   max-width: 26px;

@@ -43,7 +43,7 @@ func AdPublish() {
 	adStartKey := weekDay*100 + targetHour
 	log.Printf("adStartKey: %v", adStartKey)
 	filter := bson.M{
-		"ad_start": adStartKey,
+		"adStart": adStartKey,
 	}
 
 	adColl := db.Collection("ad")
@@ -75,7 +75,7 @@ func AdPublish() {
 		userFilter := bson.M{
 			"latitude":  bson.M{"$gte": minLat, "$lte": maxLat},
 			"longitude": bson.M{"$gte": minLng, "$lte": maxLng},
-			"signed_at": bson.M{"$gte": twoWeeksAgo},
+			"signedAt": bson.M{"$gte": twoWeeksAgo},
 		}
 
 		var users []collection.UserStruct
@@ -102,7 +102,7 @@ func AdPublish() {
 
 		// Session検索
 		sessionFilter := bson.M{
-			"user_id": bson.M{"$in": userIDs},
+			"userID": bson.M{"$in": userIDs},
 		}
 
 		var sessions []collection.SessionStruct
@@ -133,12 +133,12 @@ func AdPublish() {
 		common.ChunkPush(sessions, db, arr)
 
 		filter := bson.M{
-			"user_id": ad.UserID, // ← AdStruct に `ID primitive.ObjectID` が必要
+			"userID": ad.UserID, // ← AdStruct に `ID primitive.ObjectID` が必要
 		}
 		update := bson.M{
 			"$set": bson.M{
-				"active_flag": false,
-				"updated_at":  time.Now(),
+				"activeFlag": false,
+				"updatedAt":  time.Now(),
 			},
 		}
 

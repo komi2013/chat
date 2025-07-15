@@ -201,7 +201,7 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 		document := bson.M{
 	    "_id": pushID,
 	    "pushJson": string(jsonData),
-	    "created_at": time.Now().Format("2006-01-02 15:04:05"),
+	    "createdAt": time.Now().Format("2006-01-02 15:04:05"),
 		}
 		_, err = coll.InsertOne(context.TODO(), document)
 		if err != nil {

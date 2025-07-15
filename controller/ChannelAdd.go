@@ -43,7 +43,12 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
-  channelID := common.StringRand(4)
+  channelID, err := common.CountUpID("1")
+  if err != nil {
+    log.Printf("CountUpID error: %v", err)
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
 	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -51,8 +56,8 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	coll := db1.Collection("session")
-  filter := bson.M{"user_id": session.UserID}
-	project := bson.D{{"updated_at", 0}}
+  filter := bson.M{"userID": session.UserID}
+	project := bson.D{{"updatedAt", 0}}
 	opts4 := options.Find().SetProjection(project)
 	cursor, err := coll.Find(context.TODO(), filter, opts4)
 	if err != nil {

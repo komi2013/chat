@@ -4,10 +4,10 @@ import "time"
 
 type FileStruct struct {
   FileID       string    `bson:"_id"`
-  ChannelID    string    `bson:"channel_id,omitempty"`
-  UploadedBy   string    `bson:"uploaded_by,omitempty"`
-  ImgPath      string    `bson:"img_path,omitempty"`
-  FileSize     float64   `bson:"file_size,omitempty"`
-  CreatedAt    time.Time `bson:"created_at,omitempty"`
-  AvailableBy  []string  `bson:"available_by,omitempty"`
+  ChannelID    string    `bson:"channelID,omitempty"`
+  UploadedBy   string    `bson:"uploadedBy,omitempty"`
+  ImgPath      string    `bson:"imgPath,omitempty"`
+  FileSize     float64   `bson:"fileSize,omitempty"`
+  CreatedAt    time.Time `bson:"createdAt,omitempty"`
+  AvailableBy  []string  `bson:"availableBy,omitempty"`
 }
