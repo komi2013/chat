@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "time"
@@ -46,5 +46,14 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 
-  fmt.Fprint(w, `{"Status":"1"}`)
+  responseData := struct {
+    Csrf         string        `json:"csrf"`
+    PushContents []string `json:"pushContents"`
+  }{
+    Csrf:         session.Csrf,
+    PushContents: session.PushContents,
+  }
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(responseData)
+
 }

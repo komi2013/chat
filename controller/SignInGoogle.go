@@ -20,7 +20,7 @@ import (
 
 var hmacSampleSecret []byte
 
-func GoogleIdentity(w http.ResponseWriter, r *http.Request) {
+func SignInGoogle(w http.ResponseWriter, r *http.Request) {
   // fmt.Printf("r %#v\n", r)
   // fmt.Printf("credential %#v\n", r.FormValue("credential"))
   cookie, err := r.Cookie("g_csrf_token")

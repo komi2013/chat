@@ -2,7 +2,7 @@ package common
 
 import (
   "context"
-  // "errors"
+  "errors"
   "log"
   "net/http"
   "strings"
@@ -68,17 +68,27 @@ func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, t
     return session, err
   }
 	if session.Csrf != token {
-		// return session, errors.New("token error")
-		LogError("SessionCheck:", nil, session.Csrf, token)
+		return session, errors.New("token error")
+		// LogError("SessionCheck:", nil, session.Csrf, token)
 	}
-  session, err = CheckMakeCSRFToken(db1, session, token)
+
+	if time.Since(session.UpdatedAt) > 20*24*time.Hour {
+		_, _ = coll.DeleteOne(context.TODO(), filter)
+		return session, errors.New("session error")
+	}	else if time.Since(session.UpdatedAt) > 10*24*time.Hour {
+		session, err = RegenerateSessionData(db1, session, w)
+	} else {
+		// UpdateSessionTimestamp(db, session)
+		session, err = CheckMakeCSRFToken(db1, session, token)
+	}
+  // session, err = CheckMakeCSRFToken(db1, session, token)
   return session, err
 }
 
 func CheckMakeCSRFToken(db1 *mongo.Database, session collection.SessionStruct, token string) (collection.SessionStruct, error) {
 	if session.Csrf != token {
-		// return session, errors.New("token error ")
-		LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
+		return session, errors.New("token error ")
+		// LogError("CheckMakeCSRFToken:", nil, session.Csrf, token)
 	}
 	session, err := ReGenerateData(db1, session)
 	return session, err
@@ -93,7 +103,7 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 	update := bson.D{
 		{"$set", bson.D{
 			{"csrf", session.Csrf},
-			{"updatedAt", time.Now()},
+			// {"updatedAt", time.Now()},
 			{"pushContents", bson.A{}}, // これを明示的にセット
 		}},
 	}
@@ -103,6 +113,39 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 	session.PushContents = contents
 	return session, err
 }
+
+func RegenerateSessionData(db *mongo.Database, session collection.SessionStruct, w http.ResponseWriter) (collection.SessionStruct, error) {
+	newSession := session
+	newSession.SessionID = StringRand(16)
+	newSession.Csrf = StringRand(16)
+	newSession.UpdatedAt = time.Now()
+	newSession.PushContents = []string{}
+	// newSession.AliasArray = [][]string{}
+	// newSession.ChannelAliases = []collection.ChannelAlias{}
+
+	cookie := &http.Cookie{
+		Name:     "ss",
+		Value:    newSession.SessionID,
+		MaxAge:   2592000,
+		Secure:   true,
+		HttpOnly: true,
+		Path:     "/",
+	}
+	http.SetCookie(w, cookie)
+	coll := db.Collection("session")
+
+	_, err := coll.InsertOne(context.TODO(), newSession)
+	if err != nil {
+		return session, err
+	}
+
+	_, err = coll.DeleteOne(context.TODO(), bson.M{"_id": session.SessionID})
+	if err != nil {
+		return session, err
+	}
+	return newSession, nil
+}
+
 
 func FilterSessionsByChannelID(sessions []collection.SessionStruct, channelID string) []collection.SessionStruct {
 	var filteredSessions []collection.SessionStruct
@@ -120,6 +163,38 @@ func FilterSessionsByChannelID(sessions []collection.SessionStruct, channelID st
 	}
 	return filteredSessions
 }
+
+// func CreateNewSessionAndSetCookie(db *mongo.Database, w http.ResponseWriter) (collection.SessionStruct, error) {
+// 	sessionID := common.StringRand(16)
+// 	session := collection.SessionStruct{
+// 		SessionID:      sessionID,
+// 		Csrf:           common.StringRand(16),
+// 		CreatedAt:      time.Now(),
+// 		UpdatedAt:      time.Now(),
+// 		PushContents:   []string{},
+// 		AliasArray:     [][]string{},
+// 		ChannelAliases: []collection.ChannelAlias{},
+// 		IsMobile:       false, // 必要に応じて初期値設定
+// 	}
+// 	coll := db.Collection("session")
+// 	_, err := coll.InsertOne(context.TODO(), session)
+// 	if err != nil {
+// 		return session, err
+// 	}
+
+// 	// Cookie 登録
+// 	cookie := &http.Cookie{
+// 		Name:     "ss",
+// 		Value:    sessionID,
+// 		MaxAge:   2592000,
+// 		Secure:   true,
+// 		HttpOnly: true,
+// 		Path:     "/",
+// 	}
+// 	http.SetCookie(w, cookie)
+
+// 	return session, nil
+// }
 
 func IsMobile(userAgent string) bool {
 	mobileKeywords := []string{

@@ -17,7 +17,7 @@ import (
 
 )
 
-func TmpLogin(w http.ResponseWriter, r *http.Request) {
+func SignInTmp(w http.ResponseWriter, r *http.Request) {
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -53,6 +53,7 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
     UserID: userID,
     ChannelAliases: user.ChannelAliases,
     CreatedAt: time.Now(),
+    UpdatedAt: time.Now(),
     IsMobile: common.IsMobile(r.UserAgent()),
   }
   _, err = coll.InsertOne(context.TODO(), session)
@@ -66,5 +67,5 @@ func TmpLogin(w http.ResponseWriter, r *http.Request) {
 		{"signedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(true)
 	_, err = coll.UpdateOne(context.TODO(), userFilter, update, opts)
-  http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
+  // http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
 }

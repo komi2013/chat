@@ -24,6 +24,11 @@ a {
     min-width: 1012px; /* 300 + 400 + 300 = 1000pxが最低 */
   }
 
+  #drawer {
+    margin-top : -1px;
+    background-color: white;
+  }
+
   #drawer_column {
     width: 300px;
     flex-shrink: 0;
@@ -46,6 +51,35 @@ a {
 }
 
 @media screen and (max-width : 700px) {
+  #drawer {
+    width: 80%;
+    overflow: scroll;
+    position: absolute;
+    z-index: 10;
+    margin: 0;
+    background-color: white;
+    left: -100%;
+    top : 51px;
+    float: left;
+  }
+  .pulling {
+    position: absolute;
+    top: 0px;
+    height: 50px;
+    width: 50px;
+    opacity: 0;
+    z-index: 10;
+  }
+  .pulling:checked ~ #drawer{
+    left: 0%;
+  }
+  .for_drawer {
+    position: absolute;
+    font-size: 40px;
+    top: -10px;
+    width: 50px;
+    text-align: center;
+  }
   #header{
     width: 100%;
     text-align: left;
@@ -61,3 +95,5 @@ a {
     margin: 0px 0px 0px 50px;
   }
 }
+
+

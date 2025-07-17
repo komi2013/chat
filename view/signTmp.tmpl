@@ -23,10 +23,17 @@
 <div class="menu pc_disp_none">≡</div>
 
 <div id="content">
+
   <br><br>
   <input id="userID" placeholder="seijiro" />
   <br>
   <button id="setCookieBtn">setCookie</button>
+
+<br><br>
+<!-- signTmp.tmpl -->
+<div id="sign-app"></div>
+<script type="module" src="/assets/main.js?4"></script>
+
 </div>
 
 <div id="ad_right"></div>
@@ -37,7 +44,7 @@
     const fd = new FormData();
     fd.append('userID', userIDValue);
 
-    fetch('/TmpLogin/', {
+    fetch('/SignInTmp/', {
       method: 'POST',
       body: fd,
     })

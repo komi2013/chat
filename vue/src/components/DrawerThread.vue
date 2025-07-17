@@ -146,7 +146,7 @@ onBeforeMount(async () => {
   border-radius: 50%;
 }
 
-@media screen and (min-width : 701px) {
+/*@media screen and (min-width : 701px) {
   #drawer {
     margin-top : -1px;
     background-color: white;
@@ -183,5 +183,5 @@ onBeforeMount(async () => {
     width: 50px;
     text-align: center;
   }
-}
+}*/
 </style>

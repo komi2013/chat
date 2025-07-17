@@ -67,8 +67,9 @@ async function submitUser(index) {
   fd.append('longitude', user.value.longitude)
   fd.append('nickname', nickname.value)
   fd.append('nickImg', nickImg.value)
-  const res = await sendRequest('/UserEdit/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  const res = await sendRequest('/UserEdit/', fd)
+  if (!res.csrf) message.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
     pushReceive(content)
   })

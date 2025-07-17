@@ -2,10 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Webpush Golang Example</title>
+  <title>Webpush register</title>
+    <script src="/js/myGlobal.js?0625_7"></script>
+    <script src="/js/IndexedDB.js?0625_7"></script>
+    <script type="module" crossorigin src="/assets/main.js"></script>
 </head>
 <body>
-  <script>
+    <div id="app"></div>
+<script>
   {{if .Session.Csrf}}
     localStorage.setItem("csrf", "{{.Session.Csrf}}");
   {{end}}
@@ -56,24 +60,34 @@
           }
         });
     }
-    function pushSubscribe(subscription) {
-      const fd = new FormData();
-      fd.append('subscription', JSON.stringify(subscription));
-      fd.append('csrf', localStorage.getItem("csrf"));
-      const request = new Request('/PushSubscribe/', {
-        method: 'POST',
-        body: fd,
-      });
-      fetch(request)
-        .then((response) => response.json())
-        .then((json)=>{
-          // when status not 1
-          location.href = '/';
-        })
-        .catch((reason)=>{
-          console.log(reason)
-        })
+    async function pushSubscribe(subscription) {
+      // const fd = new FormData();
+      // fd.append('subscription', JSON.stringify(subscription));
+      // fd.append('csrf', localStorage.getItem("csrf"));
+      // const request = new Request('/PushSubscribe/', {
+      //   method: 'POST',
+      //   body: fd,
+      // });
+      // fetch(request)
+      //   .then((response) => response.json())
+      //   .then((json)=>{
+      //     // when status not 1
+      //     location.href = '/user/'
+      //   })
+      //   .catch((reason)=>{
+      //     console.log(reason)
+      //   })
+      // window.pushReceive()
+      const fd = new FormData()
+      fd.append('subscription', JSON.stringify(subscription))
+      fd.append('csrf', localStorage.getItem("csrf"))
+      const res = await sendRequest('/PushSubscribe/', fd)
+      if (!res.csrf) document.body.prepend(res)
+      res.csrf && localStorage.setItem('csrf', res.csrf)
+      res.pushContents.forEach(content => {
+        pushReceive(content)
+      })
     }
-  </script>
+</script>
 </body>
 </html>
