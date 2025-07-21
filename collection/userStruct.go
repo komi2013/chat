@@ -14,6 +14,6 @@ type UserStruct struct {
   SignedAt     time.Time `bson:"signedAt,omitempty" json:"signedAt,omitempty"`
 	ChannelAliases []ChannelAlias `bson:"channelAliases,omitempty" json:"channelAliases,omitempty"`
 	Yen   int `bson:"yen,omitempty" json:"yen,omitempty"`
-	Latitude   float64 `bson:"latitude" json:"latitude,omitempty"`   // 例: 35.73
-	Longitude  float64 `bson:"longitude" json:"longitude,omitempty"` // 例: 139.53
+	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
+	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
 }

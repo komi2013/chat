@@ -13,6 +13,10 @@ a {
   word-break: break-all;
 }
 
+.errorMessage {
+  color: red;
+}
+
 @media screen and (min-width : 701px) { 
   #app {
     display: flex;
@@ -92,7 +96,7 @@ a {
     display: none;
   }
   .sp_head {
-    margin: 0px 0px 0px 50px;
+    margin: 4px 0px 0px 50px;
   }
 }
 

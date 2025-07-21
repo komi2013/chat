@@ -7,7 +7,7 @@ export async function alias(pd) {
   const aliasImg = pd[5];
   const deleteFlag = pd[4][3] ?? false;
   const alias = {
-    aliasID: channelID + aliasName, // should not? be userID for unique per
+    aliasID: channelID + userID,
     channelID: channelID,
     aliasName: aliasName,
     aliasImg: aliasImg,

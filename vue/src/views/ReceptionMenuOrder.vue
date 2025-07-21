@@ -10,16 +10,17 @@ const props = defineProps({
 });
 
 async function findReception() {
-  try {
-    const fd = new FormData();
-    fd.append('receptionID', props.id);
-    fd.append('passkey', props.apiKey);
-    const reception = await sendRequest('/ReceptionGet/', fd);
-    if (reception?.menus) {
-      await fetchOrder(reception);
-    }
-  } catch (error) {
-    console.error('Error fetching reception data:', error);
+  const fd = new FormData();
+  fd.append('receptionID', props.id);
+  fd.append('passkey', props.apiKey);
+  const res = await sendRequest('/ReceptionGet/', fd);
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  if (res.reception?.menus) {
+    await fetchOrder(res.reception);
   }
 }
 
@@ -64,7 +65,7 @@ function getItemNames(itemDetailIDs, itemDetails) {
     return matchingItem ? matchingItem.itemName : `Unknown Item (${id})`;
   });
 }
-
+const errorMessage = ref('')
 onMounted(() => {
   findReception();
 });
@@ -75,7 +76,12 @@ async function deleteOrders(tableName) {
     fd.append('receptionID', props.id);
     fd.append('apiKey', props.apiKey);
     fd.append('tableName', tableName);
-    const reception = await sendRequest('/ReceptionDelete/', fd);
+    const res = await sendRequest('/ReceptionDelete/', fd);
+    if (!res.csrf) errorMessage.value = res
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    res.pushContents.forEach(content => {
+      pushReceive(content);
+    });
   } catch (error) {
     console.error('Error fetching reception data:', error);
   }
@@ -87,6 +93,11 @@ async function deleteOrders(tableName) {
 <Drawer />
   <div id="content">
     <h1 class="sp_head">注文履歴</h1>
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <div v-for="(orders, tableName) in groupedOrders" :key="tableName" class="order-group">
       <h2>{{ tableName }}</h2>
       <div v-for="(order, index) in orders" :key="index" class="order">

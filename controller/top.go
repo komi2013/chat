@@ -36,15 +36,17 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	  db1 := c.Database(common.MongoDb1)
 		session, err = common.SessionGet(db1, w, r)
 		if err != nil {
-			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
+			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
 			return
 		}
-		session, err = common.ReGenerateData(db1, session)
+		session, err = common.ReGenerateCSRF(db1, session)
 		if err != nil {
-			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
 			return
 		}
-	case r.URL.Path == "/":
+	case r.URL.Path == "/setting/":
 		tmplPath = "public/index.html"
 	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	  defer cancel()
@@ -56,12 +58,14 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	  db1 := c.Database(common.MongoDb1)
 		session, err = common.SessionGet(db1, w, r)
 		if err != nil {
-			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
+			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
 			return
 		}
 		session, err = common.ReGenerateData(db1, session)
 		if err != nil {
-			http.Redirect(w, r, "/sign/", http.StatusSeeOther)
+			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
 			return
 		}
 	default:

@@ -12,7 +12,7 @@ import (
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
-  "go.mongodb.org/mongo-driver/bson/primitive"
+  // "go.mongodb.org/mongo-driver/bson/primitive"
 
   webpush "github.com/SherClockHolmes/webpush-go"
 
@@ -21,27 +21,29 @@ import (
 )
 
 func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
-  _, err := common.Session(w,r)
-  if err != nil {
-    http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-    return
-  }
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Print(err)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	if err != nil {
+		log.Printf("mongo.Connect error: %v", err)
+		http.Error(w, "Database connection error", http.StatusInternalServerError)
+		return
+	}
+	defer c.Disconnect(ctx)
+
+	db1 := c.Database(common.MongoDb1)
+
+	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck error: %v", err)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
   coll := db1.Collection("reception")
 
-  receptionID, err := primitive.ObjectIDFromHex(r.FormValue("receptionID"))
-  if err != nil {
-    http.Error(w, "Invalid receptionID format", http.StatusBadRequest)
-    return
-  }
-
+  receptionID := r.FormValue("receptionID")
   apiKey := r.FormValue("apiKey")
   if apiKey == "" {
     http.Error(w, "apiKey is required", http.StatusBadRequest)
@@ -135,9 +137,14 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
     defer resp.Body.Close()
   }
 
-  w.Header().Set("Content-Type", "application/json")
-  if err := json.NewEncoder(w).Encode(arr); err != nil {
-    http.Error(w, "Failed to encode reception to JSON", http.StatusInternalServerError)
-  }
+	responseData := struct {
+		Csrf         string   `json:"csrf"`
+		PushContents []string `json:"pushContents"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }
 

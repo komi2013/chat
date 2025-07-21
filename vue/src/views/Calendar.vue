@@ -103,8 +103,8 @@ const openCalendar = (calendarID) => {
   window.open(`/calendarEdit/${calendarID}/`);
 };
 
-const searchUsers = ref([]);
-
+const searchUsers = ref([])
+const errorMessage = ref('')
 watch(searchUsers, async (newNames, oldNames) => {
   console.log('検索ユーザーが変更されました:', newNames, oldNames);
   const oldSet = new Set(oldNames || []);
@@ -118,27 +118,28 @@ watch(searchUsers, async (newNames, oldNames) => {
     // fd.append('param', JSON.stringify(param));
 
   if (addName) {
-    const fd = new FormData();
-    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])));
-    fd.append('channelID', channelID);
-    fd.append('updatedBy', channel.value.myname);
-    const param = { date: today };
-    const contents = ['calendar', param];
-    fd.append('contents', JSON.stringify(contents));
-    fd.append('pushTitle', 'storeSelect');
-    fd.append('csrf', localStorage.getItem("csrf"));
-    const res = await sendRequest('/ContentsJustPush/', fd);
-    res.csrf && localStorage.setItem('csrf', res.csrf);
+    const fd = new FormData()
+    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])))
+    fd.append('channelID', channelID)
+    fd.append('updatedBy', channel.value.myname)
+    const param = { date: today }
+    const contents = ['calendar', param]
+    fd.append('contents', JSON.stringify(contents))
+    fd.append('pushTitle', 'storeSelect')
+    fd.append('csrf', localStorage.getItem("csrf"))
+    const res = await sendRequest('/ContentsJustPush/', fd)
+    if (!res.csrf) errorMessage.value = res
+    res.csrf && localStorage.setItem('csrf', res.csrf)
     res.pushContents.forEach(content => {
-      pushReceive(content);
+      pushReceive(content)
     });
   } else if (subName) {
     const delSchedules = schedules.value.filter(schedule => schedule.aliasName === subName);
     delSchedules.forEach((d) => {
-      calendarsStore.delete(d.channelID);
-    });
+      calendarsStore.delete(d.channelID)
+    })
   }
-});
+})
 
 function jump(days) {
   const currentDate = new Date(today);
@@ -166,10 +167,15 @@ function jump(days) {
             />
         </td>
       </tr>
-      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+      <tr><td><a href="/sign/" > サインイン </a></td></tr>
     </table>
   </div>
   <div id="content">
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <table id="calendar-container-move">
       <thead>
         <tr class="header">

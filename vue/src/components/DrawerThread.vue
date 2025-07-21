@@ -109,7 +109,7 @@ onBeforeMount(async () => {
       </tr>
     </template>
 
-      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+      <tr><td><a href="/sign/" > サインイン </a></td></tr>
     </table>
   </div>
 </template>

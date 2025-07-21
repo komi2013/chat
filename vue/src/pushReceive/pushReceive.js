@@ -23,8 +23,8 @@ import { timestampReport } from './timestampReport.js';
 import { timestampRevert } from './timestampRevert.js';
 
 export function pushReceive(notificationData) {
-  const data = JSON.parse(notificationData);
-
+  const data = JSON.parse(notificationData)
+  console.log('ASDF')
   const actions = {
     advertisement: advertisement,
     alias: alias,

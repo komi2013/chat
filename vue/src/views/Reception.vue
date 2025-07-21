@@ -66,150 +66,11 @@ const defaultReception = {
   }]
 }
 
-// const add = {
-//   receptionID: "3eHg",
-//   channelID: '3eHg',
-//   receptionTitle: "テスト予約カレンダー",
-//   adminNames: ["管理グループA"],
-//   menus: [
-//     { menuID: 1, menuName: "カット", needSkill: "カット技術", needFacility: "施術室A" },
-//     { menuID: 2, menuName: "カラー", needSkill: "カラー技術", needFacility: "施術室B" },
-//   ],
-//   books: [
-//     {
-//       bookStart: "2025-07-04T10:00",
-//       bookEnd: "2025-07-04T11:00",
-//       menuID: 1,
-//     },
-//     {
-//       bookStart: "2025-07-04T15:00",
-//       bookEnd: "2025-07-04T16:00",
-//       menuID: 2,
-//     },
-//   ],
-//   workStaffs: [
-//     {
-//       aliasName: "スタッフA",
-//       workStart: "2025-07-04T09:00",
-//       workEnd: "2025-07-04T17:00",
-//     },
-//   ],
-//   staffSkills: [
-//     {
-//       aliasName: "スタッフA",
-//       skills: ["カット技術", "カラー技術"],
-//     },
-//     {
-//       aliasName: "スタッフB",
-//       skills: ["カット技術"],
-//     },
-//   ],
-//   facilities: [
-//     {
-//       facilityName: "施術室A",
-//       facilityCount: 1,
-//     },
-//     {
-//       facilityName: "施術室B",
-//       facilityCount: 1,
-//     },
-//   ],
-// };
-
-const add = {
-  receptionID: "3eHg",
-  channelID: "3eHg",
-  receptionTitle: "サンプル受付",
-  menus: [
-    {
-      menuID: 1,
-      menuName: "ラーメン",
-      price: 800,
-      items: [101, 102],
-      paidOptions: [
-        { itemID: 201, price: 100 },
-        { itemID: 202, price: 150 }
-      ],
-      freeOptions: [
-        [301, 302], // パターン1
-        [303, 304]  // パターン2
-      ],
-      freeMultiOptions: [401, 402]
-    },
-    {
-      menuID: 2,
-      menuName: "チャーハン",
-      price: 700,
-      items: [103],
-      paidOptions: [],
-      freeOptions: [],
-      freeMultiOptions: []
-    }
-  ],
-  itemDetails: [
-    {
-      itemID: 101,
-      itemName: "麺の硬さ",
-      choices: [
-        ["硬め", "普通", "柔らかめ"]
-      ]
-    },
-    {
-      itemID: 102,
-      itemName: "スープの濃さ",
-      choices: [
-        ["濃いめ", "普通", "薄め"]
-      ]
-    },
-    {
-      itemID: 103,
-      itemName: "チャーハンサイズ",
-      choices: [
-        ["小", "中", "大"]
-      ]
-    },
-    {
-      itemID: 201,
-      itemName: "味玉",
-      // 有料オプションなので choices不要
-    },
-    {
-      itemID: 202,
-      itemName: "チャーシュー追加",
-    },
-    {
-      itemID: 301,
-      itemName: "ネギあり",
-    },
-    {
-      itemID: 302,
-      itemName: "ネギなし",
-    },
-    {
-      itemID: 303,
-      itemName: "ごまあり",
-    },
-    {
-      itemID: 304,
-      itemName: "ごまなし",
-    },
-    {
-      itemID: 401,
-      itemName: "紅ショウガ",
-    },
-    {
-      itemID: 402,
-      itemName: "辛味ダレ",
-    }
-  ]
-};
-
-
 reception.value = defaultReception
-
 const channel = ref(null)
 const groups = ref([])
 const aliases = ref([])
+const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'))
   groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000)
@@ -227,9 +88,6 @@ onMounted(async () => {
       console.error('receptionパラメータのJSONパースに失敗しました:', e)
     }
   }
-  console.log(reception.value)
-  reception.value.receptionID = channel.value.channelID;
-  reception.value.channelID = channel.value.channelID;
 })
 
 async function findReception() {
@@ -239,10 +97,9 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname)
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('code', props.code)
-
   const res = await sendRequest('/ReceptionGet/', fd)
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
-
   res.pushContents.forEach(content => {
     pushReceive(content)
   })
@@ -271,6 +128,7 @@ async function submit() {
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionEdit/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -283,7 +141,11 @@ async function submit() {
 <Drawer />
   <form id="content">
     <h2 class="sp_head">受付フォーム</h2>
-
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <label>受付ID:
       <input v-model="reception.receptionID" type="text" />
     </label>
@@ -621,14 +483,6 @@ async function submit() {
 </template>
 
 <style scoped>
-/*form {
-  max-width: 700px;
-  margin: 2rem auto;
-  padding: 1rem;
-  background: #f9f9f9;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}*/
 
 input[type="text"],
 input[type="email"],
@@ -642,10 +496,7 @@ select {
   margin: 6px 0px;
   padding: 6px;
 }
-/*input[type="number"] {
-  width: 40px;
-}
-*/
+
 button {
   margin: 0.2rem;
   padding: 0.4rem 0.6rem;

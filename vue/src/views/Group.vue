@@ -20,12 +20,13 @@ const props = defineProps({
 
 localStorage.setItem('channelID', props.id);
 
-const channel = ref(null);
-const groups = ref([]);
-const aliases = ref([]);
-const fetched = ref(false);
-let groupLockUntilDate;
-const today = new Date();
+const channel = ref(null)
+const groups = ref([])
+const aliases = ref([])
+const fetched = ref(false)
+let groupLockUntilDate
+const today = new Date()
+const errorMessage = ref('')
 onBeforeMount(async () => {
   channel.value = await getIDB('channel', props.id);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
@@ -60,23 +61,24 @@ function newGroup() {
 
 async function removeGroup(group) {
   if (!confirm("▶️実行")) {
-    return;
+    return
   }
-  const fd = new FormData();
-  fd.append('channelID', channel.value.channelID);
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)));
-  fd.append('updatedBy', channel.value.myname);
-  fd.append('pushTitle', 'group');
+  const fd = new FormData()
+  fd.append('channelID', channel.value.channelID)
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)))
+  fd.append('updatedBy', channel.value.myname)
+  fd.append('pushTitle', 'group')
   const contents = [
     group.groupName, ''
   ]
-  fd.append('contents', JSON.stringify(contents));
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  fd.append('contents', JSON.stringify(contents))
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+    pushReceive(content)
+  })
 }
 
 async function editGroup(group) {
@@ -95,6 +97,7 @@ async function editGroup(group) {
   fd.append('imgPath', group.groupImg);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -127,7 +130,11 @@ function getAliasesByNames(aliasNames) {
       <a :href="'/channel/' + channel.channelID"> {{ channel.channelName }} </a>
     </div>
   </div>
-
+  <div v-if="errorMessage"> 
+    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
+  </div>
   <table>
     <template v-for="(groupAlias, i) in groups">
       <tr><td colspan="3">

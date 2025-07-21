@@ -28,18 +28,7 @@ func SignInTmp(w http.ResponseWriter, r *http.Request) {
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
 
-  sessionID := common.StringRand(16)
-  cookie := &http.Cookie{
-    Name:     "ss",
-    Value:    sessionID,
-    MaxAge:   2592000,
-    Secure:   true,
-    HttpOnly: true,
-    Path:     "/",
-  }
-  http.SetCookie(w, cookie)
   userID := r.FormValue("userID")
-
   collUser := db1.Collection("user")
   filterUser := bson.M{"_id": userID}
   var user collection.UserStruct
@@ -47,19 +36,73 @@ func SignInTmp(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
   }
-  coll := db1.Collection("session")
-  session := collection.SessionStruct{
-    SessionID: sessionID,
-    UserID: userID,
-    ChannelAliases: user.ChannelAliases,
-    CreatedAt: time.Now(),
-    UpdatedAt: time.Now(),
-    IsMobile: common.IsMobile(r.UserAgent()),
+
+	coll := db1.Collection("session")
+	cursor, err := coll.Find(context.TODO(), bson.D{{"userID", userID}})
+	if err != nil {
+		log.Printf("Find error: %v", err)
+		return
+	}
+	var sessions []collection.SessionStruct
+	if err = cursor.All(context.TODO(), &sessions); err != nil {
+		log.Printf("Cursor decode error: %v", err)
+		return
+	}
+
+	isMobile := common.IsMobile(r.UserAgent())
+	var matchedSession *collection.SessionStruct
+	for _, s := range sessions {
+		if s.IsMobile == isMobile {
+			matchedSession = &s
+			break
+		}
+	}
+
+	now := time.Now()
+	var sessionID string
+	if matchedSession != nil {
+		// 既存のセッションを更新
+		sessionID = matchedSession.SessionID
+		filter := bson.D{
+			{"_id", sessionID},
+		}
+		update := bson.D{{"$set", bson.D{
+			{"userID", userID},
+			{"channelAliases", user.ChannelAliases},
+			{"updatedAt", now},
+		}}}
+
+		_, err = coll.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			log.Printf("Update error: %v", err, r.URL.Path, r.Form)
+		}
+	} else {
+		// 新規挿入（Insert）：ここでのみ SessionID を生成
+		sessionID = common.StringRand(16)
+		session := collection.SessionStruct{
+			SessionID:      sessionID,
+			UserID:         userID,
+			ChannelAliases: user.ChannelAliases,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+			IsMobile:       isMobile,
+			PushContents:   []string{},
+		}
+		_, err = coll.InsertOne(context.TODO(), session)
+		if err != nil {
+			log.Printf("Insert error: %v", err, r.URL.Path, r.Form)
+		}
+	}
+
+  cookie := &http.Cookie{
+    Name:     "ss",
+    Value:    sessionID,
+    MaxAge:   1728000,
+    Secure:   true,
+    HttpOnly: true,
+    Path:     "/",
   }
-  _, err = coll.InsertOne(context.TODO(), session)
-  if err != nil {
-    log.Fatal(err)
-  }
+  http.SetCookie(w, cookie)
 
 	coll = db1.Collection("user")
 	userFilter := bson.D{{"_id", userID}}

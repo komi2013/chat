@@ -25,12 +25,11 @@ const fetched = ref(false);
 const myAliases = ref([]);
 let joinGroups;
 const isGroup = ref(false);
-onBeforeMount(async () => {
+onMounted(async () => {
   channel.value = await getIDB('channel', props.id);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   const group = groups.value.find((item) => item.groupName === props.name);
-  console.log('group', group);
   if (group) {
     isGroup.value = true;
     person.value = {
@@ -74,65 +73,73 @@ async function directMessage() {
 
 <template>
 <Drawer />
-<div id="content" v-if="fetched">
-  <div class="headTitle">
-    <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
-    <span v-if="!isGroup && person.name === channel.myname">
-      <a :href="'/profile/' + id + '/'"> ✏️ </a>
-    </span>
-    <span v-if="isGroup">
-      <a :href="'/group/' + id + '/'"> ⬅️ </a>
-    </span>
-  </div>
-  <div class="join">
-    <div class="icon-name">
-        <img v-if="person.image && person.image.charAt(0) != ','" 
-          :src="person.image" class="new-alias-img">
-        <span v-if="person.image && person.image.charAt(0) == ','"
-          class="new-alias-img" 
-          :style="'background-color:' + person.image.split(',')[2] ">
-            <span>{{person.image.split(',')[1]}}</span>
-        </span>
-      <span class="aliasName">{{person.name}}</span>
+<div id="content">
+  <div v-if="fetched">
+    <div class="sp_head">
+      <a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a>
+      <span v-if="!isGroup && person.name === channel.myname">
+        <a :href="'/profile/' + id + '/'"> ✏️ </a>
+      </span>
+      <span v-if="isGroup">
+        <a :href="'/group/' + id + '/'"> ⬅️ </a>
+      </span>
     </div>
-    <div class="display-mode">
-      <p>{{ person.bio }}</p>
+    <div class="join">
+      <div class="icon-name">
+          <img v-if="person.image && person.image.charAt(0) != ','" 
+            :src="person.image" class="new-alias-img">
+          <span v-if="person.image && person.image.charAt(0) == ','"
+            class="new-alias-img" 
+            :style="'background-color:' + person.image.split(',')[2] ">
+              <span>{{person.image.split(',')[1]}}</span>
+          </span>
+        <span class="aliasName">{{person.name}}</span>
+      </div>
+      <div class="display-mode">
+        <p>{{ person.bio }}</p>
+      </div>
     </div>
-  </div>
 
-  <h3>ニックネーム一覧</h3>
-  <div v-for="(d) in myAliases" >
-    <div class="people-list">
-      <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
-        <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
-          :src="d.aliasImg" class="people-img">
-        <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
-          class="people-img" 
-          :style="'background-color:' + d.aliasImg.split(',')[2] ">
-            <span>{{d.aliasImg.split(',')[1]}}</span>
-        </span>
-        <span> {{d.aliasName}} </span>
-      </a>
+    <h3>ニックネーム一覧</h3>
+    <div v-for="(d) in myAliases" >
+      <div class="people-list">
+        <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
+          <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
+            :src="d.aliasImg" class="people-img">
+          <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
+            class="people-img" 
+            :style="'background-color:' + d.aliasImg.split(',')[2] ">
+              <span>{{d.aliasImg.split(',')[1]}}</span>
+          </span>
+          <span> {{d.aliasName}} </span>
+        </a>
+      </div>
+    </div>
+
+    <h3 v-if="!isGroup">参加グループ一覧</h3>
+    <div v-if="!isGroup" v-for="(d) in joinGroups" >
+      <div class="people-list">
+        <a :href="'/people/' + id + '/' + d.groupName + '/' ">
+          <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
+            :src="d.groupImg" class="people-img">
+          <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"
+            class="people-img" 
+            :style="'background-color:' + d.groupImg.split(',')[2] ">
+              <span>{{d.groupImg.split(',')[1]}}</span>
+          </span>
+          <span> {{d.groupName}} </span>
+        </a>
+      </div>
+    </div>
+    <div class="dmMessage">
+      <button @click="directMessage"> DMメッセージ送信 </button>
     </div>
   </div>
-
-  <h3 v-if="!isGroup">参加グループ一覧</h3>
-  <div v-if="!isGroup" v-for="(d) in joinGroups" >
-    <div class="people-list">
-      <a :href="'/people/' + id + '/' + d.groupName + '/' ">
-        <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
-          :src="d.groupImg" class="people-img">
-        <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"
-          class="people-img" 
-          :style="'background-color:' + d.groupImg.split(',')[2] ">
-            <span>{{d.groupImg.split(',')[1]}}</span>
-        </span>
-        <span> {{d.groupName}} </span>
-      </a>
-    </div>
+  <div v-if="!fetched"> 
+    <div class="errorMessage">データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
   </div>
-
-  <button @click="directMessage"> メッセージ送信 </button>
 </div>
 
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
@@ -140,26 +147,6 @@ async function directMessage() {
 </template>
 
 <style>
-
-.headTitle {
-  margin-left: 50px;
-  display: flex;
-}
-
-.headTitle div {
-  width: 90%;
-}
-
-.headTitle span {
-  line-height: 50px;
-  width: 50px;
-}
-
-@media screen and (max-width: 700px) {
-  .headTitle div {
-    display: table-cell;
-  }
-}
 
 .join {
   width: 100%;
@@ -172,10 +159,15 @@ async function directMessage() {
   align-items: center;
 }
 
-button {
+.dmMessage {
+  width: 100%;
+  text-align: center;
+}
+
+.dmMessage button {
   padding: 8px;
   margin: 10px;
-  width: 200px;
+  width: 80%;
   font-size: 16px;
   background-color: #007bff;
   color: #fff;

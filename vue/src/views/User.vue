@@ -13,27 +13,29 @@ const user = ref(null)
 const nicknames = ref([])
 const nickname = ref(null)
 const nickImg = ref(null)
-const message = ref('')
 async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/UserGet/', fd)
-  if (!res.csrf) message.value = res
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
     pushReceive(content)
   })
   user.value = res.user
   nicknames.value = res.nicknames
-
 }
 
 const coordinateInput = ref(null)
 const fetched = ref(false)
+const errorMessage = ref('')
+const toLink = ref('')
 onMounted(async () => {
+  toLink.value = localStorage.getItem('TO')
   await findUser()
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
+
   }
   if (user.value) {
     fetched.value = true
@@ -68,7 +70,7 @@ async function submitUser(index) {
   fd.append('nickname', nickname.value)
   fd.append('nickImg', nickImg.value)
   const res = await sendRequest('/UserEdit/', fd)
-  if (!res.csrf) message.value = res
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
     pushReceive(content)
@@ -81,41 +83,54 @@ async function submitUser(index) {
 <template>
   <Drawer />
   <div id="content">
-    <form v-if="fetched" @submit.prevent="handleSubmit">
-      <h2 class="sp_head">ユーザーページ</h2>
-      <label>経緯度: Googleマップの右クリックで取得できます<br />
-        <input v-model="coordinateInput"
-               required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
-               title="緯度と経度は「35.77, 139.57」の形式で入力してください"
-               @input="parseCoordinates" 
-               placeholder="35.72300346964341, 139.52507136879356" 
-               class="wide-text" />
-      </label>
+    <div>
+      <div v-if="user && user.latitude && toLink">
+        <br><br><br><a :href="toLink"> 招待参加ページ </a><br><br>
+      </div>
+      <form @submit.prevent="handleSubmit">
+        <h2 class="sp_head">ユーザーページ</h2>
+        <div v-if="errorMessage"> 
+          <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+          <a href="/setting/"> データ設定ページ </a><br>
+          <a href="/sign/"> サインインページ </a>
+        </div>
+        <label>経緯度: Googleマップの右クリックで取得できます<br />
+          <input v-model="coordinateInput"
+                 required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+                 title="緯度と経度は「35.77, 139.57」の形式で入力してください"
+                 @input="parseCoordinates" 
+                 placeholder="35.72300346964341, 139.52507136879356" 
+                 class="wide-text" />
+        </label>
 
-      <div v-if="user.latitude && user.longitude" style="margin-top: 5px; font-size: 14px;">
-        ➤ 緯度（latitude）: <strong>{{ user.latitude }}</strong><br />
-        ➤ 経度（longitude）: <strong>{{ user.longitude }}</strong>
-      </div>
-      <div>
-        <input type="text" v-model="nickname" placeholder="ニックネーム" style="margin: 4px; padding: 4px;">
-      </div>
-      <PeopleImg v-model="nickImg" />
-      <br>
-      <button type="submit" @click="submitUser">更新</button>
-    </form>
-    <ul>
-      <li v-for="nick in nicknames">
-        <img v-if="nick.nickImg && nick.nickImg.charAt(0) != ','" 
-          :src="nick.nickImg" class="min-icon">
-        <span v-if="nick.nickImg && nick.nickImg.charAt(0) == ','"
-          :style="'background-color:' + nick.nickImg.split(',')[2] "
-          class="min-icon">
-            <span>{{nick.nickImg.split(',')[1]}}</span>
-        </span>
-        <span>{{nick.nickname}}</span>
-      </li>
-    </ul>
-    <div v-if="!fetched"> <br><br>{{message}} <br><a href="/sign/"> データ取得に失敗しました。一度サインインし直してください </a> </div>
+        <div v-if="user && user.latitude" style="margin-top: 5px; font-size: 14px;">
+          ➤ 緯度（latitude）: <strong>{{ user.latitude }}</strong><br />
+          ➤ 経度（longitude）: <strong>{{ user.longitude }}</strong>
+        </div>
+        <div class="centralize">
+          <span>　ーーー　オプション　ーーー　</span>
+        </div>
+        <div>
+          <input type="text" v-model="nickname" placeholder="ニックネーム" style="margin: 4px; padding: 4px;">
+        </div>
+        <PeopleImg v-if="fetched" v-model="nickImg" />
+        <div class="centralize">
+          <button type="submit" class="wide-text" @click="submitUser">更新</button>
+        </div>
+      </form>
+      <ul>
+        <li v-for="nick in nicknames">
+          <img v-if="nick.nickImg && nick.nickImg.charAt(0) != ','" 
+            :src="nick.nickImg" class="min-icon">
+          <span v-if="nick.nickImg && nick.nickImg.charAt(0) == ','"
+            :style="'background-color:' + nick.nickImg.split(',')[2] "
+            class="min-icon">
+              <span>{{nick.nickImg.split(',')[1]}}</span>
+          </span>
+          <span>{{nick.nickname}}</span>
+        </li>
+      </ul>
+    </div>
   </div>
   <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
   <NoticePopup />
@@ -123,10 +138,15 @@ async function submitUser(index) {
 
 <style scoped>
 .wide-text {
-  width: 100%;
+  width: 90%;
   max-width: 400px;
   margin: 4px;
   padding: 4px;
+}
+
+.centralize {
+  text-align: center;
+  width: 100%;
 }
 
 .min-icon {

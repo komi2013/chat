@@ -69,7 +69,7 @@ onMounted(async () => {
   fetched.value = true;
 });
 
-
+const errorMessage = ref('')
 const submit = async () => {
   let events = generateRepeatedEvents(calendar.value);
   console.log(events);
@@ -77,45 +77,49 @@ const submit = async () => {
     return;
   }
   for (const event of events) {
-    event.calendarID ||= generateRandomCode(8);
-    event.channelID = channelID;
-    event.aliasName = channel.value.myname;
-    const fd = new FormData();
-    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, event.aliasNames)));
-    fd.append('channelID', channelID);
-    fd.append('updatedBy', channel.value.myname);
-    fd.append('contents', JSON.stringify(event));
-    fd.append('pushTitle', 'calendar');
-    fd.append('csrf', localStorage.getItem('csrf'));
-    const res = await sendRequest('/ContentsPush/', fd);
-    if (res.csrf) {
-      localStorage.setItem('csrf', res.csrf);
+    event.calendarID ||= generateRandomCode(8)
+    event.channelID = channelID
+    event.aliasName = channel.value.myname
+    const fd = new FormData()
+    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, event.aliasNames)))
+    fd.append('channelID', channelID)
+    fd.append('updatedBy', channel.value.myname)
+    fd.append('contents', JSON.stringify(event))
+    fd.append('pushTitle', 'calendar')
+    fd.append('csrf', localStorage.getItem('csrf'))
+    const res = await sendRequest('/ContentsPush/', fd)
+    if (!res.csrf) errorMessage.value = res
+    res.csrf && localStorage.setItem('csrf', res.csrf)
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
     }
-    res.pushContents.forEach(content => {
-      pushReceive(content);
-    });
   }
-  window.close();
+  window.close()
 };
 
 const delCalendar = async () => {
   if (!confirm("削除🗑")) {
-    return;
+    return
   }
-  calendar.value.delete = 1;
-  const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)));
-  fd.append('channelID', channelID);
-  fd.append('updatedBy', channel.value.myname);
-  fd.append('contents', JSON.stringify(calendar.value));
-  fd.append('pushTitle', 'calendar');
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  window.close();
+  calendar.value.delete = 1
+  const fd = new FormData()
+  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)))
+  fd.append('channelID', channelID)
+  fd.append('updatedBy', channel.value.myname)
+  fd.append('contents', JSON.stringify(calendar.value))
+  fd.append('pushTitle', 'calendar')
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  window.close()
 };
 
 const generateRepeatedEvents = (calendar) => {
@@ -155,6 +159,11 @@ const generateRepeatedEvents = (calendar) => {
 <template>
 <Drawer />
 <div id="content">
+  <div v-if="errorMessage"> 
+    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
+  </div>
   <div class="modal-content">
     <input type="datetime-local" v-model="calendar.timeStart" />
     <span> ~ </span>

@@ -13,7 +13,7 @@ const props = defineProps({
   code: String
 })
 
-localStorage.setItem('channelID', props.id);
+localStorage.setItem('channelID', props.id)
 
 const channel = ref(null);
 const alias = ref(null);
@@ -24,6 +24,7 @@ const aliasName = ref(null);
 const aliasImg = ref(',' + getRandomEmoji() + ',' + getRandomColor());
 let sameUserAliases;
 let joinGroups;
+const errorMessage = ref('')
 onBeforeMount(async () => {
   if (!props.code) {
     channel.value = await getIDB('channel', props.id);
@@ -45,11 +46,13 @@ onBeforeMount(async () => {
   } else if (props.code) {
     isEditable.value = true;
   }
-  fetched.value = true;
+  if (localStorage.getItem('csrf')) {
+    localStorage.setItem('TO', window.location.pathname + window.location.search)
+    fetched.value = true
+  }
 });
 
 async function aliasEdit() {
-  console.log(aliasImg.value);
   if (!confirm("実行▶️")) {
     return;
   }
@@ -72,6 +75,7 @@ async function editAlias() {
   fd.append('imgPath', aliasImg.value);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -80,17 +84,24 @@ async function editAlias() {
 
 async function join () {
   const fd = new FormData()
-  fd.append('channelID', props.id);
-  fd.append('code', props.code);
-  fd.append('myname', aliasName.value);
-  fd.append('myimg', aliasImg.value);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ChannelJoin/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  location.href = '/profile/' + props.id + '/';
+  fd.append('channelID', props.id)
+  fd.append('code', props.code)
+  fd.append('myname', aliasName.value)
+  fd.append('myimg', aliasImg.value)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ChannelJoin/', fd)
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.joined) {
+    location.href = '/profile/' + props.id + '/'
+  } else {
+    errorMessage.value = res
+  }
 }
 
 async function switchAlias (aliasName) {
@@ -106,102 +117,93 @@ async function switchAlias (aliasName) {
 
 <template>
 <Drawer />
-<div id="content" v-if="fetched">
-  <div class="headTitle">
-    <div><a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
-<!--     <span>
-      <a :href="'/profile/' + id + '/'"> ⬅ </a>
-    </span> -->
+<div id="content">
+  <div v-if="fetched">
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
+    <div class="sp_head">
+      <div v-if="channel"><a :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
+        <!--     <span>
+          <a :href="'/profile/' + id + '/'"> ⬅ </a>
+        </span> -->
+      <div v-if="!channel">チャネル内ニックネーム設定</div>
+    </div>
+    <br>
+    <div class="join">
+      <div class="icon-name">
+        <template v-if="!isEditable">
+          <img v-if="aliasImg && aliasImg.charAt(0) != ','" 
+            :src="aliasImg" class="new-alias-img">
+          <span v-if="aliasImg && aliasImg.charAt(0) == ','"
+            class="new-alias-img" 
+            :style="'background-color:' + aliasImg.split(',')[2] ">
+              <span>{{aliasImg.split(',')[1]}}</span>
+          </span>
+        </template>
+
+        <input v-if="props.code" type="text" v-model="aliasName" placeholder="このチャネルのニックネーム" class="aliasName">
+        <span v-if="!props.code" class="aliasName">{{aliasName}}</span>
+      </div>
+      <PeopleImg v-if="isEditable" v-model="aliasImg" />
+
+      <div v-if="!isEditable && alias" class="display-mode">
+        <p>{{ alias.bio }}</p>
+      </div>
+      <textarea 
+        v-if="isEditable && alias"
+        class="edit-mode" 
+        v-model="alias.bio" 
+        placeholder="自己紹介を入力してください">
+      </textarea>
+      <button v-if="isEditable" @click="aliasEdit">▶️</button>
+    </div>
+    <h3>参加グループ一覧</h3>
+    <div v-for="(d) in joinGroups" >
+      <div class="people-list">
+        <a :href="'/people/' + id + '/' + d.groupName + '/' ">
+          <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
+            :src="d.groupImg" class="people-img">
+          <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"
+            class="people-img" 
+            :style="'background-color:' + d.groupImg.split(',')[2] ">
+              <span>{{d.groupImg.split(',')[1]}}</span>
+          </span>
+          <span> {{d.groupName}} </span>
+        </a>
+      </div>
+    </div>
+      <!--     <h3>マイニックネーム一覧</h3>
+          <div v-for="(d) in sameUserAliases" >
+            <div class="people-list">
+              <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
+                <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
+                  :src="d.aliasImg" class="people-img">
+                <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
+                  class="people-img" 
+                  :style="'background-color:' + d.aliasImg.split(',')[2] ">
+                    <span>{{d.aliasImg.split(',')[1]}}</span>
+                </span>
+                <span> {{d.aliasName}} </span>
+              </a>
+            </div>
+            <div v-if="isEditable" @click="switchAlias(d.aliasName)" class="switch-alias">🔀</div>
+          </div>
+       -->
   </div>
-  <br>
-  <div class="join">
-    <div class="icon-name">
-      <template v-if="!isEditable">
-        <img v-if="aliasImg && aliasImg.charAt(0) != ','" 
-          :src="aliasImg" class="new-alias-img">
-        <span v-if="aliasImg && aliasImg.charAt(0) == ','"
-          class="new-alias-img" 
-          :style="'background-color:' + aliasImg.split(',')[2] ">
-            <span>{{aliasImg.split(',')[1]}}</span>
-        </span>
-      </template>
-
-      <input v-if="props.code" type="text" v-model="aliasName" placeholder="このチャネルのニックネーム" class="aliasName">
-      <span v-if="!props.code" class="aliasName">{{aliasName}}</span>
-    </div>
-    <PeopleImg v-if="isEditable" v-model="aliasImg" />
-
-    <div v-if="!isEditable && alias" class="display-mode">
-      <p>{{ alias.bio }}</p>
-    </div>
-    <textarea 
-      v-if="isEditable && alias"
-      class="edit-mode" 
-      v-model="alias.bio" 
-      placeholder="自己紹介を入力してください">
-    </textarea>
-    <button v-if="isEditable" @click="aliasEdit">▶️</button>
-  </div>
-
-  <h3>マイニックネーム一覧</h3>
-  <div v-for="(d) in sameUserAliases" >
-    <div class="people-list">
-      <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
-        <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
-          :src="d.aliasImg" class="people-img">
-        <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
-          class="people-img" 
-          :style="'background-color:' + d.aliasImg.split(',')[2] ">
-            <span>{{d.aliasImg.split(',')[1]}}</span>
-        </span>
-        <span> {{d.aliasName}} </span>
-      </a>
-    </div>
-    <div v-if="isEditable" @click="switchAlias(d.aliasName)" class="switch-alias">🔀</div>
-  </div>
-
-  <h3>参加グループ一覧</h3>
-  <div v-for="(d) in joinGroups" >
-    <div class="people-list">
-      <a :href="'/people/' + id + '/' + d.groupName + '/' ">
-        <img v-if="d.groupImg && d.groupImg.charAt(0) != ','" 
-          :src="d.groupImg" class="people-img">
-        <span v-if="d.groupImg && d.groupImg.charAt(0) == ','"
-          class="people-img" 
-          :style="'background-color:' + d.groupImg.split(',')[2] ">
-            <span>{{d.groupImg.split(',')[1]}}</span>
-        </span>
-        <span> {{d.groupName}} </span>
-      </a>
-    </div>
+  <div v-if="!fetched"> 
+    <div class="errorMessage">データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
   </div>
 </div>
-  <div v-if="!fetched"> Loading... or Something Went </div>
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 
 </template>
 
 <style>
-
-.headTitle {
-  margin-left: 50px;
-  display: flex;
-}
-
-.headTitle div {
-  width: 90%;
-}
-
-.headTitle span {
-  line-height: 50px;
-  width: 50px;
-}
-
-@media screen and (max-width: 700px) {
-  .headTitle div {
-    display: table-cell;
-  }
-}
 
 .join {
   width: 100%;

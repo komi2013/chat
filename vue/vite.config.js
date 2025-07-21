@@ -12,17 +12,5 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  },
-  build: {
-    outDir: 'dist',
-    rollupOptions: {
-      input: {
-        app: fileURLToPath(new URL('./index.html', import.meta.url)),
-        main: fileURLToPath(new URL('./src/main.js', import.meta.url))
-      },
-      output: {
-        entryFileNames: 'assets/main.js'  // ← ✅ ここだけ追加で十分！
-      }
-    }
   }
 })

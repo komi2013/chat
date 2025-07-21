@@ -22,6 +22,7 @@ async function findReception() {
   fd.append('receptionID', props.id);
   fd.append('code', props.code);
   const res = await sendRequest('/ReceptionGet/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -98,6 +99,11 @@ async function addCart(menu) {
   fd.append('receptionID', props.id);
   fd.append('code', props.code);
   const data = await sendRequest('/ReceptionOrder/', fd);
+  if (!data.csrf) errorMessage.value = data
+  data.csrf && localStorage.setItem('csrf', data.csrf);
+  data.pushContents.forEach(content => {
+    pushReceive(content);
+  });
   const receptionOrder = {
     receptionOrderID: data[1] + '_' + data[2] + '_' + data[5],
     tableName: data[1],
@@ -140,7 +146,8 @@ function getItemNames(itemIds, itemDetails) {
   }
   return ['データがありません'];
 }
-const channel = ref(null);
+const channel = ref(null)
+const errorMessage = ref('')
 onMounted(async() => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
   await findReception();
@@ -151,7 +158,11 @@ onMounted(async() => {
 <Drawer />
   <div id="content">
     <h1 class="sp_head">メニュー一覧</h1>
-
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <!-- メニューリスト -->
     <div v-if="reception && reception.menus.length">
       <div v-for="menu in reception.menus" class="menu-item">

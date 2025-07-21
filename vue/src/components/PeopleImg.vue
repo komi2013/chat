@@ -39,7 +39,7 @@
         <span>{{selectedEmoji}}</span>
       </span>
     </div>
-    <div>絵文字は手動入力できます</div>
+    <div>絵文字は1文字まで手動入力できます。色も設定可能です。</div>
   </div>
   <template v-if="!emojiImg">
     <img v-if="aliasImg && aliasImg.charAt(0) != ','" :src="aliasImg" @click="triggerFileInput" class="new-alias-img">

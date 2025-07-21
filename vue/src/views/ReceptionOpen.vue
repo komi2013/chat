@@ -28,6 +28,7 @@ async function findReception() {
   fd.append('csrf', localStorage.getItem('csrf'));
   fd.append('passkey', props.passkey);
   const res = await sendRequest('/ReceptionGet/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -102,6 +103,7 @@ function calculateWaitMinutes() {
 
 
 // IDB経由でchannel取得 → reception取得
+const errorMessage = ref('')
 onMounted(async () => {
   // channel.value = await getIDB('channel', localStorage.getItem('channelID'))
   findReception();
@@ -113,7 +115,11 @@ onMounted(async () => {
 <Drawer />
   <div id="content" v-if="reception">
     <h2 class="sp_head">受付待ち時間</h2>
-
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <div style="margin-bottom: 10px;">
       <label for="guestCount">何名さまですか？</label>
       <input

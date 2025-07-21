@@ -16,3 +16,8 @@ app.use(createPinia())
 app.use(router)
 
 app.mount('#app')
+
+window.pushReceive = pushReceive
+
+createApp(SignComponent).mount('#sign-app')
+console.log('SignComponent_Test')

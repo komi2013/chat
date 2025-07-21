@@ -32,6 +32,7 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -343,6 +344,7 @@ const reception = ref(null);
 const availableSkills = ref([]);
 const iamAdmin = ref(false);
 const schedules = ref([]);
+const errorMessage = ref('')
 onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
@@ -426,12 +428,17 @@ const closeModal = () => {
           <!-- <button @click="submitShift(1)">確定</button> -->
         </td>
       </tr>
-      <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
+      <tr><td><a href="/sign/" > サインイン </a></td></tr>
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
     </table>
   </div>
   <div id="content">
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
     <table id="calendar-container-move">
       <thead>
         <tr class="header">

@@ -1,7 +1,7 @@
 <template>
   <div class="sign-box">
-    <h1>✅ Sign Component Mounted!</h1>
-    <p>これは signTmp.tmpl からマウントされています</p>
+    <h1>Sign Component Mounted!</h1>
+    <p>これは signTmp.tmpl からマウントされています !!!</p>
   </div>
 </template>
 

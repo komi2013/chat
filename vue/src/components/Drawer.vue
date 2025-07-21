@@ -20,7 +20,7 @@ import Advertisement from '@/components/Advertisement.vue';
       <tr><td><a href="/user/" > ユーザー設定 </a></td></tr>
       <tr><td><a href="/adSetting/" > 広告設定 </a></td></tr>
       <tr><td><a href="/setting/" > 設定 </a></td></tr>
-      <tr><td><a href="/sign/" > ログイン </a></td></tr>
+      <tr><td><a href="/sign/" > サインイン </a></td></tr>
     </table>
   </div>
 </template>

@@ -42,7 +42,7 @@ function initQuill() {
 }
 
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
-
+const errorMessage = ref('')
 onMounted(async () => {
   channels.value = await getAllIDBs('channel');
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
@@ -76,22 +76,23 @@ const channelPost = async () => {
 }
 
 async function channelEdit () {
-  const fd = new FormData();
-  fd.append('channelID', props.id);
-  fd.append('updatedBy', channel.value.myname);
-  fd.append('pushTitle', 'channelEdit');
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  const fd = new FormData()
+  fd.append('channelID', props.id)
+  fd.append('updatedBy', channel.value.myname)
+  fd.append('pushTitle', 'channelEdit')
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
   const contents = [
     channel.value.channelName,
     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
-  ];
-  fd.append('contents', JSON.stringify(contents));
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  ]
+  fd.append('contents', JSON.stringify(contents))
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+    pushReceive(content)
+  })
 }
 
 async function channelAdd () {
@@ -102,6 +103,7 @@ async function channelAdd () {
   fd.append('myimg', myimg.value);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelAdd/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   location.href = res.channelID;
 }
@@ -129,9 +131,10 @@ const invite = async () => {
   if (!mention.value) {
     fd.append('noRightMention', 1);
   }
-  fd.append('untilDate', untilDate);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ChannelInvite/', fd);
+  fd.append('untilDate', untilDate)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ChannelInvite/', fd)
+  if (!res.csrf) errorMessage.value = res
   invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`;
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
   res.csrf && localStorage.setItem('csrf', res.csrf);
@@ -149,6 +152,7 @@ const invite = async () => {
     fd.append('contents', JSON.stringify(contents));
     fd.append('csrf', localStorage.getItem('csrf'));
     const res = await sendRequest('/ContentsPush/', fd);
+    if (!res.csrf) errorMessage.value = res
     res.csrf && localStorage.setItem('csrf', res.csrf);
     res.pushContents.forEach(content => {
       pushReceive(content);
@@ -179,6 +183,7 @@ const removeNames = async () => {
   fd.append('deleteAliases', JSON.stringify(deleteAliases));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelDelete/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -192,6 +197,11 @@ const removeNames = async () => {
 
 <div id="content">
   <br><br>
+  <div v-if="errorMessage"> 
+    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
+  </div>
   <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>

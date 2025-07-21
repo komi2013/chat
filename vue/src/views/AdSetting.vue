@@ -14,34 +14,35 @@ const previewBanner = ref('')
 const previewSquare = ref('')
 
 async function findAds() {
-  const fd = new FormData();
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/AdGet/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  const fd = new FormData()
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/AdGet/', fd)
+  if (!res.csrf) errorMessage.value = res
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  ads.value = (res.ads || []).map(apiAd => convertApiAdToUiAd(apiAd));
-
+    pushReceive(content)
+  })
+  ads.value = ((res.ads && res.ads.length) ? res.ads : [undefined])
+    .map(apiAd => convertApiAdToUiAd(apiAd))
   if (ads.value.length > 0) {
-    const firstAd = ads.value[0];
-    if (firstAd.pathBanner) previewBanner.value = firstAd.pathBanner;
-    if (firstAd.pathSquare) previewSquare.value = firstAd.pathSquare;
+    const firstAd = ads.value[0]
+    if (firstAd.pathBanner) previewBanner.value = firstAd.pathBanner
+    if (firstAd.pathSquare) previewSquare.value = firstAd.pathSquare
   }
 }
 
 function convertApiAdToUiAd(apiAd) {
+  apiAd = apiAd || {}
   const { day: adStartDay, hour: adStartHour } = splitDayHourFromString(apiAd.adStart);
   const { day: adEndDay, hour: adEndHour } = splitDayHourFromString(apiAd.adEnd);
-  console.log(apiAd.adStart, adStartDay, adStartHour);
-  console.log(apiAd.adEnd, adEndDay, adEndHour);
-  console.log(apiAd.distance)
+
+  const coordinateInput = apiAd.latitude ? `${apiAd.latitude}, ${apiAd.longitude}` : ''
   return {
     pathBanner: apiAd.pathBanner || '',
     pathSquare: apiAd.pathSquare || '',
     adText: apiAd.adText || '',
     adLink: apiAd.adLink || '',
-    coordinateInput: `${apiAd.latitude}, ${apiAd.longitude}`,
+    coordinateInput,
     latitude: apiAd.latitude || 0,
     longitude: apiAd.longitude || 0,
     adStartDay,
@@ -56,16 +57,18 @@ function convertApiAdToUiAd(apiAd) {
 function splitDayHourFromString(input) {
   const str = String(input).padStart(3, '0');
 
-  const day = parseInt(str[0], 10);
-  const hour = parseInt(str.slice(1), 10);
+  const day = parseInt(str[0], 10) || 0;
+  const hour = parseInt(str.slice(1), 10) || 0;
 
   return { day, hour }
 }
 
 async function findAdPrices() {
-  const ad = ads.value[0];
+
+  const ad = ads.value[0]
   const fd = new FormData();
-  fd.append('csrf', localStorage.getItem('csrf'));
+
+  fd.append('csrff', localStorage.getItem('csrf'));
   fd.append('pathBanner', ad.pathBanner);
   fd.append('pathSquare', ad.pathSquare);
   fd.append('latitude', ad.latitude);
@@ -74,6 +77,7 @@ async function findAdPrices() {
   fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`);
   fd.append('distance', ad.distance);
   const res = await sendRequest('/AdPriceGet/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -84,9 +88,6 @@ async function findAdPrices() {
     endDay += 7;
   }
   const durationHours = (endDay * 24 + ad.adEndHour) - (ad.adStartDay * 24 + ad.adStartHour);
-
-  console.log(durationHours)
-
   if (Array.isArray(res.adPrices) && res.adPrices.length > 0) {
     const sorted = res.adPrices.sort((a, b) => b.adPriceYen - a.adPriceYen);
     // ad.adYen = Math.pow(2 * ad.distance + 1, 2) * sorted[0].adPriceYen * durationHours;
@@ -105,9 +106,12 @@ async function findAdPrices() {
   adPrices.value = res.adPrices;
 }
 
+const fetched = ref(false)
+const errorMessage = ref('')
 onMounted(async () => {
-  await findAds();
-  await findAdPrices();
+  await findAds()
+  await findAdPrices()
+  fetched.value = true
 })
 
 function parseCoordinates(ad) {
@@ -133,8 +137,7 @@ function parseCoordinates(ad) {
 async function submitAd(index) {
   const ad = ads.value[index];
   const fd = new FormData();
-  fd.append('csrf', localStorage.getItem('csrf'));
-  console.log(previewBanner.value)
+  fd.append('csrf', localStorage.getItem('csrf'))
   const bannerBase64 = isBase64Image(previewBanner.value)
     ? previewBanner.value
     : await imageUrlToBase64(previewBanner.value);
@@ -151,6 +154,7 @@ async function submitAd(index) {
   fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`);
   fd.append('distance', ad.distance);
   const res = await sendRequest('/AdEdit/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -236,87 +240,93 @@ function removeImage(type) {
 </script>
 
 <template>
-  <Drawer />
-  <div id="content">
-    <br><br>
-    <div v-for="(ad, index) in ads" :key="index" style="border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem;">
+<Drawer />
+<div id="content">
+  <br><br>
+  <div>
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
+    <div v-for="(ad, index) in ads" :key="index" class="ads">
       <form @submit.prevent="submitAd(index)">
-      <div>
-      <!--         <label>バナー画像（300x50）:<br />
-                <input type="file" accept="image/*" @change="e => handleTrim(e, 300, 50, 'banner')" />
-              </label>
-              <img v-if="previewBanner" :src="previewBanner" style="border: 1px solid #ccc" />
-              <button type="button" @click="removeImage('banner')">削除</button>
-              <br /><br /> -->
+        <div>
+        <!--         <label>バナー画像（300x50）:<br />
+                  <input type="file" accept="image/*" @change="e => handleTrim(e, 300, 50, 'banner')" />
+                </label>
+                <img v-if="previewBanner" :src="previewBanner" style="border: 1px solid #ccc" />
+                <button type="button" @click="removeImage('banner')">削除</button>
+                <br /><br /> -->
 
-        <label>正方形画像（250x250）:<br />
-          <input type="file" accept="image/*" @change="e => handleTrim(e, 250, 250, 'square')" />
+          <label>正方形画像（250x250）:<br />
+            <input type="file" accept="image/*" @change="e => handleTrim(e, 250, 250, 'square')" />
+          </label>
+          <img v-if="previewSquare" :src="previewSquare" style="border: 1px solid #ccc" />
+          <button type="button" @click="removeImage('square')">削除</button>
+        </div>
+        <br />
+
+          <!--       <label>広告文<br />
+                  <input v-model="ad.adText" placeholder="20%割引" class="wide-text" />
+                </label>
+                <br /><br />
+           -->
+        <label>広告リンク<br />
+          <input v-model="ad.adLink" placeholder="https://sample.com/item?af=1" class="wide-text"
+           required pattern="https://.*" />
         </label>
-        <img v-if="previewSquare" :src="previewSquare" style="border: 1px solid #ccc" />
-        <button type="button" @click="removeImage('square')">削除</button>
-      </div>
-      <br />
+        <br /><br />
 
-        <!--       <label>広告文<br />
-                <input v-model="ad.adText" placeholder="20%割引" class="wide-text" />
-              </label>
-              <br /><br />
-         -->
-      <label>広告リンク<br />
-        <input v-model="ad.adLink" placeholder="https://sample.com/item?af=1" class="wide-text"
-         required pattern="https://.*" />
-      </label>
-      <br /><br />
+        <label>経緯度:<br />
+          <input v-model="ad.coordinateInput"
+                 required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+                 title="緯度と経度は「35.77, 139.57」の形式で入力してください"
+                 @input="parseCoordinates(ad)" 
+                 placeholder="35.72300346964341, 139.52507136879356" 
+                 class="wide-text" />
+        </label>
 
-      <label>経緯度:<br />
-        <input v-model="ad.coordinateInput"
-               required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
-               title="緯度と経度は「35.77, 139.57」の形式で入力してください"
-               @input="parseCoordinates(ad)" 
-               placeholder="35.72300346964341, 139.52507136879356" 
-               class="wide-text" />
-      </label>
+        <div v-if="ad.latitude && ad.longitude" style="margin-top: 5px; font-size: 14px;">
+          ➤ 緯度（latitude）: <strong>{{ ad.latitude }}</strong><br />
+          ➤ 経度（longitude）: <strong>{{ ad.longitude }}</strong>
+        </div>
+        <br />
 
-      <div v-if="ad.latitude && ad.longitude" style="margin-top: 5px; font-size: 14px;">
-        ➤ 緯度（latitude）: <strong>{{ ad.latitude }}</strong><br />
-        ➤ 経度（longitude）: <strong>{{ ad.longitude }}</strong>
-      </div>
-      <br />
+        <label>半径約:
+          <input type="number" v-model="ad.distance" width="3" /> km
+        </label>
 
-      <label>半径約:
-        <input type="number" v-model="ad.distance" width="3" /> km
-      </label>
+        <br /><br />
 
-      <br /><br />
+        <label>開始 曜日:
+          <select v-model="ad.adStartDay" required>
+            <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
+          </select>
+        </label>
 
-      <label>開始 曜日:
-        <select v-model="ad.adStartDay" required>
-          <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
-        </select>
-      </label>
+        <label> 時刻:
+          <select v-model="ad.adStartHour">
+            <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}</option>
+          </select>
+        </label>
 
-      <label> 時刻:
-        <select v-model="ad.adStartHour">
-          <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}</option>
-        </select>
-      </label>
+        <br />
 
-      <br />
+        <label>終了 曜日:
+          <select v-model="ad.adEndDay" required>
+            <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
+          </select>
+        </label>
 
-      <label>終了 曜日:
-        <select v-model="ad.adEndDay" required>
-          <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
-        </select>
-      </label>
-
-      <label> 時刻:
-        <select v-model="ad.adEndHour">
-          <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}</option>
-        </select>
-      </label>
-      <div> {{ad.adYen}} </div>
-      <button type="button" @click="findAdPrices">確認</button>
-      <button type="submit">登録</button>
+        <label> 時刻:
+          <select v-model="ad.adEndHour">
+            <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ String(h - 1).padStart(2, '0') }}</option>
+          </select>
+        </label>
+        <div> {{ad.adYen}} </div>
+        <button type="button" @click="findAdPrices">確認</button>
+        <button type="submit">登録</button>
       </form>
     </div>
     <h2>広告価格リスト</h2>
@@ -330,12 +340,19 @@ function removeImage(type) {
       </li>
     </ul>
   </div>
-  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+</div>
+<div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
 
 <style scoped>
 .wide-text {
   width: 100%;
   max-width: 400px;
+}
+
+.ads {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  margin-bottom: 1rem;
 }
 </style>

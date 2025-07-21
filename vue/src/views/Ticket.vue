@@ -200,10 +200,10 @@ async function saveChanges() {
   fd.append('contents', JSON.stringify(ticket.value));
   fd.append('pushTitle', 'ticket');
   const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
-      await pushReceive(content); // await で1件ずつ処理を保証
+      await pushReceive(content)
     }
   }
   location.href = '/ticket/' + ticket.value.ticketID + '/'

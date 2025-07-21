@@ -2,17 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Webpush register</title>
     <script src="/js/myGlobal.js?0625_7"></script>
     <script src="/js/IndexedDB.js?0625_7"></script>
-    <script type="module" crossorigin src="/assets/main.js"></script>
 </head>
 <body>
-    <div id="app"></div>
+
+<div id="content">
+  <!-- <div id="app"></div> -->
+  <script type="module" src="/assets/myApp.js?4"></script>
+  <div><a href="/user/" > ユーザー設定 </a>してください</div>
+</div>
+
 <script>
+/*
+  window.addEventListener('load', () => {
+    // ✅ main.js 読み込み完了後に実行される
+    if (typeof window.pushReceive === 'function') {
+      pushReceive(null)
+    } else {
+      console.error("❌ pushReceive is not loaded yet.");
+    }
+  });
+*/
   {{if .Session.Csrf}}
     localStorage.setItem("csrf", "{{.Session.Csrf}}");
   {{end}}
+  // pushReceive(null)
     function subscribe() {
       navigator.serviceWorker.ready
         .then(function(registration) {
@@ -61,23 +78,6 @@
         });
     }
     async function pushSubscribe(subscription) {
-      // const fd = new FormData();
-      // fd.append('subscription', JSON.stringify(subscription));
-      // fd.append('csrf', localStorage.getItem("csrf"));
-      // const request = new Request('/PushSubscribe/', {
-      //   method: 'POST',
-      //   body: fd,
-      // });
-      // fetch(request)
-      //   .then((response) => response.json())
-      //   .then((json)=>{
-      //     // when status not 1
-      //     location.href = '/user/'
-      //   })
-      //   .catch((reason)=>{
-      //     console.log(reason)
-      //   })
-      // window.pushReceive()
       const fd = new FormData()
       fd.append('subscription', JSON.stringify(subscription))
       fd.append('csrf', localStorage.getItem("csrf"))
@@ -87,6 +87,7 @@
       res.pushContents.forEach(content => {
         pushReceive(content)
       })
+      // location.href = '/user/'
     }
 </script>
 </body>

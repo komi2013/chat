@@ -13,7 +13,7 @@ type SessionStruct struct {
   ChannelAliases []ChannelAlias `bson:"channelAliases,omitempty" json:"channelAliases,omitempty"`
   Subscription  string      `bson:"subscription,omitempty"`
   Csrf  string      `bson:"csrf,omitempty"`
-  PushContents []string `bson:"pushContents,omitempty"`
+  PushContents []string `bson:"pushContents"`
   IsMobile bool `bson:"isMobile,omitempty" json:"isMobile,omitempty"`
 }
 
