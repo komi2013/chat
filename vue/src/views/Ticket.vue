@@ -25,6 +25,7 @@ const channel = ref(null);
 const aliases = ref([]);
 const groups = ref([]);
 const fetched = ref(false)
+const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem("channelID"));
   aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem("channelID"), 10000);
@@ -200,6 +201,7 @@ async function saveChanges() {
   fd.append('contents', JSON.stringify(ticket.value));
   fd.append('pushTitle', 'ticket');
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
@@ -213,82 +215,94 @@ async function saveChanges() {
 
 <template>
 <TimestampDrawer />
-<div id="content" v-if="fetched">
-  <div class="sp_head"><a href="/tickets/">チケット一覧</a></div>
-  <div class="ticket-edit-page">
-
-    <div class="ticket-form">
-      <input v-model="ticket.title" type="text" />
-      <div class="form-row">
-        <label>ステータス</label>
-        <select v-model="selectedStatus">
-          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
-      <div class="form-row">
-        <label>担当者</label>
-        <select v-model="ticket.assignee" >
-          <option v-for="alias in aliases" :value="alias.aliasName">
-            {{ alias.aliasName }}
-          </option>
-        </select>
-      </div>
-
-      <label>文書</label>
-      <textarea v-model="ticket.description"></textarea>
-
-      <div>
-        <p>作成者: {{ ticket.aliasName }}</p>
-        <p>発行日: {{ tF('YYYY-MM-DD', ticket.createdAt) }}</p>
-        <p v-if="ticket.updatedAt">更新日: {{ tF('YYYY-MM-DD', ticket.updatedAt) }}</p>
-      </div>
-      <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
-      <table v-if="ticket.contentsType == 2" class="timestamp-table">
-        <thead>
-          <tr>
-            <th>日</th>
-            <th>開始</th>
-            <th>終了</th>
-            <th>休憩</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
-            <td>{{ day.day }}</td>
-            <td>
-              {{ day.timeIn ? tF('hh:mm', day.timeIn) : '--:--' }}
-              <p v-if="day.error"> {{day.error}} </p>
-            </td>
-            <td>
-              {{ day.timeOut ? tF('hh:mm', day.timeOut) : '--:--' }}
-            </td>
-            <td>
-              {{ formatBreaksTotal(day.breaks) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p>
-        参加者:
-        <SelectAlias v-model="ticket.accessNames" :aliases="aliases" :editable="true" />
-      </p>
-      <div>
-        <p v-for="d in ticket.comments">
-          <span>{{tF('YYYY-MM-DD hh:mm:ss', d.commentedAt)}}</span>
-          &nbsp;
-          <span>{{d.commentedBy}}</span>
-          <span>{{d.commentText}}</span>
-          <div><hr></div>
-        </p>
-      </div>
-      <div v-if="props.ticketID">
-        <label>コメント</label>
-        <textarea v-model="newComment"></textarea>
-      </div>
-      <button @click="saveChanges">変更を保存</button>
+<div id="content">
+  <div v-if="fetched">
+    <div class="sp_head"><a href="/tickets/">チケット一覧</a></div>
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
     </div>
+    <div class="ticket-edit-page">
+
+      <div class="ticket-form">
+        <input v-model="ticket.title" type="text" />
+        <div class="form-row">
+          <label>ステータス</label>
+          <select v-model="selectedStatus">
+            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>担当者</label>
+          <select v-model="ticket.assignee" >
+            <option v-for="alias in aliases" :value="alias.aliasName">
+              {{ alias.aliasName }}
+            </option>
+          </select>
+        </div>
+
+        <label>文書</label>
+        <textarea v-model="ticket.description"></textarea>
+
+        <div>
+          <p>作成者: {{ ticket.aliasName }}</p>
+          <p>発行日: {{ tF('YYYY-MM-DD', ticket.createdAt) }}</p>
+          <p v-if="ticket.updatedAt">更新日: {{ tF('YYYY-MM-DD', ticket.updatedAt) }}</p>
+        </div>
+        <span v-if="ticket.contentsType == 2">{{ thisMonth }}</span>
+        <table v-if="ticket.contentsType == 2" class="timestamp-table">
+          <thead>
+            <tr>
+              <th>日</th>
+              <th>開始</th>
+              <th>終了</th>
+              <th>休憩</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(day, index) in daysInMonth" :key="day" :class="['status' + day.stampStatus, { 'error': day.error }]">
+              <td>{{ day.day }}</td>
+              <td>
+                {{ day.timeIn ? tF('hh:mm', day.timeIn) : '--:--' }}
+                <p v-if="day.error"> {{day.error}} </p>
+              </td>
+              <td>
+                {{ day.timeOut ? tF('hh:mm', day.timeOut) : '--:--' }}
+              </td>
+              <td>
+                {{ formatBreaksTotal(day.breaks) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          参加者:
+          <SelectAlias v-model="ticket.accessNames" :aliases="aliases" :editable="true" />
+        </p>
+        <div>
+          <p v-for="d in ticket.comments">
+            <span>{{tF('YYYY-MM-DD hh:mm:ss', d.commentedAt)}}</span>
+            &nbsp;
+            <span>{{d.commentedBy}}</span>
+            <span>{{d.commentText}}</span>
+            <div><hr></div>
+          </p>
+        </div>
+        <div v-if="props.ticketID">
+          <label>コメント</label>
+          <textarea v-model="newComment"></textarea>
+        </div>
+        <button @click="saveChanges">変更を保存</button>
+      </div>
+    </div>
+  </div>
+  <div v-if="!fetched"> 
+    <div class="errorMessage">データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
   </div>
 </div>
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>

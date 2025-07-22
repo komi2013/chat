@@ -35,6 +35,7 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -197,6 +198,7 @@ const submitShift = async () => {
       // fd.append('confirmed', confirmed);
       fd.append('availableSkills', JSON.stringify(availableSkills.value));
       const res = await sendRequest('/ReceptionShift/', fd);
+      if (!res.csrf) errorMessage.value = res
       res.csrf && localStorage.setItem('csrf', res.csrf);
       res.pushContents.forEach(content => {
         pushReceive(content);
@@ -224,6 +226,7 @@ const submitShift = async () => {
       // fd.append('imgPath', aliasImg.value);
       fd.append('csrf', localStorage.getItem('csrf'));
       const res = await sendRequest('/ContentsPush/', fd);
+      if (!res.csrf) errorMessage.value = res
       res.csrf && localStorage.setItem('csrf', res.csrf);
       res.pushContents.forEach(content => {
         pushReceive(content);

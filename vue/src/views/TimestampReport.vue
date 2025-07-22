@@ -74,6 +74,7 @@ let thisMonthEntries;
 const approveds = ref(null);
 let userIDs = []
 const fetched = ref(false)
+const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
   groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
@@ -223,6 +224,7 @@ async function approve() {
   fd.append('pushTitle', 'timestampReport');
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
@@ -241,6 +243,7 @@ async function deleteReport() {
   fd.append('pushTitle', 'timestampReport');
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
@@ -265,6 +268,7 @@ async function submitReport() {
   fd.append('pushTitle', 'timestampReport');
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
@@ -373,6 +377,7 @@ async function manualPost(changedRecords) {
   fd.append('pushTitle', 'timestampReport');
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
@@ -406,22 +411,26 @@ function copyToClipboard() {
 <DrawerTimestamp />
 
 <div id="content" v-if="fetched">
-
-<div>
-  <h2 class="sp_head">
-    <a :href="`/timestampReport/${props.admin}/?month=${preMonth}&stamper=${targetName}`">&lt;&lt;</a>
-    {{month}}
-    <a :href="`/timestampReport/${props.admin}/?month=${nextMonth}&stamper=${targetName}`">&gt;&gt;</a>
-  </h2>
-  <template v-if="stampers">
-    <select v-model="selectedStamper" @change="onStamperChange">
-      <option value="">選択</option>
-      <option v-for="stamper in stampers" :key="stamper" :value="stamper">
-        {{ stamper }}
-      </option>
-    </select>
-  </template>
-</div>
+  <div>
+    <h2 class="sp_head">
+      <a :href="`/timestampReport/${props.admin}/?month=${preMonth}&stamper=${targetName}`">&lt;&lt;</a>
+      {{month}}
+      <a :href="`/timestampReport/${props.admin}/?month=${nextMonth}&stamper=${targetName}`">&gt;&gt;</a>
+    </h2>
+    <div v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <a href="/setting/"> データ設定ページ </a><br>
+      <a href="/sign/"> サインインページ </a>
+    </div>
+    <template v-if="stampers">
+      <select v-model="selectedStamper" @change="onStamperChange">
+        <option value="">選択</option>
+        <option v-for="stamper in stampers" :key="stamper" :value="stamper">
+          {{ stamper }}
+        </option>
+      </select>
+    </template>
+  </div>
   <div class="timestamps-page">
     <table class="timestamp-table">
       <thead>
@@ -487,6 +496,11 @@ function copyToClipboard() {
     <button @click="saveBreaks"> 保存▶️ </button>
     <button @click="closeBreaksModal"> ❌ </button>
   </div>
+</div>
+<div v-if="!fetched"> 
+  <div class="errorMessage">データ取得に失敗しました。</div>
+  <a href="/setting/"> データ設定ページ </a><br>
+  <a href="/sign/"> サインインページ </a>
 </div>
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 <NoticePopup />

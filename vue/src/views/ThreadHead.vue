@@ -33,7 +33,7 @@ async function initQuill() {
   });
   quill.value.root.innerHTML = markdownToHtml(threadHead.value.description, channel.value);
 }
-
+const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', channelID);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
@@ -58,6 +58,7 @@ const postThreadHead = async () => {
   editThreadHead.description = description;
   fd.append('contents', JSON.stringify(editThreadHead));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -75,13 +76,18 @@ function backTo() {
 <template>
 <DrawerThread />
 <div id="content">
-  <div v-if="threadHead" class="headTitle">
+  <div v-if="threadHead" class="sp_head">
     <div>
       <span v-if="threadHead && threadHead.parentID.includes('@')" >{{threadHead.title}}</span>
     </div>
     <span>
       <a @click="backTo"> ⬅ </a>
     </span>
+  </div>
+  <div v-if="errorMessage"> 
+    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
   </div>
   <input v-if="threadHead && !threadHead.parentID.includes('@')" type="text" class="inputText" v-model="threadHead.title"/>
 

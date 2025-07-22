@@ -58,7 +58,7 @@ watchEffect(() => {
 });
 
 function tF(a, b = null){ return timeFormat(a, b) }
-
+const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', localStorage.getItem('channelID'));
   groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000);
@@ -157,6 +157,7 @@ async function postData(stampCodes) {
   fd.append('contents', JSON.stringify(stampCodes));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
+  if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -170,8 +171,13 @@ async function postData(stampCodes) {
 <template>
 <DrawerTimestamp />
 <div id="content">
+  <h2 class="sp_head">タイムスタンプQR登録</h2>
+  <div v-if="errorMessage"> 
+    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+    <a href="/setting/"> データ設定ページ </a><br>
+    <a href="/sign/"> サインインページ </a>
+  </div>
   <div v-if="isEditMode">
-    <h2>タイムスタンプQR登録</h2>
     <form @submit.prevent="handleSubmit">
       <div v-for="(stampCode, index) in stampCodes" :key="index">
         <div>
