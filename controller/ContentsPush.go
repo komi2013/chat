@@ -103,10 +103,10 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   
 	common.ChunkPush(filteredSessions, db1, arr)
 
-	session, err = common.ReGenerateData(db1, session)
-	if err != nil {
-		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
-	}
+	// session, err = common.ReGenerateData(db1, session)
+	// if err != nil {
+	// 	log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
+	// }
 
 	responseData := struct {
 		Csrf         string        `json:"csrf"`

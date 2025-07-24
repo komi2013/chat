@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue';
+import { ref, onMounted } from 'vue';
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '../components/Drawer.vue';
@@ -27,7 +27,7 @@ const fetched = ref(false)
 let groupLockUntilDate
 const today = new Date()
 const errorMessage = ref('')
-onBeforeMount(async () => {
+onMounted(async () => {
   channel.value = await getIDB('channel', props.id);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);

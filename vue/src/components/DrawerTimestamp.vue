@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue'
+
 import Advertisement from '@/components/Advertisement.vue';
 
 </script>
@@ -12,7 +12,7 @@ import Advertisement from '@/components/Advertisement.vue';
       <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr><td><a href="/timestampCode/" > 🖨️ QR発行 </a></td></tr>
-      <tr><td><a href="/timestampReport/_/_/" > 📋 勤務表 </a></td></tr>
+      <tr><td><a href="/timestampReport/_/" > 📋 勤務表 </a></td></tr>
       <tr><td><a href="/sign/" > 🔒 ログイン </a></td></tr>
     </table>
   </div>

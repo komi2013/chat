@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useBookmarksStore } from '@/stores/bookmarks.js';
 import { useThreadHeadsStore } from '@/stores/threadHeads.js';
 import Advertisement from '@/components/Advertisement.vue';
@@ -76,10 +76,9 @@ function goBookmarkThread (bookmark) {
   // :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)"
 }
 
-onBeforeMount(async () => {
-  await fetchAllThreadHeads();
-  await fetchBookmarks();
-
+onMounted(async () => {
+  await fetchAllThreadHeads()
+  await fetchBookmarks()
 });
 
 

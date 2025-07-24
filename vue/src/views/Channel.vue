@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import QRCode from 'qrcode';
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";

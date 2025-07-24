@@ -1,6 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount, onMounted, nextTick } from 'vue';
-import { onBeforeRouteUpdate, useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
 
 import Advertisement from '@/components/Advertisement.vue';
 import DrawerThread from '@/components/DrawerThread.vue';
@@ -28,8 +27,8 @@ const threadHead = ref({
 });
 const fetched = ref(false);
 const copyable = ref(false);
-// const copyableValue = computed(() => copyable.value);
-onBeforeMount(async () => {
+
+onMounted(async () => {
   channel.value = await getIDB('channel', props.channel_id);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);

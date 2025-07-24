@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import EditBox from '@/components/EditBox.vue';
 import EmojiModal from '@/components/EmojiModal.vue';
 import EmojiedModal from '@/components/EmojiedModal.vue';
@@ -72,7 +72,7 @@ function replyable (message) {
 	}
 }
 
-onBeforeMount(async () => {
+onMounted(async () => {
   await moreMessages();
 });
 
@@ -114,12 +114,14 @@ const clickEmoji = async (message, emoji) => {
         <!-- <tr> -->
           <div class="msg-header">
             <div v-if="!copyable" class="icon_td">
-              <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
-                :src="message.aliasImg" class="icon-img">
-              <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
-                class="icon-span" 
-                :style="'background-color:' + message.aliasImg.split(',')[2] ">
-                {{message.aliasImg.split(',')[1]}}</span>
+              <a :href="'/people/' + message.channelID + '/' + message.aliasName + '/'">
+                <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
+                  :src="message.aliasImg" class="icon-img">
+                <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
+                  class="icon-span" 
+                  :style="'background-color:' + message.aliasImg.split(',')[2] ">
+                  {{message.aliasImg.split(',')[1]}}</span>
+              </a>
             </div>
             <div class="name_time">
               <span class="aliasName">{{ message.aliasName }} {{message.spentMinute}}</span>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
@@ -25,7 +25,7 @@ const aliasImg = ref(',' + getRandomEmoji() + ',' + getRandomColor());
 let sameUserAliases;
 let joinGroups;
 const errorMessage = ref('')
-onBeforeMount(async () => {
+onMounted(async () => {
   if (!props.code) {
     channel.value = await getIDB('channel', props.id);
     aliases = await getIDBs('alias', 'channelIDIndex', props.id, 10000);

@@ -1,5 +1,4 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue'
 
 import Advertisement from '@/components/Advertisement.vue';
 

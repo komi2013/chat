@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onBeforeMount, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';

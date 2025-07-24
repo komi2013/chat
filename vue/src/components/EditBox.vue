@@ -100,6 +100,8 @@ const handleFileInputChange = (event) => {
 let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
+  console.log('message', props.message)
+  console.log('threadHead', props.message)
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
