@@ -69,9 +69,9 @@ async function makeThreadHead() {
       title: '新規スレッド',
       messageTxt: '',
       aliasName: channel.value.myname,
-      aliasImg: channel.value.myimg,
       aliasNames: [channel.value.myname], 
-      displayStatus: 0
+      displayStatus: 0,
+      newThread: true
     }
     if (props.message_id.includes('@')) {
       const parts = props.message_id.split('@');

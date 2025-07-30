@@ -44,7 +44,7 @@ import "quill/dist/quill.snow.css";
 import EditOptionModal from '@/components/EditOptionModal.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
 
-import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
+import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
@@ -55,6 +55,10 @@ const props = defineProps({
   message: Object,
   threadHead: Object,
 });
+
+console.log('aliases', props.aliases)
+console.log('myname', props.channel.myname)
+
 
 const message = props.message;
 let task = ref(false);
@@ -101,7 +105,7 @@ let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
   console.log('message', props.message)
-  console.log('threadHead', props.message)
+  console.log('threadHead', props.threadHead)
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
@@ -114,25 +118,25 @@ const msgUpsert = async (messageID, delMessage) => {
   const SecondMsgID = messageID ? 
   	messageID.replace(props.channel.channelID, '') :
   	base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
-  const fd = new FormData();
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
-  let userIDs = [];
+  // let userIDs = [];
   let names = [props.channel.myname];
   let backID = '';
-  if (props.threadHead) {
-    if (props.threadHead.backID) {
-      backID = props.threadHead.backID;
-    }
-    dm = props.threadHead.parentID.includes('@');
-    if (dm) {
-      let dmNames = props.threadHead.parentID.replace(props.channel.channelID, '').split('@');
-      let matchedGroup = props.groups.find(group => dmNames.includes(group.groupName));
-      let dmAliasNames = matchedGroup?.aliasNames || [];
-      dmNames = dmNames.filter(name => name !== matchedGroup?.groupName);
-      names = [...names, ...dmNames, ...dmAliasNames];
-    }
-    userIDs = userIDsByName(props.aliases, props.threadHead.aliasNames);
+  if (props.threadHead.backID) {
+    backID = props.threadHead.backID;
   }
+  dm = props.threadHead.parentID.includes('@');
+  if (dm) {
+    let dmNames = props.threadHead.parentID.replace(props.channel.channelID, '').split('@');
+    let matchedGroup = props.groups.find(group => dmNames.includes(group.groupName));
+    let dmAliasNames = matchedGroup?.aliasNames || [];
+    dmNames = dmNames.filter(name => name !== matchedGroup?.groupName);
+    names = [...names, ...dmNames, ...dmAliasNames];
+  }
+
+  const alreadyUserIDs = userIDsByName(props.aliases, props.threadHead.aliasNames)
+  const myimg = props.aliases.find(alias => alias.aliasName === props.channel.myname)?.aliasImg;
+  console.log(myimg)
   let yets = [];
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
@@ -154,7 +158,6 @@ const msgUpsert = async (messageID, delMessage) => {
     const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
     	if (!dm) {
-	      // userIDs.push(d.userID);
 	      names.push(d.aliasName);    		
     	}
     	if (task.value) {
@@ -165,58 +168,78 @@ const msgUpsert = async (messageID, delMessage) => {
     	}
 		}
   }
-  const nameUserIDs = userIDsByName(props.aliases, names);
+  const newUserIDs = userIDsByName(props.aliases, names);
+  const alreadyUserIDsSet = new Set(alreadyUserIDs)
+  console.log('alreadyUserIDsSet', alreadyUserIDsSet)
+  const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDsSet.has(id));
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
     return;
   }
+  const fd = new FormData();
   if (fileInput && fileInput.files.length > 0) {
     for (const file of fileInput.files) {
       fd.append('files[]', file);
     }
   }
+
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
-  fd.append('userIDs', JSON.stringify([...new Set([...nameUserIDs, ...userIDs])]));
-  fd.append('pushTitle', pushTitle);
-  const contents = [
-  	props.message.parentID,
-    SecondMsgID,
-    messageData,
-    getAliasImg(props),
-    [...new Set(names)],
-    backID,
-    yets,
-    selectedGroup.value.groupName ?? ''
-  ];
-  fd.append('contents', JSON.stringify(contents));
-  fd.append('csrf', localStorage.getItem("csrf"));
+  // fd.append('userIDs', JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])]));
+  const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
+  fd.set('userIDs', userIDs)
+  let editThreadHead = props.threadHead
+  editThreadHead.aliasNames = names
+  if (uniqueNewIDs.length > 0) {
+    fd.set('contents', JSON.stringify(editThreadHead));
+    fd.set('pushTitle', 'threadHead');
+    fd.set('csrf', localStorage.getItem("csrf"));
+    const res = await sendRequest('/ContentsPush/', fd);
+    res.csrf && localStorage.setItem('csrf', res.csrf);
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+  }
+  
+  if (props.threadHead.newThread) {
+    console.log('props.channel.myimg', props.channel.myimg)
+    editThreadHead.messageTxt = messageData
+    editThreadHead.aliasImg = myimg
+    editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
+    editThreadHead.adminNames = [props.channel.myname]
+    delete editThreadHead.newThread
+    fd.set('pushTitle', 'threadHead')
+    fd.set('contents', JSON.stringify(editThreadHead))
+  } else {
+    const contents = [
+      props.message.parentID,
+      SecondMsgID,
+      messageData,
+      myimg,
+      [...new Set(names)],
+      backID,
+      yets,
+      selectedGroup.value.groupName ?? ''
+    ]
+    fd.set('contents', JSON.stringify(contents))
+    fd.set('pushTitle', pushTitle)
+  }
+  fd.set('csrf', localStorage.getItem("csrf"));
   const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
   quill.root.innerHTML = '';
   fileInfo.value = [];
   task.value = false;
   asGroup.value = false;
   clicked = false;
-}
-
-function getAliasImg(props) {
-  if (selectedGroup.value.groupImg) {
-    return selectedGroup.value.groupImg;
-  }
-  let aliasImg = null;
-  const myname = props.channel.myname;
-  for (let i = 0; i < props.aliases.length; i++) {
-    if (props.aliases[i].aliasName === myname) {
-      aliasImg = props.aliases[i].aliasImg;
-      break;
-    }
-  }
-  return aliasImg;
 }
 
 let quill;

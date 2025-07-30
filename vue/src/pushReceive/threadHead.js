@@ -14,6 +14,7 @@ export async function threadHead(pd) {
   threadHead.aliasNames = editThreadHead.aliasNames;
   threadHead.adminNames = editThreadHead.adminNames;
   threadHead.broadcastFlag = editThreadHead.broadcastFlag;
+  console.log(threadHead)
   upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
   if (pre) {
     const logID = pd[1] + pd[2] + pd[3] + pd[0];
