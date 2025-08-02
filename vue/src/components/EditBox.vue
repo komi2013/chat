@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="!threadHead.broadcastFlag || (threadHead.broadcastFlag && threadHead.adminNames.includes(channel.myname))">
     <div class="editLeft" :id="'toolbar_' + messageID">
       <button class="ql-bold"></button>
       <button class="ql-strike"></button>
@@ -56,10 +56,6 @@ const props = defineProps({
   threadHead: Object,
 });
 
-console.log('aliases', props.aliases)
-console.log('myname', props.channel.myname)
-
-
 const message = props.message;
 let task = ref(false);
 const messageID = props.message.messageID;
@@ -104,8 +100,6 @@ const handleFileInputChange = (event) => {
 let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
-  console.log('message', props.message)
-  console.log('threadHead', props.threadHead)
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
@@ -120,7 +114,7 @@ const msgUpsert = async (messageID, delMessage) => {
   	base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
   // let userIDs = [];
-  let names = [props.channel.myname];
+  let names = props.threadHead.newThread ? [props.channel.myname] : props.threadHead.aliasNames
   let backID = '';
   if (props.threadHead.backID) {
     backID = props.threadHead.backID;
@@ -136,7 +130,6 @@ const msgUpsert = async (messageID, delMessage) => {
 
   const alreadyUserIDs = userIDsByName(props.aliases, props.threadHead.aliasNames)
   const myimg = props.aliases.find(alias => alias.aliasName === props.channel.myname)?.aliasImg;
-  console.log(myimg)
   let yets = [];
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
@@ -170,7 +163,6 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   const newUserIDs = userIDsByName(props.aliases, names);
   const alreadyUserIDsSet = new Set(alreadyUserIDs)
-  console.log('alreadyUserIDsSet', alreadyUserIDsSet)
   const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDsSet.has(id));
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
@@ -190,8 +182,10 @@ const msgUpsert = async (messageID, delMessage) => {
   const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
   fd.set('userIDs', userIDs)
   let editThreadHead = props.threadHead
+  console.log('names', names)
   editThreadHead.aliasNames = names
-  if (uniqueNewIDs.length > 0) {
+  if (uniqueNewIDs.length > 0 || editThreadHead.newReply) {
+    delete editThreadHead.newReply
     fd.set('contents', JSON.stringify(editThreadHead));
     fd.set('pushTitle', 'threadHead');
     fd.set('csrf', localStorage.getItem("csrf"));
@@ -203,9 +197,8 @@ const msgUpsert = async (messageID, delMessage) => {
       }
     }
   }
-  
+
   if (props.threadHead.newThread) {
-    console.log('props.channel.myimg', props.channel.myimg)
     editThreadHead.messageTxt = messageData
     editThreadHead.aliasImg = myimg
     editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)

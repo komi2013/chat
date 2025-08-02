@@ -7,7 +7,8 @@ export async function thread(pushData) {
   const messagesStore = useMessagesStore();
   const channelID = pushData[2];
   const updatedBy = pushData[3];
-  const secondPartMsgID = pushData[4][1];
+  const secondPartMsgID = pushData[4][1]
+  const directNotify = pushData.directNotify
   const unixtime = base62Decode(secondPartMsgID.slice(0, -1));
 	let filelinks = "";
 	if (Array.isArray(pushData[5])) {
@@ -104,7 +105,7 @@ export async function thread(pushData) {
   //   newThreadHeadFlag = true;
   // }
   if (displayStatus == 2 && pushThread.emojis.length > 0) {
-    console.log('pushThread', pushThread);
+    // console.log('pushThread', pushThread);
     const bm = {
       messageID: pushThread.messageID,
       channelID: pushThread.channelID,
@@ -121,10 +122,12 @@ export async function thread(pushData) {
     updIDBone('thread', pushThread.parentID, 'reply', true);
   }
   // upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
-  if (notify) { // need to change when pushReceive from session
+  if (notify && directNotify) { // need to change when pushReceive from session
     new Notification(pushTitle, {
       body: getSubstring(removeMark(pushThread.messageTxt), 0, 30), icon: pushThread.aliasImg
     });
+    updIDBone('threadHead', pushThread.parentID, 'displayStatus', displayStatus)
+    addFaviconBadge()
   }
   if (messagesStore.currentDisplay(pushThread.parentID)) {
     messagesStore.insert(pushThread);

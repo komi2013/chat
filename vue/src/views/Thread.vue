@@ -34,11 +34,11 @@ onMounted(async () => {
   groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
   threadHead.value = await getIDB('threadHead', props.message_id);
   await makeThreadHead();
-  fetched.value = await true;
   const content = await document.getElementById('content');
   content.scrollTop = await content.scrollHeight;
   await window.scrollTo(0, content.scrollHeight);
   readStatus();
+  fetched.value = true
 });
 
 const message = ref('');
@@ -95,7 +95,17 @@ async function makeThreadHead() {
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
       threadHead.value.threadType = 0;
-      threadHead.value.backID = props.backID;
+      threadHead.value.backID = props.backID
+      threadHead.value.newReply = true
+      const originalThreadHead = await getIDB('threadHead', props.backID)
+      threadHead.value.aliasNames = [
+        ...new Set([
+          ...originalThreadHead.aliasNames,
+          ...threadHeadValue.aliasNames
+        ])
+      ]
+      threadHead.value.adminNames = originalThreadHead.adminNames
+      console.log('threadHead.value.aliasNames', threadHead.value)
       messagesStore.insert(message);
     }
   }
@@ -105,16 +115,15 @@ function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
     updIDBone('threadHead', props.message_id, 'displayStatus', 0);
-    const favicon = document.querySelector('link[rel="icon"]');
-    favicon.href = '/favicon.ico';
+    revertFaviconBadge()
   }
 }
 
 function backTo() {
   const backID = threadHead.value.backID;
   if (backID) {
-    const secondPart = backID.replace(props.channel_id, '');
-    location.href = '/thread/' + props.channel_id + '/' + secondPart + '/';
+    // const secondPart = backID.replace(props.channel_id, '');
+    location.href = '/thread/' + props.channel_id + '/' + backID + '/';
   } else {
     location.href = '/channel/' + props.channel_id + '/';
   }
@@ -155,7 +164,7 @@ function backTo() {
         :message="msg"
         :threadHead="threadHead" />
     </div>
-  <br>
+    <br>
   </div>
   <div v-if="!fetched"><br><br> Loading... or Something Went </div>
 </div>

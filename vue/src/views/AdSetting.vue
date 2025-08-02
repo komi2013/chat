@@ -68,7 +68,7 @@ async function findAdPrices() {
   const ad = ads.value[0]
   const fd = new FormData();
 
-  fd.append('csrff', localStorage.getItem('csrf'));
+  fd.append('csrf', localStorage.getItem('csrf'));
   fd.append('pathBanner', ad.pathBanner);
   fd.append('pathSquare', ad.pathSquare);
   fd.append('latitude', ad.latitude);

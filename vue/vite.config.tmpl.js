@@ -20,7 +20,13 @@ export default defineConfig({
         outsideApp: fileURLToPath(new URL('./src/outsideApp.js', import.meta.url))
       },
       output: {
-        entryFileNames: 'assets/outsideApp.js'
+        entryFileNames: 'assets/outsideApp.js',
+        assetFileNames: assetInfo => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'assets/outsideApp.css' // ✅ CSSファイル名を固定化！
+          }
+          return 'assets/[name][extname]'
+        }
       }
     }
   }

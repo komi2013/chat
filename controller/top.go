@@ -20,10 +20,14 @@ import (
 func Top(w http.ResponseWriter, r *http.Request) {
 	var session collection.SessionStruct
 	var tmplPath string
+	var domain string
+	var googleClientID string
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
 		tmplPath = "view/signTmp.tmpl"
 		// tmplPath = "view/signGoogle.tmpl"
+		domain = common.Domain
+		googleClientID = common.GoogleClientID
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.tmpl"
 	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -73,9 +77,16 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	}
 	type View struct {
 		Session collection.SessionStruct
+		Domain string
+		GoogleClientID string
+		CacheV string
 	}
 	var view View
 	view.Session = session
+	view.Domain = domain
+	view.GoogleClientID = googleClientID
+	view.CacheV = common.CacheV
+
 	tpl := template.Must(template.ParseFiles(tmplPath))
 	if err := tpl.Execute(w, view); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)

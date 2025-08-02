@@ -89,6 +89,7 @@ function backTo() {
     <a href="/setting/"> データ設定ページ </a><br>
     <a href="/sign/"> サインインページ </a>
   </div>
+  <br>
   <input v-if="threadHead && !threadHead.parentID.includes('@')" type="text" class="inputText" v-model="threadHead.title"/>
 
   <div class="editLeft" id="toolbar">

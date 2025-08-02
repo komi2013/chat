@@ -138,3 +138,22 @@ function editIDBLogging(title, channelID, aliasName, contents) {
       console.error(error);
     });
 }
+
+const checkFaviconBadge = () => {
+  if (localStorage.getItem('favicon')) {
+    const favicon = document.querySelector('link[rel="icon"]')
+    favicon.href = '/img/faviconAttention.png'
+  }
+}
+
+const addFaviconBadge = () => {
+  localStorage.setItem('favicon', "1")
+  const favicon = document.querySelector('link[rel="icon"]')
+  favicon.href = '/img/faviconAttention.png'
+}
+
+const revertFaviconBadge = () => {
+  localStorage.removeItem("favicon")
+  const favicon = document.querySelector('link[rel="icon"]')
+  favicon.href = '/favicon.ico'
+}

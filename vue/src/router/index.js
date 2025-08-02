@@ -166,10 +166,10 @@ const router = createRouter({
       path: '/user/',
       component: () => import('../views/User.vue')
     },
-    {
-      path: '/',
-      component: () => import('../views/Top.vue')
-    }
+    { path: '/html/privacy/', component: () => import('../views/html/Privacy.vue') },
+    { path: '/html/rule/', component: () => import('../views/html/Rule.vue') },
+    { path: '/', component: () => import('../views/html/Top.vue') },
+
   ]
 })
 

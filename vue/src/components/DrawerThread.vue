@@ -25,9 +25,9 @@ const fetchAllThreadHeads = async () => {
         threadHeadsStore.insert(d);
       });
 
-      if (sorted.some(d => d.displayStatus === 2)) {
-        addFaviconBadge();
-      }
+      // if (sorted.some(d => d.displayStatus === 2)) {
+      //   addFaviconBadge()
+      // }
     }
   }
 };
@@ -42,11 +42,6 @@ const fetchBookmarks = async () => {
   data.forEach(d => {
     bookmarksStore.insert(d);
   });
-};
-
-const addFaviconBadge = () => {
-  const favicon = document.querySelector('link[rel="icon"]');
-  favicon.href = '/me.jpg';
 };
 
 function getStatusClass(status) {

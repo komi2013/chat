@@ -1,15 +1,9 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router';
-import { ref, onMounted } from 'vue';
-import { pushReceive } from './pushReceive/pushReceive.js';
+import { RouterView } from 'vue-router';
+import { onMounted } from 'vue';
 
-navigator.serviceWorker.addEventListener('message', async (event) => {
-  pushReceive(event.data.notificationData);
-});
-
-onMounted(async () => {
+onMounted(async () => { //for outsideApp
   window.advertisements = await getAllIDBs('advertisement');
-  // await findAdPrices();
 })
 
 

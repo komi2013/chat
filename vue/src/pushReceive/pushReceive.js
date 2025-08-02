@@ -22,8 +22,9 @@ import { timestampCode } from './timestampCode.js';
 import { timestampReport } from './timestampReport.js';
 import { timestampRevert } from './timestampRevert.js';
 
-export function pushReceive(notificationData) {
+export function pushReceive(notificationData, direct = false) {
   const data = JSON.parse(notificationData)
+  data.directNotify = direct
   // console.log('ASDF')
   const actions = {
     advertisement: advertisement,

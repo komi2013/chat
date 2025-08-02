@@ -2,40 +2,61 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>🚪🚶ログイン</title>
+    <title>サインイン</title>
     <link rel="shortcut icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, user-scalable=no" >
+    <script src="/js/myGlobal.js?{{.CacheV}}"></script>
+    <script src="/js/IndexedDB.js?{{.CacheV}}"></script>
+    <script type="module" src="/assets/outsideApp.js?{{.CacheV}}"></script>
+    <link rel="stylesheet" href="/assets/outsideApp.css?{{.CacheV}}">
   </head>
+
 <style>
-
+#drawer td {
+  background-color: #EEEEEE;
+}
 </style>
-<body>
 
-<div class="menu pc_disp_none">≡</div>
+<body>
+<div id="drawer_column">
+  <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
+  <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
+  <table id="drawer">
+    <tr><td><a href="/" > ホーム </a></td></tr>
+    <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
+    <tr><td><a href="/channel/" > 組織・チャネル設定 </a></td></tr>
+    <tr><td><a href="/calendar/"> カレンダー </a></td></tr>
+    <tr><td><a href="/timestampCode/"> タイムスタンプ設定 </a></td></tr>
+    <tr><td><a href="/reception/" > 受付・予約機能 </a></td></tr>
+    <tr><td><a href="/tickets/" > チケット承認機能 </a></td></tr>
+    <tr><td><a href="/user/" > ユーザー設定 </a></td></tr>
+    <tr><td><a href="/adSetting/" > 広告設定 </a></td></tr>
+    <tr><td><a href="/setting/" > 設定 </a></td></tr>
+    <tr><td><a href="/sign/" > サインイン </a></td></tr>
+    <tr><td><a href="/html/rule/" > 規則 </a></td></tr>
+    <tr><td><a href="/html/privacy/" > 個人情報遵守 </a></td></tr>
+  </table>
+</div>
 
 <div id="content">
-
-<div>
-<br><br><br><br><br>
-      <script src="https://accounts.google.com/gsi/client" async defer></script>
-      <div id="g_id_onload"
-         data-client_id="163867041258-k0h1g9s3qdt5b2qbo3ajlmh7fah8citl.apps.googleusercontent.com"
-         data-login_uri="https://chat.quigen.info/GoogleIdentity/"
-         data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-         data-type="standard"
-         data-size="large"
-         data-theme="outline"
-         data-text="sign_in_with"
-         data-shape="rectangular"
-         data-logo_alignment="left">
-      </div>
-
+  <h2 class="sp_head">サインイン</h2>
+  <br>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <div id="g_id_onload"
+     data-client_id="{{.GoogleClientID}}"
+     data-login_uri="https://{{.Domain}}/SignInGoogle/"
+     data-auto_prompt="false">
+  </div>
+  <div class="g_id_signin"
+     data-type="standard"
+     data-size="large"
+     data-theme="outline"
+     data-text="sign_in_with"
+     data-shape="rectangular"
+     data-logo_alignment="left">
+  </div>
 
 </div>
-<br><br><br><br><br><br><br><br><br><br><br>
-</div beginis content>
 
 <div id="ad_right">
 
@@ -54,4 +75,3 @@
 
 </body>
 </html>
-

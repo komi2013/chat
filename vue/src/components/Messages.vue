@@ -27,7 +27,7 @@ const messages = computed(() => {
   return messagesStore.messages;
 });
 
-const limit = 5;
+const limit = 20;
 let offset = 0;
 let more = false;
 const moreMessages = async () => {
@@ -63,9 +63,7 @@ function editable(myname, message) {
 }
 
 function replyable (message) {
-	const msg2ndPartID = message.messageID.replace(props.channel.channelID, '');
-	const parent2ndPartID = message.parentID.replace(props.channel.channelID, '');
-	if (msg2ndPartID !== parent2ndPartID) {
+	if (message.messageID !== message.parentID && !message.backID) {
 		return true;
 	} else {
 		return false;
