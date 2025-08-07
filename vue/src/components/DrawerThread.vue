@@ -24,10 +24,6 @@ const fetchAllThreadHeads = async () => {
       sorted.forEach(d => {
         threadHeadsStore.insert(d);
       });
-
-      // if (sorted.some(d => d.displayStatus === 2)) {
-      //   addFaviconBadge()
-      // }
     }
   }
 };
@@ -65,9 +61,10 @@ function paramMsg(d) {
 
 function goBookmarkThread (bookmark) {
   const channelID = bookmark.channelID;
-  const msgSecondID = bookmark.messageID.replace(channelID, '');
+  const msgSecondID = bookmark.messageID
+  // const msgSecondID = bookmark.messageID.replace(channelID, '');
   // const backID = bookmark.backID.replace(channelID, '');
-  location.href = '/thread/' + channelID + '/' + msgSecondID + '/?backID=' + bookmark.backID;
+  location.href = '/thread/' + channelID + '/' + msgSecondID + '/?backID=' + bookmark.backID
   // :href="'/thread/' + d.channelID + '/' + paramMsg(d) + '/?backID=' + paramParent(d)"
 }
 
@@ -84,20 +81,20 @@ onMounted(async () => {
     <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
     <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
     <table id="drawer">
-      <tr><td><a href="/" > 🏠 ホーム </a></td></tr>
+      <tr><td><a href="/" > ホーム </a></td></tr>
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
-      <tr><td><a href="/channel/" > 🏠 組織チャネル </a></td></tr>
-      <tr><td>スレッド</td></tr>
+      <tr><td><a href="/channel/" > 組織・チャネル設定 </a></td></tr>
+      <tr><td> 💬 スレッド</td></tr>
       <tr v-for="d in threadHeads">
-        <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
-          <a :href="'/thread/' + d.channelID + '/' + paramParent(d) + '/'">{{ d.title }}</a>
+        <td :class="getStatusClass(d.displayStatus)">
+          &nbsp;<a :href="'/thread/' + d.channelID + '/' + paramParent(d) + '/'">{{ d.title }}</a>
         </td>
       </tr>
     <template v-if="bookmarks.length > 0">
       <tr><td> 🔖 ブックマーク </td></tr>
       <tr v-for="d in bookmarks">
-        <td class="channel_menu" :class="getStatusClass(d.displayStatus)">
-          <a @click="goBookmarkThread(d)">
+        <td :class="getStatusClass(d.displayStatus)">
+          &nbsp;<a @click="goBookmarkThread(d)">
             {{ d.title }}</a>
         </td>
       </tr>
@@ -130,7 +127,7 @@ onMounted(async () => {
 
 .mute a {
   color: blue;
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .favicon-badge {
@@ -140,42 +137,4 @@ onMounted(async () => {
   border-radius: 50%;
 }
 
-/*@media screen and (min-width : 701px) {
-  #drawer {
-    margin-top : -1px;
-    background-color: white;
-  }
-}
-
-@media screen and (max-width : 700px) {
-  #drawer {
-    width: 80%;
-    overflow: scroll;
-    position: absolute;
-    z-index: 10;
-    margin: 0;
-    background-color: white;
-    left: -100%;
-    top : 51px;
-    float: left;
-  }
-  .pulling {
-    position: absolute;
-    top: 0px;
-    height: 50px;
-    width: 50px;
-    opacity: 0;
-    z-index: 10;
-  }
-  .pulling:checked ~ #drawer{
-    left: 0%;
-  }
-  .for_drawer {
-    position: absolute;
-    font-size: 40px;
-    top: -10px;
-    width: 50px;
-    text-align: center;
-  }
-}*/
 </style>

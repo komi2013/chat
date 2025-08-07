@@ -1,5 +1,5 @@
 <template>
-  <div v-if="!threadHead.broadcastFlag || (threadHead.broadcastFlag && threadHead.adminNames.includes(channel.myname))">
+  <div v-show="editable">
     <div class="editLeft" :id="'toolbar_' + messageID">
       <button class="ql-bold"></button>
       <button class="ql-strike"></button>
@@ -57,12 +57,84 @@ const props = defineProps({
 });
 
 const message = props.message;
+// console.log('message', message)
 let task = ref(false);
 const messageID = props.message.messageID;
 const messagesStore = useMessagesStore();
 
 let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, props.channel, []);
+
+let quill
+async function initQuill() {
+  quill = new Quill('#edit_' + messageID, {
+    modules: {
+      toolbar: '#toolbar_' + messageID,
+      mention: {
+        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+        mentionDenotationChars: ["@"],
+        source: function(searchTerm, renderList, mentionChar) {
+          let values;
+          if (mentionChar === "@") {
+            let aliasForMention = props.aliases
+            if (Array.isArray(props.groups)) {
+              aliasForMention = props.aliases.concat(
+                props.groups.map(group => ({
+                  aliasID: group.groupID,
+                  aliasName: group.groupName,
+                  aliasImg: group.groupImg,
+                }))
+              );
+            }
+
+            values = aliasForMention.map((alias, index) => {
+              return {
+                id: alias.aliasID,
+                value: alias.aliasName,
+                icon: alias.aliasImg
+              };
+            });
+          }
+
+          if (searchTerm.length === 0) {
+            renderList(values, searchTerm);
+          } else {
+            const matches = values.filter(item => item.value.toLowerCase().includes(searchTerm.toLowerCase()));
+            renderList(matches, searchTerm);
+          }
+        },
+        renderItem: function(item) {
+          const mentionWithImage = document.createElement("div");
+          if (item.icon.charAt(0) == ',') {
+            const arr = item.icon.split(',');
+            mentionWithImage.innerHTML = 
+              `<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
+          } else {
+            mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
+          }
+          return mentionWithImage;
+        },
+        onOpen: function() {
+          const quillMentionList = document.getElementById('quill-mention-list');
+          const rect = quillMentionList.getBoundingClientRect();
+          if (rect.left > 150 && rect.left < 300) {
+            quillMentionList.style.left = (- 1 * rect.left) + 'px';
+          }
+        }
+      }
+    },
+    theme: 'snow'
+  })
+}
+let editable = ref(false)
+onMounted(async () => {
+  editable.value = !props.threadHead.broadcastFlag || (props.threadHead.broadcastFlag && props.threadHead.adminNames.includes(props.channel.myname))
+  // console.log('editable', editable)
+  if (editable.value) {
+    await initQuill()
+  }
+})
+
 const tasking = () => {
   task.value = !task.value;
 };
@@ -97,6 +169,16 @@ const handleFileInputChange = (event) => {
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 
+const asGroup = ref(false);
+const emptyGroup = {groupID:'', groupName:'グループなし', groupImg:''}
+const selectedGroup = ref(emptyGroup)
+const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(props.channel.myname)))
+myGroups.value.unshift(emptyGroup)
+function handleSelection(group) {
+  selectedGroup.value = group;
+  asGroup.value = false;
+}
+
 let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
@@ -109,9 +191,7 @@ const msgUpsert = async (messageID, delMessage) => {
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const pushTitle = messageID ? 'threadEdit' : 'thread';
-  const SecondMsgID = messageID ? 
-  	messageID.replace(props.channel.channelID, '') :
-  	base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
+  const SecondMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
   const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
   // let userIDs = [];
   let names = props.threadHead.newThread ? [props.channel.myname] : props.threadHead.aliasNames
@@ -137,12 +217,12 @@ const msgUpsert = async (messageID, delMessage) => {
       if (messageData.includes(atName)) {
         for (const d2 of d.aliasNames) {
           names.push(d2);
-		    	if (task.value) {
-				    yets.push({
-				    	aliasName: d2,
-				    	emoji: '☑️'
-				    });    		
-		    	}
+          if (task.value) {
+            yets.push({
+              aliasName: d2,
+              emoji: '☑️'
+            });       
+          }
         }
       }
     }
@@ -150,16 +230,16 @@ const msgUpsert = async (messageID, delMessage) => {
   for (const d of props.aliases) {
     const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
-    	if (!dm) {
-	      names.push(d.aliasName);    		
-    	}
-    	if (task.value) {
-		    yets.push({
-		    	aliasName: d.aliasName,
-		    	emoji: '☑️'
-		    });    		
-    	}
-		}
+      if (!dm) {
+        names.push(d.aliasName);        
+      }
+      if (task.value) {
+        yets.push({
+          aliasName: d.aliasName,
+          emoji: '☑️'
+        });       
+      }
+    }
   }
   const newUserIDs = userIDsByName(props.aliases, names);
   const alreadyUserIDsSet = new Set(alreadyUserIDs)
@@ -211,11 +291,12 @@ const msgUpsert = async (messageID, delMessage) => {
       props.message.parentID,
       SecondMsgID,
       messageData,
-      myimg,
+      selectedGroup.value.groupImg ? selectedGroup.value.groupImg : myimg,
       [...new Set(names)],
       backID,
       yets,
-      selectedGroup.value.groupName ?? ''
+      selectedGroup.value.groupName === 'グループなし' ? '' : selectedGroup.value.groupName,
+      ...(messageID ? [Math.floor(Date.now() / 1000)] : [])
     ]
     fd.set('contents', JSON.stringify(contents))
     fd.set('pushTitle', pushTitle)
@@ -235,75 +316,6 @@ const msgUpsert = async (messageID, delMessage) => {
   clicked = false;
 }
 
-let quill;
-onMounted(() => {
-  quill = new Quill('#edit_' + messageID, {
-    modules: {
-      toolbar: '#toolbar_' + messageID,
-      mention: {
-        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
-        mentionDenotationChars: ["@"],
-        source: function(searchTerm, renderList, mentionChar) {
-          let values;
-          if (mentionChar === "@") {
-            let aliasForMention = props.aliases
-            if (Array.isArray(props.groups)) {
-              aliasForMention = props.aliases.concat(
-                props.groups.map(group => ({
-                  aliasID: group.groupID,
-                  aliasName: group.groupName,
-                  aliasImg: group.groupImg,
-                }))
-              );
-            }
-
-            values = aliasForMention.map((alias, index) => {
-              return {
-                id: alias.aliasID,
-                value: alias.aliasName,
-                icon: alias.aliasImg
-              };
-            });
-          }
-
-          if (searchTerm.length === 0) {
-            renderList(values, searchTerm);
-          } else {
-            const matches = values.filter(item => item.value.toLowerCase().includes(searchTerm.toLowerCase()));
-            renderList(matches, searchTerm);
-          }
-        },
-        renderItem: function(item) {
-          const mentionWithImage = document.createElement("div");
-          if (item.icon.charAt(0) == ',') {
-          	const arr = item.icon.split(',');
-          	mentionWithImage.innerHTML = 
-          		`<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
-          } else {
-          	mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
-          }
-          return mentionWithImage;
-        },
-        onOpen: function() {
-          const quillMentionList = document.getElementById('quill-mention-list');
-          const rect = quillMentionList.getBoundingClientRect();
-          if (rect.left > 150 && rect.left < 300) {
-            quillMentionList.style.left = (- 1 * rect.left) + 'px';
-          }
-        }
-      }
-    },
-    theme: 'snow'
-  });
-});
-
-const asGroup = ref(false);
-const selectedGroup = ref({groupID:'', groupName:'', groupImg:''}); 
-const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(props.channel.myname)));
-function handleSelection(group) {
-  selectedGroup.value = group;
-  asGroup.value = false;
-}
 </script>
 
 <style>

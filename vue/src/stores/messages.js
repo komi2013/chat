@@ -1,20 +1,23 @@
-import { ref, computed } from 'vue'
+// import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useMessagesStore = defineStore({
   id: 'messages',
   state: () => ({
-    messages: ref([]),
+    messages: [],
   }),
   actions: {
     insert(data) {
-      const exists = this.messages.some(msg => msg.messageID === data.messageID);
+      const exists = this.messages.some(msg => msg.messageID === data.messageID)
       if (!exists) {
         this.messages.push(data);
       }
     },
     unshift(data, position) {
-      this.messages.splice(position, 0, data);
+      const exists = this.messages.some(msg => msg.messageID === data.messageID)
+      if (!exists) {
+        this.messages.splice(position, 0, data);
+      }
     },
     update(data, messageID) {
       const index = this.messages.findIndex(message => message.messageID === messageID);
@@ -26,7 +29,7 @@ export const useMessagesStore = defineStore({
       this.messages = this.messages.filter(message => message.messageID !== messageID);
     },
     deleteAll() {
-      this.messages = ref([]); // 全てのメッセージを削除する
+      this.messages = []
     },
     currentDisplay(currentID) {
       const message = this.messages.find(msg => {

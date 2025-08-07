@@ -17,7 +17,8 @@ const props = defineProps({
   aliases: Array,
   groups: Array,
   threadHead: Object,
-  copyable: Boolean
+  copyable: Boolean,
+  threadPosition: Number
 });
 
 function tF(a, b = null){ return timeFormat(a, b) }
@@ -29,23 +30,46 @@ const messages = computed(() => {
 
 const limit = 20;
 let offset = 0;
-let more = false;
-const moreMessages = async () => {
-  const parentMessageID = props.threadHead ? props.threadHead.parentID : props.channel.channelID;
-  const addPosition = props.threadHead ? 1 : 0;
-  const thread = await getIDBs('thread', 'parentIDIndex', parentMessageID, limit, offset);
-  thread.forEach(message => {
-  	if (addPosition === 1) {
-  		messagesStore.unshift(message, addPosition);
-  	} else {
-  		messagesStore.insert(message);
-  	}
-  });
-  if (thread.length === limit) {
-    offset += limit;
-    more = true;
+const more = ref(false)
+const moreNew = ref(false)
+const parentMessageID = props.threadHead ? props.threadHead.parentID : props.channel.channelID
+const moreMessages = async (later = false) => {
+  // console.log('ddd', threadCount, threadPosition, limit)
+  // offset = Math.max(threadCount - limit - Math.floor((threadPosition - 1) / limit) * limit, 0)
+  // offset = Math.floor((threadPosition - 1) / limit) * limit;
+  // console.log('threadPosition New', threadPosition, threadPositionNew, later)
+  if (later) {
+    console.log(Math.floor((threadCount - threadPositionNew) / limit))
+    offset = (Math.floor((threadCount - threadPositionNew) / limit) -1) * limit
   } else {
-    more = false;
+    offset = Math.floor((threadCount - threadPosition) / limit) * limit
+  }
+  // console.log('offset', offset)
+
+  let threads = await getIDBs('thread', 'parentIDIndex', parentMessageID, limit + 1, offset)
+  if (later) {
+    threads = threads.slice().reverse()
+  }
+  threads.forEach((message, index) => {
+    if (later) {
+      if (index < limit || offset === 0) {
+        messagesStore.insert(message)
+        threadPositionNew = threadCount - offset - limit + index
+        message.href = `/thread/${message.channelID}/${message.parentID}/?threadPosition=${threadPositionNew}#msg_${message.messageID}`
+      }
+    } else {
+      if (index < limit) {
+        messagesStore.unshift(message, 1);
+        threadPosition = threadCount - offset - index
+        message.href = `/thread/${message.channelID}/${message.parentID}/?threadPosition=${threadPosition}#msg_${message.messageID}`
+        threadPosition--
+      }
+    }
+  })
+  if (later) {
+    moreNew.value = threads.length > limit && offset > 0
+  } else {
+    more.value = threads.length > limit
   }
 };
 
@@ -69,9 +93,31 @@ function replyable (message) {
 		return false;
 	}
 }
-
+// console.log('threadPosition', props.threadPosition)
+let threadPosition
+let threadPositionNew
+let threadCount
 onMounted(async () => {
-  await moreMessages();
+  threadCount = await countIDBs('thread', 'channelID_parentID', [props.channel.channelID, parentMessageID]);
+  // console.log(props.threadPosition)
+  if (props.threadPosition) {
+    threadPosition = props.threadPosition
+  } else if (!threadPosition) {
+    threadPosition = threadCount
+  }
+  threadPositionNew = threadPosition
+  await moreMessages()
+  if (offset > 0) moreNew.value = true
+
+// messageID が 'UsCGVmwP' より大きいレコードを messageID DESC で20件取得
+const results = await getItemsAfterValue('thread', 'messageIDIndex', 'UsCGVmwP', 20);
+// getItemsAfterValue('thread', 'messageIDIndex', 'UsCGVmwP', 20); // ✅
+
+console.log(results);
+
+
+
+
 });
 
 function reply(message) {
@@ -102,105 +148,148 @@ const clickEmoji = async (message, emoji) => {
   rotateEmoji(emoji.emoji);
 };
 
+
+async function getItemsAfterValue(table, indexKey, value, limit = 20) {
+  const db = await openDatabase(); // IndexedDB接続
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([table], 'readonly');
+    const store = transaction.objectStore(table);
+
+    if (!store.indexNames.contains(indexKey)) {
+      console.warn(`Index "${indexKey}" does not exist in "${table}".`);
+      return resolve([]);
+    }
+
+    const index = store.index(indexKey);
+    const range = IDBKeyRange.lowerBound(value, true); // index > value
+    const direction = 'prev'; // ORDER BY indexKey DESC
+
+    const request = index.openCursor(range, direction);
+    const results = [];
+
+    request.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor && results.length < limit) {
+        results.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+
+    request.onerror = (event) => {
+      console.error('getItemsAfterValue Error:', event.target.error);
+      reject(event.target.error);
+    };
+  });
+}
+
+
+
 </script>
 
 <template>
-  <div class="messages" >
-    <div v-if="more" @click="moreMessages" class="more"> - - more - - </div>
+  <div v-if="more" @click="moreMessages(false)" class="more"> - - more - - </div>
+  <div class="messages" :contenteditable="copyable">
     <template v-for="(message, k) in messages" :key="message.messageID" >
       <div v-if="!more || k > 0">
-        <!-- <tr> -->
-          <div class="msg-header">
-            <div v-if="!copyable" class="icon_td">
-              <a :href="'/people/' + message.channelID + '/' + message.aliasName + '/'">
-                <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
-                  :src="message.aliasImg" class="icon-img">
-                <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
-                  class="icon-span" 
-                  :style="'background-color:' + message.aliasImg.split(',')[2] ">
-                  {{message.aliasImg.split(',')[1]}}</span>
+        <div class="msg-header">
+          <div v-if="!copyable" class="icon_td">
+            <a :href="'/people/' + message.channelID + '/' + message.aliasName + '/'">
+              <img v-if="message.aliasImg && message.aliasImg.charAt(0) != ','" 
+                :src="message.aliasImg" class="icon-img">
+              <span v-if="message.aliasImg && message.aliasImg.charAt(0) == ','"
+                class="icon-span" 
+                :style="'background-color:' + message.aliasImg.split(',')[2] ">
+                {{message.aliasImg.split(',')[1]}}</span>
+            </a>
+          </div>
+          <div v-if="!copyable">
+            <span class="aliasName">{{ message.aliasName }}</span>
+            <span class="dateTime" :id="'msg_'+message.messageID">
+              <a :href="message.href">
+                {{ tF('MM-DD hh:mm', message.createdAt) }}
               </a>
-            </div>
-            <div class="name_time">
-              <span class="aliasName">{{ message.aliasName }} {{message.spentMinute}}</span>
-              <span class="dateTime" :id="'msg_'+message.messageID">{{ tF('MM-DD hh:mm', message.createdAt) }}</span>
-            </div>
-            <div v-if="!copyable" class="setting">
-              <span
-                v-if="editable(channel.myname, message)"
-                :class="{ 'selected': message.editFlg }"
-                @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
-              <span v-if="replyable(message)"
-              			:class="{ 'selected': message.reply }">
-              	<a @click="reply(message)"> 💬 </a>
-              </span>
-              <span
-                :class="{ 'selected': message.bookmark }"
-                @click="toggleBookmark(message, channel, aliases, threadHead)"> 🔖 </span>
-              <span @click="openEmoji(message.messageID)"> 😄 </span>
-            </div>
-          </div>
-<!--         </tr>
-        <tr> -->
-          <div v-if="message.editFlg" colspan="3" class="editText" :id="'for_content_' + messageID">
-			      <EditBox
-			        :channel="channel"
-			        :aliases="aliases"
-			        :groups="groups"
-			        :message="message"
-			        :threadHead="threadHead" />
-          </div>
-          <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
-            <div
-              v-html="markdownToHtml(message.messageTxt, channel)"
-              class="ql-editor"></div>
-            <template v-for="emoji in calcEmoji(message.emojis, channel.myname)">
-              <template v-if="emojiPath(emoji.emoji)">
-                <span class="img-stamp"
-                  :class="{ 'selected': emoji.selected }">
-                    <img :src="emoji.emoji" 
-                      class="emoji-img" 
-                      @click="clickEmoji(message, emoji)" />{{emoji.count}}
-                </span>
-              </template>
-              <template v-if="!emojiPath(emoji.emoji)">
-                <span class="emoji-stamp"
-                  :class="{ 'selected': emoji.selected }"
-                  @click="clickEmoji(message, emoji)" >
-                  {{ emoji.emoji }}{{emoji.count}}
-                </span>
-              </template>
-            </template>
-            <span v-if="calcEmoji(message.emojis, channel.myname).length"
-              class="emojied"
-              @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
             </span>
           </div>
-        <!-- </tr> -->
+          <div v-if="copyable" class="name-time">{{ message.aliasName }} {{ tF('MM-DD hh:mm', message.createdAt) }}</div>
+          <div v-if="!copyable" class="setting">
+            <span
+              v-if="editable(channel.myname, message)"
+              :class="{ 'selected': message.editFlg }"
+              @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
+            <span v-if="replyable(message)"
+            			:class="[{ 'selected': message.reply }, 'message-wrapper']">
+              <a :class="{'message-button': message.reply}" @click="reply(message)"> 💬 </a>
+              <span v-if="message.threadCount" @click="reply(message)" class="badge">{{ message.threadCount}}</span>
+            </span>
+            <span
+              :class="{ 'selected': message.bookmark }"
+              @click="toggleBookmark(message, channel, aliases, threadHead)"> 🔖 </span>
+            <span @click="openEmoji(message.messageID)"> 😄 </span>
+          </div>
+        </div>
+        <div v-if="message.editFlg" colspan="3" class="editText" :id="'for_content_' + messageID">
+		      <EditBox
+		        :channel="channel"
+		        :aliases="aliases"
+		        :groups="groups"
+		        :message="message"
+		        :threadHead="threadHead" />
+        </div>
+        <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
+          <!-- // v-html="markdownToHtml(message.messageTxt, channel)" -->
+          <div
+            v-html="markdownToHtml(message.messageTxt, channel)"
+            class="ql-editor"></div>
+          <template v-for="emoji in calcEmoji(message.emojis, channel.myname)">
+            <template v-if="emojiPath(emoji.emoji)">
+              <span class="img-stamp"
+                :class="{ 'selected': emoji.selected }">
+                  <img :src="emoji.emoji" 
+                    class="emoji-img" 
+                    @click="clickEmoji(message, emoji)" />{{emoji.count}}
+              </span>
+            </template>
+            <template v-if="!emojiPath(emoji.emoji)">
+              <span class="emoji-stamp"
+                :class="{ 'selected': emoji.selected }"
+                @click="clickEmoji(message, emoji)" >
+                {{ emoji.emoji }}{{emoji.count}}
+              </span>
+            </template>
+          </template>
+          <span v-if="calcEmoji(message.emojis, channel.myname).length"
+            class="emojied"
+            @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
+          </span>
+        </div>
       </div>
-      <EmojiedModal
-        :key="message.messageID"
-        v-if="isEmojiedOpen && selectedMessageId === message.messageID"
-        @closeEmojied="closeEmojied"
-        :channelID="channel.channelID"
-        :messageID="message.messageID"
-        :myname="channel.myname"
-        :parentID="message.parentID"
-        :emojis="message.emojis" />
-      <EmojiModal
-        :key="message.messageID"
-        v-if="isEmojiOpen && selectedMessageId === message.messageID"
-        @selectEmoji="selectEmoji"
-        @closeEmoji="closeEmoji"
-        :channel="channel"
-        :aliases="aliases"
-        :groups="groups"
-        :messageID="message.messageID"
-        :parentID="message.parentID"
-        :threadHead="threadHead" />
-
     </template>
   </div>
+  <div v-if="moreNew" @click="moreMessages(true)" class="more"> - - more - - </div>
+  <EmojiedModal
+    :key="message.messageID"
+    v-if="isEmojiedOpen && selectedMessageId === message.messageID"
+    @closeEmojied="closeEmojied"
+    :channelID="channel.channelID"
+    :messageID="message.messageID"
+    :myname="channel.myname"
+    :parentID="message.parentID"
+    :emojis="message.emojis" />
+  <EmojiModal
+    :key="message.messageID"
+    v-if="isEmojiOpen && selectedMessageId === message.messageID"
+    @selectEmoji="selectEmoji"
+    @closeEmoji="closeEmoji"
+    :channel="channel"
+    :aliases="aliases"
+    :groups="groups"
+    :messageID="message.messageID"
+    :parentID="message.parentID"
+    :threadHead="threadHead" />
+
 </template>
 
 <style>
@@ -242,10 +331,6 @@ code {
   display: inline-block;
 }
 
-.name_time {
-  display: flex;
-}
-
 .setting {
   display: flex;
   margin-left: auto;
@@ -266,6 +351,10 @@ code {
 .dateTime {
   margin: 2px;
   font-size: 12px;
+}
+
+.name-time {
+  font-size: 11px;
 }
 
 .emoji-stamp {
@@ -311,11 +400,6 @@ code {
   padding: 0;
 }
 
-/*.threads a {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}*/
 .ql-container.ql-snow {
   border: none;
   font-size: 14px;
@@ -342,5 +426,20 @@ code {
   border-radius: 4px;
   cursor: pointer;
   text-align: center;
+}
+
+.message-wrapper {
+  position: relative;
+  width: 20px;
+}
+.message-button {
+  position: absolute;
+  opacity: 0.3;
+}
+.badge {
+  position: absolute;
+  font-size: 12px;
+  width: max-content;
+  right: 0px;
 }
 </style>

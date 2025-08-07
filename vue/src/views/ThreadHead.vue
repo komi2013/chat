@@ -33,6 +33,7 @@ async function initQuill() {
   });
   quill.value.root.innerHTML = markdownToHtml(threadHead.value.description, channel.value);
 }
+const fetched = ref(false)
 const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', channelID);
@@ -40,7 +41,11 @@ onMounted(async () => {
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   threadHead.value = await getIDB('threadHead', props.parent_id);
   adminEditable = threadHead.value.adminNames.includes(channel.value.myname);
+  // const originalAdminNames = JSON.parse(JSON.stringify(threadHead.value.adminNames))
+  // const originalAliasNames = JSON.parse(JSON.stringify(threadHead.value.aliasNames))
+  // const originalBroadcastFlag = JSON.parse(JSON.stringify(threadHead.value.broadcastFlag))
   await initQuill();
+  fetched.value = true
 });
 
 const postThreadHead = async () => {
@@ -76,7 +81,7 @@ function backTo() {
 <template>
 <DrawerThread />
 <div id="content">
-  <div v-if="threadHead" class="sp_head">
+  <div v-if="fetched" class="sp_head">
     <div>
       <span v-if="threadHead && threadHead.parentID.includes('@')" >{{threadHead.title}}</span>
     </div>
@@ -105,12 +110,20 @@ function backTo() {
   </div>
   <div id="description" ></div>
 
-  <div v-if="threadHead">
-    <input type="checkbox" id="broadcastFlag" v-model="threadHead.broadcastFlag" />
+  <div v-if="fetched">
+    <input type="checkbox" id="muteStatus"
+      :checked="threadHead.displayStatus === 3"
+      @change="threadHead.displayStatus = $event.target.checked ? 3 : null"
+    />
+    <label for="muteStatus">ミュート</label>
+  </div>
+
+  <div v-if="fetched">
+    <input type="checkbox" id="broadcastFlag" v-model="threadHead.broadcastFlag" :disabled="!adminEditable" />
     <label for="broadcastFlag">ブロードキャスト：管理者以外投稿できません</label>    
   </div>
 
-  <SelectPeople v-if="threadHead"
+  <SelectPeople v-if="fetched"
     :channel="channel"
     :aliases="aliases"
     :groups="groups"
@@ -119,7 +132,7 @@ function backTo() {
     class="choosePeople"
     />
 
-  <SelectAlias v-if="threadHead"
+  <SelectAlias v-if="fetched"
     :channel="channel"
     :aliases="aliases"
     :groups="groups"

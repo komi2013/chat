@@ -15,8 +15,12 @@ import { removeMark } from '@/my/markdown.js';
 const props = defineProps({
   channel_id: '',
   message_id: '',
-  backID: ''
+  backID: '',
+  threadPosition: 0
 })
+
+// console.log('threadPosition', props.threadPosition)
+
 localStorage.setItem('channelID', props.channel_id);
 const channel = ref(null);
 const aliases = ref(null);
@@ -60,8 +64,9 @@ async function makeThreadHead() {
       threadHead.value.edit = true;
     }
     let message = threadHead.value;
-    message.messageID = threadHead.value.parentID;
-    messagesStore.insert(message);
+    message.messageID = threadHead.value.parentID
+    message.createdAt = threadHead.value.updatedAt
+    messagesStore.insert(message)
   } else {
     const threadHeadValue = {
       channelID: channel.value.channelID,
@@ -105,7 +110,7 @@ async function makeThreadHead() {
         ])
       ]
       threadHead.value.adminNames = originalThreadHead.adminNames
-      console.log('threadHead.value.aliasNames', threadHead.value)
+      // console.log('threadHead.value.aliasNames', threadHead.value)
       messagesStore.insert(message);
     }
   }
@@ -135,18 +140,20 @@ function backTo() {
 <DrawerThread />
 <div id="content">
   <div v-if="fetched">
-    <div v-if="threadHead" class="headTitle">
-      <div>
+    <div v-if="threadHead">
+      <div class="headTitle">
         <a :href="'/threadHead/' + threadHead.parentID + '/'">
           {{threadHead.title}}
         </a>
       </div>
-      <span>
-        <a @click="backTo"> ⬅ </a>
-      </span>
-      <span :class="{ 'selected': copyable }">
-        <a @click="copyable = !copyable" > 📄 </a>
-      </span>
+      <div class="headIcon">
+        <span>
+          <a @click="backTo"> ⬅ </a>
+        </span>
+        <span :class="[{ 'selected': copyable, 'emoji-stamp': copyable }]">
+          <a @click="copyable = !copyable" > 📄 </a>
+        </span>
+      </div>
     </div>
     <Messages 
       :channel="channel"
@@ -154,7 +161,8 @@ function backTo() {
       :groups="groups"
       :messages="messages"
       :threadHead="threadHead"
-      :copyable="copyable" />
+      :copyable="copyable"
+      :threadPosition="threadPosition" />
 
     <div class="editText">
       <EditBox 
@@ -179,31 +187,33 @@ function backTo() {
   overflow-y: auto;
 }
 
-.headTitle div {
-  width: 90%;
-}
-
-.headTitle span {
-  line-height: 50px;
-  width: 50px;
-  text-align: center;
-}
-
 @media screen and (min-width : 701px) { 
   .headTitle {
-    margin-left: 50px;
-    display: flex;
+    width: 50%;
+    min-height: 40px;
+    display: inline-block;
   }
+  .headIcon {
+    width: 40%;
+    text-align: right;
+    display: inline-block;
+  }
+
 }
 
 @media screen and (max-width : 700px) {
   .headTitle {
+    width: 45%;
+    min-height: 40px;
     margin-left: 50px;
-    display: flex;
+    display: inline-block;
   }
-  .headTitle div {
-    display: table-cell;
+  .headIcon {
+    width: 35%;
+    text-align: right;
+    display: inline-block;
   }
+
 }
 </style>
 

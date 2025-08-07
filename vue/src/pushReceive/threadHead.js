@@ -14,6 +14,10 @@ export async function threadHead(pd) {
   threadHead.aliasNames = editThreadHead.aliasNames;
   threadHead.adminNames = editThreadHead.adminNames;
   threadHead.broadcastFlag = editThreadHead.broadcastFlag;
+  const channel = await getIDB('channel', channelID)
+  if (channel.myname === updatedBy) {
+    threadHead.displayStatus = editThreadHead.displayStatus
+  }
   console.log(threadHead)
   upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
   if (pre) {

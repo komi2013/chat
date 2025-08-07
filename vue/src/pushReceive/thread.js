@@ -7,18 +7,19 @@ export async function thread(pushData) {
   const messagesStore = useMessagesStore();
   const channelID = pushData[2];
   const updatedBy = pushData[3];
-  const secondPartMsgID = pushData[4][1]
-  const directNotify = pushData.directNotify
-  const unixtime = base62Decode(secondPartMsgID.slice(0, -1));
+  const messageID = pushData[4][1]
+  const directPush = pushData.directPush
+  const unixtime = base62Decode(messageID.slice(0, -1));
 	let filelinks = "";
 	if (Array.isArray(pushData[5])) {
     pushData[5].forEach(filelink => {
       filelinks += `＊f＊${filelink}・＊f＊ `;
     });
 	}
-
+  const thread = await getIDB('thread', messageID)
+  if (thread) return
   const pushThread = {
-    messageID: secondPartMsgID,
+    messageID: messageID,
     parentID: pushData[4][0],
     messageTxt: pushData[4][2] + filelinks,
     aliasName: pushData[4][7] || updatedBy,
@@ -40,24 +41,25 @@ export async function thread(pushData) {
     title = getSubstring(toWhom, 0, 12);
   }
 
-  let parent = {};
-  parent = await getIDB('thread', pushThread.parentID);
-  let second = false;
+  // let parent = {};
+  const parent = await getIDB('thread', pushThread.parentID);
+  // let second = false;
   if (parent) {  // more than 2nd generation thread
     parent.threadCount = parent.threadCount ? parent.threadCount + 1 : 1;
-    title = getSubstring(removeMark(parent.messageTxt), 0, 30);
-    second = true;
-  // } else {
-  //   parent = {
-  //     // messageID: pushThread.parentID,
-  //     // channelID: pushThread.channelID,
-  //     messageTxt: pushThread.messageTxt,
-  //     aliasName: pushThread.aliasName,
-  //     aliasImg: pushThread.aliasImg,
-  //     createdAt: pushThread.createdAt,
-  //     emojis: pushThread.emojis
-  //     // threadCount: 1
-  //   };
+    parent.reply = true
+    // title = getSubstring(removeMark(parent.messageTxt), 0, 30);
+    // second = true;
+    // } else {
+    //   parent = {
+    //     // messageID: pushThread.parentID,
+    //     // channelID: pushThread.channelID,
+    //     messageTxt: pushThread.messageTxt,
+    //     aliasName: pushThread.aliasName,
+    //     aliasImg: pushThread.aliasImg,
+    //     createdAt: pushThread.createdAt,
+    //     emojis: pushThread.emojis
+    //     // threadCount: 1
+    //   };
   }
   let displayStatus = 1;
   let notify = false;
@@ -65,9 +67,9 @@ export async function thread(pushData) {
     displayStatus = 2;
     notify = true;
   }
-  let pushTitle = find;
+  let pushTitle = getSubstring(removeMark(pushThread.messageTxt.replace(/＠＠[^・＠]+・＠＠/g, '')), 0, 10)
   // let newThreadHeadFlag = false;
-  let toWhom;
+  // let toWhom;
   // let threadHead = await getIDB('threadHead', pushThread.parentID);
   // if (threadHead) {
   //   if (threadHead.displayStatus != 3 || notify) {
@@ -117,12 +119,13 @@ export async function thread(pushData) {
     bookmarksStore.insert(bm);
     pushThread.bookmark = 1;
   }
-  upsertIDB(pushThread, 'thread', 'messageID', pushThread.messageID);
-  if (second) {
-    updIDBone('thread', pushThread.parentID, 'reply', true);
+  upsertIDB(pushThread, 'thread', 'messageID', pushThread.messageID)
+  if (parent) {
+    // updIDBone('thread', pushThread.parentID, 'reply', true)
+    upsertIDB(parent, 'thread', 'messageID', pushThread.parentID)
   }
   // upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
-  if (notify && directNotify) { // need to change when pushReceive from session
+  if (notify && directPush) { // need to change when pushReceive from session
     new Notification(pushTitle, {
       body: getSubstring(removeMark(pushThread.messageTxt), 0, 30), icon: pushThread.aliasImg
     });

@@ -20,7 +20,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 101);
+    const request = indexedDB.open('chat', 103);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -61,7 +61,11 @@ const setupDatabaseSchema = (db, transaction) => {
       chunk: [['chunkPassIndex', 'chunkPass']],
       group: [['channelIDIndex', 'channelID']],
       shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
-      thread: [['parentIDIndex', 'parentID']],
+      thread: [
+          ['parentIDIndex', 'parentID'],
+          ['channelID_parentID', ['channelID', 'parentID']],
+          ['messageIDIndex', 'messageID'],
+        ],
       threadHead: [
         ['parentIDIndex', 'parentID'],
         ['channelIDIndex', 'channelID']
@@ -335,6 +339,34 @@ const deleteIndexedDB = () => {
     };
   });
 };
+
+async function countIDBs(table, key, id) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+
+    if (!objectStore.indexNames.contains(key)) {
+      console.log(`Index "${key}" not found in table "${table}". Returning count 0.`);
+      return resolve(0);
+    }
+
+    const index = objectStore.index(key);
+    const range = IDBKeyRange.only(id);
+
+    const countRequest = index.count(range);
+
+    countRequest.onsuccess = () => {
+      resolve(countRequest.result);
+    };
+
+    countRequest.onerror = (event) => {
+      console.error('countIDBs Request Error:', event.target.error, table, id);
+      resolve(0);
+    };
+  });
+}
 
 
 // const reception = 
