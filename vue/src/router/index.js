@@ -127,7 +127,7 @@ const router = createRouter({
         channel_id: route.params.channel_id,
         message_id: route.params.message_id,
         backID: route.query.backID,
-        threadPosition: route.query.threadPosition
+        messageID: route.query.messageID
       })
     },
     {

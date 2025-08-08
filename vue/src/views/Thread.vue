@@ -16,10 +16,8 @@ const props = defineProps({
   channel_id: '',
   message_id: '',
   backID: '',
-  threadPosition: 0
+  messageID: 0
 })
-
-// console.log('threadPosition', props.threadPosition)
 
 localStorage.setItem('channelID', props.channel_id);
 const channel = ref(null);
@@ -162,7 +160,7 @@ function backTo() {
       :messages="messages"
       :threadHead="threadHead"
       :copyable="copyable"
-      :threadPosition="threadPosition" />
+      :messageID="messageID" />
 
     <div class="editText">
       <EditBox 

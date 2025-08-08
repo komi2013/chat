@@ -18,7 +18,7 @@ const props = defineProps({
   groups: Array,
   threadHead: Object,
   copyable: Boolean,
-  threadPosition: Number
+  messageID: String
 });
 
 function tF(a, b = null){ return timeFormat(a, b) }
@@ -29,49 +29,46 @@ const messages = computed(() => {
 });
 
 const limit = 20;
-let offset = 0;
+let offset = 0
+let offsetNew = 0
 const more = ref(false)
 const moreNew = ref(false)
 const parentMessageID = props.threadHead ? props.threadHead.parentID : props.channel.channelID
 const moreMessages = async (later = false) => {
-  // console.log('ddd', threadCount, threadPosition, limit)
-  // offset = Math.max(threadCount - limit - Math.floor((threadPosition - 1) / limit) * limit, 0)
-  // offset = Math.floor((threadPosition - 1) / limit) * limit;
-  // console.log('threadPosition New', threadPosition, threadPositionNew, later)
-  if (later) {
-    console.log(Math.floor((threadCount - threadPositionNew) / limit))
-    offset = (Math.floor((threadCount - threadPositionNew) / limit) -1) * limit
+  let threads = []
+  if (props.messageID) {
+    threads = await queryIndexByValue({
+      table: 'thread',
+      indexKey: 'messageIDIndex',
+      value: props.messageID,
+      limit: limit +1 ,
+      offset: later ? offsetNew : offset,
+      direction: later ? 'asc' : 'desc',
+      filter: ['channelID_parentID', [props.channel.channelID, parentMessageID]]
+    })
   } else {
-    offset = Math.floor((threadCount - threadPosition) / limit) * limit
-  }
-  // console.log('offset', offset)
-
-  let threads = await getIDBs('thread', 'parentIDIndex', parentMessageID, limit + 1, offset)
-  if (later) {
-    threads = threads.slice().reverse()
+    threads = await getIDBs('thread', 'channelID_parentID', [props.channel.channelID, parentMessageID], limit +1, offset)
   }
   threads.forEach((message, index) => {
+    message.href = `/thread/${message.channelID}/${message.parentID}/?messageID=${message.messageID}`
     if (later) {
       if (index < limit || offset === 0) {
         messagesStore.insert(message)
-        threadPositionNew = threadCount - offset - limit + index
-        message.href = `/thread/${message.channelID}/${message.parentID}/?threadPosition=${threadPositionNew}#msg_${message.messageID}`
       }
     } else {
       if (index < limit) {
-        messagesStore.unshift(message, 1);
-        threadPosition = threadCount - offset - index
-        message.href = `/thread/${message.channelID}/${message.parentID}/?threadPosition=${threadPosition}#msg_${message.messageID}`
-        threadPosition--
+        messagesStore.unshift(message, 1)
       }
     }
   })
   if (later) {
-    moreNew.value = threads.length > limit && offset > 0
+    offsetNew = offsetNew + limit
+    moreNew.value = threads.length > limit
   } else {
+    offset = offset + limit
     more.value = threads.length > limit
   }
-};
+}
 
 function editable(myname, message) {
   const now = Date.now();
@@ -93,32 +90,19 @@ function replyable (message) {
 		return false;
 	}
 }
-// console.log('threadPosition', props.threadPosition)
+
 let threadPosition
 let threadPositionNew
 let threadCount
 onMounted(async () => {
-  threadCount = await countIDBs('thread', 'channelID_parentID', [props.channel.channelID, parentMessageID]);
-  // console.log(props.threadPosition)
-  if (props.threadPosition) {
-    threadPosition = props.threadPosition
-  } else if (!threadPosition) {
-    threadPosition = threadCount
+  if (props.messageID) {
+    moreNew.value = true
+    more.value = true
+    await moreMessages(true)
+  } else {
+    await moreMessages()
   }
-  threadPositionNew = threadPosition
-  await moreMessages()
-  if (offset > 0) moreNew.value = true
-
-// messageID が 'UsCGVmwP' より大きいレコードを messageID DESC で20件取得
-const results = await getItemsAfterValue('thread', 'messageIDIndex', 'UsCGVmwP', 20);
-// getItemsAfterValue('thread', 'messageIDIndex', 'UsCGVmwP', 20); // ✅
-
-console.log(results);
-
-
-
-
-});
+})
 
 function reply(message) {
   const channelID = props.channel.channelID;
@@ -147,45 +131,6 @@ const clickEmoji = async (message, emoji) => {
   });
   rotateEmoji(emoji.emoji);
 };
-
-
-async function getItemsAfterValue(table, indexKey, value, limit = 20) {
-  const db = await openDatabase(); // IndexedDB接続
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([table], 'readonly');
-    const store = transaction.objectStore(table);
-
-    if (!store.indexNames.contains(indexKey)) {
-      console.warn(`Index "${indexKey}" does not exist in "${table}".`);
-      return resolve([]);
-    }
-
-    const index = store.index(indexKey);
-    const range = IDBKeyRange.lowerBound(value, true); // index > value
-    const direction = 'prev'; // ORDER BY indexKey DESC
-
-    const request = index.openCursor(range, direction);
-    const results = [];
-
-    request.onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor && results.length < limit) {
-        results.push(cursor.value);
-        cursor.continue();
-      } else {
-        resolve(results);
-      }
-    };
-
-    request.onerror = (event) => {
-      console.error('getItemsAfterValue Error:', event.target.error);
-      reject(event.target.error);
-    };
-  });
-}
-
-
 
 </script>
 
@@ -239,7 +184,6 @@ async function getItemsAfterValue(table, indexKey, value, limit = 20) {
 		        :threadHead="threadHead" />
         </div>
         <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
-          <!-- // v-html="markdownToHtml(message.messageTxt, channel)" -->
           <div
             v-html="markdownToHtml(message.messageTxt, channel)"
             class="ql-editor"></div>

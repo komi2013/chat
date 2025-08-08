@@ -20,7 +20,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 103);
+    const request = indexedDB.open('chat', 105);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -62,9 +62,8 @@ const setupDatabaseSchema = (db, transaction) => {
       group: [['channelIDIndex', 'channelID']],
       shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
       thread: [
-          ['parentIDIndex', 'parentID'],
-          ['channelID_parentID', ['channelID', 'parentID']],
-          ['messageIDIndex', 'messageID'],
+        ['parentIDIndex', 'parentID'],
+        ['channelID_parentID', ['channelID', 'parentID']],
         ],
       threadHead: [
         ['parentIDIndex', 'parentID'],
@@ -340,33 +339,89 @@ const deleteIndexedDB = () => {
   });
 };
 
-async function countIDBs(table, key, id) {
-  const db = await openDatabase();
-
+async function queryIndexByValue({
+    table,
+    indexKey,         // メイン検索対象のインデックス
+    value,            // 開始位置
+    limit = 10000000,
+    offset = 0,       // ← 追加
+    direction = 'desc', // 'asc' or 'desc'
+    filter = null     // 例: ['parentIDIndex', '0Lf']
+  }) {
+  const db = await openDatabase()
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([table], 'readonly');
-    const objectStore = transaction.objectStore(table);
-
-    if (!objectStore.indexNames.contains(key)) {
-      console.log(`Index "${key}" not found in table "${table}". Returning count 0.`);
-      return resolve(0);
+    const transaction = db.transaction([table], 'readonly')
+    const store = transaction.objectStore(table)
+    if (filter && !store.indexNames.contains(filter[0])) {
+      console.warn(`Filter index "${filter[0]}" does not exist in "${table}".`)
+      return resolve([]);
     }
+    if (!store.indexNames.contains(indexKey)) {
+      console.warn(`Index "${indexKey}" does not exist in "${table}".`)
+      return resolve([]);
+    }
+    const results = []
+    let cursorRequest
+    let skipped = 0
 
-    const index = objectStore.index(key);
-    const range = IDBKeyRange.only(id);
+    const filterIndex = store.index(filter[0])
+    const filterRange = IDBKeyRange.only(filter[1])
+    cursorRequest = filterIndex.openCursor(filterRange, direction === 'asc' ? 'next' : 'prev')
 
-    const countRequest = index.count(range);
-
-    countRequest.onsuccess = () => {
-      resolve(countRequest.result);
+    cursorRequest.onsuccess = (event) => {
+      const cursor = event.target.result
+      if (!cursor) return resolve(results)
+      const record = cursor.value;
+      if (filter) {
+        const compareField = indexKey.replace('Index', '')
+        const compareVal = record[compareField]
+        if (direction === 'asc' && compareVal < value) return cursor.continue()
+        if (direction === 'desc' && compareVal > value) return cursor.continue()
+      }
+      if (skipped < offset) {
+        skipped++
+        return cursor.continue()
+      }
+      results.push(record)
+      if (results.length >= limit) {
+        return resolve(results)
+      }
+      cursor.continue()
     };
-
-    countRequest.onerror = (event) => {
-      console.error('countIDBs Request Error:', event.target.error, table, id);
-      resolve(0);
-    };
-  });
+    cursorRequest.onerror = (event) => {
+      console.error('queryIndexByValue Error:', event.target.error)
+      reject(event.target.error)
+    }
+  })
 }
+
+// async function countIDBs(table, key, id) {
+//   const db = await openDatabase();
+
+//   return new Promise((resolve, reject) => {
+//     const transaction = db.transaction([table], 'readonly');
+//     const objectStore = transaction.objectStore(table);
+
+//     if (!objectStore.indexNames.contains(key)) {
+//       console.log(`Index "${key}" not found in table "${table}". Returning count 0.`);
+//       return resolve(0);
+//     }
+
+//     const index = objectStore.index(key);
+//     const range = IDBKeyRange.only(id);
+
+//     const countRequest = index.count(range);
+
+//     countRequest.onsuccess = () => {
+//       resolve(countRequest.result);
+//     };
+
+//     countRequest.onerror = (event) => {
+//       console.error('countIDBs Request Error:', event.target.error, table, id);
+//       resolve(0);
+//     };
+//   });
+// }
 
 
 // const reception = 
