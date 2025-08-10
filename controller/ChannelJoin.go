@@ -165,22 +165,6 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
     })
   }
 
-  // collUser := db1.Collection("user")
-  // filterUser := bson.M{"_id": session.UserID}
-  // var user collection.UserStruct
-  // err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
-  // if err != nil {
-  //   log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
-  // }
-
-	// exists := false
-	// for _, alias := range user.ChannelAliases {
-	// 	if alias.ChannelID == newAliasChannel.ChannelID && alias.Alias == newAliasChannel.Alias {
-	// 		exists = true
-	// 		break
-	// 	}
-	// }
-
 	if !userFound {
 		user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
 	}
@@ -208,7 +192,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	    }		
 	}
 	msg, err := collInvitation.UpdateOne(context.TODO(), invitationFilter, pushUpd)
-	log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)
+	// log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)
 	if err != nil {
 	  log.Printf("collInvitation.UpdateOne push: %v; Req:", err, r.URL.Path, r.Form)
 	}

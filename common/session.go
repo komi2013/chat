@@ -77,7 +77,7 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 	update := bson.D{
 		{"$set", bson.D{
 			{"csrf", session.Csrf},
-			// {"updatedAt", time.Now()},
+			{"updatedAt", time.Now()},
 			{"pushContents", bson.A{}}, // これを明示的にセット
 		}},
 	}

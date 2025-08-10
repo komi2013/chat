@@ -24,8 +24,8 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	var googleClientID string
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
-		tmplPath = "view/signTmp.tmpl"
-		// tmplPath = "view/signGoogle.tmpl"
+		// tmplPath = "view/signTmp.tmpl"
+		tmplPath = "view/signGoogle.tmpl"
 		domain = common.Domain
 		googleClientID = common.GoogleClientID
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):

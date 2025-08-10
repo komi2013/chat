@@ -5,9 +5,12 @@ chat
 common/config.go
 log/
 upload_data/
+
+infrastructure/google*
+
 # upload/
 
-infrastructure/fullchain.pem
-infrastructure/privkey.pem
+# infrastructure/fullchain.pem
+# infrastructure/privkey.pem
 
 public/

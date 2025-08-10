@@ -97,11 +97,7 @@ async function join () {
       await pushReceive(content)
     }
   }
-  if (res.joined) {
-    location.href = '/profile/' + props.id + '/'
-  } else {
-    errorMessage.value = res
-  }
+  if (res.csrf) location.href = '/profile/' + props.id + '/'
 }
 
 async function switchAlias (aliasName) {
