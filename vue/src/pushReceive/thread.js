@@ -41,25 +41,10 @@ export async function thread(pushData) {
     title = getSubstring(toWhom, 0, 12);
   }
 
-  // let parent = {};
   const parent = await getIDB('thread', pushThread.parentID);
-  // let second = false;
   if (parent) {  // more than 2nd generation thread
     parent.threadCount = parent.threadCount ? parent.threadCount + 1 : 1;
     parent.reply = true
-    // title = getSubstring(removeMark(parent.messageTxt), 0, 30);
-    // second = true;
-    // } else {
-    //   parent = {
-    //     // messageID: pushThread.parentID,
-    //     // channelID: pushThread.channelID,
-    //     messageTxt: pushThread.messageTxt,
-    //     aliasName: pushThread.aliasName,
-    //     aliasImg: pushThread.aliasImg,
-    //     createdAt: pushThread.createdAt,
-    //     emojis: pushThread.emojis
-    //     // threadCount: 1
-    //   };
   }
   let displayStatus = 1;
   let notify = false;
@@ -68,46 +53,8 @@ export async function thread(pushData) {
     notify = true;
   }
   let pushTitle = getSubstring(removeMark(pushThread.messageTxt.replace(/＠＠[^・＠]+・＠＠/g, '')), 0, 10)
-  // let newThreadHeadFlag = false;
-  // let toWhom;
-  // let threadHead = await getIDB('threadHead', pushThread.parentID);
-  // if (threadHead) {
-  //   if (threadHead.displayStatus != 3 || notify) {
-  //     threadHead.displayStatus = displayStatus;
-  //   }
-  //   threadHead.updatedAt = pushThread.createdAt;
-  //   threadHead.threadCount = threadHead.threadCount + 1;
-  // } else { // from reply first message
-  //   threadHead = {};
-  //   threadHead.parentID = pushThread.parentID;
-  //   threadHead.emojis = parent.emojis;
-  //   if (pushThread.parentID.includes('@')) {
-  //     const parentSecondPart = pushThread.parentID.replace(channelID, '');
-  //     const parts = parentSecondPart.split('@');
-  //     const matchedGroup = groups.find(group => parts.includes(group.groupName));
-  //     if (matchedGroup) {
-  //       toWhom = parts.find(part => part !== matchedGroup.groupName);
-  //     }
-  //     if (parts.includes(channel.myname)) {
-  //       toWhom = parts.find(part => part !== channel.myname);
-  //     }
-  //   }
-  //   threadHead.title = toWhom || title;
-  //   threadHead.displayStatus = displayStatus;
-  //   threadHead.messageTxt = parent.messageTxt;
-  //   threadHead.aliasName = parent.aliasName;
-  //   threadHead.aliasImg = parent.aliasImg;
-  //   threadHead.createdAt = parent.createdAt;
-  //   threadHead.updatedAt = pushThread.createdAt;
-  //   threadHead.threadCount = 0;
-  //   threadHead.aliasNames = pushThread.aliasNames;
-  //   threadHead.adminNames = pushThread.aliasNames;
-  //   threadHead.backID = pushThread.backID;
-  //   threadHead.channelID = channelID;
-  //   newThreadHeadFlag = true;
-  // }
+
   if (displayStatus == 2 && pushThread.emojis.length > 0) {
-    // console.log('pushThread', pushThread);
     const bm = {
       messageID: pushThread.messageID,
       channelID: pushThread.channelID,
@@ -121,21 +68,16 @@ export async function thread(pushData) {
   }
   upsertIDB(pushThread, 'thread', 'messageID', pushThread.messageID)
   if (parent) {
-    // updIDBone('thread', pushThread.parentID, 'reply', true)
     upsertIDB(parent, 'thread', 'messageID', pushThread.parentID)
   }
-  // upsertIDB(threadHead, 'threadHead', 'parentID', threadHead.parentID);
-  if (notify && directPush) { // need to change when pushReceive from session
+  updIDBone('threadHead', pushThread.parentID, 'displayStatus', displayStatus)
+  if (notify && directPush) {
     new Notification(pushTitle, {
       body: getSubstring(removeMark(pushThread.messageTxt), 0, 30), icon: pushThread.aliasImg
-    });
-    updIDBone('threadHead', pushThread.parentID, 'displayStatus', displayStatus)
+    })
     addFaviconBadge()
   }
   if (messagesStore.currentDisplay(pushThread.parentID)) {
     messagesStore.insert(pushThread);
   }
-  // if (newThreadHeadFlag) {
-  //   location.href = '';
-  // }
 }

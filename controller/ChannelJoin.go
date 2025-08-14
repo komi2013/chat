@@ -191,7 +191,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		    },
 	    }		
 	}
-	msg, err := collInvitation.UpdateOne(context.TODO(), invitationFilter, pushUpd)
+	_, err = collInvitation.UpdateOne(context.TODO(), invitationFilter, pushUpd)
 	// log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)
 	if err != nil {
 	  log.Printf("collInvitation.UpdateOne push: %v; Req:", err, r.URL.Path, r.Form)

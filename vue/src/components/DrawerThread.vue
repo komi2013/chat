@@ -4,6 +4,10 @@ import { useBookmarksStore } from '@/stores/bookmarks.js';
 import { useThreadHeadsStore } from '@/stores/threadHeads.js';
 import Advertisement from '@/components/Advertisement.vue';
 
+const props = defineProps({
+  myname: String,
+});
+
 const threadHeadsStore = useThreadHeadsStore()
 const threadHeads = computed(() => {
   return threadHeadsStore.threadHeads
@@ -22,7 +26,13 @@ const fetchAllThreadHeads = async () => {
       ];
 
       sorted.forEach(d => {
-        threadHeadsStore.insert(d);
+        if (!d.backID || (d.joinNames && d.joinNames.includes(props.myname) && d.displayStatus === 1)) {
+          threadHeadsStore.insert(d)
+        }
+        // if (!d.joinNames.includes(props.myname) || d.displayStatus === 1) {
+        //   console.log(d.messageTxt)
+        // }
+        
       });
     }
   }
@@ -47,16 +57,6 @@ function getStatusClass(status) {
     'mention': status === 2,
     'mute': status === 3
   };
-}
-
-function paramParent(d) {
-  const modifiedParentID = d.parentID.replace(d.channelID, '');
-  return modifiedParentID;
-}
-
-function paramMsg(d) {
-  const modifiedParentID = d.messageID.replace(d.channelID, '');
-  return modifiedParentID;
 }
 
 function goBookmarkThread (bookmark) {
@@ -84,10 +84,11 @@ onMounted(async () => {
       <tr><td><a href="/" > ホーム </a></td></tr>
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr><td><a href="/channel/" > 組織・チャネル設定 </a></td></tr>
-      <tr><td> 💬 スレッド</td></tr>
+      <tr><td>スレッド</td></tr>
       <tr v-for="d in threadHeads">
         <td :class="getStatusClass(d.displayStatus)">
-          &nbsp;<a :href="'/thread/' + d.channelID + '/' + paramParent(d) + '/'">{{ d.title }}</a>
+          <span v-if="d.backID">💬</span><span v-if="!d.backID">&nbsp;</span>
+          <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
         </td>
       </tr>
     <template v-if="bookmarks.length > 0">

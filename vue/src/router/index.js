@@ -121,11 +121,11 @@ const router = createRouter({
       })
     },
     {
-      path: '/thread/:channel_id/:message_id/',
+      path: '/thread/:channel_id/:parentID/',
       component: () => import('../views/Thread.vue'),
       props: route => ({
         channel_id: route.params.channel_id,
-        message_id: route.params.message_id,
+        parentID: route.params.parentID,
         backID: route.query.backID,
         messageID: route.query.messageID
       })

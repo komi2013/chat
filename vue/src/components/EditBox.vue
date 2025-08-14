@@ -191,32 +191,27 @@ const msgUpsert = async (messageID, delMessage) => {
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const pushTitle = messageID ? 'threadEdit' : 'thread';
-  const SecondMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
-  const alias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
-  // let userIDs = [];
-  let names = props.threadHead.newThread ? [props.channel.myname] : props.threadHead.aliasNames
-  let backID = '';
-  if (props.threadHead.backID) {
-    backID = props.threadHead.backID;
-  }
+  const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
+  const myAlias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
+  let alreadyNames = props.threadHead.newThread ? [] : props.threadHead.aliasNames
   dm = props.threadHead.parentID.includes('@');
   if (dm) {
-    let dmNames = props.threadHead.parentID.replace(props.channel.channelID, '').split('@');
-    let matchedGroup = props.groups.find(group => dmNames.includes(group.groupName));
-    let dmAliasNames = matchedGroup?.aliasNames || [];
-    dmNames = dmNames.filter(name => name !== matchedGroup?.groupName);
-    names = [...names, ...dmNames, ...dmAliasNames];
+    const splitNames = props.threadHead.parentID.split('@')
+    const matchedGroup = props.groups.find(group => splitNames.includes(group.groupName))
+    const dmAliasNames = matchedGroup?.aliasNames || []
+    const dmNames = splitNames.filter(name => name !== matchedGroup?.groupName)
+    alreadyNames = [...new Set([...alreadyNames, ...dmNames, ...dmAliasNames])]
   }
-
-  const alreadyUserIDs = userIDsByName(props.aliases, props.threadHead.aliasNames)
-  const myimg = props.aliases.find(alias => alias.aliasName === props.channel.myname)?.aliasImg;
+  const alreadyUserIDs = new Set(userIDsByName(props.aliases, alreadyNames))
+  console.log('alreadyUserIDs', alreadyUserIDs)
   let yets = [];
+  let newNames = []
   if (Array.isArray(props.groups) && !dm) {
     for (const d of props.groups) {
       const atName = `＠＠${d.groupName}・＠＠`;
       if (messageData.includes(atName)) {
         for (const d2 of d.aliasNames) {
-          names.push(d2);
+          newNames.push(d2);
           if (task.value) {
             yets.push({
               aliasName: d2,
@@ -231,7 +226,7 @@ const msgUpsert = async (messageID, delMessage) => {
     const atName = `＠＠${d.aliasName}・＠＠`;
     if (messageData.includes(atName) && !dm) {
       if (!dm) {
-        names.push(d.aliasName);        
+        newNames.push(d.aliasName);        
       }
       if (task.value) {
         yets.push({
@@ -241,9 +236,10 @@ const msgUpsert = async (messageID, delMessage) => {
       }
     }
   }
-  const newUserIDs = userIDsByName(props.aliases, names);
-  const alreadyUserIDsSet = new Set(alreadyUserIDs)
-  const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDsSet.has(id));
+  const newUserIDs = userIDsByName(props.aliases, newNames);
+  // const alreadyUserIDsSet = new Set(alreadyUserIDs)
+  const totalNames = [...new Set([...newNames, ...alreadyNames, props.channel.myname])]
+  const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDs.has(id));
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
@@ -259,11 +255,13 @@ const msgUpsert = async (messageID, delMessage) => {
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
   // fd.append('userIDs', JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])]));
-  const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
+  // const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
+  const userIDs = JSON.stringify(userIDsByName(props.aliases, totalNames))
   fd.set('userIDs', userIDs)
   let editThreadHead = props.threadHead
-  console.log('names', names)
-  editThreadHead.aliasNames = names
+  editThreadHead.joinNames = [...(editThreadHead.joinNames ?? [props.channel.myname]), ...newNames]
+  editThreadHead.aliasNames = totalNames
+  console.log('editThreadHead.newReply', editThreadHead.newReply)
   if (uniqueNewIDs.length > 0 || editThreadHead.newReply) {
     delete editThreadHead.newReply
     fd.set('contents', JSON.stringify(editThreadHead));
@@ -277,10 +275,10 @@ const msgUpsert = async (messageID, delMessage) => {
       }
     }
   }
-
+  console.log('props.threadHead.newThread, userIDs, totalNames', props.threadHead.newThread, userIDs, totalNames)
   if (props.threadHead.newThread) {
     editThreadHead.messageTxt = messageData
-    editThreadHead.aliasImg = myimg
+    editThreadHead.aliasImg = myAlias.aliasImg
     editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
     editThreadHead.adminNames = [props.channel.myname]
     delete editThreadHead.newThread
@@ -289,11 +287,11 @@ const msgUpsert = async (messageID, delMessage) => {
   } else {
     const contents = [
       props.message.parentID,
-      SecondMsgID,
+      thisMsgID,
       messageData,
-      selectedGroup.value.groupImg ? selectedGroup.value.groupImg : myimg,
-      [...new Set(names)],
-      backID,
+      selectedGroup.value.groupImg ? selectedGroup.value.groupImg : myAlias.aliasImg,
+      totalNames,
+      props.threadHead.backID ?? '',
       yets,
       selectedGroup.value.groupName === 'グループなし' ? '' : selectedGroup.value.groupName,
       ...(messageID ? [Math.floor(Date.now() / 1000)] : [])
@@ -314,6 +312,7 @@ const msgUpsert = async (messageID, delMessage) => {
   task.value = false;
   asGroup.value = false;
   clicked = false;
+  if (props.threadHead.newThread) { location.href = '' }
 }
 
 </script>

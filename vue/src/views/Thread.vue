@@ -13,10 +13,10 @@ import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, cal
 import { removeMark } from '@/my/markdown.js';
 
 const props = defineProps({
-  channel_id: '',
-  message_id: '',
-  backID: '',
-  messageID: 0
+  channel_id: String,
+  parentID: String,
+  backID: String,
+  messageID: String
 })
 
 localStorage.setItem('channelID', props.channel_id);
@@ -34,8 +34,9 @@ onMounted(async () => {
   channel.value = await getIDB('channel', props.channel_id);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
   groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
-  threadHead.value = await getIDB('threadHead', props.message_id);
-  await makeThreadHead();
+  threadHead.value = await getIDB('threadHead', props.parentID);
+  await makeThreadHead()
+  document.title = threadHead.value.title
   const content = await document.getElementById('content');
   content.scrollTop = await content.scrollHeight;
   await window.scrollTo(0, content.scrollHeight);
@@ -53,7 +54,7 @@ const messages = computed(() => {
 const msg = {
   messageTxt: '',
   messageID: '',
-  parentID: props.message_id
+  parentID: props.parentID
 };
 
 async function makeThreadHead() {
@@ -68,33 +69,35 @@ async function makeThreadHead() {
   } else {
     const threadHeadValue = {
       channelID: channel.value.channelID,
-      parentID: props.message_id,
+      parentID: props.parentID,
       title: '新規スレッド',
       messageTxt: '',
       aliasName: channel.value.myname,
-      aliasNames: [channel.value.myname], 
+      aliasNames: [channel.value.myname],
+      joinNames: [channel.value.myname],
       displayStatus: 0,
       newThread: true
     }
-    if (props.message_id.includes('@')) {
-      const parts = props.message_id.split('@');
+    if (props.parentID.includes('@')) {
+      const parts = props.parentID.split('@');
       const toWhom = parts[0] === channel.value.myname ? parts[1] : parts[0];
       threadHeadValue.title = getSubstring(toWhom, 0, 12);
       threadHeadValue.messageTxt = toWhom;
-      threadHeadValue.aliasNames = [...parts];
+      threadHeadValue.aliasNames = [...parts]
       parts.forEach(part => {
         const group = groups.value.find(g => g.groupName === part);
         if (group) {
           threadHeadValue.aliasNames.push(...group.aliasNames);
         }
       });
-      threadHeadValue.aliasNames = [...new Set(threadHeadValue.aliasNames)];
+      threadHeadValue.aliasNames = [...new Set(threadHeadValue.aliasNames)]
+      threadHeadValue.joinNames = threadHeadValue.aliasNames
     }
     threadHead.value = threadHeadValue;
     if (props.backID) {
-      const message = await getIDB('thread', props.message_id);
+      const message = await getIDB('thread', props.parentID);
       threadHead.value = message;
-      threadHead.value.parentID = props.message_id;
+      threadHead.value.parentID = props.parentID;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
       threadHead.value.threadType = 0;
@@ -108,6 +111,7 @@ async function makeThreadHead() {
         ])
       ]
       threadHead.value.adminNames = originalThreadHead.adminNames
+      threadHead.value.joinNames = [channel.value.myname, originalThreadHead.aliasName]
       // console.log('threadHead.value.aliasNames', threadHead.value)
       messagesStore.insert(message);
     }
@@ -117,7 +121,7 @@ async function makeThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updIDBone('threadHead', props.message_id, 'displayStatus', 0);
+    updIDBone('threadHead', props.parentID, 'displayStatus', 0);
     revertFaviconBadge()
   }
 }
@@ -135,7 +139,7 @@ function backTo() {
 </script>
 
 <template>
-<DrawerThread />
+<DrawerThread v-if="fetched" :myname="channel.myname"/>
 <div id="content">
   <div v-if="fetched">
     <div v-if="threadHead">
