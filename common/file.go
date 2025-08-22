@@ -17,7 +17,8 @@ import (
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
-  // "go.mongodb.org/mongo-driver/bson"
+  "go.mongodb.org/mongo-driver/bson"
+  "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/collection"
 
@@ -37,14 +38,15 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
     if channelID == "" {
       channelID = "tweet"
     }
-		dirPath := OSImgDir + "/img/" + channelID + "/" + fileID + "/"
+    fileName := name + fileID
+		dirPath := OSImgDir + "/img/" + channelID + "/"
 		err = os.MkdirAll("."+dirPath, 0755)
 		if err != nil {
 			LogError("failed to create directory", err)
 			return "", fmt.Errorf("failed to create directory: %w", err)
 		}
-		imgPath = PublicImgPath + "/img/" + channelID + "/" + fileID + "/" + name + ".png"
-		filePath := "." + dirPath + name + ".png"
+		imgPath = PublicImgPath + "/img/" + channelID + "/" + fileName + ".png"
+		filePath := "." + dirPath + fileName + ".png"
 		err = ioutil.WriteFile(filePath, imageData, 0644)
 		if err != nil {
 			LogError("failed to write file", err)
@@ -60,17 +62,29 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
 		fileSizeMB = math.Floor(fileSizeMB*100) / 100
 		coll := db1.Collection("file")
 		fileDocument := collection.FileStruct{
-			FileID:     fileID,
+			// FileID:     channelID + fileName,
 			ChannelID:  channelID,
 			UploadedBy: userID,
 			ImgPath:    imgPath,
 			FileSize:   fileSizeMB,
 			CreatedAt:  time.Now(),
 		}
-		_, err = coll.InsertOne(context.TODO(), fileDocument)
+		filter := bson.M{"_id": channelID + fileName}
+		update := bson.M{
+	    "$set": bson.M{
+        "channelID":  fileDocument.ChannelID,
+        "uploadedBy": fileDocument.UploadedBy,
+        "imgPath":    fileDocument.ImgPath,
+        "fileSize":   fileDocument.FileSize,
+        "createdAt":  fileDocument.CreatedAt,
+	    },
+		}
+
+		opts := options.Update().SetUpsert(true)
+		_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 		if err != nil {
-			LogError("insert file", err)
-			return "", fmt.Errorf("insert file: %w", err)
+	    LogError("upsert file", err)
+	    return "", fmt.Errorf("upsert file: %w", err)
 		}
 	}
 	return imgPath, nil

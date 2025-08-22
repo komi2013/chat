@@ -20,7 +20,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 105);
+    const request = indexedDB.open('chat', 108);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -60,6 +60,7 @@ const setupDatabaseSchema = (db, transaction) => {
       channel: [['displayStatusIndex', 'displayStatus']],
       chunk: [['chunkPassIndex', 'chunkPass']],
       group: [['channelIDIndex', 'channelID']],
+      log: [['updatedAtIndex', 'updatedAt']],
       shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
       thread: [
         ['parentIDIndex', 'parentID'],
@@ -393,6 +394,47 @@ async function queryIndexByValue({
       reject(event.target.error)
     }
   })
+}
+
+async function getSortedIDBs(table, sortKey = 'updatedAt', limit = 10, offset = 0, sortOrder = 'desc') {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([table], 'readonly');
+    const objectStore = transaction.objectStore(table);
+
+    // インデックス存在チェック
+    if (!objectStore.indexNames.contains(sortKey)) {
+      console.log(`Index "${sortKey}" not found in table "${table}". Returning empty array.`);
+      return resolve([]);
+    }
+
+    const index = objectStore.index(sortKey);
+    const direction = sortOrder === 'asc' ? 'next' : 'prev';
+
+    // 全件対象なので range は null
+    const request = index.openCursor(null, direction);
+
+    const result = [];
+    let i = 0;
+
+    request.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (i >= offset && result.length < limit) {
+          result.push(cursor.value);
+        }
+        i++;
+        cursor.continue();
+      } else {
+        resolve(result);
+      }
+    };
+
+    request.onerror = (event) => {
+      console.error('getSortedIDBs Request:', event.target.error, table);
+      resolve([]);
+    };
+  });
 }
 
 // async function countIDBs(table, key, id) {

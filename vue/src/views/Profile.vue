@@ -14,6 +14,7 @@ const props = defineProps({
 })
 
 localStorage.setItem('channelID', props.id)
+document.title = 'プロフィール編集'
 
 const channel = ref(null);
 const alias = ref(null);
@@ -69,7 +70,7 @@ async function editAlias() {
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'alias');
   fd.append('userIDs', JSON.stringify(aliases.map(d => d.userID)));
-  const contents = [alias.value.userID, channel.value.myname, alias.value.bio];
+  const contents = [alias.value.userID, channel.value.myname, alias.value.aliasBio];
   fd.append('contents', JSON.stringify(contents));
   // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
   fd.append('imgPath', aliasImg.value);
@@ -97,16 +98,16 @@ async function join () {
       await pushReceive(content)
     }
   }
-  if (res.csrf) location.href = '/profile/' + props.id + '/'
+  // if (res.csrf) location.href = '/profile/' + props.id + '/'
 }
 
-async function switchAlias (aliasName) {
-  const newChannel = JSON.parse(JSON.stringify(channel.value));
-  newChannel.myname = aliasName;
-  console.log(newChannel);
-  upsertIDB(newChannel, 'channel', 'channelID', props.id);
-  location.href = '/profile/' + props.id + '/';
-}
+// async function switchAlias (aliasName) {
+//   const newChannel = JSON.parse(JSON.stringify(channel.value));
+//   newChannel.myname = aliasName;
+//   console.log(newChannel);
+//   upsertIDB(newChannel, 'channel', 'channelID', props.id);
+//   location.href = '/profile/' + props.id + '/';
+// }
 
 
 </script>
@@ -116,9 +117,9 @@ async function switchAlias (aliasName) {
 <div id="content">
   <div v-if="fetched">
     <div v-if="errorMessage"> 
-      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
+      <div class="errorMessage">{{errorMessage}}</div>
       <a href="/setting/"> データ設定ページ </a><br>
-      <a href="/sign/"> サインインページ </a>
+      <!-- <a href="/sign/"> サインインページ </a> -->
     </div>
     <div class="sp_head">
       <div v-if="channel"><a :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
@@ -146,12 +147,12 @@ async function switchAlias (aliasName) {
       <PeopleImg v-if="isEditable" v-model="aliasImg" />
 
       <div v-if="!isEditable && alias" class="display-mode">
-        <p>{{ alias.bio }}</p>
+        <p>{{ alias.aliasBio }}</p>
       </div>
       <textarea 
         v-if="isEditable && alias"
         class="edit-mode" 
-        v-model="alias.bio" 
+        v-model="alias.aliasBio" 
         placeholder="自己紹介を入力してください">
       </textarea>
       <button v-if="isEditable" @click="aliasEdit">▶️</button>

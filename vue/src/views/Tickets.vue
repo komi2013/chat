@@ -6,6 +6,8 @@ import Advertisement from '@/components/Advertisement.vue';
 
 const tickets = ref([]);
 
+document.title = 'チケット一覧'
+
 async function fetchTickets() {
   tickets.value = await getAllIDBs('ticket');
 }

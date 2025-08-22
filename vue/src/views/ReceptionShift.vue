@@ -6,6 +6,7 @@ import Advertisement from '@/components/Advertisement.vue';
 const props = defineProps({
   id: String,
 });
+document.title = 'シフト設定'
 
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }

@@ -90,7 +90,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Failed to update user: %v", err, del.UserID, r.URL.Path, r.Form)
 		}
 
-		aliasData := []string{del.UserID, del.AliasName, "", "1"}
+		aliasData := []string{del.UserID, del.AliasName, "", "delete"}
 	  var arr []interface{}
 		arr = append(arr, "alias")
 		arr = append(arr, channelID)

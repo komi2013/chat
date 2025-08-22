@@ -9,6 +9,8 @@ import PeopleImg from '@/components/PeopleImg.vue';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 import { useNoticesStore } from '@/stores/notices.js';
 
+document.title = 'ユーザー設定'
+
 const user = ref(null)
 const nicknames = ref([])
 const nickname = ref(null)

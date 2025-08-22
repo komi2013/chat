@@ -9,6 +9,7 @@ const props = defineProps({
   code: String,
   reception: String
 })
+document.title = '受付設定'
 
 const reception = ref(null)
 const defaultReception = {

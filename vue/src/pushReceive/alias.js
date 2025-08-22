@@ -3,18 +3,21 @@ export async function alias(pd) {
   const updatedBy = pd[3];
   const userID = pd[4][0];
   const aliasName = pd[4][1];
-  const bio = pd[4][2]; // change
-  const aliasImg = pd[5];
-  const deleteFlag = pd[4][3] ?? false;
+  const bio = pd[4][2]
+  const accessRight = pd[4][3]
+  // const del = pd[4][4] ?? false
+  const aliasImg = pd[5]
   const alias = {
-    aliasID: channelID + userID,
+    // aliasID: channelID + userID,
+    aliasID: channelID + aliasName,
     channelID: channelID,
     aliasName: aliasName,
     aliasImg: aliasImg,
     userID: userID,
-    bio: bio,
+    aliasBio: bio,
+    accessRight: accessRight,
   }
-  if (deleteFlag) {
+  if (accessRight === 'delete') {
     deleteIDB('alias', 'aliasID', alias.aliasID);
   } else {
     upsertIDB(alias, 'alias', 'aliasID', alias.aliasID);

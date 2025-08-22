@@ -11,6 +11,8 @@ const props = defineProps({
   passkey: String
 })
 
+document.title = '受付手続き'
+
 // 状態定義
 const channel = ref(null)
 const reception = ref(null)

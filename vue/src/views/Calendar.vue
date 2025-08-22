@@ -21,6 +21,7 @@ const calendarsStore = useCalendarsStore();
 const schedules = computed(() => calendarsStore.calendars);
 
 const today = props.date || timeFormat('YYYY-MM-DD');
+document.title = today
 const getNext30Days = () => {
   return Array.from({ length: 30 }, (_, i) => {
     const date = new Date(today);
@@ -75,20 +76,14 @@ onMounted(async() => {
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
   const calendarData = await getAllIDBs('calendar');
-  // console.log(calendarData);
   calendarData.forEach((d) => {
     d.title = d.todo ? Array.from(d.todo).slice(0, 10).join('') : ''; 
     calendarsStore.upsert(d);
   });
-  // window.scrollTo({top: 600, behavior: "smooth"});
 
   document.documentElement.scrollTo({ top: 600, behavior: "smooth" });
   document.body.scrollTo({ top: 600, behavior: "smooth" });
 
-  // const container = document.getElementById('calendar-container-move');
-  // if (container) {
-  //   container.scrollTo({ top: 600 });
-  // }
 });
 
 const newSchedule = (day, hour) => {

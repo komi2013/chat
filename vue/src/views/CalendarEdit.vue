@@ -15,7 +15,7 @@ const props = defineProps({
 });
 const channelID = localStorage.getItem("channelID");
 
-document.title = 'カレンダー'
+document.title = 'カレンダー編集'
 
 function parseDates(dates) {
   if (!dates) return null;

@@ -43,7 +43,29 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
-  channelID, err := common.CountUpID("1")
+
+  collUser := db1.Collection("user")
+  filterUser := bson.M{"_id": session.UserID}
+  var user collection.UserStruct
+  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  if err != nil {
+    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+    return
+  }
+
+	// --- チャンネル上限チェック ---
+	uniqueChannels := make(map[string]struct{})
+	for _, alias := range user.ChannelAliases {
+	  uniqueChannels[alias.ChannelID] = struct{}{}
+	}
+
+	if len(uniqueChannels) >= 3 {
+		log.Printf("len(uniqueChannels) >= 3: %v; Req:", err, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, "すでにチャネル作成の上限です", http.StatusOK)
+    return
+	}
+
+  channelID, err := common.CountUpID("channelID")
   if err != nil {
     log.Printf("CountUpID error: %v", err)
     http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -75,7 +97,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, contents)
 	common.ChunkPush(mySessions, db1, arr)
 
-  contents = []string{session.UserID, myname}
+  contents = []string{session.UserID, myname, "", "admin"}
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
@@ -106,13 +128,6 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		}
   }
 
-  collUser := db1.Collection("user")
-  filterUser := bson.M{"_id": session.UserID}
-  var user collection.UserStruct
-  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
-  if err != nil {
-    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
-  }
   user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
   user.UpdatedAt = time.Now()
 	userUpdate := bson.D{{"$set", user}}

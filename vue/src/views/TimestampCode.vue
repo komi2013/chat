@@ -10,6 +10,9 @@ import SelectGroup from '@/components/SelectGroup.vue';
 import { userIDsByGroups } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
+
+document.title = 'タイムスタンプ設定'
+
 const stampCodes = ref([]);
 let currents;
 const channel = ref('');

@@ -17,6 +17,8 @@ const props = defineProps({
   stamper: String
 });
 
+document.title = '勤怠表'
+
 function tF(a, b = null){ return timeFormat(a, b) }
 
 const thisMonth = props.month ? props.month : timeFormat('YYYY-MM');

@@ -25,7 +25,7 @@ import { timestampRevert } from './timestampRevert.js';
 export function pushReceive(notificationData, direct = false) {
   const data = JSON.parse(notificationData)
   data.directPush = direct
-  // console.log('ASDF')
+  console.log('pushReceive(', data)
   const actions = {
     advertisement: advertisement,
     alias: alias,

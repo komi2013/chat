@@ -5,9 +5,11 @@ import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
 
 const props = defineProps({
-  id: '', // Reception ID
-  code: '',
-});
+  id: String, // Reception ID
+  code: String,
+})
+
+document.title = 'メニュー'
 
 const reception = ref(null); // Reception データ
 const selectedOptions = ref([]);

@@ -14,8 +14,11 @@ import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  parent_id: ''
+  parent_id: String
 })
+
+document.title = 'スレッド設定'
+
 const channelID = localStorage.getItem("channelID");
 const channel = ref(null);
 const aliases = ref([]);

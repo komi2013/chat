@@ -1,10 +1,13 @@
 package common
 
 import (
+  "encoding/json"
 	"log"
   "net/http"
   "runtime"
   "strings"
+
+  "chat/collection"
 )
 
 func ResponseErrorStatus(w http.ResponseWriter, err error) bool {
@@ -40,4 +43,23 @@ func getControllerFuncName() string {
 		}
 	}
 	return "unknown"
+}
+
+func WriteResponseWithSession(w http.ResponseWriter, session collection.SessionStruct, errMsg string, status int) {
+    w.Header().Set("Content-Type", "application/json")
+    if status != http.StatusOK {
+        w.WriteHeader(status)
+    }
+
+    responseData := struct {
+        Csrf         string   `json:"csrf"`
+        PushContents []string `json:"pushContents"`
+        Error        string   `json:"error,omitempty"`
+    }{
+        Csrf:         session.Csrf,
+        PushContents: session.PushContents,
+        Error:        errMsg,
+    }
+
+    json.NewEncoder(w).Encode(responseData)
 }

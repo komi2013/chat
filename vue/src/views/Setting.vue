@@ -11,6 +11,7 @@ const storeNames = ref([]);
 const selectedStore = ref("");
 const aliasNames = ref([]);
 const message = ref("");
+document.title = '広告設定'
 
 const loadStores = async () => {
   try {
@@ -44,7 +45,37 @@ const deleteAllStorage = async () => {
   deleteIndexedDB();
 };
 
-onMounted(loadStores);
+const logs = ref([])
+const limit = 50
+let offset = 0
+const loadingMore = ref(false)
+onMounted(async () => {
+  await loadStores
+  // logs.value = await getSortedIDBs('log', 'updatedAtIndex', limit, offset, 'desc');
+  logs.value = await fetchLog()
+  console.log('logs', logs.value)
+})
+
+async function fetchLog() {
+  const result = await getSortedIDBs('log', 'updatedAtIndex', limit, offset, 'desc')
+  // offset を進める
+  offset += limit
+  return result
+}
+
+async function fetchLogMore() {
+  loadingMore.value = true
+  const nextLogs = await fetchLog()
+  logs.value = [...logs.value, ...nextLogs] // 既存に追加
+  loadingMore.value = false
+}
+
+
+// const expandedRows = ref({}) // 各行ごとの展開状態
+// function toggleRow(index) {
+//   expandedRows.value[index] = !expandedRows.value[index]
+// }
+
 
 </script>
 
@@ -73,6 +104,40 @@ onMounted(loadStores);
     <button @click="deleteAllStorage" style="background-color: crimson; color: white; padding: 10px;">
       💥 Cookie・LocalStorage・IndexedDB をすべて削除
     </button>
+
+    <div class="logs-table">
+      <table>
+        <thead>
+          <tr>
+            <th>pushTitle</th>
+            <!-- <th>channelID</th> -->
+            <th>updatedBy</th>
+            <th>updatedAt</th>
+            <th>preContents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(log, i) in logs" :key="i">
+            <td>{{ log.pushTitle }}</td>
+            <!-- <td>{{ log.channelID }}</td> -->
+            <td>{{ log.updatedBy }}</td>
+            <td>{{ log.updatedAt }}</td>
+            <td>
+              <div class="pre-cell">
+                <pre contenteditable="true">{{ JSON.stringify(log.preContents, null, 2) }}</pre>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- More ボタン -->
+      <div class="load-more">
+        <button @click="fetchLogMore" :disabled="loadingMore">
+          {{ loadingMore ? 'Loading...' : 'More' }}
+        </button>
+      </div>
+    </div>
+
   </div>
   <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 </template>
@@ -114,13 +179,49 @@ button:hover {
   color: #444;
 }
 
-ul {
-  list-style-type: none;
-  padding: 0;
+
+.logs-table {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th, td {
+  border: 1px solid #ccc;
+  /*padding: 6px 10px;*/
+  text-align: left;
+  font-size: 0.9rem;
+}
+th {
+  background: #f5f5f5;
 }
 
-li {
-  padding: 5px;
-  border-bottom: 1px solid #ccc;
+.pre-cell {
+  max-height: 60px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
 }
+
+.pre-cell pre {
+  margin: 0px;
+}
+
+.pre-cell.expanded {
+  white-space: pre-wrap;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: none;
+}
+button {
+  padding: 3px 8px;
+  border: 1px solid #666;
+  background: #eee;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
 </style>

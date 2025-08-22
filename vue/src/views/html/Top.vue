@@ -1,12 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 
-const props = defineProps({
-  id: '',
-})
+document.title = 'ホーム'
 
 </script>
 

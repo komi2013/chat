@@ -67,7 +67,18 @@ services:
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
       ME_CONFIG_MONGODB_ADMINPASSWORD: 12345678
       ME_CONFIG_MONGODB_URL: mongodb://root:12345678@mongo:27017/
-      # ME_CONFIG_MONGODB_URL: mongodb://host.docker.internal:27017/
+
+  mongo-express-prod:
+    # this cli run on local pc at first
+    # ssh quigen -L 27017:127.0.0.1:27017
+    # vi config.default.js
+    # 8081 >> 8082
+    image: mongo-express
+    ports:
+      - 8082:8082
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://host.docker.internal:27017/
+      ME_CONFIG_BASICAUTH: "false"
 
   # redis:
   #   image: "redis:latest"

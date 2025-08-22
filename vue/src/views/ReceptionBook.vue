@@ -11,6 +11,8 @@ const props = defineProps({
   menuID: Number
 });
 
+document.title = '受付予約'
+
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));

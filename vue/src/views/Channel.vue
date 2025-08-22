@@ -7,13 +7,14 @@ import "quill/dist/quill.snow.css";
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import PeopleImg from '@/components/PeopleImg.vue'
+import SelectAlias from '@/components/SelectAlias.vue';
 
 import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  id: '',
+  id: String,
 })
 
 props.id && localStorage.setItem('channelID', props.id);
@@ -43,6 +44,9 @@ function initQuill() {
 
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 const errorMessage = ref('')
+const iamAdmin = ref(false)
+const adminNames = ref([])
+let initAdminNames = []
 onMounted(async () => {
   channels.value = await getAllIDBs('channel');
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
@@ -52,17 +56,25 @@ onMounted(async () => {
 
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
+    document.title = channel.value.channelName
+  } else {
+    document.title = '組織・チャネル設定'
   }
-  myname.value = channel.value.myname;
-  userID.value = aliases.value.find((d) => d.aliasName === myname.value)?.userID;
-  // const isAdmin = channel.value.adminNames.includes(myname.value);
-  const isAdmin = false;
+  myname.value = channel.value.myname
+  userID.value = aliases.value.find((d) => d.aliasName === myname.value)?.userID
+  adminNames.value = aliases.value
+    .filter(alias => alias.accessRight === "admin")
+    .map(alias => alias.aliasName)
+  console.log('adminNames.value', adminNames.value)
+  initAdminNames = [...adminNames.value]
+  iamAdmin.value = adminNames.value.includes(channel.value.myname)
+  console.log('iamAdmin.value', iamAdmin.value)
   aliases.value = aliases.value.map((alias) => ({
     ...alias,
-    removable: alias.userID === userID.value || isAdmin,
+    removable: alias.userID === userID.value || iamAdmin.value,
   }));
-  await initQuill();
-});
+  await initQuill()
+})
 
 const channelPost = async () => {
   if (!confirm("実行▶️")) {
@@ -104,13 +116,14 @@ async function channelAdd () {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelAdd/', fd);
   if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  location.href = res.channelID;
+  if (res.error) errorMessage.value = res.error
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (res.channelID) location.href = res.channelID
 }
 
 const invitationCode = ref('');
 const invitationQR = ref('');
-const mention = ref(true);
+const guest = ref(false)
 const untilDays = ref(1);
 const invite = async () => {
   if (!confirm("実行▶️")) {
@@ -124,13 +137,16 @@ const invite = async () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('channelName', channel.value.channelName);
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
-  fd.append('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
-  fd.append('aliases', JSON.stringify(aliases.value));
-  fd.append('groups', JSON.stringify(groups.value));
-  if (!mention.value) {
-    fd.append('noRightMention', 1);
+  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
+  if (guest.value) {
+    fd.append('guest', true)
+    const noGuestAliases = aliases.value.filter(alias => !('guest' in alias))
+    fd.set('aliases', JSON.stringify(noGuestAliases))
+  } else {
+    fd.set('aliases', JSON.stringify(aliases.value))
   }
+  fd.append('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
+  fd.append('groups', JSON.stringify(groups.value))
   fd.append('untilDate', untilDate)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ChannelInvite/', fd)
@@ -138,26 +154,26 @@ const invite = async () => {
   invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`;
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  if (res) {
-    fd = new FormData();
-    fd.append('channelID', props.id);
-    fd.append('updatedBy', channel.value.myname);
-    fd.append('pushTitle', 'channelEdit');
-    fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
-    const contents = [
-      channel.value.channelName,
-      htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')),
-      untilDate
-    ];
-    fd.append('contents', JSON.stringify(contents));
-    fd.append('csrf', localStorage.getItem('csrf'));
-    const res = await sendRequest('/ContentsPush/', fd);
-    if (!res.csrf) errorMessage.value = res
-    res.csrf && localStorage.setItem('csrf', res.csrf);
-    res.pushContents.forEach(content => {
-      pushReceive(content);
-    });
-  }
+  // if (res) {
+  //   fd = new FormData();
+  //   fd.append('channelID', props.id);
+  //   fd.append('updatedBy', channel.value.myname);
+  //   fd.append('pushTitle', 'channelEdit');
+  //   fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  //   const contents = [
+  //     channel.value.channelName,
+  //     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')),
+  //     untilDate
+  //   ];
+  //   fd.append('contents', JSON.stringify(contents));
+  //   fd.append('csrf', localStorage.getItem('csrf'));
+  //   const res = await sendRequest('/ContentsPush/', fd);
+  //   if (!res.csrf) errorMessage.value = res
+  //   res.csrf && localStorage.setItem('csrf', res.csrf);
+  //   res.pushContents.forEach(content => {
+  //     pushReceive(content);
+  //   });
+  // }
 };
 
 const removeName = (alias) => {
@@ -165,10 +181,10 @@ const removeName = (alias) => {
 };
 
 const removeNames = async () => {
-  console.log(aliases.value);
+  // console.log(aliases.value);
   const deleteAliases = aliases.value.filter(d => d.deleteFlag);
   console.log('deleteAliases', deleteAliases);
-  if (!confirm("実行▶️")) {
+  if (!confirm("実行")) {
     return;
   }
   const fd = new FormData();
@@ -184,11 +200,64 @@ const removeNames = async () => {
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelDelete/', fd);
   if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
 };
+
+async function adminEdit() {
+  if (!confirm("実行")) {
+    return;
+  }
+  const diffAdmins = getAdminDiffData()
+  if (diffAdmins.length == 0) return
+  const fd = new FormData()
+  for (const alias of diffAdmins) {
+    fd.set('channelID', props.id)
+    fd.set('updatedBy', channel.value.myname)
+    fd.set('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
+    fd.set('pushTitle', 'alias')
+    const contents = [alias.userID, alias.aliasName, alias.aliasBio, alias.accessRight]
+    fd.set('contents', JSON.stringify(contents))
+    fd.set('imgPath', alias.aliasImg);
+    fd.set('csrf', localStorage.getItem('csrf'))
+    const res = await sendRequest('/ContentsPush/', fd)
+    if (!res.csrf) errorMessage.value = res
+    res.csrf && localStorage.setItem('csrf', res.csrf)
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+  }
+  location.href = ''
+}
+
+function getAdminDiffData() {
+  const before = initAdminNames
+  const after = adminNames.value
+
+  // 差分（名前だけ）
+  const addedNames   = after.filter(name => !before.includes(name))
+  const removedNames = before.filter(name => !after.includes(name))
+
+  // 追加されたデータ（accessRight = "admin" に上書き）
+  const addedData = aliases.value
+    .filter(a => addedNames.includes(a.aliasName))
+    .map(a => ({ ...a, accessRight: "admin" }))
+
+  // 削除されたデータ（accessRight = null に上書き）
+  const removedData = aliases.value
+    .filter(a => removedNames.includes(a.aliasName))
+    .map(a => ({ ...a, accessRight: null }))
+
+  // マージして返す
+  return [...addedData, ...removedData]
+}
 
 </script>
 
@@ -198,9 +267,9 @@ const removeNames = async () => {
 <div id="content">
   <br><br>
   <div v-if="errorMessage"> 
-    <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
-    <a href="/setting/"> データ設定ページ </a><br>
-    <a href="/sign/"> サインインページ </a>
+    <div class="errorMessage">{{errorMessage}}</div>
+    <a href="/setting/"> データ設定ページに来てやり直してください </a><br>
+    <!-- <a href="/sign/"> サインインページ </a> -->
   </div>
   <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
   <div class="editLeft" id="toolbar">
@@ -220,15 +289,15 @@ const removeNames = async () => {
     <PeopleImg v-model="myimg" />
   </template>
 
-  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname">▶️</button><br>
+  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname">設定変更</button><br>
 
   <div v-if="id"> このチャネルのニックネーム: {{channel.myname}} </div>
 
   <div v-if="id" class="invitation">
-    <button @click="invite" class="postButton"> <span>✉️</span> <span>招待URL</span> </button>
+    <button @click="invite" class="postButton"> <span>招待URL</span> </button>
     <div class="optionRight">
-      <input type="checkbox" id="mention" v-model="mention" />
-      <label for="mention">メンション権限</label>
+      <input type="checkbox" id="guest" v-model="guest" />
+      <label for="guest">ゲスト</label>
       <span>&nbsp;&nbsp;</span>
       <input type="number" id="until" v-model="untilDays" />
       <label for="until">日まで有効</label>      
@@ -242,7 +311,9 @@ const removeNames = async () => {
 
   <h3>ユーザー一覧</h3>
   <div v-for="d in aliases" class="aliases" :class="{ 'deleted': d.deleteFlag }">
-    <a :href="'/people/' + id + '/' + d.aliasName + '/'">
+      <a :href="d.aliasName === channel.myname
+          ? `/profile/${id}/`
+          : `/people/${id}/${d.aliasName}/`">
       <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
         :src="d.aliasImg" class="min-icon">
       <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
@@ -254,7 +325,7 @@ const removeNames = async () => {
     </a>
     <button v-if="d.removable" @click="removeName(d)" >x</button>
   </div>
-  <button @click="removeNames" class="postButton">▶️</button>
+  <button @click="removeNames" class="postButton">ユーザー削除</button>
 
   <template v-if="id">
     <h3>スレッド一覧</h3>
@@ -267,6 +338,19 @@ const removeNames = async () => {
       <li><a :href="newThreadURL"><button> + 新規 </button></a></li>
     </ul>
   </template>
+
+  <div v-if="iamAdmin">
+    <SelectAlias
+      :channel="channel"
+      :aliases="aliases"
+      :groups="groups"
+      :editable="iamAdmin"
+      :placeholder="'管理ユーザー'"
+      v-model="adminNames"
+      class="choosePeople"
+      />
+    <button @click="adminEdit" class="postButton">管理者設定</button>
+  </div>
 
   <h3>チャネル一覧</h3>
   <ul v-if="channels">

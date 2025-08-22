@@ -83,7 +83,7 @@ const resizeAndPreviewImage = (file) => {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const MAX_SIZE = 1;
+      const MAX_SIZE = 50
       let width = img.width;
       let height = img.height;
       if (width > height) {
@@ -104,8 +104,7 @@ const resizeAndPreviewImage = (file) => {
       aliasImg.value = resizedDataURL;
       emit("update:modelValue", aliasImg.value);
     };
-    aliasImg.value = event.target.result;
-    emit("update:modelValue", aliasImg.value);
+    img.src = event.target.result;
   };
   reader.readAsDataURL(file);
 };

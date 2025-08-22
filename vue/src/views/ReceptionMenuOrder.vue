@@ -5,9 +5,11 @@ import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
 
 const props = defineProps({
-  id: '',
-  apiKey: '',
+  id: String,
+  apiKey: String,
 });
+
+document.title = '注文履歴'
 
 async function findReception() {
   const fd = new FormData();

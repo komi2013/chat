@@ -67,7 +67,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "no true access right", http.StatusServiceUnavailable)
     return
   }
-  imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 3)
+  imgPath, err := common.ImgSave(db1, r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

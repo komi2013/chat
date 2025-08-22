@@ -14,11 +14,12 @@ import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  id: '',
-  groupName: ''
+  id: String,
+  groupName: String
 })
 
 localStorage.setItem('channelID', props.id);
+document.title = 'グループ編集'
 
 const channel = ref(null)
 const groups = ref([])

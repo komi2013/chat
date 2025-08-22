@@ -13,7 +13,8 @@ const props = defineProps({
   name: String
 })
 
-localStorage.setItem('channelID', props.id);
+localStorage.setItem('channelID', props.id)
+document.title = 'ニックネーム一覧'
 
 const channel = ref(null);
 const person = ref(null);
@@ -40,7 +41,6 @@ onMounted(async () => {
     };
     myAliases.value = aliases.value
       .filter(item => group.aliasNames.includes(item.aliasName));
-    console.log('myAliases.value', myAliases.value);
   } else {
     person.value = aliases.value.find((item) => item.aliasName === props.name);
     person.value = {
@@ -77,9 +77,9 @@ async function directMessage() {
   <div v-if="fetched">
     <div class="sp_head">
       <a v-if="channel" :href="'/channel/' + id + '/'">{{channel.channelName}}</a>
-      <span v-if="!isGroup && person.name === channel.myname">
+<!--       <span v-if="!isGroup && person.name === channel.myname">
         <a :href="'/profile/' + id + '/'"> ✏️ </a>
-      </span>
+      </span> -->
       <span v-if="isGroup">
         <a :href="'/group/' + id + '/'"> ⬅️ </a>
       </span>

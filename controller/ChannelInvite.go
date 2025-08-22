@@ -57,7 +57,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   channelName := r.FormValue("channelName")
   channelDescription := r.FormValue("channelDescription")
   updatedBy := r.FormValue("updatedBy")
-  noRightMention := r.FormValue("noRightMention") != ""
+  guest := r.FormValue("guest") != ""
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
@@ -140,7 +140,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		PushSessions: addSessions,
 		AliasNames: aliasNames,
 		Aliases: aliases,
-		NoRightMention: noRightMention,
+		Guest: guest,
 		UntilDate: untilDate,
 	}
 	_, err = coll.InsertOne(context.TODO(), invitation)

@@ -13,6 +13,8 @@ const adPrices = ref([])
 const previewBanner = ref('')
 const previewSquare = ref('')
 
+document.title = '広告設定'
+
 async function findAds() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))

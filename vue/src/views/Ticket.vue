@@ -11,6 +11,8 @@ const props = defineProps({
   ticketID: String,
 });
 
+document.title = 'チケット'
+
 const statusOptions = ref([
   { label: '下書き', value: 0 },
   { label: '進行中', value: 1 },

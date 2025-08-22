@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   // "encoding/base64"
-  "encoding/json"
+  // "encoding/json"
   // "fmt"
   // "io/ioutil"
   "log"
@@ -36,6 +36,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
   if err != nil {
     log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
+  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
   }
   defer c.Disconnect(ctx)
   db1 := c.Database(common.MongoDb1)
@@ -43,7 +45,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
-  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    common.WriteResponseWithSession(w, session, err.Error(), http.StatusServiceUnavailable)
     return
 	}
 
@@ -53,10 +55,13 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	err = collInvitation.FindOne(context.TODO(), invitationFilter).Decode(&invitation)
 	if err != nil {
 		log.Printf("invitation FindOne: %v; Req:", err, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
 	}
 	if invitation.ChannelID != channelID {
-		log.Printf("invitation.ChannelID != channelID:; Req:", r.URL.Path, r.Form)
-  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		log.Printf("invitation.ChannelID != channelID Req:", r.URL.Path, r.Form)
+  	// http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  	common.WriteResponseWithSession(w, session, "invitation.ChannelID != channelID", http.StatusOK)
     return
 	}
 
@@ -74,38 +79,27 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
   if err != nil {
     log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+  	// http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
   }
   userFound := false
   for _, ca := range user.ChannelAliases {
     if ca.ChannelID == channelID {
       userFound = true
-      myname = ca.Alias
+      // myname = ca.Alias
       break
     }
   }
 
 	if nameFound && !userFound {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusConflict) // 409 Conflict
-    json.NewEncoder(w).Encode(map[string]string{
-      "error": "すでに同じ名前が存在しています。",
-    })
+		log.Printf("nameFound && !userFound: %v; Req:", err, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, "すでに同じ名前が存在しています", http.StatusOK)
     return
 	}
-	var newAlias collection.Alias
-	var aliasImg string
-	if userFound {
-		aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		newAlias = collection.Alias{
-		  AliasName:  myname,
-		  AliasImg:   aliasImg,
-		  UserID:     session.UserID,
-		}		
+	var accessRight string
+	if invitation.Guest {
+		accessRight = "guest"
 	}
 
 	coll := db1.Collection("session")
@@ -113,11 +107,31 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	cursor, err := coll.Find(context.TODO(), filter)
 	if err != nil {
 	  log.Printf("coll.Find: %v; Req:", err, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
 	}
 	var mySessions []collection.SessionStruct
 	if err = cursor.All(context.TODO(), &mySessions); err != nil {
 	  log.Printf("cursor.All: %v; Req:", err, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
 	}
+
+// ここから
+
+	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
+	if err != nil {
+		log.Printf("ImgSave: %v; Req:", err, r.URL.Path, r.Form)
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		return
+	}
+
+	newAlias := collection.Alias{
+	  AliasName:  myname,
+	  AliasImg:   aliasImg,
+	  UserID:     session.UserID,
+	  AccessRight: accessRight,
+	}		
 
 	contents := []string{invitation.ChannelName, invitation.ChannelDescription}
   var arr []interface{}
@@ -130,7 +144,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	invitation.Aliases = append(invitation.Aliases, newAlias)
 
 	for _, d := range invitation.Aliases {
-		aliasData := []string{d.UserID, d.AliasName}
+		aliasData := []string{d.UserID, d.AliasName, d.Bio, d.AccessRight}
 	  var arr []interface{}
 		arr = append(arr, "alias")
 		arr = append(arr, channelID)
@@ -140,14 +154,31 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		common.ChunkPush(mySessions, db1, arr)
 	}
 
+	contents = []string{session.UserID, myname, "", accessRight}
+  for _, sess := range invitation.PushSessions {
+	  pushID := common.StringRand(12)
+		var arr []interface{}
+		arr = append(arr, pushID)
+		arr = append(arr, "alias")
+		arr = append(arr, channelID)
+		arr = append(arr, myname)
+		arr = append(arr, contents)
+		arr = append(arr, aliasImg)
+    resp, err := common.SendWebPushNotification(db1, arr, pushID, sess)
+		if err != nil {
+	    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)
+	  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+	    return
+		}
+		defer resp.Body.Close()
+  }
+
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
 	}
 	var addSessions []collection.SessionStruct
   for _, d := range mySessions {
-  	// newSubscriptions = append(newSubscriptions, d.Subscription)
-  	// invitation.Subscriptions = append(invitation.Subscriptions, d.Subscription)
   	if !userFound {
 			d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
   	}
@@ -158,6 +189,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		_, err = coll.UpdateOne(context.TODO(), filter, update)
 		if err != nil {
 		  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+	  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+	    return
 		}
     addSessions = append(addSessions, collection.SessionStruct{
       SessionID:    d.SessionID,
@@ -174,60 +207,39 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	_, err = collUser.UpdateOne(context.TODO(), filterUser, userUpdate)
 	if err != nil {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
 	}
 	var pushUpd bson.M
-	if userFound {
-		pushUpd = bson.M{
-		    "$push": bson.M{
-	        "pushSessions": bson.M{"$each": addSessions},
-		    },
-	    }
-	} else {
-		pushUpd = bson.M{
-		    "$push": bson.M{
-	        "aliases": newAlias,
-	        "aliasNames": myname,
-	        "pushSessions": bson.M{"$each": addSessions},
-		    },
-	    }		
-	}
+	// if userFound {
+	// 	pushUpd = bson.M{
+	// 	    "$push": bson.M{
+	//         "pushSessions": bson.M{"$each": addSessions},
+	// 	    },
+	//     }
+	// } else {
+	// 	pushUpd = bson.M{
+	// 	    "$push": bson.M{
+	//         "aliases": newAlias,
+	//         "aliasNames": myname,
+	//         "pushSessions": bson.M{"$each": addSessions},
+	// 	    },
+	//     }
+	// }
+	pushUpd = bson.M{
+	    "$push": bson.M{
+        "aliases": newAlias,
+        "aliasNames": myname,
+        "pushSessions": bson.M{"$each": addSessions},
+	    },
+    }
 	_, err = collInvitation.UpdateOne(context.TODO(), invitationFilter, pushUpd)
-	// log.Printf("UpdateOne: %v; Req:", msg, newAlias, myname, addSessions)
 	if err != nil {
-	  log.Printf("collInvitation.UpdateOne push: %v; Req:", err, r.URL.Path, r.Form)
+	  log.Printf("collInvitation.UpdateOne pushUpd: %v; Req:", err, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
 	}
+// ここまで
+  common.WriteResponseWithSession(w, session, "", http.StatusOK)
 
-	if userFound {
-		contents = []string{session.UserID, myname}
-	  for _, sess := range invitation.PushSessions {
-		  pushID := common.StringRand(12)
-			var arr []interface{}
-			arr = append(arr, pushID)
-			arr = append(arr, "alias")
-			arr = append(arr, channelID)
-			arr = append(arr, myname)
-			arr = append(arr, contents)
-			arr = append(arr, aliasImg)
-	    resp, err := common.SendWebPushNotification(db1, arr, pushID, sess)
-			if err != nil {
-		    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)
-			}
-			defer resp.Body.Close()
-	  }
-	}
-
-	session, err = common.ReGenerateData(db1, session)
-	if err != nil {
-		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
-	}
-
-	responseData := struct {
-		Csrf         string        `json:"csrf"`
-		PushContents []string `json:"pushContents"`
-	}{
-		Csrf:         session.Csrf,
-		PushContents: session.PushContents,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
 }

@@ -10,9 +10,11 @@ import { userIDsByName, userIDsByGroups } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  adminName: '',
-  code: ''
+  adminName: String,
+  code: String
 })
+
+document.title = 'タイムスタンプ'
 
 const channel = ref('');
 const groups = ref([]);
