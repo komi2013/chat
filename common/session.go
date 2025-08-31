@@ -72,19 +72,25 @@ func ReGenerateData(db1 *mongo.Database, session collection.SessionStruct) (coll
 	coll := db1.Collection("session")
 	token := StringRand(16)
 	session.Csrf = token
-	contents := session.PushContents
+	var returnContents []string
+	if len(session.PushContents) > 100 {
+		returnContents = session.PushContents[:100]
+		session.PushContents = session.PushContents[100:] // 残りを保持
+	} else {
+		returnContents = session.PushContents
+		session.PushContents = []string{} // 全部消費したら空
+	}
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{
 		{"$set", bson.D{
 			{"csrf", session.Csrf},
 			{"updatedAt", time.Now()},
-			{"pushContents", bson.A{}}, // これを明示的にセット
+			{"pushContents", session.PushContents}, // 残りだけを保存
 		}},
 	}
-	// LogError("ReGenerateData:", nil, session.Csrf, token)
 	opts := options.Update().SetUpsert(false)
 	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
-	session.PushContents = contents
+	session.PushContents = returnContents
 	return session, err
 }
 

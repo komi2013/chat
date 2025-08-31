@@ -77,13 +77,14 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 
   trueAccess := false
   for _, d := range session.ChannelAliases {
-    if d.Alias == updatedBy && d.ChannelID == channelID {
+    if d.Alias == updatedBy && d.ChannelID == channelID && !d.Guest {
       trueAccess = true
     }
   }
 
   if !trueAccess {
     log.Printf("ChannelAliases !trueAccess: %v; Request:", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, "ChannelAliases !trueAccess", http.StatusOK)
     return
   }
   // var subscriptions []string
@@ -96,6 +97,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   cursor, err := coll.Find(context.TODO(), filter, opts4)
   if err != nil {
     log.Printf("Find: %v; Request:", err, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, "ChannelAliases !trueAccess", http.StatusOK)
+    return
   }
   var sessions []collection.SessionStruct
   if err = cursor.All(context.TODO(), &sessions); err != nil {

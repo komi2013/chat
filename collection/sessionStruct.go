@@ -17,10 +17,10 @@ type SessionStruct struct {
   IsMobile bool `bson:"isMobile" json:"isMobile"`
 }
 
-
 type ChannelAlias struct {
     ChannelID string `bson:"channelID" json:"channelID"`
     Alias     string `bson:"alias" json:"alias"`
+    Guest     bool `bson:"guest,omitempty" json:"guest,omitempty"`
 }
 
 

@@ -4,6 +4,14 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/answers/:id/',
+      component: () => import('../views/Answers.vue'),
+      props: route => ({
+        id: route.params.id,
+        group: route.query.group,
+      })
+    },
+    {
       path: '/adSetting/:date?/',
       component: () => import('../views/AdSetting.vue'),
       props: route => ({
@@ -30,6 +38,21 @@ const router = createRouter({
       path: '/channel/:id?/',
       component: () => import('../views/Channel.vue'),
       props: route => ({id: route.params.id}),
+    },
+    {
+      path: '/entryForm/:id/',
+      component: () => import('../views/EntryForm.vue'),
+      props: route => ({
+        id: route.params.id
+      })
+    },
+    {
+      path: '/entryFormEdit/:id?/',
+      component: () => import('../views/EntryFormEdit.vue'),
+      props: route => ({
+        id: route.params.id,
+        formJson: route.query.formJson,
+      })
     },
     {
       path: '/group/:id/',
@@ -164,12 +187,20 @@ const router = createRouter({
       })
     },
     {
+      path: '/',
+      component: () => import('../views/Top.vue')
+    },
+    {
+      path: '/topEdit/',
+      component: () => import('../views/TopEdit.vue')
+    },
+    {
       path: '/user/',
       component: () => import('../views/User.vue')
     },
     { path: '/html/privacy/', component: () => import('../views/html/Privacy.vue') },
     { path: '/html/rule/', component: () => import('../views/html/Rule.vue') },
-    { path: '/', component: () => import('../views/html/Top.vue') },
+    // { path: '/', component: () => import('../views/html/Top.vue') },
 
   ]
 })

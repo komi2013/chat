@@ -34,6 +34,7 @@ const errorMessage = ref('')
 const toLink = ref('')
 onMounted(async () => {
   toLink.value = localStorage.getItem('TO')
+  localStorage.removeItem("TO")
   await findUser()
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
@@ -45,6 +46,7 @@ onMounted(async () => {
 })
 
 function parseCoordinates() {
+  if (!coordinateInput.value) return
   const parts = coordinateInput.value.split(',').map(s => s.trim())
   if (parts.length !== 2) {
     user.value.latitude = ''
@@ -69,7 +71,7 @@ async function submitUser(index) {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('latitude', user.value.latitude)
   fd.append('longitude', user.value.longitude)
-  fd.append('nickname', nickname.value)
+  fd.append('nickname', nickname.value ?? "")
   fd.append('nickImg', nickImg.value)
   const res = await sendRequest('/UserEdit/', fd)
   if (!res.csrf) errorMessage.value = res
@@ -86,17 +88,17 @@ async function submitUser(index) {
   <Drawer />
   <div id="content">
     <div>
-      <div v-if="user && user.latitude && toLink">
-        <br><br><br><a :href="toLink"> 招待参加ページ </a><br><br>
-      </div>
       <form @submit.prevent="handleSubmit">
         <h2 class="sp_head">ユーザーページ</h2>
+        <div v-if="user && user.latitude && toLink">
+          <br><br><a :href="toLink"> 招待参加ページ </a><br><br>
+        </div>
         <div v-if="errorMessage"> 
           <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
           <a href="/setting/"> データ設定ページ </a><br>
           <a href="/sign/"> サインインページ </a>
         </div>
-        <label>経緯度: Googleマップの右クリックで取得できます<br />
+        <label>経緯度: <a href="https://maps.google.com/" target="_blank">Googleマップ</a>の右クリックで取得できます<br />
           <input v-model="coordinateInput"
                  required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
                  title="緯度と経度は「35.77, 139.57」の形式で入力してください"

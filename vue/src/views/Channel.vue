@@ -45,6 +45,7 @@ function initQuill() {
 const newThreadURL = '/thread/' + props.id + '/' + generateRandomCode(3) + '/';
 const errorMessage = ref('')
 const iamAdmin = ref(false)
+const iamGuest = ref(false)
 const adminNames = ref([])
 let initAdminNames = []
 onMounted(async () => {
@@ -65,14 +66,15 @@ onMounted(async () => {
   adminNames.value = aliases.value
     .filter(alias => alias.accessRight === "admin")
     .map(alias => alias.aliasName)
-  console.log('adminNames.value', adminNames.value)
   initAdminNames = [...adminNames.value]
   iamAdmin.value = adminNames.value.includes(channel.value.myname)
-  console.log('iamAdmin.value', iamAdmin.value)
   aliases.value = aliases.value.map((alias) => ({
     ...alias,
     removable: alias.userID === userID.value || iamAdmin.value,
   }));
+  iamGuest.value = aliases.value.some(
+    alias => alias.accessRight === "guest" && alias.aliasName === channel.value.myname
+  )
   await initQuill()
 })
 
@@ -289,11 +291,11 @@ function getAdminDiffData() {
     <PeopleImg v-model="myimg" />
   </template>
 
-  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname">設定変更</button><br>
+  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname || iamGuest">設定変更</button><br>
 
   <div v-if="id"> このチャネルのニックネーム: {{channel.myname}} </div>
 
-  <div v-if="id" class="invitation">
+  <div v-if="id && !iamGuest" class="invitation">
     <button @click="invite" class="postButton"> <span>招待URL</span> </button>
     <div class="optionRight">
       <input type="checkbox" id="guest" v-model="guest" />

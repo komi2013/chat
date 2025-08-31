@@ -23,12 +23,12 @@ export const toggleBookmark = async (message, channel, aliases, threadHead) => {
   fd.append('updatedBy', channel.myname);
   fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
   fd.append('pushTitle', 'bookmark');
-  const contents = [message.messageID, backID];
+  const contents = [message.messageID, backID, !message.bookmark];
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  const res = await sendRequest('/ContentsPush/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+    pushReceive(content)
+  })
 };

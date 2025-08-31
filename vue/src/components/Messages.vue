@@ -116,12 +116,16 @@ function reply(message) {
 }
 
 const clickEmoji = async (message, emoji) => {
+  console.log('props.channel.myname', props.channel.myname)
+  // const position = emojis.findIndex(d => d.aliasName === aliasName && d.emoji === emojiValue);
+  const del = message.emojis.some(e => e.aliasName === props.channel.myname && e.emoji === emoji.emoji);
+  console.log('del emoji', emoji, props.channel.myname, message.emojis)
   const fd = new FormData();
   fd.append('channelID', props.channel.channelID);
   fd.append('updatedBy', props.channel.myname);
   fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
   fd.append('pushTitle', 'emoji');
-  const contents = [message.messageID, emoji.emoji, message.parentID];
+  const contents = [message.messageID, emoji.emoji, message.parentID, del]
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
@@ -210,30 +214,29 @@ const clickEmoji = async (message, emoji) => {
           </span>
         </div>
       </div>
+      <EmojiedModal
+        :key="message.messageID"
+        v-if="isEmojiedOpen && selectedMessageId === message.messageID"
+        @closeEmojied="closeEmojied"
+        :channelID="channel.channelID"
+        :messageID="message.messageID"
+        :myname="channel.myname"
+        :parentID="message.parentID"
+        :emojis="message.emojis" />
+      <EmojiModal
+        :key="message.messageID"
+        v-if="isEmojiOpen && selectedMessageId === message.messageID"
+        @selectEmoji="selectEmoji"
+        @closeEmoji="closeEmoji"
+        :channel="channel"
+        :aliases="aliases"
+        :groups="groups"
+        :messageID="message.messageID"
+        :parentID="message.parentID"
+        :threadHead="threadHead" />
     </template>
   </div>
   <div v-if="moreNew" @click="moreMessages(true)" class="more"> - - more - - </div>
-  <EmojiedModal
-    :key="message.messageID"
-    v-if="isEmojiedOpen && selectedMessageId === message.messageID"
-    @closeEmojied="closeEmojied"
-    :channelID="channel.channelID"
-    :messageID="message.messageID"
-    :myname="channel.myname"
-    :parentID="message.parentID"
-    :emojis="message.emojis" />
-  <EmojiModal
-    :key="message.messageID"
-    v-if="isEmojiOpen && selectedMessageId === message.messageID"
-    @selectEmoji="selectEmoji"
-    @closeEmoji="closeEmoji"
-    :channel="channel"
-    :aliases="aliases"
-    :groups="groups"
-    :messageID="message.messageID"
-    :parentID="message.parentID"
-    :threadHead="threadHead" />
-
 </template>
 
 <style>

@@ -13,8 +13,7 @@ const props = defineProps({
   text: String,
   dates: String,
 });
-const channelID = localStorage.getItem("channelID");
-
+const channelID = localStorage.getItem("channelID")
 document.title = 'カレンダー編集'
 
 function parseDates(dates) {

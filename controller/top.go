@@ -63,14 +63,10 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		session, err = common.SessionGet(db1, w, r)
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
-			// http.Error(w, "Error SessionGet", http.StatusInternalServerError)
-			// return
 		}
 		session, err = common.ReGenerateData(db1, session)
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
-			// http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
-			// return
 		}
 	default:
 		tmplPath = "public/index.html"

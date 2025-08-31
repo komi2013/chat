@@ -45,7 +45,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
-    common.WriteResponseWithSession(w, session, err.Error(), http.StatusServiceUnavailable)
+    http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
 
@@ -60,7 +60,6 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	}
 	if invitation.ChannelID != channelID {
 		log.Printf("invitation.ChannelID != channelID Req:", r.URL.Path, r.Form)
-  	// http.Error(w, err.Error(), http.StatusServiceUnavailable)
   	common.WriteResponseWithSession(w, session, "invitation.ChannelID != channelID", http.StatusOK)
     return
 	}
@@ -131,7 +130,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 	  AliasImg:   aliasImg,
 	  UserID:     session.UserID,
 	  AccessRight: accessRight,
-	}		
+	}
 
 	contents := []string{invitation.ChannelName, invitation.ChannelDescription}
   var arr []interface{}
@@ -176,6 +175,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   newAliasChannel := collection.ChannelAlias{
 		ChannelID: channelID,
 		Alias:     myname,
+		Guest:		invitation.Guest,
 	}
 	var addSessions []collection.SessionStruct
   for _, d := range mySessions {

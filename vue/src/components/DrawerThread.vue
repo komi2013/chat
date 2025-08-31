@@ -100,8 +100,6 @@ onMounted(async () => {
         </td>
       </tr>
     </template>
-
-      <tr><td><a href="/sign/" > サインイン </a></td></tr>
     </table>
   </div>
 </template>

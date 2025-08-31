@@ -6,10 +6,11 @@ export async function bookmark(pushData) {
   const messagesStore = useMessagesStore();
   const channelID = pushData[2];
   const aliasName = pushData[3];
-  const messageID = pushData[4][0];
-  const backID = pushData[4][1];
+  const messageID = pushData[4][0]
+  const backID = pushData[4][1]
+  const toggle = pushData[4][2]
   const thread = await getIDB('thread', messageID);
-  const toggle = !thread.bookmark;
+  // const toggle = !thread.bookmark;
   updIDBone('thread', messageID, 'bookmark', toggle);
   const bm = {
     messageID: messageID,

@@ -1,13 +1,16 @@
 const indexedDBStores = [
   ['advertisement', 'advertisementID'],
   ['alias', 'aliasID'],
+  ['answer', 'answerID'],
   ['bookmark', 'messageID'],
   ['bookPattern', 'bookPatternID'],
   ['calendar', 'calendarID'],
   ['channel', 'channelID'],
   ['chunk', 'chunkID'],
+  ['entryForm', 'entryFormID'],
   ['group', 'groupID'],
   ['log', 'logID'],
+  ['pushDuplication', 'pushDuplicationID'],
   ['reception', 'receptionID'],
   ['receptionOrder', 'receptionOrderID'],
   ['shiftStaff', 'shiftStaffID'],
@@ -20,7 +23,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 108);
+    const request = indexedDB.open('chat', 117);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -57,10 +60,12 @@ const setupDatabaseSchema = (db, transaction) => {
     // インデックスの作成
     const indexConfigs = {
       alias: [['channelIDIndex', 'channelID']],
+      answer: [['askIDIndex', 'askID']],
       channel: [['displayStatusIndex', 'displayStatus']],
       chunk: [['chunkPassIndex', 'chunkPass']],
       group: [['channelIDIndex', 'channelID']],
       log: [['updatedAtIndex', 'updatedAt']],
+      // pushDuplication: [['channelIDIndex', 'channelID']],
       shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
       thread: [
         ['parentIDIndex', 'parentID'],
@@ -112,7 +117,7 @@ async function getIDB(table, id) {
       };
     });
   } catch (error) {
-    console.error('Unexpected error in getIDB:', error, table, id);
+    console.log('Unexpected error in getIDB:', error, table, id);
     return null;
   }
 }

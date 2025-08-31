@@ -72,44 +72,44 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
   }
-
-  collNickname := db1.Collection("nickname")
-  filterNickname := bson.M{"userID": session.UserID}
-  cursor, err := collNickname.Find(context.TODO(), filterNickname)
-  if err != nil {
-    log.Printf("coll.Find: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
-  }
-  var nicknames []collection.NicknameStruct
-  if err = cursor.All(context.TODO(), &nicknames); err != nil {
-    log.Printf("cursor.All: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
-  }
-  filterName := nickname.Nickname
-  nameCount := 0
-  for _, nick := range nicknames {
-  	if nick.Nickname == nicknameOld {
-  		filterName = nick.Nickname
-  	} else {
-  		nameCount = nameCount + 1
-  	}
-  	log.Printf("UpdateOne: %v; Req:", nameCount)
-  }
-  message := "ユーザー情報は更新されました。 "
-  if nameCount < 3 {
-  	nickname.UpdatedAt = time.Now()
-  	nickname.UserID = session.UserID
-	  update = bson.M{
-	    "$set": nickname,
-	  }
-	  filterNickname := bson.M{"_id": filterName}
-	  opts = options.Update().SetUpsert(true)
+  message := "ユーザー情報は更新されました"
+  if nickname.Nickname != "" {
 	  collNickname := db1.Collection("nickname")
-	  _, err = collNickname.UpdateOne(ctx, filterNickname, update, opts)
+	  filterNickname := bson.M{"userID": session.UserID}
+	  cursor, err := collNickname.Find(context.TODO(), filterNickname)
 	  if err != nil {
-	    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+	    log.Printf("coll.Find: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
 	  }
-	  message = message + "ニックネーム情報は更新されました。 "
-  } else {
-  	message = message + "ニックネーム情報は3件以上は登録できません。 "
+	  var nicknames []collection.NicknameStruct
+	  if err = cursor.All(context.TODO(), &nicknames); err != nil {
+	    log.Printf("cursor.All: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
+	  }
+	  filterName := nickname.Nickname
+	  nameCount := 0
+	  for _, nick := range nicknames {
+	  	if nick.Nickname == nicknameOld {
+	  		filterName = nick.Nickname
+	  	} else {
+	  		nameCount = nameCount + 1
+	  	}
+	  }
+	  if nameCount < 3 {
+	  	nickname.UpdatedAt = time.Now()
+	  	nickname.UserID = session.UserID
+		  update = bson.M{
+		    "$set": nickname,
+		  }
+		  filterNickname := bson.M{"_id": filterName}
+		  opts = options.Update().SetUpsert(true)
+		  collNickname := db1.Collection("nickname")
+		  _, err = collNickname.UpdateOne(ctx, filterNickname, update, opts)
+		  if err != nil {
+		    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+		  }
+		  message = message + "ニックネーム情報は更新されました"
+	  } else {
+	  	message = message + "ニックネーム情報は3件以上は登録できません"
+	  }
   }
 
   responseData := struct {

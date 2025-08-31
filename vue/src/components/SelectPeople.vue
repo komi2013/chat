@@ -5,12 +5,14 @@ const props = defineProps({
   aliases: Array,
   groups: Array,
   modelValue: Array,
-  placeholder: String
+  placeholder: String,
+  nonDisplay: Boolean,
+  searchGroup: String
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const searchTerm = ref("");
+const searchTerm = ref(props.searchGroup || "")
 const selectedAlias = ref([]);
 
 if (Array.isArray(props.modelValue)) {
@@ -103,7 +105,7 @@ const emitNames = (diff, item) => {
       </li>
     </ul>
     <br>
-    <div v-for="item in selectedAlias" :key="item.id" class="selected-item">
+    <div v-if="!nonDisplay" v-for="item in selectedAlias" :key="item.id" class="selected-item">
       <img v-if="item.image && item.image.charAt(0) != ','" 
         :src="item.image" class="min-icon">
       <span v-if="item.image && item.image.charAt(0) == ','"

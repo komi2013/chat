@@ -117,20 +117,32 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	    log.Printf("resp SendWebPushNotification: %v; Req:", err, r.URL.Path, r.Form)
 		}
 		defer resp.Body.Close()
-		d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
-		d.UpdatedAt = time.Now()
+		// d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
+		// d.UpdatedAt = time.Now()
 		coll := db1.Collection("session")
 		filter := bson.D{{"_id", d.SessionID}}
-		update := bson.D{{"$set", d}}
+		// update := bson.D{{"$set", d}}
+		update := bson.M{
+	    "$set": bson.M{
+        "channelAliases": append(d.ChannelAliases, newAliasChannel),
+        "updatedAt":      time.Now(),
+	    },
+		}
 		_, err = coll.UpdateOne(context.TODO(), filter, update)
 		if err != nil {
 		  log.Printf("coll.UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 		}
   }
 
-  user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
-  user.UpdatedAt = time.Now()
-	userUpdate := bson.D{{"$set", user}}
+ //  user.ChannelAliases = append(user.ChannelAliases, newAliasChannel)
+ //  user.UpdatedAt = time.Now()
+	// userUpdate := bson.D{{"$set", user}}
+	userUpdate := bson.M{
+	    "$set": bson.M{
+	        "channelAliases": append(user.ChannelAliases, newAliasChannel),
+	        "updatedAt":      time.Now(),
+	    },
+	}
 	_, err = collUser.UpdateOne(context.TODO(), filterUser, userUpdate)
 	if err != nil {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
