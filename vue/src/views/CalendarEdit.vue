@@ -156,7 +156,7 @@ const generateRepeatedEvents = (calendar) => {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
 <div id="content">
   <div v-if="errorMessage"> 
     <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>

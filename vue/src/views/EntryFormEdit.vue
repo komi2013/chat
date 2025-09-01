@@ -106,7 +106,7 @@ async function submit(event) {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
   <div id="content">
     <h2 class="sp_head">フォーム編集・一覧</h2>
     <div v-if="errorMessage"> 

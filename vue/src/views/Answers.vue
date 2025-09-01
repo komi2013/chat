@@ -46,7 +46,7 @@ const missingNames = computed(() => {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
 <div id="content">
   <h2 class="sp_head">回答一覧</h2>
   <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>

@@ -30,6 +30,8 @@ export async function channelEdit(pd) {
       channelDescription: channelDescription
     }
   }
+  localStorage.setItem('channelID', channelID)
+  localStorage.setItem('myname', myname)
   upsertIDB(channel, 'channel', 'channelID', channel.channelID);
   if (pre) {
     const logID = pd[1] + pd[2] + pd[3] + pd[0];

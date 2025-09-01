@@ -113,7 +113,7 @@ async function join () {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
 <div id="content">
   <div v-if="fetched">
     <div v-if="errorMessage"> 

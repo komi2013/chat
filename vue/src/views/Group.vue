@@ -124,7 +124,7 @@ function getAliasesByNames(aliasNames) {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
 <div id="content" v-if="fetched">
   <div class="headTitle">
     <div>

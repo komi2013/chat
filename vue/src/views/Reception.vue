@@ -139,7 +139,7 @@ async function submit() {
 </script>
 
 <template>
-<Drawer />
+<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
   <form id="content">
     <h2 class="sp_head">受付フォーム</h2>
     <div v-if="errorMessage"> 
