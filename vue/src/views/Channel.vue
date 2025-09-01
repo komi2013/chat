@@ -58,6 +58,8 @@ onMounted(async () => {
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
     document.title = channel.value.channelName
+    localStorage.setItem('channelID', props.id)
+    localStorage.setItem('myname', channel.value.myname)
   } else {
     document.title = '組織・チャネル設定'
   }

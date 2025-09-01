@@ -48,9 +48,8 @@ const emit = defineEmits();
 
 const selectEmoji = async (emoji) => {
   const fd = new FormData();
-  fd.append('channelID', props.channel.channelID);
-  fd.append('updatedBy', props.channel.myname);
-  // fd.append('userIDs', JSON.stringify(userIDsByName(props.channel, props.threadHead.aliasNames)));
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', localStorage.getItem('myname'));
   fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, emoji, props.parentID];
@@ -74,8 +73,8 @@ const inputEmoji = async () => {
     return;
   }
   const fd = new FormData();
-  fd.append('channelID', props.channel.channelID);
-  fd.append('updatedBy', props.channel.myname);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', localStorage.getItem('myname'));
   fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, selectedEmoji.value, props.parentID];

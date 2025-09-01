@@ -116,7 +116,7 @@ watch(searchUsers, async (newNames, oldNames) => {
     const fd = new FormData()
     fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])))
     fd.append('channelID', channelID)
-    fd.append('updatedBy', channel.value.myname)
+    fd.append('updatedBy', localStorage.getItem('myname'))
     const param = { date: today }
     const contents = ['calendar', param]
     fd.append('contents', JSON.stringify(contents))

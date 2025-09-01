@@ -4,10 +4,6 @@ import { useBookmarksStore } from '@/stores/bookmarks.js';
 import { useThreadHeadsStore } from '@/stores/threadHeads.js';
 import Advertisement from '@/components/Advertisement.vue';
 
-const props = defineProps({
-  myname: String,
-});
-
 const threadHeadsStore = useThreadHeadsStore()
 const threadHeads = computed(() => {
   return threadHeadsStore.threadHeads
@@ -26,13 +22,9 @@ const fetchAllThreadHeads = async () => {
       ];
 
       sorted.forEach(d => {
-        if (!d.backID || (d.joinNames && d.joinNames.includes(props.myname) && d.displayStatus === 1)) {
+        if (!d.backID || (d.joinNames && d.joinNames.includes(localStorage.getItem('myname')) && d.displayStatus === 1)) {
           threadHeadsStore.insert(d)
         }
-        // if (!d.joinNames.includes(props.myname) || d.displayStatus === 1) {
-        //   console.log(d.messageTxt)
-        // }
-        
       });
     }
   }

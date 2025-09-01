@@ -48,8 +48,7 @@ import { ref, computed } from 'vue';
 const props = defineProps({
   time: Object,
   reception: Object,
-  menuID: Number,
-  myname: String
+  menuID: Number
 });
 const emit = defineEmits(['submit', 'close']);
 
@@ -67,8 +66,7 @@ console.log('props.reception', props.reception);
 
 async function submit() {
   const fd = new FormData();
-  
-  fd.append('postBy', props.myname);
+  fd.append('postBy', localStorage.getItem('myname'));
   fd.append('csrf', localStorage.getItem('csrf'));
   fd.append('receptionID', localEvent.value.receptionID);
   fd.append('bookStart', localEvent.value.timeStart);

@@ -8,24 +8,20 @@ const props = defineProps({
   aliases: Array,
 })
 
-// const channel = ref(null)
-// const aliases = ref([])
 const groups = ref([])
 const iamGuest = ref(false)
 onMounted(async () => {
   if (props.channel) {
     iamGuest.value = props.aliases.some(
-      alias => alias.accessRight === "guest" && alias.aliasName === props.channel.myname
+      alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
     )
   } else {
-    const channel = await getIDB('channel', localStorage.getItem("channelID"))
     const aliases = await getIDBs('alias', 'channelIDIndex', localStorage.getItem("channelID"), 10000)
     iamGuest.value = aliases.some(
-      alias => alias.accessRight === "guest" && alias.aliasName === channel.myname
+      alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
     )
   }
 })
-
 
 </script>
 

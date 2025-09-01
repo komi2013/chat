@@ -128,7 +128,7 @@ async function initQuill() {
 }
 let editable = ref(false)
 onMounted(async () => {
-  editable.value = !props.threadHead.broadcastFlag || (props.threadHead.broadcastFlag && props.threadHead.adminNames.includes(props.channel.myname))
+  editable.value = !props.threadHead.broadcastFlag || (props.threadHead.broadcastFlag && props.threadHead.adminNames.includes(localStorage.getItem('myname')))
   // console.log('editable', editable)
   if (editable.value) {
     await initQuill()
@@ -172,7 +172,7 @@ const handleFileInputChange = (event) => {
 const asGroup = ref(false);
 const emptyGroup = {groupID:'', groupName:'グループなし', groupImg:''}
 const selectedGroup = ref(emptyGroup)
-const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(props.channel.myname)))
+const myGroups = ref(props.groups.filter(group => group.aliasNames.includes(localStorage.getItem('myname'))))
 myGroups.value.unshift(emptyGroup)
 function handleSelection(group) {
   selectedGroup.value = group;
@@ -192,7 +192,7 @@ const msgUpsert = async (messageID, delMessage) => {
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const pushTitle = messageID ? 'threadEdit' : 'thread';
   const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
-  const myAlias = props.aliases.find(alias => alias.aliasName === props.channel.myname);
+  const myAlias = props.aliases.find(alias => alias.aliasName === localStorage.getItem('myname'));
   let alreadyNames = props.threadHead.newThread ? [] : props.threadHead.aliasNames
   dm = props.threadHead.parentID.includes('@');
   if (dm) {
@@ -238,7 +238,7 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   const newUserIDs = userIDsByName(props.aliases, newNames);
   // const alreadyUserIDsSet = new Set(alreadyUserIDs)
-  const totalNames = [...new Set([...newNames, ...alreadyNames, props.channel.myname])]
+  const totalNames = [...new Set([...newNames, ...alreadyNames, localStorage.getItem('myname')])]
   const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDs.has(id));
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
@@ -252,14 +252,14 @@ const msgUpsert = async (messageID, delMessage) => {
     }
   }
 
-  fd.append('channelID', props.channel.channelID);
-  fd.append('updatedBy', props.channel.myname);
+  fd.append('channelID', localStorage.getItem('channelID'));
+  fd.append('updatedBy', localStorage.getItem('myname'));
   // fd.append('userIDs', JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])]));
   // const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
   const userIDs = JSON.stringify(userIDsByName(props.aliases, totalNames))
   fd.set('userIDs', userIDs)
   let editThreadHead = props.threadHead
-  editThreadHead.joinNames = [...(editThreadHead.joinNames ?? [props.channel.myname]), ...newNames]
+  editThreadHead.joinNames = [...(editThreadHead.joinNames ?? [localStorage.getItem('myname')]), ...newNames]
   editThreadHead.aliasNames = totalNames
   console.log('editThreadHead.newReply', editThreadHead.newReply)
   if (uniqueNewIDs.length > 0 || editThreadHead.newReply) {
@@ -280,7 +280,7 @@ const msgUpsert = async (messageID, delMessage) => {
     editThreadHead.messageTxt = messageData
     editThreadHead.aliasImg = myAlias.aliasImg
     editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
-    editThreadHead.adminNames = [props.channel.myname]
+    editThreadHead.adminNames = [localStorage.getItem('myname')]
     delete editThreadHead.newThread
     fd.set('pushTitle', 'threadHead')
     fd.set('contents', JSON.stringify(editThreadHead))

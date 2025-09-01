@@ -21,6 +21,7 @@ const props = defineProps({
   messageID: String
 });
 
+const myname = localStorage.getItem('myname') || ''
 function tF(a, b = null){ return timeFormat(a, b) }
 
 const messagesStore = useMessagesStore();
@@ -116,13 +117,10 @@ function reply(message) {
 }
 
 const clickEmoji = async (message, emoji) => {
-  console.log('props.channel.myname', props.channel.myname)
-  // const position = emojis.findIndex(d => d.aliasName === aliasName && d.emoji === emojiValue);
-  const del = message.emojis.some(e => e.aliasName === props.channel.myname && e.emoji === emoji.emoji);
-  console.log('del emoji', emoji, props.channel.myname, message.emojis)
+  const del = message.emojis.some(e => e.aliasName === localStorage.getItem('myname') && e.emoji === emoji.emoji)
   const fd = new FormData();
-  fd.append('channelID', props.channel.channelID);
-  fd.append('updatedBy', props.channel.myname);
+  fd.append('channelID', localStorage.getItem('channelID'))
+  fd.append('updatedBy', localStorage.getItem('myname'))
   fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
   fd.append('pushTitle', 'emoji');
   const contents = [message.messageID, emoji.emoji, message.parentID, del]
@@ -165,7 +163,7 @@ const clickEmoji = async (message, emoji) => {
           <div v-if="copyable" class="name-time">{{ message.aliasName }} {{ tF('MM-DD hh:mm', message.createdAt) }}</div>
           <div v-if="!copyable" class="setting">
             <span
-              v-if="editable(channel.myname, message)"
+              v-if="editable(myname, message)"
               :class="{ 'selected': message.editFlg }"
               @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
             <span v-if="replyable(message)"
@@ -191,7 +189,7 @@ const clickEmoji = async (message, emoji) => {
           <div
             v-html="markdownToHtml(message.messageTxt, channel)"
             class="ql-editor"></div>
-          <template v-for="emoji in calcEmoji(message.emojis, channel.myname)">
+          <template v-for="emoji in calcEmoji(message.emojis, myname)">
             <template v-if="emojiPath(emoji.emoji)">
               <span class="img-stamp"
                 :class="{ 'selected': emoji.selected }">
@@ -208,7 +206,7 @@ const clickEmoji = async (message, emoji) => {
               </span>
             </template>
           </template>
-          <span v-if="calcEmoji(message.emojis, channel.myname).length"
+          <span v-if="calcEmoji(message.emojis, myname).length"
             class="emojied"
             @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
           </span>
@@ -220,7 +218,6 @@ const clickEmoji = async (message, emoji) => {
         @closeEmojied="closeEmojied"
         :channelID="channel.channelID"
         :messageID="message.messageID"
-        :myname="channel.myname"
         :parentID="message.parentID"
         :emojis="message.emojis" />
       <EmojiModal
@@ -228,7 +225,6 @@ const clickEmoji = async (message, emoji) => {
         v-if="isEmojiOpen && selectedMessageId === message.messageID"
         @selectEmoji="selectEmoji"
         @closeEmoji="closeEmoji"
-        :channel="channel"
         :aliases="aliases"
         :groups="groups"
         :messageID="message.messageID"

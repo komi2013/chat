@@ -139,7 +139,7 @@ function backTo() {
 </script>
 
 <template>
-<DrawerThread v-if="fetched" :myname="channel.myname"/>
+<DrawerThread/>
 <div id="content">
   <div v-if="fetched">
     <div v-if="threadHead">

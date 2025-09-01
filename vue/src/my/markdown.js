@@ -51,7 +51,7 @@ const reverseParagraph = (html) => {
     .replace(/<p>([^]*?)<\/p>/g, '＊p＊$1・＊p＊');
 };
 
-export const markdownToHtml = (markdown, channel) => {
+export const markdownToHtml = (markdown) => {
   if (!markdown) {
     return ''; 
   }
@@ -64,7 +64,7 @@ export const markdownToHtml = (markdown, channel) => {
   html = applyAttach(html);
   html = applyLinks(html);
   html = applyColors(html);
-  html = applyMention(html, channel);
+  html = applyMention(html);
   html = applyParagraphs(html);
   return html;
 };
@@ -97,11 +97,9 @@ const applyColors = (markdown) => {
   return markdown.replace(/色＊赤([^]*?)赤＊色/g, '<span style="color: red;">$1</span>');
 };
 
-const applyMention = (markdown, channel) => {
-  // console.log('applyMention', channel);
-  // const aliasName = channel.myname;
-  const channelID = channel.channelID;
-  const regex = /＠＠([^]*?)・＠＠/g;
+const applyMention = (markdown) => {
+  const channelID = localStorage.getItem('channelID')
+  const regex = /＠＠([^]*?)・＠＠/g
   // const atName = '＠＠' + aliasName + '・＠＠';
   
   // if (markdown.includes(atName)) {

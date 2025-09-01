@@ -64,7 +64,7 @@ onMounted(async () => {
     calendar.value = await getIDB('calendar', props.id);
     currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
   }
-  calendar.value.aliasNames = [channel.value.myname];
+  calendar.value.aliasNames = [localStorage.getItem('myname')];
   fetched.value = true;
 });
 
@@ -78,11 +78,11 @@ const submit = async () => {
   for (const event of events) {
     event.calendarID ||= generateRandomCode(8)
     event.channelID = channelID
-    event.aliasName = channel.value.myname
+    event.aliasName = localStorage.getItem('myname')
     const fd = new FormData()
     fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, event.aliasNames)))
     fd.append('channelID', channelID)
-    fd.append('updatedBy', channel.value.myname)
+    fd.append('updatedBy', localStorage.getItem('myname'))
     fd.append('contents', JSON.stringify(event))
     fd.append('pushTitle', 'calendar')
     fd.append('csrf', localStorage.getItem('csrf'))
@@ -106,7 +106,7 @@ const delCalendar = async () => {
   const fd = new FormData()
   fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)))
   fd.append('channelID', channelID)
-  fd.append('updatedBy', channel.value.myname)
+  fd.append('updatedBy', localStorage.getItem('myname'))
   fd.append('contents', JSON.stringify(calendar.value))
   fd.append('pushTitle', 'calendar')
   fd.append('csrf', localStorage.getItem('csrf'))

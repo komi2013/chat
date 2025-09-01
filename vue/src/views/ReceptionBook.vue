@@ -12,7 +12,6 @@ const props = defineProps({
 });
 
 document.title = '受付予約'
-
 const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
@@ -31,7 +30,7 @@ async function findReception() {
   const fd = new FormData();
   fd.append('receptionID', localStorage.getItem('channelID'));
   fd.append('channelID', localStorage.getItem('channelID'));
-  fd.append('aliasName', channel.value.myname);
+  fd.append('aliasName', localStorage.getItem('myname'));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
   if (!res.csrf) errorMessage.value = res
@@ -357,11 +356,11 @@ onMounted(async() => {
     reception.value = await getIDB('reception', props.id);
   }
 
-  if (reception.value.adminNames && reception.value.adminNames.includes(channel.value.myname)) {
+  if (reception.value.adminNames && reception.value.adminNames.includes(localStorage.getItem('myname'))) {
     iamAdmin.value = true;
   }
   const matchedStaff = reception.value.staffSkills.find(
-    (staff) => staff.aliasName === channel.value.myname
+    (staff) => staff.aliasName === localStorage.getItem('myname')
   );
   availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
   generateSchedules();
@@ -498,7 +497,6 @@ const closeModal = () => {
       :time="selectedEvent"
       :reception="reception"
       :menuID="selectedServiceId"
-      :myname="channel.myname"
       @close="closeModal"
       @submit="submitEvent"
     />
