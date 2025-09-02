@@ -12,6 +12,7 @@ import (
 )
 
 func main() {
+  common.InitMongo()
 	if len(os.Args) == 1 {
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)

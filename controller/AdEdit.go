@@ -22,7 +22,7 @@ import (
   // _ "image/webp"
 
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -96,16 +96,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   }
   ad.Distance = distance
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
-
-  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
     log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -134,9 +125,19 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 	  ad.PathSquare = path
 	}
 
-  coll := db1.Collection("adPrice")
+  ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+  defer cancel()
 
-  priceList, err := common.GetMatchedPrices(ctx, coll, ad)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
+
+  priceList, err := common.GetPrices(ctx, ad)
   if err != nil {
     log.Printf("Price lookup failed: %s", err)
 
@@ -166,7 +167,8 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 
   opts := options.Update().SetUpsert(true)
 
-  adCollection := db1.Collection("ad")
+  // adCollection := db1.Collection("ad")
+  adCollection := common.DB.AdDB.Collection("ad")
   _, err = adCollection.UpdateOne(ctx, filter, update, opts)
   if err != nil {
     log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)

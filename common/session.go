@@ -28,7 +28,6 @@ func SessionGet(db1 *mongo.Database, w http.ResponseWriter, r *http.Request) (co
   return session, err
 }
 
-
 func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, token string) (collection.SessionStruct, error) {
   var session collection.SessionStruct
   cookie, err := r.Cookie("ss")
@@ -169,6 +168,120 @@ func IsMobile(userAgent string) bool {
 	}
 	return false
 }
+
+func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (collection.SessionStruct, error) {
+  var session collection.SessionStruct
+  cookie, err := r.Cookie("ss")
+  if err != nil {
+    return session, err
+  }
+  coll := DB.SessionDB.Collection("session")
+  filter := bson.D{{"_id", cookie.Value}}
+  opts := options.FindOne().SetProjection(bson.D{})
+  err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
+  if err != nil {
+    return session, err
+  }
+	// if session.Csrf != token {
+	// 	return session, errors.New("token error")
+	// 	// LogError("SessionCheck:", nil, session.Csrf, token)
+	// }
+
+	if time.Since(session.UpdatedAt) > 20*24*time.Hour {
+		return session, errors.New("session expired")
+	}	else if time.Since(session.UpdatedAt) > 10*24*time.Hour {
+		session, err = SessionRegenerate(session, w)
+	} else {
+		// UpdateSessionTimestamp(db, session)
+		// session, err = CSRFcheckMake(session, token)
+	}
+  // session, err = CheckMakeCSRFToken(db1, session, token)
+  return session, err
+}
+
+func CSRFcheckMake(session collection.SessionStruct, token string) (collection.SessionStruct, error) {
+	if session.Csrf != token {
+		return session, errors.New("token error")
+	}
+	session, err := PushReGenerate(session)
+	return session, err
+}
+
+func PushReGenerate(session collection.SessionStruct) (collection.SessionStruct, error) {
+	coll := DB.SessionDB.Collection("session")
+	token := StringRand(16)
+	session.Csrf = token
+
+	var returnContents []string
+	if len(session.PushContents) > 100 {
+		returnContents = session.PushContents[:100]
+		session.PushContents = session.PushContents[100:]
+	} else {
+		returnContents = session.PushContents
+		session.PushContents = []string{}
+	}
+
+	filter := bson.D{{"_id", session.SessionID}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"csrf", session.Csrf},
+			{"updatedAt", time.Now()},
+			{"pushContents", session.PushContents},
+		}},
+	}
+	opts := options.Update().SetUpsert(false)
+	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
+
+	session.PushContents = returnContents
+	return session, err
+}
+
+func SessionRegenerate(session collection.SessionStruct, w http.ResponseWriter) (collection.SessionStruct, error) {
+	newSession := session
+	newSession.SessionID = StringRand(16)
+	newSession.Csrf = StringRand(16)
+	newSession.UpdatedAt = time.Now()
+	newSession.PushContents = []string{}
+
+	cookie := &http.Cookie{
+		Name:     "ss",
+		Value:    newSession.SessionID,
+		MaxAge:   2592000,
+		Secure:   true,
+		HttpOnly: true,
+		Path:     "/",
+	}
+	http.SetCookie(w, cookie)
+
+	coll := DB.SessionDB.Collection("session")
+
+	_, err := coll.InsertOne(context.TODO(), newSession)
+	if err != nil {
+		return session, err
+	}
+
+	_, err = coll.DeleteOne(context.TODO(), bson.M{"_id": session.SessionID})
+	if err != nil {
+		return session, err
+	}
+	return newSession, nil
+}
+
+// func CSRFreGenerate(session collection.SessionStruct) (collection.SessionStruct, error) {
+// 	coll := DB.SessionDB.Collection("session")
+// 	session.Csrf = StringRand(16)
+
+// 	filter := bson.D{{"_id", session.SessionID}}
+// 	update := bson.D{
+// 		{"$set", bson.D{
+// 			{"csrf", session.Csrf},
+// 		}},
+// 	}
+// 	opts := options.Update().SetUpsert(false)
+// 	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
+// 	return session, err
+// }
+
 
 // func Session(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
 //   var session collection.SessionStruct

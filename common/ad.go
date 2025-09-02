@@ -22,6 +22,49 @@ import (
 
 )
 
+func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
+	delta := 0.01 * float64(ad.Distance)
+
+	coll := DB.AdPriceDB.Collection("adPrice")
+	cursor, err := coll.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var matched []collection.AdPriceStruct
+
+	for cursor.Next(ctx) {
+		var priceDoc collection.AdPriceStruct
+		if err := cursor.Decode(&priceDoc); err != nil {
+			log.Printf("decode error: %v", err)
+			continue
+		}
+		log.Printf("priceDoc: %v", priceDoc, ad.Latitude, ad.Longitude)
+		if priceDoc.LatitudeSouth <= ad.Latitude+delta &&
+			priceDoc.LatitudeNorth >= ad.Latitude-delta &&
+			priceDoc.LongitudeWest <= ad.Longitude+delta &&
+			priceDoc.LongitudeEast >= ad.Longitude-delta {
+
+			if isTimeInRange(ad.AdStart, ad.AdEnd, priceDoc.AdStart, priceDoc.AdEnd) {
+				matched = append(matched, priceDoc)
+			}
+		}
+	}
+
+	if len(matched) == 0 {
+		matched = append(matched, collection.AdPriceStruct{
+			AdPriceYen:     10,
+		})
+	}
+
+	sort.Slice(matched, func(i, j int) bool {
+		return matched[i].AdPriceYen > matched[j].AdPriceYen
+	})
+
+	return matched, nil
+}
+
 func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
 	delta := 0.01 * float64(ad.Distance)
 
