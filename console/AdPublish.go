@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	// "go.mongodb.org/mongo-driver/mongo"
+	// "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/collection"
 	"chat/common"
@@ -18,13 +18,13 @@ func AdPublish() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	if err != nil {
-		log.Fatalf("MongoDB接続エラー: %v", err)
-	}
-	defer client.Disconnect(ctx)
+	// client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	// if err != nil {
+	// 	log.Fatalf("MongoDB接続エラー: %v", err)
+	// }
+	// defer client.Disconnect(ctx)
 
-	db := client.Database(common.MongoDb1)
+	// db := client.Database(common.MongoDb1)
 
 	now := time.Now()
 
@@ -46,7 +46,8 @@ func AdPublish() {
 		"adStart": adStartKey,
 	}
 
-	adColl := db.Collection("ad")
+	// adColl := db.Collection("ad")
+	adColl := common.DB.AdDB.Collection("ad")
 	cursor, err := adColl.Find(ctx, filter)
 	if err != nil {
 		log.Fatalf("Findエラー: %v", err)
@@ -57,8 +58,10 @@ func AdPublish() {
 		log.Fatalf("Decodeエラー: %v", err)
 	}
 
-	userColl := db.Collection("user")
-	sessionColl := db.Collection("session")
+	// userColl := db.Collection("user")
+	userColl := common.DB.UserDB.Collection("user")
+	// sessionColl := db.Collection("session")
+	sessionColl := common.DB.SessionDB.Collection("session")
 
 	for _, ad := range ads {
 		delta := float64(ad.Distance) / 100.0
@@ -130,7 +133,7 @@ func AdPublish() {
 	  arr = append(arr, ad.PathSquare)
 	  // arr = append(arr, ad.PathBanner)
 	  // arr = append(arr, ad.AdText)
-		common.ChunkPush(sessions, db, arr)
+		common.ChunkPush(sessions, arr)
 
 		filter := bson.M{
 			"userID": ad.UserID, // ← AdStruct に `ID primitive.ObjectID` が必要

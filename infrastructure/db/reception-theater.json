@@ -1,0 +1,26 @@
+{
+  "receptionID": "ch789C",
+  "channelID": "ch789",
+  "receptionTitle": "小劇場",
+  "adminNames": ["Manager"],
+  "joinNames": [],
+  "skills": [],
+  "staffSkills": [],
+  "workStaffNeed": false,
+  "itemDetails": [],
+  "menus": [],
+  "asks": [],
+  "askChoices": [
+    {
+      "question": "好きなジャンルは？",
+      "choices": ["コメディ", "ドラマ", "ホラー"],
+      "sequence": 0
+    }
+  ],
+  "askMultiChoices": [],
+  "facilities": [{ "facilityName": "ステージ", "facilityCount": 1 }],
+  "openTimes": [{ "limitStart": "2025-09-05T18:00", "limitEnd": "2025-09-05T22:00" }],
+  "shifts": [],
+  "seats": [{ "seatName": "席A-1", "capacity": 1, "passcodes": [], "currentCode": "" }],
+  "waitConfigs": []
+}

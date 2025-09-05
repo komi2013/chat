@@ -12,8 +12,13 @@ import (
 type DBs struct {
   AdDB *mongo.Database
   AdPriceDB *mongo.Database
-  UserDB    *mongo.Database
+  ChannelDB *mongo.Database
+  FileDB *mongo.Database
+  NicknameDB *mongo.Database
+  ReceptionDB *mongo.Database
+  SequenceDB *mongo.Database
   SessionDB *mongo.Database
+  UserDB    *mongo.Database
 
 }
 
@@ -25,29 +30,59 @@ func InitMongo() {
 
   adClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoAd))
   if err != nil {
-    log.Fatalf("Mongo UserClient connect error: %v", err)
+    log.Fatalf("Mongo adClient connect error: %v", err)
   }
 
   adPriceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoAdPrice))
   if err != nil {
-    log.Fatalf("Mongo UserClient connect error: %v", err)
+    log.Fatalf("Mongo adPriceClient connect error: %v", err)
   }
 
-  userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoUser))
+  channelClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoChannel))
   if err != nil {
-    log.Fatalf("Mongo UserClient connect error: %v", err)
+    log.Fatalf("Mongo channelClient connect error: %v", err)
+  }
+
+  fileClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoFile))
+  if err != nil {
+    log.Fatalf("Mongo fileClient connect error: %v", err)
+  }
+
+  nicknameClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoNickname))
+  if err != nil {
+    log.Fatalf("Mongo nicknameClient connect error: %v", err)
+  }
+
+  receptionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoReception))
+  if err != nil {
+    log.Fatalf("Mongo receptionClient connect error: %v", err)
+  }
+
+  sequenceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoSequence))
+  if err != nil {
+    log.Fatalf("Mongo sequenceClient connect error: %v", err)
   }
 
   sessionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoSession))
   if err != nil {
-    log.Fatalf("Mongo UserClient connect error: %v", err)
+    log.Fatalf("Mongo sessionClient connect error: %v", err)
+  }
+
+  userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoUser))
+  if err != nil {
+    log.Fatalf("Mongo userClient connect error: %v", err)
   }
 
   DB = &DBs{
     AdDB: adClient.Database("chatAd"),
     AdPriceDB: adPriceClient.Database("chatAdPrice"),
-    UserDB:    userClient.Database("chatUser"),
+    ChannelDB: channelClient.Database("chatChannel"),
+    FileDB: fileClient.Database("chatFile"),
+    NicknameDB: nicknameClient.Database("chatNickname"),
+    ReceptionDB: receptionClient.Database("chatReception"),
+    SequenceDB: sequenceClient.Database("chatSequence"),
     SessionDB: sessionClient.Database("chatSession"),
+    UserDB:    userClient.Database("chatUser"),
 
   }
 }

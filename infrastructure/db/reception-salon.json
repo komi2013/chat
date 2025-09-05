@@ -1,0 +1,66 @@
+{
+  "receptionID": "ch123A",
+  "channelID": "ch123",
+  "receptionTitle": "美容室レセプション",
+  "adminNames": ["Admin1"],
+  "joinNames": ["Staff1", "Staff2"],
+  "skills": ["カット", "カラー"],
+  "staffSkills": [
+    { "aliasName": "Staff1", "skills": ["カット"] },
+    { "aliasName": "Staff2", "skills": ["カラー"] }
+  ],
+  "workStaffNeed": true,
+  "itemDetails": [
+    {
+      "itemID": 1,
+      "itemName": "シャンプー",
+      "imgPath": "/img/shampoo.png",
+      "choices": [["ソフト", "ハード"]]
+    }
+  ],
+  "menus": [
+    {
+      "menuID": 1,
+      "menuName": "カット",
+      "price": 3000,
+      "prepaidPrice": 2800,
+      "needSkill": "カット",
+      "needFacility": "椅子",
+      "specifyNameFlag": true,
+      "spendMinute": 30,
+      "items": [1],
+      "paidOptions": [{ "itemID": 1, "price": 500 }],
+      "freeOptions": [[]],
+      "freeMultiOptions": []
+    }
+  ],
+  "asks": [{ "question": "ご希望のスタイリストは？", "sequence": 0 }],
+  "askChoices": [
+    {
+      "question": "髪の長さ",
+      "choices": ["ショート", "ミディアム", "ロング"],
+      "sequence": 0
+    }
+  ],
+  "askMultiChoices": [
+    {
+      "question": "追加サービス",
+      "choices": ["マッサージ", "トリートメント"],
+      "sequence": 0
+    }
+  ],
+  "facilities": [{ "facilityName": "椅子", "facilityCount": 5 }],
+  "openTimes": [{ "limitStart": "2025-09-05T09:00", "limitEnd": "2025-09-05T19:00" }],
+  "shifts": [
+    {
+      "aliasNames": ["Staff1"],
+      "shiftStart": "2025-09-05T09:00",
+      "shiftEnd": "2025-09-05T17:00",
+      "open": 1,
+      "role": "美容師",
+      "fix": false
+    }
+  ],
+  "seats": [{ "seatName": "Seat1", "capacity": 1, "passcodes": [], "currentCode": "" }],
+  "waitConfigs": [{ "guestRange": [1, 5], "waitRatio": 10 }]
+}

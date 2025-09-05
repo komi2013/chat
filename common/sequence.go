@@ -7,9 +7,9 @@ import (
 
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/collection"
@@ -49,14 +49,15 @@ func CountUpID(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(Mongo1))
-	if err != nil {
-		return "", err
-	}
-	defer client.Disconnect(ctx)
+	// client, err := mongo.Connect(ctx, options.Client().ApplyURI(Mongo1))
+	// if err != nil {
+	// 	return "", err
+	// }
+	// defer client.Disconnect(ctx)
 
-	db := client.Database(MongoDb1)
-	coll := db.Collection("sequence")
+	// db := client.Database(MongoDb1)
+	// coll := db.Collection("sequence")
+	coll := DB.SequenceDB.Collection("sequence")
 
 	var seq collection.SequenceStruct
 	var locked bool
@@ -87,7 +88,7 @@ func CountUpID(key string) (string, error) {
 	}
 
 	// 値を取得
-	err = coll.FindOne(ctx, bson.M{"_id": key}).Decode(&seq)
+	err := coll.FindOne(ctx, bson.M{"_id": key}).Decode(&seq)
 	if err != nil {
 		return "", err
 	}

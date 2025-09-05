@@ -133,29 +133,6 @@ async function submit(event) {
         <button @click.prevent="addQuestion('asks')">＋質問追加</button>
       </div>
 
-      <!-- Dates -->
-      <div>
-        <label>日付:</label>
-        <div v-for="(d, i) in entryForm.dates" :key="i">
-          <input v-model="d.question" placeholder="質問文" type="text" />
-          <label>順序:
-            <input v-model.number="d.sequence" type="number" min="1" />
-          </label>
-          <div>
-            <select v-model.number="d.dateType">
-              <option :value="1">日時</option>
-              <option :value="2">日付のみ</option>
-              <option :value="3">時間のみ</option>
-            </select>
-          </div>
-          <label>オプションキー:
-            <input v-model="d.optionKey" type="checkbox" />
-          </label>
-          <button @click.prevent="removeQuestion('asks', i)" v-if="entryForm.asks.length > 0">−質問削除</button>
-        </div>
-        <button @click.prevent="addQuestion('asks')">＋質問追加</button>
-      </div>
-
       <!-- 単一選択 -->
       <div>
         <label>単一選択質問:</label>
@@ -190,6 +167,29 @@ async function submit(event) {
           <button @click.prevent="removeQuestion('askMultiChoices', i)" v-if="entryForm.askMultiChoices.length > 0">−質問削除</button>
         </div>
         <button @click.prevent="addQuestion('askMultiChoices')">＋質問追加</button>
+      </div>
+
+      <!-- Dates -->
+      <div>
+        <label>日付:</label>
+        <div v-for="(d, i) in entryForm.dates" :key="i">
+          <input v-model="d.question" placeholder="質問文" type="text" />
+          <label>順序:
+            <input v-model.number="d.sequence" type="number" min="1" />
+          </label>
+          <div>
+            <select v-model.number="d.dateType">
+              <option :value="1">日時</option>
+              <option :value="2">日付のみ</option>
+              <option :value="3">時間のみ</option>
+            </select>
+          </div>
+          <label>オプションキー:
+            <input v-model="d.optionKey" type="checkbox" />
+          </label>
+          <button @click.prevent="removeQuestion('asks', i)" v-if="entryForm.asks.length > 0">−質問削除</button>
+        </div>
+        <button @click.prevent="addQuestion('asks')">＋質問追加</button>
       </div>
 
       <button type="submit" @click="submit">送信</button>

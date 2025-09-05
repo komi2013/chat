@@ -1,16 +1,17 @@
 package controller
 
 import (
-	"context"
+	// "context"
+	// "errors"
 	"html/template"
   "log"
   "net/http"
   "strings"
-  "time"
+  // "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   // "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/common"
@@ -19,6 +20,7 @@ import (
 
 func Top(w http.ResponseWriter, r *http.Request) {
 	var session collection.SessionStruct
+	var err error
 	var tmplPath string
 	var domain string
 	var googleClientID string
@@ -30,21 +32,13 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		googleClientID = common.GoogleClientID
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.tmpl"
-	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	  defer cancel()
-	  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	  if err != nil {
-	    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-	  }
-	  defer c.Disconnect(ctx)
-	  db1 := c.Database(common.MongoDb1)
-		session, err = common.SessionGet(db1, w, r)
+		session, err = common.SessionGet(w, r)
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
 			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
 			return
 		}
-		session, err = common.ReGenerateCSRF(db1, session)
+		session, err = common.ReGenerateCSRF(session)
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
@@ -52,19 +46,11 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		}
 	case r.URL.Path == "/setting/":
 		tmplPath = "public/index.html"
-	  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	  defer cancel()
-	  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	  if err != nil {
-	    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-	  }
-	  defer c.Disconnect(ctx)
-	  db1 := c.Database(common.MongoDb1)
-		session, err = common.SessionGet(db1, w, r)
+		session, err = common.SessionGet(w, r)
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
 		}
-		session, err = common.ReGenerateData(db1, session)
+		session, err = common.ReGenerateCSRF(session)
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 		}

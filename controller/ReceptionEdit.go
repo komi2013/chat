@@ -17,23 +17,17 @@ import (
 )
 
 func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
 
-  client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect error: %v", err)
-    http.Error(w, "Database connection error", http.StatusInternalServerError)
-    return
-  }
-  defer client.Disconnect(ctx)
-  db := client.Database(common.MongoDb1)
-  session, err := common.SessionCheck(db, w, r, r.FormValue("csrf"))
-  if err != nil {
-    log.Printf("SessionCheck error: %v", err)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
-    return
-  }
+  // client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect error: %v", err)
+  //   http.Error(w, "Database connection error", http.StatusInternalServerError)
+  //   return
+  // }
+  // defer client.Disconnect(ctx)
+  // db := client.Database(common.MongoDb1)
 
   var reception collection.ReceptionStruct
   if err := json.Unmarshal([]byte(r.FormValue("reception")), &reception); err != nil {
@@ -45,6 +39,26 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
 
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+  if err != nil {
+    log.Printf("SessionCheckTake error: %v", err)
+    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    return
+  }
+
+  // var reception collection.ReceptionStruct
+  responseData := struct {
+    Csrf         string        `json:"csrf"`
+    PushContents []string `json:"pushContents"`
+    Reception collection.ReceptionStruct `json:"reception,omitempty"`
+    Error        string   `json:"error,omitempty"`
+  }{
+    Csrf:         session.Csrf,
+    PushContents: session.PushContents,
+    Reception: reception,
+    Error: "",
+  }
+
   staffAccess := false
   for _, d := range session.ChannelAliases {
     if d.Alias == aliasName && d.ChannelID == channelID {
@@ -53,9 +67,21 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
     }
   }
 
-  coll := db.Collection("reception")
+  if !staffAccess {
+    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, aliasName, channelID, r.URL.Path, r.Form)
+    // http.Error(w, "no true access right", http.StatusServiceUnavailable)
+	  w.Header().Set("Content-Type", "application/json")
+	  responseData.Error = "no true access right"
+	  json.NewEncoder(w).Encode(responseData)
+    return
+  }
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  // coll := db.Collection("reception")
+  coll := common.DB.ReceptionDB.Collection("reception")
 	var existing collection.ReceptionStruct
-	filter := bson.M{"_id": channelID}
+	filter := bson.M{"_id": reception.ReceptionID}
 	err = coll.FindOne(ctx, filter).Decode(&existing)
 
 	if err == mongo.ErrNoDocuments {
@@ -78,24 +104,50 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-  reception.UpdatedAt = time.Now()
-  update := bson.M{"$set": reception}
+ //  reception.UpdatedAt = time.Now()
+ //  update := bson.M{"$set": reception}
+	// opts := options.Update().SetUpsert(true)
+ //  _, err = coll.UpdateOne(ctx, filter, update, opts)
+ //  if err != nil {
+ //    log.Printf("Failed to update reception: %v", err)
+ //    http.Error(w, "Failed to update reception", http.StatusInternalServerError)
+ //    return
+ //  }
+
+	filter = bson.M{"_id": reception.ReceptionID}
+	reception.UpdatedAt = time.Now()
+	data, err := bson.Marshal(reception)
+	if err != nil {
+    log.Printf("Failed to marshal reception: %v", err)
+    http.Error(w, "Failed to marshal reception", http.StatusInternalServerError)
+    return
+	}
+
+	var updateData bson.M
+	if err := bson.Unmarshal(data, &updateData); err != nil {
+    log.Printf("Failed to unmarshal to bson.M: %v", err)
+    http.Error(w, "Failed to unmarshal reception", http.StatusInternalServerError)
+    return
+	}
+	delete(updateData, "_id")
+	update := bson.M{"$set": updateData}
 	opts := options.Update().SetUpsert(true)
-  _, err = coll.UpdateOne(ctx, filter, update, opts)
-  if err != nil {
+	_, err = coll.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
     log.Printf("Failed to update reception: %v", err)
     http.Error(w, "Failed to update reception", http.StatusInternalServerError)
     return
-  }
-  responseData := struct {
-    Csrf         string                     `json:"csrf"`
-    PushContents []string                   `json:"pushContents"`
-    // Reception    collection.ReceptionStruct `json:"reception"`
-  }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
-    // Reception:    updated,
-  }
+	}
+
+  // responseData := struct {
+  //   Csrf         string                     `json:"csrf"`
+  //   PushContents []string                   `json:"pushContents"`
+  //   // Reception    collection.ReceptionStruct `json:"reception"`
+  // }{
+  //   Csrf:         session.Csrf,
+  //   PushContents: session.PushContents,
+  //   // Reception:    updated,
+  // }
 
   w.Header().Set("Content-Type", "application/json")
   if err := json.NewEncoder(w).Encode(responseData); err != nil {

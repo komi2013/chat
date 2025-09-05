@@ -7,18 +7,18 @@ import (
 )
 
 type ReceptionStruct struct {
-	ReceptionID      string   				  `bson:"_id,omitempty" json:"receptionID"`
-  ChannelID        string             `bson:"channelID,omitempty" json:"channelID,omitempty"`
+	ReceptionID      string   				  `bson:"_id" json:"receptionID"`
+  ChannelID        string             `bson:"channelID" json:"channelID"`
 	AdminNames       []string           `bson:"adminNames" json:"adminNames"`
 	Passcodes        []Passcode         `bson:"passcodes" json:"passcodes"`
 	JoinNames        []string           `bson:"joinNames" json:"joinNames"`
-	Subscriptions    []string           `bson:"subscriptions,omitempty" json:"subscriptions,omitempty"`
+	// UserIDs          []string           `bson:"userIDs,omitempty" json:"userIDs,omitempty"`
 	UpdatedAt        time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 	ReceptionTitle   string             `bson:"receptionTitle,omitempty" json:"receptionTitle,omitempty"`
 	Books            []Book             `bson:"books,omitempty" json:"books,omitempty"`
-	Asks             []string           `bson:"asks,omitempty" json:"asks,omitempty"`
-	AskChoices       [][]string         `bson:"askChoices,omitempty" json:"askChoices,omitempty"`
-	AskMultiChoices  [][]string         `bson:"askMultiChoices,omitempty" json:"askMultiChoices,omitempty"`
+	Asks             []Ask              `bson:"asks,omitempty" json:"asks,omitempty"`
+	AskChoices       []AskChoice        `bson:"askChoices,omitempty" json:"askChoices,omitempty"`
+	AskMultiChoices  []AskMultiChoice   `bson:"askMultiChoices,omitempty" json:"askMultiChoices,omitempty"`
 	Facilities       []Facility         `bson:"facilities,omitempty" json:"facilities,omitempty"` // Mixed types require interface{}
 	OpenTimes        []OpenTime         `bson:"openTimes,omitempty" json:"openTimes,omitempty"`
 	Shifts           []Shift            `bson:"shifts,omitempty" json:"shifts,omitempty"`
@@ -125,4 +125,21 @@ type Passcode struct {
 	UsageLimit  int      `bson:"usageLimit" json:"usageLimit"`
 	PassStart   string   `bson:"passStart" json:"passStart"`
 	PassEnd   string   `bson:"passEnd" json:"passEnd"`
+}
+
+type AskChoice struct {
+	Question   string   `bson:"question" json:"question"`
+	Choices    []string `bson:"choices" json:"choices"`
+	Sequence   int      `bson:"sequence" json:"sequence"`
+}
+
+type AskMultiChoice struct {
+	Question   string   `bson:"question" json:"question"`
+	Choices    []string `bson:"choices" json:"choices"`
+	Sequence   int      `bson:"sequence" json:"sequence"`
+}
+
+type Ask struct {
+	Question   string   `bson:"question" json:"question"`
+	Sequence   int      `bson:"sequence" json:"sequence"`
 }

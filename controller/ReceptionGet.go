@@ -8,9 +8,9 @@ import (
   "net/http"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
   "chat/collection"
@@ -24,18 +24,18 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
   receptionID := r.FormValue("receptionID")
   passkey := r.FormValue("passkey")
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
   }
@@ -58,7 +58,10 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
     Reception: reception,
   }
 
-	coll := db1.Collection("reception")
+	// coll := db1.Collection("reception")
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+	coll := common.DB.ReceptionDB.Collection("reception")
 	filter := bson.M{"_id": receptionID}
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {
@@ -99,7 +102,7 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	  reception.AdminNames = nil
 	  reception.Passcodes = nil
 	  reception.JoinNames = nil
-	  reception.Subscriptions = nil
+	  // reception.Subscriptions = nil
 	  for i := range reception.Seats {
 	    reception.Seats[i].Passcodes = nil
 	  }

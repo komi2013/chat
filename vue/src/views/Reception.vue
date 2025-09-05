@@ -1,8 +1,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 
-import Advertisement from '@/components/Advertisement.vue';
-import Drawer from '@/components/Drawer.vue';
+import Advertisement from '@/components/Advertisement.vue'
+import Drawer from '@/components/Drawer.vue'
+
+import { pushReceive } from '@/pushReceive/pushReceive.js'
 
 const props = defineProps({
   id: String,
@@ -11,17 +13,30 @@ const props = defineProps({
 })
 document.title = '受付設定'
 
+const channelID = localStorage.getItem("channelID")
+
 const reception = ref(null)
 const defaultReception = {
-  receptionID: '',
-  channelID: '',
+  receptionID: channelID + generateRandomCode(1),
+  channelID: channelID,
   receptionTitle: '',
   adminNames: [''],
   joinNames: [''],
-  passcodes: [{ passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
-  asks: [''],
-  askChoices: [[]],
-  askMultiChoices: [[]],
+  passcodes: [{passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
+  askChoices: [{
+    question: '',
+    choices: [],
+    sequence: 0
+  }],
+  askMultiChoices: [{
+    question: '',
+    choices: [],
+    sequence: 0
+  }],
+  asks: [{
+    question: '',
+    sequence: 0
+  }],
   facilities: [{ facilityName: '', facilityCount: 1 }],
   openTimes: [{ limitStart: '', limitEnd: '' }],
   shifts: [{
@@ -42,9 +57,12 @@ const defaultReception = {
     specifyNameFlag: false,
     spendMinute: 0,
     items: [],
-    paidOptions: [],
-    freeOptions: [],
-    freeMultiOptions: []
+    paidOptions: [{
+      itemID: 1,
+      price: 0
+    }],
+    freeOptions: [[]], //　[オレンジジュース、メロンソーダ], [パン, ご飯]
+    freeMultiOptions: [] 
   }],
   skills: [''],
   staffSkills: [{ aliasName: '', skills: [''] }],
@@ -52,14 +70,14 @@ const defaultReception = {
   seats: [{
     seatName: '',
     capacity: 1,
-    passcodes: [],
+    passcodes: [{passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
     currentCode: ''
   }],
   itemDetails: [{
     itemID: 1,
     itemName: '',
     imgPath: '',
-    choices: [] // choices: [['硬い','普通','柔らかい'],['油多め','普通','油少なめ']]
+    choices: [[]] // choices: [['硬い','普通','柔らかい'],['油多め','普通','油少なめ']]
   }],
   waitConfigs: [{
     guestRange: [1, 5],
@@ -73,14 +91,9 @@ const groups = ref([])
 const aliases = ref([])
 const errorMessage = ref('')
 onMounted(async () => {
-  channel.value = await getIDB('channel', localStorage.getItem('channelID'))
-  groups.value = await getIDBs('group', 'channelIDIndex', localStorage.getItem('channelID'), 10000)
-  aliases.value = await getIDBs('alias', 'channelIDIndex', localStorage.getItem('channelID'), 10000)
-  if (props.id) {
-    reception.value = await getIDB('reception', props.id);
-  } else {
-    reception.value = await findReception();
-  }
+  channel.value = await getIDB('channel', channelID)
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000)
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000)
   if (props.reception) {
     try {
       const parsed = JSON.parse(props.reception)
@@ -88,6 +101,10 @@ onMounted(async () => {
     } catch (e) {
       console.error('receptionパラメータのJSONパースに失敗しました:', e)
     }
+  } else if (props.id) {
+    reception.value = await getIDB('reception', props.id);
+  } else {
+    reception.value = await findReception();
   }
 })
 
@@ -124,7 +141,7 @@ function addNestedItem(array, index, nestedField, initValue = '') {
 async function submit() {
   event.preventDefault()
   const fd = new FormData();
-  fd.append('reception', JSON.stringify(add));
+  fd.append('reception', JSON.stringify(reception.value));
   fd.append('channelID', channel.value.channelID);
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
@@ -147,14 +164,6 @@ async function submit() {
       <a href="/setting/"> データ設定ページ </a><br>
       <a href="/sign/"> サインインページ </a>
     </div>
-    <label>受付ID:
-      <input v-model="reception.receptionID" type="text" />
-    </label>
-
-    <label>チャネルID:
-      <input v-model="reception.channelID" type="text" />
-    </label>
-
     <label>タイトル:
       <input v-model="reception.receptionTitle" type="text" />
     </label>
@@ -311,22 +320,27 @@ async function submit() {
             価格: <input v-model.number="opt.price" type="number" />
             <button @click.prevent="m.paidOptions.splice(idx, 1)">−</button>
           </div>
-          <button @click.prevent="m.paidOptions.push({ itemID: 0, price: 0 })">＋有料オプション</button>
+          <button @click.prevent="m.paidOptions.push({ itemID: m.paidOptions.length, price: 0 })">＋有料オプション</button>
         </div>
 
-        <!-- Free Options (int配列) -->
+        <!-- Free Options (2次元配列: グループごとに1つ選択) -->
         <div>
           <label>無料オプション:</label>
-          <div v-for="(opt, idx) in m.freeOptions" :key="idx">
-            <select v-model="m.freeOptions[idx]">
-              <option disabled value="">商品</option>
-              <option v-for="(item, i) in reception.itemDetails" :value="item.itemID">
-                {{ item.itemName }}
-              </option>
-            </select>
-            <button @click.prevent="m.freeOptions.splice(idx, 1)">−</button>
+          <div v-for="(group, gIdx) in m.freeOptions" :key="'group-'+gIdx" style="margin-bottom:10px; border:1px dashed #aaa; padding:5px;">
+            <label>オプショングループ {{ gIdx + 1 }}</label>
+            <div v-for="(opt, idx) in group" :key="'opt-'+gIdx+'-'+idx">
+              <select v-model="m.freeOptions[gIdx][idx]">
+                <option disabled value="">商品</option>
+                <option v-for="(item, i) in reception.itemDetails" :value="item.itemID">
+                  {{ item.itemName }}
+                </option>
+              </select>
+              <button @click.prevent="m.freeOptions[gIdx].splice(idx, 1)">−</button>
+            </div>
+            <button @click.prevent="m.freeOptions[gIdx].push(0)">＋選択肢</button>
+            <button @click.prevent="m.freeOptions.splice(gIdx, 1)" style="margin-left:10px;">グループ削除</button>
           </div>
-          <button @click.prevent="m.freeOptions.push(0)">＋無料オプション</button>
+          <button @click.prevent="m.freeOptions.push([])" style="margin-top:10px;">＋オプショングループ</button>
         </div>
 
         <!-- Free Multi Options (int配列) -->
@@ -363,44 +377,78 @@ async function submit() {
       })">＋メニュー</button>
     </div>
 
-    <!-- Asks -->
+    <!-- Asks (自由回答) -->
     <div>
-      <label>アンケート質問:</label>
-      <div v-for="(ask, i) in reception.asks" :key="i">
-        <input v-model="reception.asks[i]" placeholder="質問文" type="text" />
+      <label>アンケート質問 (自由回答):</label>
+      <div v-for="(ask, i) in reception.asks" :key="'ask-'+i" style="margin-bottom:10px;">
+        <input v-model="ask.question" placeholder="質問文" type="text" />
 
-        <template v-for="(choice, choiceIndex) in reception.askChoices[i]" :key="choiceIndex" >
-          <input v-model="reception.askChoices[i][choiceIndex]" placeholder="選択肢" style="margin: 2px;" />
-
-          <button @click.prevent="() => {
-            reception.askChoices[i].splice(choiceIndex, 1);
-          }"> − </button>
-        </template>
-        <button @click.prevent="() => {
-          reception.askChoices[i].push('');
-        }">＋単一選択肢</button>
-
-        <template v-for="(choice, choiceIndex) in reception.askMultiChoices[i]" :key="choiceIndex" >
-          <input v-model="reception.askMultiChoices[i][choiceIndex]" placeholder="選択肢" style="margin: 2px;" />
-
-          <button @click.prevent="() => {
-            reception.askMultiChoices[i].splice(choiceIndex, 1);
-          }"> − </button>
-        </template>
-        <button @click.prevent="() => {
-          reception.askMultiChoices[i].push('');
-        }">＋複数選択肢</button>
         <button @click.prevent="() => {
           reception.asks.splice(i, 1);
-          reception.askChoices.splice(i, 1);
-          reception.askMultiChoices.splice(i, 1);
         }" v-if="reception.asks.length > 1">−</button>
       </div>
+
       <button @click.prevent="() => {
-        reception.asks.push('');
-        reception.askChoices.push([]);
-        reception.askMultiChoices.push([]);
+        reception.asks.push({ question: '', sequence: reception.asks.length });
       }">＋質問</button>
+    </div>
+
+    <hr />
+
+    <!-- AskChoices (単一選択) -->
+    <div>
+      <label>アンケート質問 (単一選択):</label>
+      <div v-for="(ask, i) in reception.askChoices" :key="'choice-'+i" style="margin-bottom:10px;">
+        <input v-model="ask.question" placeholder="質問文" type="text" />
+
+        <div v-for="(choice, choiceIndex) in ask.choices" :key="'choice-'+i+'-'+choiceIndex">
+          <input v-model="ask.choices[choiceIndex]" placeholder="選択肢" style="margin: 2px;" />
+          <button @click.prevent="() => {
+            ask.choices.splice(choiceIndex, 1);
+          }"> − </button>
+        </div>
+
+        <button @click.prevent="() => {
+          ask.choices.push('');
+        }">＋単一選択肢</button>
+
+        <button @click.prevent="() => {
+          reception.askChoices.splice(i, 1);
+        }" v-if="reception.askChoices.length > 1">− 質問削除</button>
+      </div>
+
+      <button @click.prevent="() => {
+        reception.askChoices.push({ question: '', choices: [], sequence: reception.askChoices.length });
+      }">＋単一選択質問</button>
+    </div>
+
+    <hr />
+
+    <!-- AskMultiChoices (複数選択) -->
+    <div>
+      <label>アンケート質問 (複数選択):</label>
+      <div v-for="(ask, i) in reception.askMultiChoices" :key="'multi-'+i" style="margin-bottom:10px;">
+        <input v-model="ask.question" placeholder="質問文" type="text" />
+
+        <div v-for="(choice, choiceIndex) in ask.choices" :key="'multi-choice-'+i+'-'+choiceIndex">
+          <input v-model="ask.choices[choiceIndex]" placeholder="選択肢" style="margin: 2px;" />
+          <button @click.prevent="() => {
+            ask.choices.splice(choiceIndex, 1);
+          }"> − </button>
+        </div>
+
+        <button @click.prevent="() => {
+          ask.choices.push('');
+        }">＋複数選択肢</button>
+
+        <button @click.prevent="() => {
+          reception.askMultiChoices.splice(i, 1);
+        }" v-if="reception.askMultiChoices.length > 1">− 質問削除</button>
+      </div>
+
+      <button @click.prevent="() => {
+        reception.askMultiChoices.push({ question: '', choices: [], sequence: reception.askMultiChoices.length });
+      }">＋複数選択質問</button>
     </div>
 
     <!-- Facilities -->

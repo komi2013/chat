@@ -16,7 +16,7 @@ import (
   "strings"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
 
@@ -24,7 +24,7 @@ import (
 
 )
 
-func ImgSave(db1 *mongo.Database, img string, userID string, name string, channelID string, fileIDLength int) (string, error) {
+func ImgSave(img string, userID string, name string, channelID string, fileIDLength int) (string, error) {
 	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
@@ -60,7 +60,7 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
 		fileSize := fileInfo.Size()
 		fileSizeMB := float64(fileSize) / (1024 * 1024)
 		fileSizeMB = math.Floor(fileSizeMB*100) / 100
-		coll := db1.Collection("file")
+		coll := DB.FileDB.Collection("file")
 		fileDocument := collection.FileStruct{
 			// FileID:     channelID + fileName,
 			ChannelID:  channelID,
@@ -90,7 +90,7 @@ func ImgSave(db1 *mongo.Database, img string, userID string, name string, channe
 	return imgPath, nil
 }
 
-func FileSave(r *http.Request, db1 *mongo.Database, channelID string, uploadedBy string, userIDs []string) ([]string, error) {
+func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string) ([]string, error) {
 	const (
 		maxFileSize      = 100 << 20 // 100MB (1ファイルあたりの上限)
 		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
@@ -105,7 +105,8 @@ func FileSave(r *http.Request, db1 *mongo.Database, channelID string, uploadedBy
 		return nil, fmt.Errorf("file limit exceeded: maximum %d files allowed", maxFileCount)
 	}
 
-	coll := db1.Collection("file")
+	// coll := db1.Collection("file")
+	coll := DB.FileDB.Collection("file")
 	var totalSize int64 = 0
 
 	for _, fileHeader := range files {

@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
+	// "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	// "go.mongodb.org/mongo-driver/mongo/options"
 	// "go.mongodb.org/mongo-driver/bson/primitive"
 
 	"chat/collection"
@@ -52,20 +52,17 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	// if err != nil {
+	// 	log.Printf("mongo.Connect error: %v", err)
+	// 	http.Error(w, "Database connection error", http.StatusInternalServerError)
+	// 	return
+	// }
+	// defer c.Disconnect(ctx)
 
-	c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	if err != nil {
-		log.Printf("mongo.Connect error: %v", err)
-		http.Error(w, "Database connection error", http.StatusInternalServerError)
-		return
-	}
-	defer c.Disconnect(ctx)
+	// db1 := c.Database(common.MongoDb1)
 
-	db1 := c.Database(common.MongoDb1)
-
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheck error: %v", err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -88,7 +85,10 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	// reception を取得
 	var reception collection.ReceptionStruct
 	filter := bson.M{"_id": receptionID}
-	coll := db1.Collection("reception")
+	// coll := db1.Collection("reception")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	coll := common.DB.ReceptionDB.Collection("reception")
 
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {

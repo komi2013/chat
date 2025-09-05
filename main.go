@@ -44,8 +44,7 @@ func main() {
 		// default
 		http.HandleFunc("/", controller.Top)
 
-		fmt.Println("starting.." + common.CacheV)
-		fmt.Println(common.MongoDb1 + common.GoPort)
+		fmt.Println("starting.." + common.GoPort + " " + common.CacheV )
 		log.Fatal(http.ListenAndServe(common.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)

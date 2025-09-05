@@ -15,13 +15,13 @@ import (
   "chat/collection"
 )
 
-func SessionGet(db1 *mongo.Database, w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
+func SessionGet(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
   var session collection.SessionStruct
   cookie, err := r.Cookie("ss")
   if err != nil {
     return session, err
   }
-  coll := db1.Collection("session")
+  coll := DB.SessionDB.Collection("session")
   filter := bson.D{{"_id", cookie.Value}}
   opts := options.FindOne().SetProjection(bson.D{})
   err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
@@ -125,8 +125,9 @@ func RegenerateSessionData(db *mongo.Database, session collection.SessionStruct,
 	return newSession, nil
 }
 
-func ReGenerateCSRF(db1 *mongo.Database, session collection.SessionStruct) (collection.SessionStruct, error) {
-	coll := db1.Collection("session")
+func ReGenerateCSRF(session collection.SessionStruct) (collection.SessionStruct, error) {
+	// coll := db1.Collection("session")
+	coll := DB.SessionDB.Collection("session")
 	session.Csrf = StringRand(16)
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{
@@ -182,10 +183,10 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
   if err != nil {
     return session, err
   }
-	// if session.Csrf != token {
-	// 	return session, errors.New("token error")
-	// 	// LogError("SessionCheck:", nil, session.Csrf, token)
-	// }
+	if session.Csrf != token {
+		return session, errors.New("SessionCheckTake token error")
+		// LogError("SessionCheck:", nil, session.Csrf, token)
+	}
 
 	if time.Since(session.UpdatedAt) > 20*24*time.Hour {
 		return session, errors.New("session expired")
@@ -193,7 +194,7 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
 		session, err = SessionRegenerate(session, w)
 	} else {
 		// UpdateSessionTimestamp(db, session)
-		// session, err = CSRFcheckMake(session, token)
+		session, err = CSRFcheckMake(session, token)
 	}
   // session, err = CheckMakeCSRFToken(db1, session, token)
   return session, err
@@ -201,7 +202,7 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
 
 func CSRFcheckMake(session collection.SessionStruct, token string) (collection.SessionStruct, error) {
 	if session.Csrf != token {
-		return session, errors.New("token error")
+		return session, errors.New("CSRFcheckMake token error")
 	}
 	session, err := PushReGenerate(session)
 	return session, err

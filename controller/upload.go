@@ -13,9 +13,9 @@ import (
   "strings"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/collection"
   "chat/common"
@@ -40,16 +40,16 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid URL path or File not found", http.StatusNotFound)
 		return 
 	}
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-	session, err := common.SessionGet(db1, w, r)
+	session, err := common.SessionGet(w, r)
 	if err != nil {
 		log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -67,10 +67,13 @@ func Upload(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "no access right for file", http.StatusNotFound)
     return
   }
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
   // log.Printf("!trueAccess: %v; Req: ", fileID)
   if fileType == "file" {
 		var fileData collection.FileStruct
-		coll := db1.Collection("file")
+		// coll := db1.Collection("file")
+		coll := common.DB.FileDB.Collection("file")
 		filter := bson.M{"_id": fileID}
 		err = coll.FindOne(ctx, filter).Decode(&fileData)
 		if err != nil {

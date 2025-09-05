@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   "strconv"
@@ -11,10 +11,10 @@ import (
 
   "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
-  webpush "github.com/SherClockHolmes/webpush-go"
+  // webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
   "chat/common"
@@ -35,16 +35,16 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
     log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -63,8 +63,9 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  coll := db1.Collection("reception")
-
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+	coll := common.DB.ReceptionDB.Collection("reception")
   var reception collection.ReceptionStruct
   filter := bson.M{"_id": receptionID}
   err = coll.FindOne(ctx, filter).Decode(&reception)
@@ -190,40 +191,17 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, itemIDs)
   arr = append(arr, menuPrice)
   arr = append(arr, common.StringRand(4))
-  for _, subscription := range reception.Subscriptions {
-	  pushID := common.StringRand(12)
-	  arrForPush := append([]interface{}{pushID}, arr...)
-	  jsonData, err := json.Marshal(arrForPush)
-	  if err != nil {
-	    fmt.Println("JSON変換エラー:", err)
-	  }
-		coll = db1.Collection("push")
-		document := bson.M{
-	    "_id": pushID,
-	    "pushJson": string(jsonData),
-	    "createdAt": time.Now().Format("2006-01-02 15:04:05"),
-		}
-		_, err = coll.InsertOne(context.TODO(), document)
-		if err != nil {
-		    fmt.Printf("err %s\n", err)
-		}
-    // cursor.Decode(&r4)
-    webpushSub := &webpush.Subscription{}
-    json.Unmarshal([]byte(subscription), webpushSub)
-
-    // Send Notification
-    resp, err := webpush.SendNotification([]byte(string(jsonData)), webpushSub, &webpush.Options{
-      Subscriber:      "example@example.com",
-      VAPIDPublicKey:  common.VAPIDPublicKey,
-      VAPIDPrivateKey: common.VAPIDPrivateKey,
-      TTL:             30,
-    })
-    if err != nil {
-      // TODO: Handle error
-      fmt.Printf(" err %s\n", err)
-    }
-    defer resp.Body.Close()
-  }
+  // for _, subscription := range reception.Subscriptions {
+	 //  pushID := common.StringRand(12)
+	 //  arrForPush := append([]interface{}{pushID}, arr...)
+	  
+	 //  resp, err := common.PushNotification(string(arrForPush), subscription)
+  //   if err != nil {
+	 //    log.Printf("PushNotification: %v; Req: ", err, r.URL.Path, r.Form)
+	 //    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  //   }
+  //   defer resp.Body.Close()
+  // }
 
 	responseData := struct {
 		Csrf         string   `json:"csrf"`

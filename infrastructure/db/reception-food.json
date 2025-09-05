@@ -1,0 +1,47 @@
+{
+  "receptionID": "ch456B",
+  "channelID": "ch456",
+  "receptionTitle": "イタリアンレストラン",
+  "adminNames": ["Owner"],
+  "joinNames": ["Chef1", "Chef2"],
+  "skills": ["調理", "配膳"],
+  "staffSkills": [
+    { "aliasName": "Chef1", "skills": ["調理"] },
+    { "aliasName": "Chef2", "skills": ["配膳"] }
+  ],
+  "workStaffNeed": false,
+  "itemDetails": [
+    {
+      "itemID": 1,
+      "itemName": "パスタ",
+      "imgPath": "/img/pasta.png",
+      "choices": [["トマトソース", "クリームソース"], ["大盛り", "普通"]]
+    }
+  ],
+  "menus": [
+    {
+      "menuID": 1,
+      "menuName": "ランチセット",
+      "price": 1200,
+      "prepaidPrice": 1000,
+      "needSkill": "調理",
+      "needFacility": "厨房",
+      "specifyNameFlag": false,
+      "spendMinute": 20,
+      "items": [1],
+      "paidOptions": [],
+      "freeOptions": [[]],
+      "freeMultiOptions": [1]
+    }
+  ],
+  "asks": [{ "question": "アレルギーはありますか？", "sequence": 0 }],
+  "askChoices": [],
+  "askMultiChoices": [],
+  "facilities": [{ "facilityName": "テーブル", "facilityCount": 20 }],
+  "openTimes": [{ "limitStart": "2025-09-05T11:00", "limitEnd": "2025-09-05T22:00" }],
+  "shifts": [],
+  "seats": [
+    { "seatName": "テーブル1", "capacity": 4, "passcodes": [], "currentCode": "" }
+  ],
+  "waitConfigs": [{ "guestRange": [1, 6], "waitRatio": 15 }]
+}

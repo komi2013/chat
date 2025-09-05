@@ -12,9 +12,9 @@ import (
   // "strings"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
 
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -31,25 +31,26 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   myimg := r.FormValue("myimg")
   code := r.FormValue("code")
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
-  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
-    return
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
+  // 	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  //   return
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
 
-	collInvitation := db1.Collection("channel")
+	// collInvitation := db1.Collection("channel")
+	collInvitation := common.DB.ChannelDB.Collection("channel")
 	invitationFilter := bson.M{"_id": code}
 	var invitation collection.ChannelStruct
 	err = collInvitation.FindOne(context.TODO(), invitationFilter).Decode(&invitation)
@@ -72,7 +73,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-  collUser := db1.Collection("user")
+  // collUser := db1.Collection("user")
+  collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": session.UserID}
   var user collection.UserStruct
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
@@ -101,7 +103,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		accessRight = "guest"
 	}
 
-	coll := db1.Collection("session")
+	// coll := db1.Collection("session")
+	coll := common.DB.SessionDB.Collection("session")
   filter := bson.M{"userID": session.UserID}
 	cursor, err := coll.Find(context.TODO(), filter)
 	if err != nil {
@@ -118,7 +121,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 
 // ここから
 
-	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
+	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 3)
 	if err != nil {
 		log.Printf("ImgSave: %v; Req:", err, r.URL.Path, r.Form)
 		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
@@ -138,7 +141,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
   arr = append(arr, channelID)
   arr = append(arr, myname)
   arr = append(arr, contents)
-	common.ChunkPush(mySessions, db1, arr)
+	common.ChunkPush(mySessions, arr)
 
 	invitation.Aliases = append(invitation.Aliases, newAlias)
 
@@ -150,7 +153,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, myname)
 		arr = append(arr, aliasData)
 		arr = append(arr, d.AliasImg)
-		common.ChunkPush(mySessions, db1, arr)
+		common.ChunkPush(mySessions, arr)
 	}
 
 	contents = []string{session.UserID, myname, "", accessRight}
@@ -163,7 +166,7 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, myname)
 		arr = append(arr, contents)
 		arr = append(arr, aliasImg)
-    resp, err := common.SendWebPushNotification(db1, arr, pushID, sess)
+    resp, err := common.SendWebPushNotification(arr, pushID, sess)
 		if err != nil {
 	    log.Printf("resp SendWebPushNotification: %v; Req: ", err, r.URL.Path, r.Form)
 	  	common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
@@ -183,7 +186,8 @@ func ChannelJoin (w http.ResponseWriter, r *http.Request) {
 			d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
   	}
 		d.UpdatedAt = time.Now()
-		coll := db1.Collection("session")
+		// coll := db1.Collection("session")
+		coll := common.DB.SessionDB.Collection("session")
 		filter := bson.D{{"_id", d.SessionID}}
 		update := bson.D{{"$set", d}}
 		_, err = coll.UpdateOne(context.TODO(), filter, update)

@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "fmt"
+  // "fmt"
   "log"
   "net/http"
   // "strconv"
@@ -14,34 +14,25 @@ import (
   "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
 
-  webpush "github.com/SherClockHolmes/webpush-go"
+  // webpush "github.com/SherClockHolmes/webpush-go"
 
   "chat/collection"
   "chat/common"
 )
 
 func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
 
-	c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	if err != nil {
-		log.Printf("mongo.Connect error: %v", err)
-		http.Error(w, "Database connection error", http.StatusInternalServerError)
-		return
-	}
-	defer c.Disconnect(ctx)
+	// c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	// if err != nil {
+	// 	log.Printf("mongo.Connect error: %v", err)
+	// 	http.Error(w, "Database connection error", http.StatusInternalServerError)
+	// 	return
+	// }
+	// defer c.Disconnect(ctx)
 
-	db1 := c.Database(common.MongoDb1)
-
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
-	if err != nil {
-		log.Printf("SessionCheck error: %v", err)
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-  coll := db1.Collection("reception")
+	// db1 := c.Database(common.MongoDb1)
 
   receptionID := r.FormValue("receptionID")
   apiKey := r.FormValue("apiKey")
@@ -50,6 +41,19 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
     return
   }
   tableName := r.FormValue("tableName")
+
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+	if err != nil {
+		log.Printf("SessionCheck error: %v", err)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	coll := common.DB.ReceptionDB.Collection("reception")
+  // coll := db1.Collection("reception")
+
   var reception collection.ReceptionStruct
   filter := bson.M{"_id": receptionID}
   err = coll.FindOne(ctx, filter).Decode(&reception)
@@ -102,40 +106,41 @@ func ReceptionDelete(w http.ResponseWriter, r *http.Request) {
   var arr []interface{}
   arr = append(arr, "receptionOrder")
   arr = append(arr, tableName)
-  for _, subscription := range reception.Subscriptions {
-    pushID := common.StringRand(12)
-    arrForPush := append([]interface{}{pushID}, arr...)
-    jsonData, err := json.Marshal(arrForPush)
-    if err != nil {
-      fmt.Println("JSON変換エラー:", err)
-    }
-    coll = db1.Collection("push")
-    document := bson.M{
-      "_id": pushID,
-      "pushJson": string(jsonData),
-      "created_at": time.Now().Format("2006-01-02 15:04:05"),
-    }
-    _, err = coll.InsertOne(context.TODO(), document)
-    if err != nil {
-        fmt.Printf("err %s\n", err)
-    }
-    // cursor.Decode(&r4)
-    webpushSub := &webpush.Subscription{}
-    json.Unmarshal([]byte(subscription), webpushSub)
+  // for _, subscription := range reception.Subscriptions {
+  //   pushID := common.StringRand(12)
+  //   arrForPush := append([]interface{}{pushID}, arr...)
+  //   jsonData, err := json.Marshal(arrForPush)
+  //   if err != nil {
+  //     fmt.Println("JSON変換エラー:", err)
+  //   }
+  //   // coll = db1.Collection("push")
+  //   // coll := common.DB.ReceptionDB.Collection("reception")
+  //   document := bson.M{
+  //     "_id": pushID,
+  //     "pushJson": string(jsonData),
+  //     "created_at": time.Now().Format("2006-01-02 15:04:05"),
+  //   }
+  //   _, err = coll.InsertOne(context.TODO(), document)
+  //   if err != nil {
+  //       fmt.Printf("err %s\n", err)
+  //   }
+  //   // cursor.Decode(&r4)
+  //   webpushSub := &webpush.Subscription{}
+  //   json.Unmarshal([]byte(subscription), webpushSub)
 
-    // Send Notification
-    resp, err := webpush.SendNotification([]byte(string(jsonData)), webpushSub, &webpush.Options{
-      Subscriber:      "example@example.com",
-      VAPIDPublicKey:  common.VAPIDPublicKey,
-      VAPIDPrivateKey: common.VAPIDPrivateKey,
-      TTL:             30,
-    })
-    if err != nil {
-      // TODO: Handle error
-      fmt.Printf(" err %s\n", err)
-    }
-    defer resp.Body.Close()
-  }
+  //   // Send Notification
+  //   resp, err := webpush.SendNotification([]byte(string(jsonData)), webpushSub, &webpush.Options{
+  //     Subscriber:      "example@example.com",
+  //     VAPIDPublicKey:  common.VAPIDPublicKey,
+  //     VAPIDPrivateKey: common.VAPIDPrivateKey,
+  //     TTL:             30,
+  //   })
+  //   if err != nil {
+  //     // TODO: Handle error
+  //     fmt.Printf(" err %s\n", err)
+  //   }
+  //   defer resp.Body.Close()
+  // }
 
 	responseData := struct {
 		Csrf         string   `json:"csrf"`

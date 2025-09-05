@@ -10,7 +10,7 @@ import (
   // "os"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
@@ -28,23 +28,24 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	channelName := r.FormValue("channelName")
 	channelDescription := r.FormValue("channelDescription")
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheck: %v; Req:", err, r.URL.Path, r.Form)
+		log.Printf("SessionCheckTake: %v; Req:", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
 
-  collUser := db1.Collection("user")
+  // collUser := db1.Collection("user")
+  collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": session.UserID}
   var user collection.UserStruct
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
@@ -71,13 +72,14 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
-	aliasImg, err := common.ImgSave(db1, myimg, session.UserID, myname, channelID, 3)
+	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 3)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	coll := db1.Collection("session")
+	// coll := db1.Collection("session")
+	coll := common.DB.SessionDB.Collection("session")
   filter := bson.M{"userID": session.UserID}
 	project := bson.D{{"updatedAt", 0}}
 	opts4 := options.Find().SetProjection(project)
@@ -95,7 +97,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
   arr = append(arr, channelID)
   arr = append(arr, myname)
   arr = append(arr, contents)
-	common.ChunkPush(mySessions, db1, arr)
+	common.ChunkPush(mySessions, arr)
 
   contents = []string{session.UserID, myname, "", "admin"}
   newAliasChannel := collection.ChannelAlias{
@@ -112,14 +114,15 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, contents)
 		arr = append(arr, aliasImg)
 		// cursor.Decode(&d)
-    resp, err := common.SendWebPushNotification(db1, arr, pushID, d)
+    resp, err := common.SendWebPushNotification(arr, pushID, d)
 		if err != nil {
 	    log.Printf("resp SendWebPushNotification: %v; Req:", err, r.URL.Path, r.Form)
 		}
 		defer resp.Body.Close()
 		// d.ChannelAliases = append(d.ChannelAliases, newAliasChannel)
 		// d.UpdatedAt = time.Now()
-		coll := db1.Collection("session")
+		// coll := db1.Collection("session")
+		coll := common.DB.SessionDB.Collection("session")
 		filter := bson.D{{"_id", d.SessionID}}
 		// update := bson.D{{"$set", d}}
 		update := bson.M{
@@ -148,7 +151,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	  log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
 	}
 
-	session, err = common.ReGenerateData(db1, session)
+	session, err = common.PushReGenerate(session)
 	if err != nil {
 		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
 	}

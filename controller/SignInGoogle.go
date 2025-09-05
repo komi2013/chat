@@ -62,20 +62,23 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims, _ := token.Claims.(jwt.MapClaims)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	if err != nil {
-		log.Printf("mongo.Connect(ctx: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-	defer c.Disconnect(ctx)
-	db1 := c.Database(common.MongoDb1)
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	// c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+	// if err != nil {
+	// 	log.Printf("mongo.Connect(ctx: %v; Req: ", err, r.URL.Path, r.Form)
+	// 	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	// 	return
+	// }
+	// defer c.Disconnect(ctx)
+	// db1 := c.Database(common.MongoDb1)
 
 	var user collection.UserStruct
 	filterUser := bson.D{{"googleJWTSub", claims["sub"]}}
-	collUser := db1.Collection("user")
+	// collUser := db1.Collection("user")
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	collUser := common.DB.UserDB.Collection("user")
 	err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
 	var userID string
 	if err != nil && err != mongo.ErrNoDocuments {
@@ -88,7 +91,8 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	var oldSession collection.SessionStruct
 	isMobile := common.IsMobile(r.Header.Get("User-Agent"))
 	if userID != "" {
-		collSession := db1.Collection("session")
+		// collSession := db1.Collection("session")
+		collSession := common.DB.SessionDB.Collection("session")
 		filterSession := bson.D{
 			{"userID", user.UserID},
 			{"isMobile", isMobile},
@@ -144,7 +148,8 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 	}
 	http.SetCookie(w, newCookie)
-	collSession := db1.Collection("session")
+	// collSession := db1.Collection("session")
+	collSession := common.DB.SessionDB.Collection("session")
 	_, err = collSession.InsertOne(context.TODO(), newSession)
 	if err != nil {
 		log.Printf("coll.InsertOne session error: %v", err)

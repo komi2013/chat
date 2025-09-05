@@ -8,7 +8,7 @@ import (
   "net/http"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
 
@@ -19,25 +19,30 @@ import (
 
 func SignInTmp(w http.ResponseWriter, r *http.Request) {
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Print(err)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Print(err)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
+
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
 
   userID := r.FormValue("userID")
-  collUser := db1.Collection("user")
+  // collUser := db1.Collection("user")
+  collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": userID}
   var user collection.UserStruct
-  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  err := collUser.FindOne(context.TODO(), filterUser).Decode(&user)
   if err != nil {
     log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
   }
 
-	coll := db1.Collection("session")
+	// coll := db1.Collection("session")
+	coll := common.DB.SessionDB.Collection("session")
 	cursor, err := coll.Find(context.TODO(), bson.D{{"userID", userID}})
 	if err != nil {
 		log.Printf("Find error: %v", err)
@@ -104,7 +109,8 @@ func SignInTmp(w http.ResponseWriter, r *http.Request) {
   }
   http.SetCookie(w, cookie)
 
-	coll = db1.Collection("user")
+  coll = common.DB.UserDB.Collection("user")
+	// coll = db1.Collection("user")
 	userFilter := bson.D{{"_id", userID}}
 	update := bson.D{{"$set", bson.D{
 		{"signedAt", time.Now()}}}}

@@ -7,9 +7,9 @@ import (
   "net/http"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo/options"
+  // "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/collection"
   "chat/common"
@@ -35,14 +35,14 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
     log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -61,7 +61,8 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  coll := db1.Collection("session")
+  // coll := db1.Collection("session")
+  coll := common.DB.SessionDB.Collection("session")
   filter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
   cursor, err := coll.Find(context.TODO(), filter)
   if err != nil {
@@ -72,8 +73,8 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
     log.Printf("cursor.All: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
   }
 
-	sessionCol := db1.Collection("session")
-	userCol := db1.Collection("user")
+	sessionCol := common.DB.SessionDB.Collection("session")
+	userCol := common.DB.UserDB.Collection("user")
 
 	for _, del := range deleteAliases {
 		update := bson.M{
@@ -97,7 +98,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, updatedBy)
 		arr = append(arr, aliasData)
 		arr = append(arr, del.AliasImg)
-		common.ChunkPush(sessions, db1, arr)
+		common.ChunkPush(sessions, arr)
 
 	}
 

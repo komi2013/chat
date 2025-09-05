@@ -12,7 +12,7 @@ import (
   "time"
 
   "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -40,41 +40,45 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
   nickname.Nickname = r.FormValue("nickname")
   nicknameOld := r.FormValue("nicknameOld")
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-  session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
     log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
   }
 
-	nickname.NickImg, err = common.ImgSave(db1, r.FormValue("nickImg"), session.UserID, nickname.Nickname, "", 3)
+	nickname.NickImg, err = common.ImgSave(r.FormValue("nickImg"), session.UserID, nickname.Nickname, "", 3)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
   update := bson.M{
     "$set": user,
   }
   filterUser := bson.M{"_id": session.UserID}
   opts := options.Update().SetUpsert(true)
-  collUser := db1.Collection("user")
+  collUser := common.DB.UserDB.Collection("user")
+  // collUser := db1.Collection("user")
   _, err = collUser.UpdateOne(ctx, filterUser, update, opts)
   if err != nil {
     log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
   }
   message := "ユーザー情報は更新されました"
   if nickname.Nickname != "" {
-	  collNickname := db1.Collection("nickname")
+  	collNickname := common.DB.NicknameDB.Collection("nickname")
+	  // collNickname := db1.Collection("nickname")
 	  filterNickname := bson.M{"userID": session.UserID}
 	  cursor, err := collNickname.Find(context.TODO(), filterNickname)
 	  if err != nil {
@@ -101,7 +105,8 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 		  }
 		  filterNickname := bson.M{"_id": filterName}
 		  opts = options.Update().SetUpsert(true)
-		  collNickname := db1.Collection("nickname")
+		  // collNickname := db1.Collection("nickname")
+		  collNickname := common.DB.NicknameDB.Collection("nickname")
 		  _, err = collNickname.UpdateOne(ctx, filterNickname, update, opts)
 		  if err != nil {
 		    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)

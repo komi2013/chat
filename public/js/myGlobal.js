@@ -157,3 +157,27 @@ const revertFaviconBadge = () => {
   const favicon = document.querySelector('link[rel="icon"]')
   favicon.href = '/favicon.ico'
 }
+
+function sendErrorLog(payload) {
+  try {
+    const LOG_API = '/api/logs/error';
+    fetch(LOG_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...payload,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now()
+      })
+    }).catch(() => {
+      // 送信失敗時は無限ループ防止のため何もせず握りつぶす
+      console.warn('sendErrorLog: ログ送信に失敗（再送しません）');
+    });
+  } catch (e) {
+    console.warn('sendErrorLog: 実行中に例外発生', e);
+  }
+}
+

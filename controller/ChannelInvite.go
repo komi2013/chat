@@ -8,7 +8,7 @@ import (
   "net/http"
   "time"
 
-  "go.mongodb.org/mongo-driver/mongo"
+  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
@@ -59,16 +59,16 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   updatedBy := r.FormValue("updatedBy")
   guest := r.FormValue("guest") != ""
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  if err != nil {
-    log.Printf("mongo.Connect: %v; Request:", err, r.URL.Path, r.Form)
-  }
-  defer c.Disconnect(ctx)
-  db1 := c.Database(common.MongoDb1)
+  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  // defer cancel()
+  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
+  // if err != nil {
+  //   log.Printf("mongo.Connect: %v; Request:", err, r.URL.Path, r.Form)
+  // }
+  // defer c.Disconnect(ctx)
+  // db1 := c.Database(common.MongoDb1)
 
-	session, err := common.SessionCheck(db1, w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheck: %v; Request:", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -89,7 +89,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
   }
   // var subscriptions []string
   var addSessions []collection.SessionStruct
-  coll := db1.Collection("session")
+  // coll := db1.Collection("session")
+  coll := common.DB.SessionDB.Collection("session")
   filter := bson.D{{
     "userID", bson.D{{"$in", userIDs}}}}
   project := bson.D{{"createdAt", 0}}
@@ -120,7 +121,8 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 	  }
 	}
 
-	coll = db1.Collection("channel")
+	// coll = db1.Collection("channel")
+	coll = common.DB.ChannelDB.Collection("channel")
 	now := time.Now()
 	filterInvitation := bson.M{
     "$or": []interface{}{
@@ -151,7 +153,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		log.Printf("InsertOne: %v; Request:", err, r.URL.Path, r.Form)
 	}
 
-	session, err = common.ReGenerateData(db1, session)
+	session, err = common.PushReGenerate(session)
 	if err != nil {
 		log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
 	}
