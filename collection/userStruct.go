@@ -16,4 +16,5 @@ type UserStruct struct {
 	Yen   int `bson:"yen,omitempty" json:"yen,omitempty"`
 	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
+	// Nickname     
 }

@@ -96,24 +96,25 @@ const router = createRouter({
       component: () => import('../views/ReceptionMenu.vue'),
       props: route => ({
         id: route.params.id,
-        code: route.params.code
+        code: route.params.code,
+        codeType: route.query.codeType
       })
     },
     {
-      path: '/receptionMenuOrder/:id/:apiKey',
-      component: () => import('../views/ReceptionMenuOrder.vue'),
+      path: '/receptionEnter/:id/:passkey/',
+      component: () => import('../views/ReceptionEnter.vue'),
       props: route => ({
         id: route.params.id,
-        apiKey: route.params.apiKey,
-      })
-    },
-    {
-      path: '/receptionOpen/:id/:menuID/:passkey/',
-      component: () => import('../views/ReceptionOpen.vue'),
-      props: route => ({
-        id: route.params.id,
-        menuID: route.params.menuID,
         passkey: route.params.passkey
+      })
+    },
+    {
+      path: '/receptionOrder/:id/:code/',
+      component: () => import('../views/ReceptionOrder.vue'),
+      props: route => ({
+        id: route.params.id,
+        code: route.params.code,
+        // seatName: route.params.seatName,
       })
     },
     {

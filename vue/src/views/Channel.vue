@@ -7,7 +7,7 @@ import "quill/dist/quill.snow.css";
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import PeopleImg from '@/components/PeopleImg.vue'
-import SelectAlias from '@/components/SelectAlias.vue';
+import SelectAlias from '@/components/SelectAlias.vue'
 
 import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
 import { userIDsByName } from '@/my/channelFunc';
@@ -244,22 +244,14 @@ async function adminEdit() {
 function getAdminDiffData() {
   const before = initAdminNames
   const after = adminNames.value
-
-  // 差分（名前だけ）
   const addedNames   = after.filter(name => !before.includes(name))
   const removedNames = before.filter(name => !after.includes(name))
-
-  // 追加されたデータ（accessRight = "admin" に上書き）
   const addedData = aliases.value
     .filter(a => addedNames.includes(a.aliasName))
     .map(a => ({ ...a, accessRight: "admin" }))
-
-  // 削除されたデータ（accessRight = null に上書き）
   const removedData = aliases.value
     .filter(a => removedNames.includes(a.aliasName))
     .map(a => ({ ...a, accessRight: null }))
-
-  // マージして返す
   return [...addedData, ...removedData]
 }
 

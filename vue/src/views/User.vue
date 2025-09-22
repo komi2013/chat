@@ -71,6 +71,8 @@ async function submitUser(index) {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('latitude', user.value.latitude)
   fd.append('longitude', user.value.longitude)
+  fd.append('mail', user.value.mail)
+  fd.append('telephone', user.value.telephone)
   fd.append('nickname', nickname.value ?? "")
   fd.append('nickImg', nickImg.value)
   const res = await sendRequest('/UserEdit/', fd)
@@ -88,16 +90,12 @@ async function submitUser(index) {
   <Drawer />
   <div id="content">
     <div>
-      <form @submit.prevent="handleSubmit">
+      <form @submit.prevent="handleSubmit" v-if="fetched">
         <h2 class="sp_head">ユーザーページ</h2>
         <div v-if="user && user.latitude && toLink">
           <br><br><a :href="toLink"> 招待参加ページ </a><br><br>
         </div>
-        <div v-if="errorMessage"> 
-          <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
-          <a href="/setting/"> データ設定ページ </a><br>
-          <a href="/sign/"> サインインページ </a>
-        </div>
+        <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>
         <label>経緯度: <a href="https://maps.google.com/" target="_blank">Googleマップ</a>の右クリックで取得できます<br />
           <input v-model="coordinateInput"
                  required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
@@ -114,10 +112,19 @@ async function submitUser(index) {
         <div class="centralize">
           <span>　ーーー　オプション　ーーー　</span>
         </div>
+
         <div>
-          <input type="text" v-model="nickname" placeholder="ニックネーム" style="margin: 4px; padding: 4px;">
+          <input type="text" v-model="user.mail" placeholder="メール" class="divText">
         </div>
-        <PeopleImg v-if="fetched" v-model="nickImg" />
+
+        <div>
+          <input type="text" v-model="user.telephone" placeholder="電話番号" class="divText">
+        </div>
+
+        <div>
+          <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
+        </div>
+        <PeopleImg v-model="nickImg" />
         <div class="centralize">
           <button type="submit" class="wide-text" @click="submitUser">更新</button>
         </div>
@@ -163,6 +170,11 @@ async function submitUser(index) {
   vertical-align: middle;
   justify-content: center;
   align-items: center;
+}
+
+.divText {
+  margin: 4px;
+  padding: 4px;
 }
 
 </style>

@@ -6,7 +6,7 @@ import (
   // "fmt"
   "log"
   "net/http"
-  "strconv"
+  // "strconv"
   "time"
 
   "go.mongodb.org/mongo-driver/mongo"
@@ -21,198 +21,141 @@ import (
 )
 
 func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
-	postBy := r.FormValue("postBy")
+	aliasName := r.FormValue("aliasName")
 	receptionID := r.FormValue("receptionID")
-  menuID, err := strconv.Atoi(r.FormValue("menuID"))
-  if err != nil {
-    http.Error(w, "menuID is not correct", http.StatusNotFound)
-    return
-  }
 
   code := r.FormValue("code")
   if code == "" {
-    http.Error(w, "Code is required", http.StatusBadRequest)
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "code is invalid", http.StatusOK)
     return
   }
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
+  // receptionOrders を受け取る
+  var orders []ReceptionOrderStruct
+  if err := json.Unmarshal([]byte(r.FormValue("receptionOrders")), &orders); err != nil {
+      common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "JSON receptionOrders is wrong", http.StatusOK)
+      return
+  }
+
+	// 必須チェック
+	for _, order := range orders {
+	    if order.ReceptionOrderID == "" ||
+	        order.SeatName == "" ||
+	        order.MenuID == 0 ||
+	        order.Price == 0 {
+	        common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "data is not enough", http.StatusOK)
+	        return
+	    }
+	}
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
   }
 
-	trueAccess := false
-	for _, d := range session.ChannelAliases {
-		if d.Alias == postBy {
-			trueAccess = true
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+	collReception := common.DB.ReceptionDB.Collection("reception")
+  var reception collection.ReceptionStruct
+  filter := bson.M{"_id": receptionID}
+  err = collReception.FindOne(ctx, filter).Decode(&reception)
+  if err != nil {
+    if err == mongo.ErrNoDocuments {
+      common.WriteResponseWithSession(w, session, "Reception not found", http.StatusOK)
+    } else {
+      common.WriteResponseWithSession(w, session, "collReception.FindOne query failed", http.StatusOK)
+    }
+    return
+  }
+
+	validCode := false
+	seatName := ""
+	for _, seat := range reception.Seats {
+		for _, pass := range seat.Passcodes {
+			if pass.Passkey == code {
+				validCode = true
+				seatName = seat.SeatName
+				break
+			}
+		}
+		if validCode {
 			break
 		}
 	}
-	if !trueAccess {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
+	if !validCode {
+		common.WriteResponseWithSession(w, session, "コードが一致してません", http.StatusOK)
 		return
 	}
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-	coll := common.DB.ReceptionDB.Collection("reception")
-  var reception collection.ReceptionStruct
-  filter := bson.M{"_id": receptionID}
-  err = coll.FindOne(ctx, filter).Decode(&reception)
+	orderUserIDs := append(reception.OrderUserIDs, session.UserID)
+  collSessions := common.DB.SessionDB.Collection("session")
+	filter = bson.M{"userID": bson.M{"$in": orderUserIDs},}
+  cursor, err := collSessions.Find(context.TODO(), filter)
   if err != nil {
-    if err == mongo.ErrNoDocuments {
-      http.Error(w, "Reception not found", http.StatusNotFound)
-    } else {
-      http.Error(w, "Database query failed", http.StatusInternalServerError)
-    }
-    return
+		common.WriteResponseWithSession(w, session, "collSessions.Find:", http.StatusOK)
+		return
+  }
+  var sessions []collection.SessionStruct
+  if err = cursor.All(context.TODO(), &sessions); err != nil {
+		common.WriteResponseWithSession(w, session, "collSessions All:", http.StatusOK)
+		return
   }
 
-  found := false
-  tableName := ""
-  for i, table := range reception.Seats {
-    for _, passcode := range table.Passcodes {
-      if passcode.Passkey == code {
-        found = true
-        reception.Seats[i].CurrentCode = code
-        tableName = table.SeatName
+  for _, order := range orders {
+    // log.Printf("受注: %+v\n", order)
+    var selectedMenu *collection.Menu
+    for _, menu := range reception.Menus {
+      if menu.MenuID == order.MenuID {
+        selectedMenu = &menu
+        break
       }
     }
-    if found {
-      break
+    if selectedMenu == nil {
+      // log.Printf("MenuID %d not found", order.MenuID)
+      continue
     }
+    paidOptionSum := 0
+    for _, opt := range order.PaidOptions {
+      paidOptionSum += opt.Price
+    }
+    // calcTotal := selectedMenu.Price + paidOptionSum
+    // if calcTotal != order.TotalPrice {
+    //   log.Printf("⚠️ 金額差異: client=%d server=%d", order.TotalPrice, calcTotal)
+    // }
+    order.SeatName = seatName
   }
-
-  if !found {
-    http.Error(w, "Code not associated with any table", http.StatusNotFound)
-    return
-  }
-
-
-	// Find the requested menu
-	var selectedMenu *collection.Menu
-	for _, menu := range reception.Menus {
-		if menu.MenuID == menuID {
-			selectedMenu = &menu
-			break
-		}
-	}
-	// if selectedMenu == nil {
-	// 	return nil, fmt.Errorf("menuID %d not found", menuID)
-	// }
-
-	// if menuPrice == 0 {
-	// 	http.Error(w, "Menu not found or price unavailable", http.StatusNotFound)
-	// 	return
-	// }
-
-	var freeOptions []int
-  if err := json.Unmarshal([]byte(r.FormValue("freeOptions")), &freeOptions); err != nil {
-    http.Error(w, "Invalid JSON freeOptions", http.StatusBadRequest)
-    return
-  }
-
-  var freeMultiOptions []int
-  if err := json.Unmarshal([]byte(r.FormValue("freeMultiOptions")), &freeMultiOptions); err != nil {
-    http.Error(w, "Invalid JSON freeMultiOptions", http.StatusBadRequest)
-    return
-  }
-
-  var paidOptions []int
-  if err := json.Unmarshal([]byte(r.FormValue("paidOptions")), &paidOptions); err != nil {
-    http.Error(w, "Invalid JSON paidOptions", http.StatusBadRequest)
-    return
-  }
-
-	var itemIDs []int
-	var paidOptionSum int
-
-	// FreeOptions (単純なintスライスに対応)
-	for _, freeID := range freeOptions {
-		for _, IDs := range selectedMenu.FreeOptions {
-			for _, ID := range IDs {
-				if freeID == ID {
-					for _, item := range reception.ItemDetails {
-						if item.ItemID == freeID {
-							itemIDs = append(itemIDs, item.ItemID)
-							break
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// FreeMultiOptions (intスライス)
-	for _, freeID := range freeMultiOptions {
-		for _, ID := range selectedMenu.FreeMultiOptions {
-			if freeID == ID {
-				for _, item := range reception.ItemDetails {
-					if item.ItemID == freeID {
-						itemIDs = append(itemIDs, item.ItemID)
-						break
-					}
-				}
-			}
-		}
-	}
-
-	// PaidOptions (構造体: []ItemOption)
-	for _, paidID := range paidOptions {
-		for _, option := range selectedMenu.PaidOptions {
-			if option.ItemID == paidID {
-				for _, item := range reception.ItemDetails {
-					if item.ItemID == paidID {
-						itemIDs = append(itemIDs, item.ItemID)
-						paidOptionSum += option.Price
-						break
-					}
-				}
-			}
-		}
-	}
-
-	menuPrice := selectedMenu.Price + paidOptionSum
 
   var arr []interface{}
-  arr = append(arr, "receptionOrder")
-  arr = append(arr, tableName)
-  arr = append(arr, r.FormValue("menuID"))
-  arr = append(arr, itemIDs)
-  arr = append(arr, menuPrice)
-  arr = append(arr, common.StringRand(4))
-  // for _, subscription := range reception.Subscriptions {
-	 //  pushID := common.StringRand(12)
-	 //  arrForPush := append([]interface{}{pushID}, arr...)
-	  
-	 //  resp, err := common.PushNotification(string(arrForPush), subscription)
-  //   if err != nil {
-	 //    log.Printf("PushNotification: %v; Req: ", err, r.URL.Path, r.Form)
-	 //    http.Error(w, err.Error(), http.StatusServiceUnavailable)
-  //   }
-  //   defer resp.Body.Close()
-  // }
+	arr = append(arr, "receptionOrder")
+	arr = append(arr, reception.ChannelID)
+	arr = append(arr, aliasName)
+	arr = append(arr, orders)
+	common.ChunkPush(sessions, arr)
 
-	responseData := struct {
-		Csrf         string   `json:"csrf"`
-		PushContents []string `json:"pushContents"`
-	}{
+	responseData := common.BaseResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 	}
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(responseData)
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
-
+type ReceptionOrderStruct struct {
+  ReceptionOrderID string            `json:"receptionOrderID"`
+  SeatName         string            `json:"seatName"`
+  MenuID           int               `json:"menuID"`
+  MenuName         string            `json:"menuName"`
+  ItemChoices      map[string]string `json:"itemChoices"`
+  FreeOptions      []int             `json:"freeOptions"`
+  PaidOptions      []struct {
+      ItemID int `json:"itemID"`
+      Price  int `json:"price"`
+  } `json:"paidOptions"`
+  FreeMultiOptions []int `json:"freeMultiOptions"`
+  Price            int   `json:"price"`
+  TotalPrice       int   `json:"totalPrice"`
 }
 

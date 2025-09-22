@@ -3,6 +3,8 @@ import { ref, reactive, onMounted } from 'vue'
 
 import Advertisement from '@/components/Advertisement.vue'
 import Drawer from '@/components/Drawer.vue'
+import Image from '@/components/Image.vue';
+import SelectAlias from '@/components/SelectAlias.vue'
 
 import { pushReceive } from '@/pushReceive/pushReceive.js'
 
@@ -61,7 +63,7 @@ const defaultReception = {
       itemID: 1,
       price: 0
     }],
-    freeOptions: [[]], //　[オレンジジュース、メロンソーダ], [パン, ご飯]
+    freeOptions: [[]], // itemID　[オレンジジュース、メロンソーダ], [パン, ご飯]
     freeMultiOptions: [] 
   }],
   skills: [''],
@@ -89,6 +91,7 @@ reception.value = defaultReception
 const channel = ref(null)
 const groups = ref([])
 const aliases = ref([])
+const found = ref(false)
 const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', channelID)
@@ -102,15 +105,19 @@ onMounted(async () => {
       console.error('receptionパラメータのJSONパースに失敗しました:', e)
     }
   } else if (props.id) {
-    reception.value = await getIDB('reception', props.id);
-  } else {
-    reception.value = await findReception();
+    // reception.value = await getIDB('reception', props.id);
+    reception.value = await findReception()
+    
+    // console.log('reception.value', reception.value)
+  // } else {
+  //   reception.value = await findReception()
   }
+  found.value = true
 })
 
 async function findReception() {
   const fd = new FormData()
-  fd.append('receptionID', localStorage.getItem('channelID'))
+  fd.append('receptionID', props.id)
   fd.append('channelID', localStorage.getItem('channelID'))
   fd.append('aliasName', channel.value.myname)
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -121,7 +128,14 @@ async function findReception() {
   res.pushContents.forEach(content => {
     pushReceive(content)
   })
-  return res.reception?.receptionID || defaultReception
+  console.log('res.reception', res.reception.receptionID)
+  if (!res.reception) { return defaultReception }
+  res.reception.menus.forEach(menu => {
+    menu.paidOptions = menu.paidOptions || []
+    menu.freeOptions = menu.freeOptions || []
+    menu.freeMultiOptions = menu.freeMultiOptions || []
+  })
+  return res.reception
 }
 
 // ユーティリティ関数
@@ -170,30 +184,26 @@ async function submit() {
 
     <div>
       <label>管理者:</label>
-      <div v-for="(name, i) in reception.adminNames" :key="i">
-        <select v-model="reception.adminNames[i]">
-          <option disabled value="">アカウント名</option>
-          <option v-for="alias in aliases" :key="alias.aliasName" :value="alias.aliasName">
-            {{ alias.aliasName }}
-          </option>
-        </select>
-        <button v-if="reception.adminNames.length > 1" @click.prevent="removeItem('adminNames', i)">−</button>
-      </div>
-      <button @click.prevent="addArrayItem('adminNames')">＋</button>
+      <SelectAlias v-if="found"
+        :channel="channel"
+        :aliases="aliases"
+        :groups="groups"
+        :editable="true"
+        :placeholder="'管理者'"
+        v-model="reception.adminNames"
+        />
     </div>
 
     <div>
       <label>加入者:</label>
-      <div v-for="(name, i) in reception.joinNames" :key="i">
-        <select v-model="reception.joinNames[i]">
-          <option disabled value="">アカウント名</option>
-          <option v-for="alias in aliases" :key="alias.aliasName" :value="alias.aliasName">
-            {{ alias.aliasName }}
-          </option>
-        </select>
-        <button v-if="reception.joinNames.length > 1" @click.prevent="removeItem('joinNames', i)">−</button>
-      </div>
-      <button @click.prevent="addArrayItem('joinNames')">＋</button>
+      <SelectAlias v-if="found"
+        :channel="channel"
+        :aliases="aliases"
+        :groups="groups"
+        :editable="true"
+        :placeholder="'管理者'"
+        v-model="reception.joinNames"
+        />
     </div>
 
     <div>
@@ -242,7 +252,8 @@ async function submit() {
       <div v-for="(item, i) in reception.itemDetails" :key="i" style="margin-left: 6px;">
         <input v-model="item.itemID" type="number" placeholder="ID" />
         <input v-model="item.itemName" placeholder="名前" type="text" />
-        <input v-model="item.imgPath" placeholder="画像パス" type="text" />
+        <Image v-model="item.imgPath" />
+        <!-- <input v-model="item.imgPath" placeholder="画像パス" type="text" /> -->
 
         <!-- choices: 二重配列 -->
         <div>
@@ -327,7 +338,7 @@ async function submit() {
         <div>
           <label>無料オプション:</label>
           <div v-for="(group, gIdx) in m.freeOptions" :key="'group-'+gIdx" style="margin-bottom:10px; border:1px dashed #aaa; padding:5px;">
-            <label>オプショングループ {{ gIdx + 1 }}</label>
+            <label>無料オプショングループ {{ gIdx + 1 }}</label>
             <div v-for="(opt, idx) in group" :key="'opt-'+gIdx+'-'+idx">
               <select v-model="m.freeOptions[gIdx][idx]">
                 <option disabled value="">商品</option>
@@ -355,7 +366,7 @@ async function submit() {
             </select>
             <button @click.prevent="m.freeMultiOptions.splice(idx, 1)">−</button>
           </div>
-          <button @click.prevent="m.freeMultiOptions.push(0)">＋無料複数オプション</button>
+          <button @click.prevent="m.freeMultiOptions.push(m.freeMultiOptions.length)">＋無料複数オプション</button>
         </div>
 
         <button @click.prevent="reception.menus.splice(i, 1)" v-if="reception.menus.length > 1">−</button>

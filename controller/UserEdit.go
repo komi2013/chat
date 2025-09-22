@@ -22,36 +22,32 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
   latStr := r.FormValue("latitude")
   lat, err := strconv.ParseFloat(latStr, 64)
   if err != nil || lat < -90 || lat > 90 {
-    log.Printf("緯度 (latitude) が不正です: %v", latStr)
-    http.Error(w, "緯度 (latitude) が不正です", http.StatusBadRequest)
-    return
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "緯度 (latitude) が不正です", http.StatusOK)
+		return
   }
   lngStr := r.FormValue("longitude")
   lng, err := strconv.ParseFloat(lngStr, 64)
   if err != nil || lng < -180 || lng > 180 {
-    log.Printf("経度 (longitude) が不正です: %v", lngStr)
-    http.Error(w, "経度 (longitude) が不正です", http.StatusBadRequest)
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "経度 (longitude) が不正です", http.StatusOK)
     return
   }
+
   user.Latitude = lat
   user.Longitude = lng
+
+  mail := r.FormValue("mail")
+  telephone := r.FormValue("telephone")
+
+  user.Mail = mail
+  user.Telephone = telephone
 
   var nickname collection.NicknameStruct
   nickname.Nickname = r.FormValue("nickname")
   nicknameOld := r.FormValue("nicknameOld")
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
   }
@@ -64,29 +60,21 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
-  update := bson.M{
-    "$set": user,
-  }
-  filterUser := bson.M{"_id": session.UserID}
-  opts := options.Update().SetUpsert(true)
-  collUser := common.DB.UserDB.Collection("user")
-  // collUser := db1.Collection("user")
-  _, err = collUser.UpdateOne(ctx, filterUser, update, opts)
-  if err != nil {
-    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
-  }
-  message := "ユーザー情報は更新されました"
+  message := "ユーザー情報は更新されました "
   if nickname.Nickname != "" {
   	collNickname := common.DB.NicknameDB.Collection("nickname")
-	  // collNickname := db1.Collection("nickname")
 	  filterNickname := bson.M{"userID": session.UserID}
 	  cursor, err := collNickname.Find(context.TODO(), filterNickname)
 	  if err != nil {
 	    log.Printf("coll.Find: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
+	    common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+	    return
 	  }
 	  var nicknames []collection.NicknameStruct
 	  if err = cursor.All(context.TODO(), &nicknames); err != nil {
 	    log.Printf("cursor.All: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
+	    common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+	    return
 	  }
 	  filterName := nickname.Nickname
 	  nameCount := 0
@@ -100,21 +88,53 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 	  if nameCount < 3 {
 	  	nickname.UpdatedAt = time.Now()
 	  	nickname.UserID = session.UserID
-		  update = bson.M{
+		  update := bson.M{
 		    "$set": nickname,
 		  }
 		  filterNickname := bson.M{"_id": filterName}
-		  opts = options.Update().SetUpsert(true)
-		  // collNickname := db1.Collection("nickname")
+		  opts := options.Update().SetUpsert(true)
 		  collNickname := common.DB.NicknameDB.Collection("nickname")
 		  _, err = collNickname.UpdateOne(ctx, filterNickname, update, opts)
 		  if err != nil {
 		    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+		    common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		    return
 		  }
 		  message = message + "ニックネーム情報は更新されました"
 	  } else {
 	  	message = message + "ニックネーム情報は3件以上は登録できません"
 	  }
+  }
+
+	update := bson.M{
+	    "$set": bson.M{
+	        "mail":      user.Mail,
+	        "telephone": user.Telephone,
+	    },
+	}
+
+	filterUser := bson.M{"userID": session.UserID}
+	opts := options.Update().SetUpsert(false)
+	collSessions := common.DB.SessionDB.Collection("session")
+	_, err = collSessions.UpdateMany(ctx, filterUser, update, opts)
+	if err != nil {
+	    log.Printf("UpdateMany: %v; Req: %s %v", err, r.URL.Path, r.Form)
+	    common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+	    return
+	}
+
+  update = bson.M{
+    "$set": user,
+  }
+  filterUser = bson.M{"_id": session.UserID}
+  opts = options.Update().SetUpsert(true)
+  collUser := common.DB.UserDB.Collection("user")
+  // collUser := db1.Collection("user")
+  _, err = collUser.UpdateOne(ctx, filterUser, update, opts)
+  if err != nil {
+    log.Printf("UpdateOne: %v; Req:", err, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+    return
   }
 
   responseData := struct {

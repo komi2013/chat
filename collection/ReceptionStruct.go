@@ -1,5 +1,7 @@
 package collection
 
+// booking > reception > QR code at table, open > menu > order
+
 import (
   "time"
 
@@ -12,7 +14,8 @@ type ReceptionStruct struct {
 	AdminNames       []string           `bson:"adminNames" json:"adminNames"`
 	Passcodes        []Passcode         `bson:"passcodes" json:"passcodes"`
 	JoinNames        []string           `bson:"joinNames" json:"joinNames"`
-	// UserIDs          []string           `bson:"userIDs,omitempty" json:"userIDs,omitempty"`
+	Subscriptions    []string           `bson:"subscriptions,omitempty" json:"subscriptions,omitempty"`
+	OrderUserIDs     []string           `bson:"orderUserIDs,omitempty" json:"orderUserIDs,omitempty"`
 	UpdatedAt        time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
 	ReceptionTitle   string             `bson:"receptionTitle,omitempty" json:"receptionTitle,omitempty"`
 	Books            []Book             `bson:"books,omitempty" json:"books,omitempty"`
@@ -40,6 +43,7 @@ type Book struct {
 	MenuID    int      `bson:"menuID,omitempty" json:"menuID,omitempty"`
 	People    int      `bson:"people,omitempty" json:"people,omitempty"`
 	CreatedAt time.Time `bson:"createdAt,omitempty"`
+	Nickname     string   `bson:"nickname" json:"nickname"`
 }
 
 type WorkStaff struct {
@@ -85,9 +89,9 @@ type Menu struct {
 	SpecifyNameFlag   bool           	`bson:"specifyNameFlag" json:"specifyNameFlag"`
 	SpendMinute  			int    					`bson:"spendMinute,omitempty" json:"spendMinute,omitempty"`
 	Items             []int       		`bson:"items" json:"items"`
-	PaidOptions       []ItemOption    `bson:"paidOptions,omitempty" json:"paidOptions,omitempty"`         // [[item_id, price]]
-	FreeOptions       [][]int         `bson:"freeOptions,omitempty" json:"freeOptions,omitempty"`         // [[item_id, ...]]
-	FreeMultiOptions  []int       		`bson:"freeMultiOptions,omitempty" json:"freeMultiOptions,omitempty"` // [item_id, ...]
+	PaidOptions       []ItemOption    `bson:"paidOptions,omitempty" json:"paidOptions"`         // [[item_id, price]]
+	FreeOptions       [][]int         `bson:"freeOptions,omitempty" json:"freeOptions"`         // [[item_id, ...]]
+	FreeMultiOptions  []int       		`bson:"freeMultiOptions,omitempty" json:"freeMultiOptions"` // [item_id, ...]
 }
 
 type ItemDetail struct {
@@ -122,9 +126,9 @@ type WaitConfig struct {
 
 type Passcode struct {
 	Passkey        string   `bson:"passkey" json:"passkey"`
-	UsageLimit  int      `bson:"usageLimit" json:"usageLimit"`
-	PassStart   string   `bson:"passStart" json:"passStart"`
-	PassEnd   string   `bson:"passEnd" json:"passEnd"`
+	// AvailableUsage  int      `bson:"availableUsage,omitempty" json:"availableUsage,omitempty"`
+	PassStart   string   `bson:"passStart,omitempty" json:"passStart,omitempty"`
+	PassEnd   string   `bson:"passEnd,omitempty" json:"passEnd,omitempty"`
 }
 
 type AskChoice struct {

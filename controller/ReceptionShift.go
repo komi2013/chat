@@ -21,44 +21,35 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 
   aliasName := r.FormValue("aliasName")
   channelID := r.FormValue("channelID")
-  bookPatternID := r.FormValue("bookPatternID")
+  receptionID := r.FormValue("receptionID")
 
 	var skills []string
 	if err := json.Unmarshal([]byte(r.FormValue("availableSkills")), &skills); err != nil {
-		log.Printf("JSON Unmarshal Error: %v; Request: %v", err, r.Form)
-		http.Error(w, "availableSkills Invalid JSON format", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "availableSkills JSON Unmarshal Error", http.StatusOK)
 		return
 	}
 
 	var updatedShifts []collection.Shift
 	if err := json.Unmarshal([]byte(r.FormValue("updatedShifts")), &updatedShifts); err != nil {
-		log.Printf("JSON Unmarshal Error: %v; Request: %v", err, r.Form)
-		http.Error(w, "updatedShifts Invalid JSON format", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "updatedShifts JSON Unmarshal Error", http.StatusOK)
 		return
 	}
 
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
+    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
     http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
   }
 
-  trueAccess := false
+  staffAccess := false
   for _, d := range session.ChannelAliases {
     if d.Alias == aliasName && d.ChannelID == channelID {
-      trueAccess = true
+      staffAccess = true
     }
   }
-  if !trueAccess {
-    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, r.URL.Path, r.Form)
+  if !staffAccess {
+		common.WriteResponseWithSession(w, session, "!staffAccess:", http.StatusOK)
     return
   }
 
@@ -66,34 +57,29 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
   defer cancel()
 	coll := common.DB.ReceptionDB.Collection("reception")
 
-  // Find the document by `_id`
   var reception collection.ReceptionStruct
-  filter := bson.M{"_id": bookPatternID}
+  filter := bson.M{"_id": receptionID}
   err = coll.FindOne(ctx, filter).Decode(&reception)
   if err != nil {
-    log.Print(err, " reception ", bookPatternID)
-    http.Error(w, "Book pattern not found", http.StatusNotFound)
+		common.WriteResponseWithSession(w, session, "reception not found", http.StatusOK)
     return
   }
 
 	for _, shift := range updatedShifts {
-
-    existingStaffMap := make(map[string]bool) // 既存の WorkStaff (AliasName → 存在判定)
+    existingStaffMap := make(map[string]bool)
     for _, staff := range reception.WorkStaffs {
       if staff.WorkStart == shift.ShiftStart {
         existingStaffMap[staff.AliasName] = true
       }
     }
 
-    // `updatedShifts` の `AliasNames` から変化を取得
-    newAliasMap := make(map[string]bool) // 新しい updatedShifts の AliasName (存在判定)
+    newAliasMap := make(map[string]bool)
     for _, alias := range shift.AliasNames {
       newAliasMap[alias] = true
     }
 
     newOpenAliases := getOpenAliasesFromShift(shift.AliasNames, shift.Open)
 
-    // ** 追加された AliasNames **
     var addedAliases []string
     for i, alias := range shift.AliasNames {
       if i < shift.Open && !existingStaffMap[alias] {
@@ -101,7 +87,6 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
       }
     }
 
-    // ** 削除された AliasNames（updatedShifts にないもの + shift.Open から出たもの）**
     var removedAliases []string
     for alias := range existingStaffMap {
       if !newAliasMap[alias] || !common.SliceStrContains(newOpenAliases, alias) {
@@ -109,9 +94,7 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
       }
     }
 
-    // ** 追加処理（shift.Open の範囲内のみ）**
     for _, aliasName := range addedAliases {
-      // if addI < shift.Open {
       newStaff := collection.WorkStaff{
         AliasName: aliasName,
         WorkStart: shift.ShiftStart,
@@ -119,23 +102,20 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
         Seq:       len(reception.WorkStaffs) + 1,
       }
       reception.WorkStaffs = append(reception.WorkStaffs, newStaff)
-      // }
     }
 
-    // ** 削除処理（removedAliases のデータを WorkStaffs から削除）**
     for j := 0; j < len(reception.WorkStaffs); {
       staff := reception.WorkStaffs[j]
       if common.SliceStrContains(removedAliases, staff.AliasName) && staff.WorkStart == shift.ShiftStart {
-        // 削除
         reception.WorkStaffs = append(reception.WorkStaffs[:j], reception.WorkStaffs[j+1:]...)
       } else {
         j++
       }
     }
 
-		log.Printf("ShiftStart: %s", shift.ShiftStart)
-		log.Printf("Added AliasNames: %v", addedAliases)
-		log.Printf("Removed AliasNames: %v", removedAliases)
+		// log.Printf("ShiftStart: %s", shift.ShiftStart)
+		// log.Printf("Added AliasNames: %v", addedAliases)
+		// log.Printf("Removed AliasNames: %v", removedAliases)
 
 		for i, s := range reception.Shifts {
 			if s.ShiftStart == shift.ShiftStart && s.Role == shift.Role {
@@ -145,8 +125,8 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("Updated WorkStaffs: %+v", reception.WorkStaffs)
-
+	// log.Printf("Updated WorkStaffs: %+v", reception.WorkStaffs)
+	var receptionLog = common.NewDailyLogger("reception_")
 	if len(skills) > 0 {
 		updated := false
 		for j, staffSkill := range reception.StaffSkills {
@@ -166,7 +146,6 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// **4. MongoDB に更新**
 	update := bson.M{
 		"$set": bson.M{
 			"shifts": reception.Shifts,
@@ -175,24 +154,20 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	updateResult, err := coll.UpdateOne(ctx, filter, update)
+	_, err = coll.UpdateOne(ctx, filter, update)
 	if err != nil {
-		log.Print(err, " Update error")
-		http.Error(w, "Failed to update reception", http.StatusInternalServerError)
+		receptionLog.Printf("updateResult coll.UpdateOne: %v; Req: ", err, r.URL.Path, r.Form)
+		common.WriteResponseWithSession(w, session, "reception not found", http.StatusOK)
 		return
 	}
 
-	log.Printf("Updated %d document(s)", updateResult.ModifiedCount)
+	// log.Printf("Updated %d document(s)", updateResult.ModifiedCount)
 
-  responseData := struct {
-    Csrf         string        `json:"csrf"`
-    PushContents []string `json:"pushContents"`
-    Reception collection.ReceptionStruct `json:"reception"`
-  }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
-    Reception: reception,
-  }
+	responseData := common.BaseResponse{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+		Reception:    reception,
+	}
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(responseData)
 }

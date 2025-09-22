@@ -30,18 +30,18 @@ const getNext30Days = () => {
 const monthDates = getNext30Days();
 
 async function findReception() {
-  const fd = new FormData();
-  fd.append('receptionID', props.id);
-  fd.append('channelID', localStorage.getItem('channelID'));
-  fd.append('aliasName', channel.value.myname);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ReceptionGet/', fd);
+  const fd = new FormData()
+  fd.append('receptionID', props.id)
+  fd.append('channelID', localStorage.getItem('channelID'))
+  fd.append('aliasName', channel.value.myname)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ReceptionGet/', fd)
   if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  return res.reception;
+    pushReceive(content)
+  })
+  return res.reception
 }
 
 const generateKey = (shift) => `${shift.shiftStart}_${shift.role}`;
@@ -115,15 +115,13 @@ onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  if (props.id && props.id.length > 3) {
-    reception.value = await findReception();
-  } else {
-    reception.value = await getIDB('reception', props.id);
-  }
-  iamAdmin.value = reception.value.adminNames.includes(channel.value.myname);
-  // if (matchingGroup && matchingGroup.aliasNames.includes(channel.value.myname)) {
-  //   iamAdmin.value = true;
+  // if (props.id && props.id.length > 3) {
+  //   reception.value = await findReception();
+  // } else {
+  //   reception.value = await getIDB('reception', props.id);
   // }
+  reception.value = await findReception()
+  iamAdmin.value = reception.value.adminNames.includes(channel.value.myname);
   console.log('myname', channel.value.myname);
   const matchedStaff = reception.value.staffSkills.find(
     (staff) => staff.aliasName === channel.value.myname
@@ -272,11 +270,7 @@ const submitShift = async () => {
     </table>
   </div>
   <div id="content">
-    <div v-if="errorMessage"> 
-      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
-      <a href="/setting/"> データ設定ページ </a><br>
-      <a href="/sign/"> サインインページ </a>
-    </div>
+    <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>
     <table id="calendar-container-move">
       <thead>
         <tr class="header">

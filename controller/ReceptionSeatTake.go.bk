@@ -17,7 +17,7 @@ import (
   "chat/common"
 )
 
-func ReceptionCheck(w http.ResponseWriter, r *http.Request) {
+func ReceptionSeatTake(w http.ResponseWriter, r *http.Request) {
 	receptionID := r.FormValue("receptionID")
 
 	code := r.FormValue("code")

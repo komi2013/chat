@@ -26,18 +26,22 @@ const getNext30Days = () => {
 };
 const monthDates = getNext30Days();
 
+let mail
+let telephone
 async function findReception() {
   const fd = new FormData();
-  fd.append('receptionID', localStorage.getItem('channelID'));
+  fd.append('receptionID', props.id);
   fd.append('channelID', localStorage.getItem('channelID'));
-  fd.append('aliasName', localStorage.getItem('myname'));
+  fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
-  });
+  })
+  mail = res.mail
+  telephone = res.telephone
   return res.reception;
 }
 
@@ -63,18 +67,16 @@ const generateSchedules = (menuID) => {
   let tempSchedules = [];
   let unavailableTimes = [];
   monthDates.forEach(date => {
-    reception.value.books.forEach(book => (book.splitted = false));
+    reception.value.books?.forEach(book => (book.splitted = false))
     let workStaffTime = false;
     reception.value.workStaffs.forEach(work => {
       if (!isSameDate(work.workStart, date)) return;
       let start = new Date(work.workStart);
       let end = new Date(work.workEnd);
       if (needSkill) {
-        const validStaffs = getValidWorkStaffs(work, needSkill);
-        // console.log('validStaffs', validStaffs);
-        if (!validStaffs) return; // 該当するスタッフがいない場合はスキップ
+        const validStaffs = getValidWorkStaffs(work, needSkill)
+        if (!validStaffs) return
       }
-
       let splitBlocks = splitWorkTime(start, end, reception.value.books);
       splitBlocks.forEach(({ start, end }) => {
         tempSchedules.push({
@@ -82,9 +84,8 @@ const generateSchedules = (menuID) => {
           timeEnd: end,
         });
       });
-
-      workStaffTime = true;
-    });
+      workStaffTime = true
+    })
     if (needFacility) {
       let newUnavailableTimes = makeUnavailableTime(date, needFacility);
       let uniqueTimes = new Set(unavailableTimes.map(time => JSON.stringify(time)));
@@ -92,21 +93,19 @@ const generateSchedules = (menuID) => {
       unavailableTimes = Array.from(uniqueTimes).map(time => JSON.parse(time));
     }
   });
-
   let mergedSchedules = mergeSchedules(tempSchedules);
   tempSchedules = [];
   mergedSchedules.forEach(schedule => {
     let splitBlocks = splitWorkTime(schedule.timeStart, schedule.timeEnd, unavailableTimes);
     splitBlocks.forEach(({ start, end }) => {
-      // console.log('splitBlocks.forEach', start, end);
       tempSchedules.push({
         timeStart: start,
         timeEnd: end,
-      });
-    });
-  });
-  mergedSchedules = mergeSchedules(tempSchedules);
-  schedules.value = mergedSchedules;
+      })
+    })
+  })
+  mergedSchedules = mergeSchedules(tempSchedules)
+  schedules.value = mergedSchedules
 };
 
 const getValidWorkStaffs = (work, needSkill) => {
@@ -127,12 +126,12 @@ const splitWorkTime = (workStart, workEnd, books) => {
   // console.log('対象範囲:', workStart, '~', workEnd, '適用する books:', books);
 
   let remainingBooks = books
-    .filter(book => isOverlapping(workStart, workEnd, book.bookStart, book.bookEnd))
+    ?.filter(book => isOverlapping(workStart, workEnd, book?.bookStart, book?.bookEnd))
     .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
 
   // console.log('対象の予約 (remainingBooks):', remainingBooks);
 
-  remainingBooks.forEach(book => {
+  remainingBooks?.forEach(book => {
     let bookStart = new Date(book.bookStart);
     let bookEnd = new Date(book.bookEnd);
 
@@ -173,7 +172,7 @@ const makeUnavailableTime = (date, needFacility) => {
 
   const facilityCount = relatedFacility.facilityCount;
 
-  let facilityBooks = reception.value.books
+  let facilityBooks = (reception.value.books ?? [])
     .filter(book => needsFacility(book, needFacility))
     .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
 
@@ -346,24 +345,30 @@ const availableSkills = ref([]);
 const iamAdmin = ref(false);
 const schedules = ref([]);
 const errorMessage = ref('')
+const bookable = ref(true)
 onMounted(async() => {
   channel.value = await getIDB('channel', channelID);
   groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  if (props.id && props.id.length > 3) {
-    reception.value = await findReception();
-  } else {
-    reception.value = await getIDB('reception', props.id);
-  }
+  reception.value = await findReception()
+  // if (props.id && props.id.length > 3) {
+  //   reception.value = await findReception()
+  // } else {
+  //   reception.value = await getIDB('reception', props.id);
+  // }
 
-  if (reception.value.adminNames && reception.value.adminNames.includes(localStorage.getItem('myname'))) {
-    iamAdmin.value = true;
+  if (reception.value.adminNames && reception.value.adminNames.includes(channel.value.myname)) {
+    iamAdmin.value = true
   }
   const matchedStaff = reception.value.staffSkills.find(
-    (staff) => staff.aliasName === localStorage.getItem('myname')
+    (staff) => staff.aliasName === channel.value.myname
   );
   availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
-  generateSchedules();
+  if ((mail && telephone) || reception.value.joinNames) {
+    generateSchedules()
+  } else {
+    bookable.value = false
+  }
   window.scrollTo({top: 600, behavior: "smooth"});
   document.title = reception.value.receptionTitle;
 });
@@ -389,6 +394,7 @@ const selectedEvent = ref({
 });
 
 const openModal = (day, hour) => {
+  console.log('hiiii')
   showModal.value = true;
   const start = new Date(day);
   start.setHours(hour, 0);
@@ -435,12 +441,12 @@ const closeModal = () => {
     </table>
   </div>
   <div id="content">
-    <div v-if="errorMessage"> 
-      <div class="errorMessage">{{errorMessage}}<br>データ取得に失敗しました。</div>
-      <a href="/setting/"> データ設定ページ </a><br>
-      <a href="/sign/"> サインインページ </a>
+    <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>
+    <div v-if="!bookable">
+      <div class="errorMessage"> メールと電話番号を登録してください </div>
+      <a href="/user/"> ユーザー設定 </a>
     </div>
-    <table id="calendar-container-move">
+    <table v-if="!errorMessage && bookable" id="calendar-container-move">
       <thead>
         <tr class="header">
           <th>≡</th>

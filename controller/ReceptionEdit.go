@@ -17,23 +17,11 @@ import (
 )
 
 func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-
-  // client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect error: %v", err)
-  //   http.Error(w, "Database connection error", http.StatusInternalServerError)
-  //   return
-  // }
-  // defer client.Disconnect(ctx)
-  // db := client.Database(common.MongoDb1)
 
   var reception collection.ReceptionStruct
   if err := json.Unmarshal([]byte(r.FormValue("reception")), &reception); err != nil {
-    log.Printf("reception: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON reception", http.StatusBadRequest)
-    return
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "reception Invalid JSON reception", http.StatusOK)
+		return
   }
 
   aliasName := r.FormValue("aliasName")
@@ -46,19 +34,6 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  // var reception collection.ReceptionStruct
-  responseData := struct {
-    Csrf         string        `json:"csrf"`
-    PushContents []string `json:"pushContents"`
-    Reception collection.ReceptionStruct `json:"reception,omitempty"`
-    Error        string   `json:"error,omitempty"`
-  }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
-    Reception: reception,
-    Error: "",
-  }
-
   staffAccess := false
   for _, d := range session.ChannelAliases {
     if d.Alias == aliasName && d.ChannelID == channelID {
@@ -68,17 +43,29 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
   }
 
   if !staffAccess {
-    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, aliasName, channelID, r.URL.Path, r.Form)
-    // http.Error(w, "no true access right", http.StatusServiceUnavailable)
-	  w.Header().Set("Content-Type", "application/json")
-	  responseData.Error = "no true access right"
-	  json.NewEncoder(w).Encode(responseData)
-    return
+		common.WriteResponseWithSession(w, session, "no true staff access right", http.StatusOK)
+		return
   }
 
+	for i := range reception.ItemDetails {
+    if reception.ItemDetails[i].ImgPath != "" {
+      savedPath, err := common.ImgSave(
+        reception.ItemDetails[i].ImgPath,
+        session.UserID,
+        aliasName,
+        channelID,
+        3,
+      )
+      if err != nil {
+        common.WriteResponseWithSession(w, session, "ItemDetails[i].ImgPath: " + err.Error(), http.StatusOK)
+        return
+      }
+      reception.ItemDetails[i].ImgPath = savedPath
+    }
+	}
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
-  // coll := db.Collection("reception")
+
   coll := common.DB.ReceptionDB.Collection("reception")
 	var existing collection.ReceptionStruct
 	filter := bson.M{"_id": reception.ReceptionID}
@@ -87,8 +74,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	if err == mongo.ErrNoDocuments {
 		reception.AdminNames = append(reception.AdminNames, aliasName)
 	} else if err != nil {
-		log.Printf("DB error: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, "reception FindOne: " + err.Error(), http.StatusOK)
 		return
 	} else {
 		adminAccess := false
@@ -99,34 +85,24 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !adminAccess && !staffAccess {
-			log.Printf("Unauthorized edit attempt: aliasName=%s, channelID=%s, receptionID=%s", aliasName, channelID, reception.ReceptionID)
-			http.Error(w, "You do not have permission to edit this reception", http.StatusForbidden)
+			var receptionLog = common.NewDailyLogger("reception_")
+			receptionLog.Printf("Unauthorized edit attempt: aliasName=%s, channelID=%s, receptionID=%s", aliasName, channelID, reception.ReceptionID)
+			common.WriteResponseWithSession(w, session, "You do not have permission to edit this reception", http.StatusOK)
 			return
 		}
 	}
- //  reception.UpdatedAt = time.Now()
- //  update := bson.M{"$set": reception}
-	// opts := options.Update().SetUpsert(true)
- //  _, err = coll.UpdateOne(ctx, filter, update, opts)
- //  if err != nil {
- //    log.Printf("Failed to update reception: %v", err)
- //    http.Error(w, "Failed to update reception", http.StatusInternalServerError)
- //    return
- //  }
 
 	filter = bson.M{"_id": reception.ReceptionID}
 	reception.UpdatedAt = time.Now()
 	data, err := bson.Marshal(reception)
 	if err != nil {
-    log.Printf("Failed to marshal reception: %v", err)
-    http.Error(w, "Failed to marshal reception", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, "Failed to marshal reception", http.StatusOK)    
     return
 	}
 
 	var updateData bson.M
 	if err := bson.Unmarshal(data, &updateData); err != nil {
-    log.Printf("Failed to unmarshal to bson.M: %v", err)
-    http.Error(w, "Failed to unmarshal reception", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, "Failed to unmarshal reception to bson.M", http.StatusOK)
     return
 	}
 	delete(updateData, "_id")
@@ -134,24 +110,15 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	opts := options.Update().SetUpsert(true)
 	_, err = coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-    log.Printf("Failed to update reception: %v", err)
-    http.Error(w, "Failed to update reception", http.StatusInternalServerError)
+    common.WriteResponseWithSession(w, session, "Failed to update reception", http.StatusOK)
     return
 	}
 
-  // responseData := struct {
-  //   Csrf         string                     `json:"csrf"`
-  //   PushContents []string                   `json:"pushContents"`
-  //   // Reception    collection.ReceptionStruct `json:"reception"`
-  // }{
-  //   Csrf:         session.Csrf,
-  //   PushContents: session.PushContents,
-  //   // Reception:    updated,
-  // }
 
+	responseData := common.BaseResponse{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+	}
   w.Header().Set("Content-Type", "application/json")
-  if err := json.NewEncoder(w).Encode(responseData); err != nil {
-    log.Printf("Response encode error: %v", err)
-    http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-  }
+  json.NewEncoder(w).Encode(responseData)
 }

@@ -5,24 +5,24 @@
       <label for="timeStart">開始時間:</label>
       <input type="datetime-local" v-model="localEvent.timeStart" />
       <div>
-        <div v-for="(question, i) in reception.asks" :key="`ask-${i}`">
-          <label>{{ question[0] }}</label>
+        <div v-for="(ask, i) in reception.asks" :key="`ask-${i}`">
+          <label>{{ ask.question }}</label>
           <input type="text" v-model="localEvent.answers[i]" />
         </div>
 
-        <div v-for="(question, i) in reception.askChoices" :key="`choice-${i}`">
-          <label>{{ question[0] }}</label>
+        <div v-for="(ask, i) in reception.askChoices" :key="`choice-${i}`">
+          <label>{{ ask.question }}</label>
           <select v-model="localEvent.answers[reception.asks.length + i]">
-            <option v-for="(choice, choiceIndex) in question.slice(1)" :key="choiceIndex" :value="choice">
+            <option v-for="(choice, choiceIndex) in ask.choices?.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
           </select>
         </div>
 
-        <div v-for="(question, i) in reception.askMultiChoices" :key="`multi-${i}`">
-          <label>{{ question[0] }}</label>
+        <div v-for="(ask, i) in reception.askMultiChoices" :key="`multi-${i}`">
+          <label>{{ ask.question }}</label>
           <select v-model="localEvent.answers[reception.asks.length + reception.askChoices.length + i]">
-            <option v-for="(choice, choiceIndex) in question.slice(1)" :key="choiceIndex" :value="choice">
+            <option v-for="(choice, choiceIndex) in ask.choices?.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
           </select>
@@ -61,12 +61,9 @@ const localEvent = ref({
 
 const reception = props.reception;
 
-// console.log('props', props);
-console.log('props.reception', props.reception);
-
 async function submit() {
   const fd = new FormData();
-  fd.append('postBy', localStorage.getItem('myname'));
+  fd.append('aliasName', localStorage.getItem('myname'));
   fd.append('csrf', localStorage.getItem('csrf'));
   fd.append('receptionID', localEvent.value.receptionID);
   fd.append('bookStart', localEvent.value.timeStart);

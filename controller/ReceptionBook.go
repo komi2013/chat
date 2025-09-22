@@ -18,86 +18,62 @@ import (
 )
 
 func ReceptionBook(w http.ResponseWriter, r *http.Request) {
-	postBy := r.FormValue("postBy")
-	bookStart := r.FormValue("bookStart")
-	bookEnd := r.FormValue("bookEnd")
 	menuID, err := strconv.Atoi(r.FormValue("menuID"))
-	receptionID := r.FormValue("receptionID")
-
 	if err != nil {
-		http.Error(w, "Invalid menuID format", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid menuID format", http.StatusOK)
 		return
 	}
-
+	receptionID := r.FormValue("receptionID")
 	var answers []string
 	if err := json.Unmarshal([]byte(r.FormValue("answers")), &answers); err != nil {
-		http.Error(w, "Invalid JSON answers", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid JSON answers", http.StatusOK)
 		return
 	}
-
+	bookStart := r.FormValue("bookStart")
+	bookEnd := r.FormValue("bookEnd")
 	if bookStart == "" || bookEnd == "" {
-		http.Error(w, "Missing bookStart or bookEnd", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Missing bookStart or bookEnd", http.StatusOK)
 		return
 	}
-
 	layout := "2006-01-02T15:04"
 	bookStartTime, err := time.Parse(layout, bookStart)
 	if err != nil {
-		http.Error(w, "Invalid bookStart format", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid bookStart format", http.StatusOK)
 		return
 	}
 	bookEndTime, err := time.Parse(layout, bookEnd)
 	if err != nil {
-		http.Error(w, "Invalid bookEnd format", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid bookEnd format", http.StatusOK)
 		return
 	}
 
-	// c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	// if err != nil {
-	// 	log.Printf("mongo.Connect error: %v", err)
-	// 	http.Error(w, "Database connection error", http.StatusInternalServerError)
-	// 	return
-	// }
-	// defer c.Disconnect(ctx)
-
-	// db1 := c.Database(common.MongoDb1)
-
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheck error: %v", err)
+		log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	// 投稿者が正しいかチェック
 	trueAccess := false
-	for _, d := range session.ChannelAliases {
-		if d.Alias == postBy {
-			trueAccess = true
-			break
-		}
+	if session.Mail != "" && session.Telephone != "" {
+		trueAccess = true
 	}
 	if !trueAccess {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		common.WriteResponseWithSession(w, session, "Unauthorized", http.StatusOK)
 		return
 	}
 
-	// reception を取得
 	var reception collection.ReceptionStruct
 	filter := bson.M{"_id": receptionID}
-	// coll := db1.Collection("reception")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	coll := common.DB.ReceptionDB.Collection("reception")
-
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {
-		log.Printf("Failed to find reception: %v", err)
-		http.Error(w, "Reception not found", http.StatusNotFound)
+		common.WriteResponseWithSession(w, session, "Failed to find reception:" + err.Error(), http.StatusOK)
 		return
 	}
 
-	// 選択したサービスを取得
 	var selectedService *collection.Menu
 	for _, service := range reception.Menus {
 		if service.MenuID == menuID {
@@ -106,7 +82,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if selectedService == nil {
-		http.Error(w, "Service not found", http.StatusNotFound)
+		common.WriteResponseWithSession(w, session, "Service not found", http.StatusOK)
 		return
 	}
 
@@ -117,85 +93,62 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	for _, ws := range reception.WorkStaffs {
 	    workStart, _ := time.Parse(layout, ws.WorkStart)
 	    workEnd, _ := time.Parse(layout, ws.WorkEnd)
-
-	    // log.Printf("Checking workStaff: %s (WorkStart: %s, WorkEnd: %s)", ws.AliasName, ws.WorkStart, ws.WorkEnd)
-
-	    // 予約時間がスタッフの勤務時間内にあるか
 	    if !(bookStartTime.Before(workStart) || bookEndTime.After(workEnd)) {
-	        // log.Printf("Staff %s is within work hours", ws.AliasName)
-
-	        // スキルチェック（needSkill が設定されている場合のみ）
 	        if needSkill == "" || hasValidSkill(ws.AliasName, needSkill, reception.StaffSkills) {
-	            // log.Printf("Staff %s has the required skill", ws.AliasName)
 	            validStaffCount++
-	        } else {
-	            // log.Printf("Staff %s does NOT have the required skill (%s)", ws.AliasName, needSkill)
 	        }
-	    } else {
-	        // log.Printf("Staff %s is NOT available in the requested time slot", ws.AliasName)
 	    }
 	}
 
-	// スタッフがいなければ予約不可
 	if validStaffCount == 0 {
-	    log.Printf("No valid staff found for this booking")
-	    http.Error(w, "No available staff", http.StatusConflict)
-	    return
-	}
-
-	// 設備の空き状況をチェック
-	if needFacility != "" && !isFacilityAvailable(bookStartTime, bookEndTime, needFacility, reception) {
-		http.Error(w, "Facility not available", http.StatusConflict)
+		common.WriteResponseWithSession(w, session, "No available staff", http.StatusOK)
 		return
 	}
 
-	// 予約の競合をチェック（複数予約を考慮）
+	if needFacility != "" && !isFacilityAvailable(bookStartTime, bookEndTime, needFacility, reception) {
+		common.WriteResponseWithSession(w, session, "Facility not available", http.StatusOK)
+		return
+	}
+
 	overlappingCount := 0
 	for _, booking := range reception.Books {
 		bookedStart, _ := time.Parse(layout, booking.BookStart)
 		bookedEnd, _ := time.Parse(layout, booking.BookEnd)
-
 		if bookStartTime.Before(bookedEnd) && bookEndTime.After(bookedStart) {
 			overlappingCount++
 		}
 	}
 
-	// 予約枠が埋まっていないかチェック（workStaff数と比較）
 	if overlappingCount >= validStaffCount {
-		http.Error(w, "Time slot already booked", http.StatusConflict)
+		common.WriteResponseWithSession(w, session, "this time already booked", http.StatusOK)
 		return
 	}
 
-	// 予約を追加
 	newBooking := collection.Book{
 		BookStart: bookStartTime.Format(layout),
 		BookEnd:   bookEndTime.Format(layout),
 		Answers:   answers,
 		MenuID: menuID,
 		CreatedAt: time.Now(),
+		Nickname: session.Nickname,
 	}
 	reception.Books = append(reception.Books, newBooking)
 
-	// DB更新
 	update := bson.M{
 		"$set": bson.M{"books": reception.Books},
 	}
 	_, err = coll.UpdateOne(ctx, filter, update)
 	if err != nil {
-		http.Error(w, "Failed to update booking", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, "Failed to update booking", http.StatusOK)
 		return
 	}
 
-	responseData := struct {
-		Csrf         string   `json:"csrf"`
-		PushContents []string `json:"pushContents"`
-	}{
+	responseData := common.BaseResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(responseData)
 }
 
 // hasValidSkill スタッフがスキルを持っているか確認
