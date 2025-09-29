@@ -40,6 +40,8 @@ async function findReception() {
   res.pushContents.forEach(content => {
     pushReceive(content);
   })
+  res.reception.menus = res.menu.menus || []
+  res.reception.itemDetails = res.menu.itemDetails || []
   mail = res.mail
   telephone = res.telephone
   return res.reception;
@@ -52,51 +54,78 @@ const generateSchedules = (menuID) => {
   const monthDates = Array.from({ length: 30 }, (_, i) => {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
-    return date.toISOString().split("T")[0];
+    return date.toISOString()
   });
+
   let selectedService = null;
   let needSkill = null;
   let needFacility = null;
   if (menuID) {
     selectedService = reception.value.menus.find(service => service.menuID === menuID);
     if (!selectedService) return;
-
     needSkill = selectedService.needSkill;
     needFacility = selectedService.needFacility;
   }
+
   let tempSchedules = [];
   let unavailableTimes = [];
-  monthDates.forEach(date => {
-    reception.value.books?.forEach(book => (book.splitted = false))
-    let workStaffTime = false;
-    reception.value.workStaffs.forEach(work => {
-      if (!isSameDate(work.workStart, date)) return;
-      let start = new Date(work.workStart);
-      let end = new Date(work.workEnd);
-      if (needSkill) {
-        const validStaffs = getValidWorkStaffs(work, needSkill)
-        if (!validStaffs) return
-      }
-      let splitBlocks = splitWorkTime(start, end, reception.value.books);
-      splitBlocks.forEach(({ start, end }) => {
-        tempSchedules.push({
-          timeStart: start,
-          timeEnd: end,
+  if (!reception.value.workStaffNeed) {
+    monthDates.forEach(date => {
+      reception.value.openTimes?.forEach(open => {
+        if (!isSameDate(open.limitStart, date)) return;
+        let start = new Date(open.limitStart);
+        let end = new Date(open.limitEnd);
+        reception.value.facilities?.forEach(facility => {
+          if (!facility.bookable) return; // 予約不可施設は除外
+          let splitBlocks = splitBlock(open.limitStart, open.limitEnd, reception.value.books, facility.capacity);
+          for (let i = 0; i < (facility.capacity || 1); i++) {
+            splitBlocks.forEach(({ start, end }) => {
+              tempSchedules.push({
+                timeStart: start,
+                timeEnd: end,
+                facility: facility.facilityName,
+                index: i
+              });
+            });
+          }
         });
+        if (!reception.value.facilities || reception.value.facilities.length === 0) {
+          splitBlocks.forEach(({ start, end }) => {
+            tempSchedules.push({ timeStart: start, timeEnd: end });
+          });
+        }
       });
-      workStaffTime = true
-    })
-    if (needFacility) {
-      let newUnavailableTimes = makeUnavailableTime(date, needFacility);
-      let uniqueTimes = new Set(unavailableTimes.map(time => JSON.stringify(time)));
-      newUnavailableTimes.forEach(time => uniqueTimes.add(JSON.stringify(time)));
-      unavailableTimes = Array.from(uniqueTimes).map(time => JSON.parse(time));
-    }
-  });
+    });
+  } else {
+    monthDates.forEach(date => {
+      reception.value.books?.forEach(book => (book.splitted = false))
+      let workStaffTime = false;
+      reception.value.workStaffs.forEach(work => {
+        if (!isSameDate(work.workStart, date)) return;
+        let start = new Date(work.workStart);
+        let end = new Date(work.workEnd);
+        if (needSkill) {
+          const validStaffs = getValidWorkStaffs(work, needSkill)
+          if (!validStaffs) return
+        }
+        let splitBlocks = splitBlock(start, end, reception.value.books, 1)
+        splitBlocks.forEach(({ start, end }) => {
+          tempSchedules.push({ timeStart: start, timeEnd: end });
+        });
+        workStaffTime = true
+      })
+      if (needFacility) {
+        let newUnavailableTimes = makeUnavailableTime(date, needFacility);
+        let uniqueTimes = new Set(unavailableTimes.map(time => JSON.stringify(time)));
+        newUnavailableTimes.forEach(time => uniqueTimes.add(JSON.stringify(time)));
+        unavailableTimes = Array.from(uniqueTimes).map(time => JSON.parse(time));
+      }
+    });
+  }
   let mergedSchedules = mergeSchedules(tempSchedules);
   tempSchedules = [];
   mergedSchedules.forEach(schedule => {
-    let splitBlocks = splitWorkTime(schedule.timeStart, schedule.timeEnd, unavailableTimes);
+    let splitBlocks = splitBlock(schedule.timeStart, schedule.timeEnd, unavailableTimes, 1)
     splitBlocks.forEach(({ start, end }) => {
       tempSchedules.push({
         timeStart: start,
@@ -109,7 +138,7 @@ const generateSchedules = (menuID) => {
 };
 
 const getValidWorkStaffs = (work, needSkill) => {
-  return reception.value.staffSkills.some(staff => 
+  return reception.value.staffSkills?.some(staff => 
     staff.skills.includes(needSkill) && staff.aliasName === work.aliasName
   );
 };
@@ -119,47 +148,93 @@ const needsFacility = (book, needFacility) => {
   return service?.needFacility === needFacility;
 };
 
-const splitWorkTime = (workStart, workEnd, books) => {
-  // console.log(`【splitWorkTime】処理開始: ${formatDateTime(workStart)} ~ ${formatDateTime(workEnd)}`);
+// 汎用 split: capacity を渡すことで staff/facility 両対応
+const splitBlock = (start, end, books, capacity = 1) => {
+  let blocks = [{ start: new Date(start), end: new Date(end), free: capacity }];
 
-  let blocks = [{ start: new Date(workStart), end: new Date(workEnd) }];
-  // console.log('対象範囲:', workStart, '~', workEnd, '適用する books:', books);
-
-  let remainingBooks = books
-    ?.filter(book => isOverlapping(workStart, workEnd, book?.bookStart, book?.bookEnd))
+  let sortedBooks = books
+    ?.filter(book => isOverlapping(start, end, book?.bookStart, book?.bookEnd))
     .sort((a, b) => new Date(a.bookStart) - new Date(b.bookStart));
 
-  // console.log('対象の予約 (remainingBooks):', remainingBooks);
-
-  remainingBooks?.forEach(book => {
-    let bookStart = new Date(book.bookStart);
-    let bookEnd = new Date(book.bookEnd);
-
-    // console.log(`  【予約判定】${formatDateTime(bookStart)} ~ ${formatDateTime(bookEnd)}`);
+  sortedBooks?.forEach(book => {
+    const bookStart = new Date(book.bookStart);
+    const bookEnd = new Date(book.bookEnd);
 
     let newBlocks = [];
 
-    blocks.forEach(({ start, end }) => {
-      if (bookStart <= end && bookEnd >= start) {
-        if (bookStart > start) {
-          // console.log(`  → 分割1: ${formatDateTime(start)} ~ ${formatDateTime(bookStart)}`);
-          newBlocks.push({ start: new Date(start), end: new Date(bookStart) });
-        }
+    blocks.forEach(({ start, end, free }) => {
+      if (bookStart >= end || bookEnd <= start) {
+        newBlocks.push({ start, end, free });
+        return;
+      }
 
-        if (bookEnd < end) {
-          // console.log(`  → 分割2: ${formatDateTime(bookEnd)} ~ ${formatDateTime(end)}`);
-          newBlocks.push({ start: new Date(bookEnd), end: new Date(end) });
-        }
-      } else {
-        newBlocks.push({ start, end });
+      if (bookStart > start) {
+        newBlocks.push({ start, end: bookStart, free });
+      }
+
+      const overlapStart = new Date(Math.max(start, bookStart));
+      const overlapEnd = new Date(Math.min(end, bookEnd));
+      if (overlapStart < overlapEnd) {
+        newBlocks.push({ start: overlapStart, end: overlapEnd, free: free - 1 });
+      }
+
+      if (bookEnd < end) {
+        newBlocks.push({ start: bookEnd, end, free });
       }
     });
 
-    blocks = newBlocks.length > 0 ? newBlocks : blocks;
+    blocks = newBlocks;
   });
 
-  // console.log('【分割後のブロック】', blocks);
-  return blocks;
+  return blocks.filter(b => b.free > 0);
+};
+
+// マージ（facility/index 単位でまとめる）
+const mergeSchedules = (schedules) => {
+  if (schedules.length === 0) return [];
+
+  schedules = schedules.filter(s => new Date(s.timeStart).getTime() !== new Date(s.timeEnd).getTime());
+
+  // facility+index をキーにまとめる
+  const grouped = {};
+  schedules.forEach(s => {
+    const key = `${s.facility || 'no_facility'}-${s.index ?? 0}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(s);
+  });
+
+  let mergedSchedules = [];
+
+  Object.values(grouped).forEach(group => {
+    group.sort((a, b) => new Date(a.timeStart) - new Date(b.timeStart));
+
+    let merged = [];
+    group.forEach(curr => {
+      if (merged.length === 0) {
+        merged.push({ ...curr });
+        return;
+      }
+
+      let last = merged[merged.length - 1];
+      if (new Date(last.timeEnd) >= new Date(curr.timeStart)) {
+        last.timeEnd = new Date(Math.max(
+          new Date(last.timeEnd).getTime(),
+          new Date(curr.timeEnd).getTime()
+        ));
+      } else {
+        merged.push({ ...curr });
+      }
+    });
+
+    mergedSchedules.push(...merged);
+  });
+
+  return mergedSchedules.map(s => ({
+    timeStart: formatDateTime(s.timeStart),
+    timeEnd: formatDateTime(s.timeEnd),
+    facility: s.facility,
+    index: s.index
+  }));
 };
 
 const makeUnavailableTime = (date, needFacility) => {
@@ -169,8 +244,6 @@ const makeUnavailableTime = (date, needFacility) => {
 
   const relatedFacility = reception.value.facilities.find(facility => facility.facilityName === needFacility);
   if (!relatedFacility) return unavailableTimes;
-
-  const facilityCount = relatedFacility.facilityCount;
 
   let facilityBooks = (reception.value.books ?? [])
     .filter(book => needsFacility(book, needFacility))
@@ -209,56 +282,8 @@ const makeUnavailableTime = (date, needFacility) => {
   }));
 };
 
-const mergeSchedules = (schedules) => {
-  if (schedules.length === 0) return [];
-
-  schedules = schedules.filter(schedule => 
-    new Date(schedule.timeStart).getTime() !== new Date(schedule.timeEnd).getTime()
-  );
-
-  // **時間順にソート**
-  schedules.sort((a, b) => new Date(a.timeStart) - new Date(b.timeStart));
-
-  let mergedSchedules = [];
-
-  // console.log('before schedules', JSON.stringify(schedules));
-
-  for (let i = 0; i < schedules.length; i++) {
-    let currentSchedule = Object.assign({}, schedules[i]); // **オブジェクトをコピー**
-    
-    if (mergedSchedules.length === 0) {
-      mergedSchedules.push(currentSchedule);
-      continue;
-    }
-
-    let lastSchedule = mergedSchedules[mergedSchedules.length - 1];
-
-    // **時間帯が完全に一致するデータをマージしない**
-    if (
-      new Date(lastSchedule.timeStart).getTime() === new Date(currentSchedule.timeStart).getTime() &&
-      new Date(lastSchedule.timeEnd).getTime() === new Date(currentSchedule.timeEnd).getTime()
-    ) {
-      continue;
-    }
-
-    // **時間が重なっている場合のみ `timeEnd` を正しく更新**
-    if (new Date(lastSchedule.timeEnd) >= new Date(currentSchedule.timeStart)) {
-      lastSchedule.timeEnd = new Date(Math.max(new Date(lastSchedule.timeEnd).getTime(), new Date(currentSchedule.timeEnd).getTime()));
-    } else {
-      mergedSchedules.push(currentSchedule);
-    }
-  }
-
-  // console.log('after schedules', JSON.stringify(schedules));
-
-  return mergedSchedules.map(schedule => ({
-    timeStart: formatDateTime(schedule.timeStart),
-    timeEnd: formatDateTime(schedule.timeEnd),
-  }));
-};
-
 // **関数はそのまま**
-const isSameDate = (workStart, date) => workStart.split("T")[0] === date;
+const isSameDate = (workStart, date) => workStart.split("T")[0] === date.split("T")[0]
 const isOverlapping = (startA, endA, startB, endB) => {
   return !(new Date(startA) > new Date(endB) || new Date(endA) < new Date(startB));
 };
@@ -360,7 +385,7 @@ onMounted(async() => {
   if (reception.value.adminNames && reception.value.adminNames.includes(channel.value.myname)) {
     iamAdmin.value = true
   }
-  const matchedStaff = reception.value.staffSkills.find(
+  const matchedStaff = reception.value.staffSkills?.find(
     (staff) => staff.aliasName === channel.value.myname
   );
   availableSkills.value = matchedStaff ? [...matchedStaff.skills] : [];
@@ -376,14 +401,15 @@ onMounted(async() => {
 function jump(days) {
   const currentDate = new Date(today);
   currentDate.setDate(currentDate.getDate() + days);
-  const formattedDate = currentDate.toISOString().split('T')[0];
+  const formattedDate = currentDate.toISOString()
   location.href = `/calendar/${formattedDate}/`;
 }
 
 const selectedServiceId = ref(null);
 function handleServiceChange(menuID) {
   // console.log('selected', reception.value.menus);
-  const selected = reception.value.menus.find(service => service.menuID === menuID);
+  const selected = reception.value.menus.find(service => service.menuID === menuID)
+  console.log('selected', selected)
   generateSchedules(selected.menuID);
 }
 
@@ -423,9 +449,11 @@ const closeModal = () => {
         <td>
           <select id="menu-select" class="menu" v-model="selectedServiceId" @change="handleServiceChange(selectedServiceId)">
             <option disabled value="">メニュー</option>
-            <option v-for="service in reception.menus" :key="service.menuID" :value="service.menuID">
-              {{ service.menuName }} - {{ service.price }}円
-            </option>
+            <template v-for="service in reception.menus">
+              <option v-if="service.bookable" :key="service.menuID" :value="service.menuID">
+                {{ service.menuName }} - {{ service.price }}円
+              </option>              
+            </template>
           </select>
         </td>
       </tr>

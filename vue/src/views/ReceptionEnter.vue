@@ -51,7 +51,7 @@ function calculateWaitMinutes() {
   // 🧮 キューに基づいて待機時間計算
   console.log('queues', queues)
   const facilityCapacity = reception.value.facilities?.reduce(
-    (sum, f) => sum + f.facilityCount,
+    (sum, f) => sum + f.capacity,
     0
   ) || Infinity
 

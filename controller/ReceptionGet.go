@@ -8,7 +8,7 @@ import (
   "net/http"
   "time"
 
-  // "go.mongodb.org/mongo-driver/mongo"
+  "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
   // "go.mongodb.org/mongo-driver/mongo/options"
   // "go.mongodb.org/mongo-driver/bson/primitive"
@@ -104,10 +104,10 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
       }
     }
 	} else if codeType == "2" {
-		for _, seat := range reception.Seats {
+		for _, seat := range reception.Facilities {
 			if seat.CurrentCode == code {
 				validCode = true
-				seatName = seat.SeatName
+				seatName = seat.FacilityName
 				break
 			}
 			if validCode {
@@ -115,18 +115,18 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else if codeType == "3" {
-	    for i, seat := range reception.Seats {
+	    for i, seat := range reception.Facilities {
 	        for j, passcode := range seat.Passcodes {
 	            if passcode.Passkey == code {
 	                validCode = true
-	                reception.Seats[i].CurrentCode = code
-	                reception.Seats[i].Passcodes = append(
+	                reception.Facilities[i].CurrentCode = code
+	                reception.Facilities[i].Passcodes = append(
 	                    seat.Passcodes[:j],
 	                    seat.Passcodes[j+1:]...,
 	                )
 	                update := bson.M{
 	                    "$set": bson.M{
-	                        "seats": reception.Seats,
+	                        "facilities": reception.Facilities,
 	                    },
 	                }
 	                _, err := coll.UpdateOne(ctx, filter, update)
@@ -157,13 +157,21 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	  }
   }
 
+	collMenu := common.DB.ReceptionDB.Collection("menu")
+  var menu collection.MenuStruct
+  err = collMenu.FindOne(ctx, filter).Decode(&menu)
+  if err != nil && err != mongo.ErrNoDocuments {
+    common.WriteResponseWithSession(w, session, "collMenu.FindOne query failed"+err.Error(), http.StatusOK)
+    return
+  }
+
 	if !staffAccess {
 		reception.ChannelID = ""
 	  reception.AdminNames = nil
 	  reception.Passcodes = nil
 	  reception.JoinNames = nil
-	  for i := range reception.Seats {
-	    reception.Seats[i].Passcodes = nil
+	  for i := range reception.Facilities {
+	    reception.Facilities[i].Passcodes = nil
 	  }
 	}
 
@@ -174,7 +182,8 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 		Mail:         session.Mail,
 		Telephone:    session.Telephone,
 		Reception:    reception,
-		SeatName:     seatName,
+		Menu:    			menu,
+		FacilityName: seatName,
 		Nickname:     session.Nickname,
 	}
   w.Header().Set("Content-Type", "application/json")

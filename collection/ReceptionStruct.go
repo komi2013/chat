@@ -25,13 +25,13 @@ type ReceptionStruct struct {
 	Facilities       []Facility         `bson:"facilities,omitempty" json:"facilities,omitempty"` // Mixed types require interface{}
 	OpenTimes        []OpenTime         `bson:"openTimes,omitempty" json:"openTimes,omitempty"`
 	Shifts           []Shift            `bson:"shifts,omitempty" json:"shifts,omitempty"`
-	Menus            []Menu             `bson:"menus,omitempty" json:"menus,omitempty"`
+	// Menus            []Menu             `bson:"menus,omitempty" json:"menus,omitempty"`
 	Skills           []string           `bson:"skills,omitempty" json:"skills,omitempty"`
 	StaffSkills      []StaffSkill       `bson:"staffSkills,omitempty" json:"staffSkills,omitempty"`
 	WorkStaffs       []WorkStaff        `bson:"workStaffs,omitempty" json:"workStaffs,omitempty"`
 	WorkStaffNeed    bool               `bson:"workStaffNeed,omitempty" json:"workStaffNeed,omitempty"`
-	Seats            []Seat             `bson:"seats,omitempty" json:"seats,omitempty"`
-	ItemDetails      []ItemDetail       `bson:"itemDetails,omitempty" json:"itemDetails,omitempty"`
+	// Seats            []Seat             `bson:"seats,omitempty" json:"seats,omitempty"`
+	// ItemDetails      []ItemDetail       `bson:"itemDetails,omitempty" json:"itemDetails,omitempty"`
 	Queues           []Queue            `bson:"queues,omitempty" json:"queues,omitempty"`
 	WaitConfigs      []WaitConfig       `bson:"waitConfigs,omitempty" json:"waitConfigs,omitempty"`
 }
@@ -70,8 +70,12 @@ type OpenTime struct {
 }
 
 type Facility struct {
-	FacilityCount  int    `bson:"facilityCount" json:"facilityCount"`
+	// FacilityCount  int    `bson:"facilityCount" json:"facilityCount"`
 	FacilityName   string `bson:"facilityName" json:"facilityName"`
+	Capacity  int      `bson:"capacity" json:"capacity"`
+	Passcodes []Passcode `bson:"passcodes" json:"passcodes"`
+	CurrentCode string `bson:"currentCode,omitempty" json:"currentCode,omitempty"`
+	Bookable    bool   `bson:"bookable,omitempty" json:"bookable,omitempty"`
 }
 
 type StaffSkill struct {
@@ -79,39 +83,13 @@ type StaffSkill struct {
   Skills           []string          `bson:"skills,omitempty" json:"skills,omitempty"`
 }
 
-type Menu struct {
-	MenuID            int         		`bson:"menuID" json:"menuID"`
-	MenuName        	string      		`bson:"menuName" json:"menuName"`
-	Price           	int         		`bson:"price" json:"price"`
-	PrepaidPrice 			int    					`bson:"prepaidPrice" json:"prepaidPrice"`
-	NeedSkill    			string 					`bson:"needSkill,omitempty" json:"needSkill,omitempty"`
-	NeedFacility 			string 					`bson:"needFacility,omitempty" json:"needFacility,omitempty"`
-	SpecifyNameFlag   bool           	`bson:"specifyNameFlag" json:"specifyNameFlag"`
-	SpendMinute  			int    					`bson:"spendMinute,omitempty" json:"spendMinute,omitempty"`
-	Items             []int       		`bson:"items" json:"items"`
-	PaidOptions       []ItemOption    `bson:"paidOptions,omitempty" json:"paidOptions"`         // [[item_id, price]]
-	FreeOptions       [][]int         `bson:"freeOptions,omitempty" json:"freeOptions"`         // [[item_id, ...]]
-	FreeMultiOptions  []int       		`bson:"freeMultiOptions,omitempty" json:"freeMultiOptions"` // [item_id, ...]
-}
 
-type ItemDetail struct {
-	ItemID   int      `bson:"itemID" json:"itemID"`
-	ItemName string   `bson:"itemName" json:"itemName"`
-	ImgPath  string   `bson:"imgPath,omitempty" json:"imgPath,omitempty"`
-	Choices  [][]string `bson:"choices,omitempty" json:"choices,omitempty"` // choices: [['硬い','普通','柔らかい'],['油多め','普通','油少なめ']]
-}
-
-type ItemOption struct {
-	ItemID    int      `bson:"itemID" json:"itemID"`
-	Price     int      `bson:"price" json:"price"`
-}
-
-type Seat struct {
-	SeatName string   `bson:"seatName" json:"seatName"`
-	Capacity  int      `bson:"capacity" json:"capacity"`
-	Passcodes []Passcode `bson:"passcodes" json:"passcodes"`
-	CurrentCode string `bson:"currentCode,omitempty" json:"currentCode,omitempty"`
-}
+// type Seat struct {
+// 	SeatName string   `bson:"seatName" json:"seatName"`
+// 	Capacity  int      `bson:"capacity" json:"capacity"`
+// 	Passcodes []Passcode `bson:"passcodes" json:"passcodes"`
+// 	CurrentCode string `bson:"currentCode,omitempty" json:"currentCode,omitempty"`
+// }
 
 type Queue struct {
 	WaitingGuest  int      `bson:"waitingGuest,omitempty" json:"waitingGuest,omitempty"`

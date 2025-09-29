@@ -53,24 +53,24 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
     return
   }
   seatName := ""
-	updatedTables := make([]collection.Seat, 0, len(reception.Seats))
-	for _, table := range reception.Seats {
+	updatedTables := make([]collection.Facility, 0, len(reception.Facilities))
+	for _, table := range reception.Facilities {
 		if table.CurrentCode == code {
 			table.CurrentCode = ""
-			seatName = table.SeatName
+			seatName = table.FacilityName
 		}
 		updatedTables = append(updatedTables, table)
 	}
 	var receptionLog = common.NewDailyLogger("reception_")
 
 	update := bson.M{
-		"$set": bson.M{"seats": updatedTables},
+		"$set": bson.M{"facilities": updatedTables},
 	}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		receptionLog.Printf("failed to update seats reception", err, r.URL.Path, r.Form)
-		common.WriteResponseWithSession(w, session, "failed to update seats reception", http.StatusOK)
+		receptionLog.Printf("failed to update facilities reception", err, r.URL.Path, r.Form)
+		common.WriteResponseWithSession(w, session, "failed to update facilities reception", http.StatusOK)
 		return
 	}
 

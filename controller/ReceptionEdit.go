@@ -18,9 +18,16 @@ import (
 
 func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 
+	// log.Printf("r.FormValue: %v", r.FormValue("reception"))
   var reception collection.ReceptionStruct
   if err := json.Unmarshal([]byte(r.FormValue("reception")), &reception); err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "reception Invalid JSON reception", http.StatusOK)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid JSON reception", http.StatusOK)
+		return
+  }
+
+  var menu collection.MenuStruct
+  if err := json.Unmarshal([]byte(r.FormValue("menu")), &menu); err != nil {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid JSON menu", http.StatusOK)
 		return
   }
 
@@ -47,10 +54,10 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		return
   }
 
-	for i := range reception.ItemDetails {
-    if reception.ItemDetails[i].ImgPath != "" {
+	for i := range menu.ItemDetails {
+    if menu.ItemDetails[i].ImgPath != "" {
       savedPath, err := common.ImgSave(
-        reception.ItemDetails[i].ImgPath,
+        menu.ItemDetails[i].ImgPath,
         session.UserID,
         aliasName,
         channelID,
@@ -60,7 +67,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
         common.WriteResponseWithSession(w, session, "ItemDetails[i].ImgPath: " + err.Error(), http.StatusOK)
         return
       }
-      reception.ItemDetails[i].ImgPath = savedPath
+      menu.ItemDetails[i].ImgPath = savedPath
     }
 	}
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -71,25 +78,22 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	filter := bson.M{"_id": reception.ReceptionID}
 	err = coll.FindOne(ctx, filter).Decode(&existing)
 
-	if err == mongo.ErrNoDocuments {
-		reception.AdminNames = append(reception.AdminNames, aliasName)
-	} else if err != nil {
+	if err != nil && err != mongo.ErrNoDocuments {
 		common.WriteResponseWithSession(w, session, "reception FindOne: " + err.Error(), http.StatusOK)
 		return
-	} else {
-		adminAccess := false
-		for _, admin := range existing.AdminNames {
-			if admin == aliasName {
-				adminAccess = true
-				break
-			}
+	}
+	adminAccess := false
+	for _, admin := range existing.AdminNames {
+		if admin == aliasName {
+			adminAccess = true
+			break
 		}
-		if !adminAccess && !staffAccess {
-			var receptionLog = common.NewDailyLogger("reception_")
-			receptionLog.Printf("Unauthorized edit attempt: aliasName=%s, channelID=%s, receptionID=%s", aliasName, channelID, reception.ReceptionID)
-			common.WriteResponseWithSession(w, session, "You do not have permission to edit this reception", http.StatusOK)
-			return
-		}
+	}
+	if !adminAccess && !staffAccess {
+		var receptionLog = common.NewDailyLogger("reception_")
+		receptionLog.Printf("Unauthorized edit attempt: aliasName=%s, channelID=%s, receptionID=%s", aliasName, channelID, reception.ReceptionID)
+		common.WriteResponseWithSession(w, session, "You do not have permission to edit this reception", http.StatusOK)
+		return
 	}
 
 	filter = bson.M{"_id": reception.ReceptionID}
@@ -114,10 +118,10 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
     return
 	}
 
-
 	responseData := common.BaseResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
+		Reception:    reception,
 	}
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(responseData)

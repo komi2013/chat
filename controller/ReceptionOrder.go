@@ -70,13 +70,23 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+	collMenu := common.DB.ReceptionDB.Collection("menu")
+  var menu collection.MenuStruct
+  // filter := bson.M{"_id": receptionID}
+  err = collMenu.FindOne(ctx, filter).Decode(&menu)
+  if err != nil {
+    common.WriteResponseWithSession(w, session, "collMenu.FindOne query failed", http.StatusOK)
+    return
+  }
+
+
 	validCode := false
 	seatName := ""
-	for _, seat := range reception.Seats {
+	for _, seat := range reception.Facilities {
 		for _, pass := range seat.Passcodes {
 			if pass.Passkey == code {
 				validCode = true
-				seatName = seat.SeatName
+				seatName = seat.FacilityName
 				break
 			}
 		}
@@ -107,7 +117,7 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
   for _, order := range orders {
     // log.Printf("受注: %+v\n", order)
     var selectedMenu *collection.Menu
-    for _, menu := range reception.Menus {
+    for _, menu := range menu.Menus {
       if menu.MenuID == order.MenuID {
         selectedMenu = &menu
         break

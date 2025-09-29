@@ -19,7 +19,7 @@ const channelID = localStorage.getItem("channelID")
 
 const reception = ref(null)
 const defaultReception = {
-  receptionID: channelID + generateRandomCode(1),
+  receptionID: channelID,
   channelID: channelID,
   receptionTitle: '',
   adminNames: [''],
@@ -39,7 +39,10 @@ const defaultReception = {
     question: '',
     sequence: 0
   }],
-  facilities: [{ facilityName: '', facilityCount: 1 }],
+  facilities: [{ 
+    facilityName: '',
+    capacity: 0
+  }],
   openTimes: [{ limitStart: '', limitEnd: '' }],
   shifts: [{
     aliasNames: [''],
@@ -64,17 +67,12 @@ const defaultReception = {
       price: 0
     }],
     freeOptions: [[]], // itemID　[オレンジジュース、メロンソーダ], [パン, ご飯]
-    freeMultiOptions: [] 
+    freeMultiOptions: [],
+    bookable: true
   }],
   skills: [''],
   staffSkills: [{ aliasName: '', skills: [''] }],
   workStaffNeed: false,
-  seats: [{
-    seatName: '',
-    capacity: 1,
-    passcodes: [{passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
-    currentCode: ''
-  }],
   itemDetails: [{
     itemID: 1,
     itemName: '',
@@ -107,7 +105,6 @@ onMounted(async () => {
   } else if (props.id) {
     // reception.value = await getIDB('reception', props.id);
     reception.value = await findReception()
-    
     // console.log('reception.value', reception.value)
   // } else {
   //   reception.value = await findReception()
@@ -130,6 +127,9 @@ async function findReception() {
   })
   console.log('res.reception', res.reception.receptionID)
   if (!res.reception) { return defaultReception }
+  res.reception.menus = res.menu.menus || []
+  res.reception.itemDetails = res.menu.itemDetails || []
+
   res.reception.menus.forEach(menu => {
     menu.paidOptions = menu.paidOptions || []
     menu.freeOptions = menu.freeOptions || []
@@ -153,9 +153,14 @@ function addNestedItem(array, index, nestedField, initValue = '') {
 }
 
 async function submit() {
+  if (!confirm("実行▶️じ")) {
+    return;
+  }
   event.preventDefault()
   const fd = new FormData();
-  fd.append('reception', JSON.stringify(reception.value));
+  console.log('reception', reception.value)
+  const cleanedReception = removeEmpty(reception.value);
+  fd.append('reception', JSON.stringify(cleanedReception));
   fd.append('channelID', channel.value.channelID);
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
@@ -166,6 +171,40 @@ async function submit() {
     pushReceive(content);
   });
 }
+
+// 再帰的に空データを削除する関数
+function removeEmpty(obj) {
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => removeEmpty(item))         // 子要素も処理
+      .filter(item => {                       // 空要素は削除
+        if (item === null || item === undefined) return false;
+        if (typeof item === 'string' && item.trim() === '') return false;
+        if (Array.isArray(item) && item.length === 0) return false;
+        if (typeof item === 'object' && Object.keys(item).length === 0) return false;
+        return true;
+      });
+  } else if (typeof obj === 'object' && obj !== null) {
+    const newObj = {};
+    Object.entries(obj).forEach(([key, value]) => {
+      const cleaned = removeEmpty(value);
+      if (
+        cleaned === null ||
+        cleaned === undefined ||
+        (typeof cleaned === 'string' && cleaned.trim() === '') ||
+        (Array.isArray(cleaned) && cleaned.length === 0) ||
+        (typeof cleaned === 'object' && Object.keys(cleaned).length === 0)
+      ) {
+        // 空はスキップ
+      } else {
+        newObj[key] = cleaned;
+      }
+    });
+    return newObj;
+  }
+  return obj;
+}
+
 
 </script>
 
@@ -467,10 +506,10 @@ async function submit() {
       <label>施設:</label>
       <div v-for="(f, i) in reception.facilities" :key="i">
         <input v-model="f.facilityName" placeholder="施設名" type="text" />
-        <input v-model.number="f.facilityCount" type="number" placeholder="数" />
+        <input v-model.number="f.capacity" type="number" placeholder="数" />
         <button @click.prevent="reception.facilities.splice(i, 1)" v-if="reception.facilities.length > 1">−</button>
       </div>
-      <button @click.prevent="addObjectItem('facilities', { facilityName: '', facilityCount: 1 })">＋施設</button>
+      <button @click.prevent="addObjectItem('facilities', { facilityName: '', capacity: 1 })">＋施設</button>
     </div>
 
     <!-- OpenTimes -->
@@ -507,20 +546,6 @@ async function submit() {
       <button @click.prevent="addObjectItem('shifts', {
         aliasNames: [''], shiftStart: '', shiftEnd: '', open: 1, role: '', fix: false
       })">＋シフト</button>
-    </div>
-
-    <!-- Seats -->
-    <div>
-      <label>座席:</label>
-      <div v-for="(s, i) in reception.seats" :key="i">
-        <input v-model="s.seatName" placeholder="座席名" type="text" /><br>
-        定員：<input v-model="s.capacity" type="number" /><br>
-        <input v-model="s.currentCode" placeholder="現在コード" type="text" /><br>
-        <button @click.prevent="reception.seats.splice(i, 1)" v-if="reception.seats.length > 1">−</button>
-      </div>
-      <button @click.prevent="addObjectItem('seats', {
-        seatName: '', capacity: 1, passcodes: [], currentCode: ''
-      })">＋座席</button>
     </div>
 
     <!-- WaitConfigs -->

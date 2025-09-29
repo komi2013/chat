@@ -63,10 +63,12 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reception collection.ReceptionStruct
-	filter := bson.M{"_id": receptionID}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	var reception collection.ReceptionStruct
+	filter := bson.M{"_id": receptionID}
+
 	coll := common.DB.ReceptionDB.Collection("reception")
 	err = coll.FindOne(ctx, filter).Decode(&reception)
 	if err != nil {
@@ -74,8 +76,16 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var menu collection.MenuStruct
+	collMenu := common.DB.ReceptionDB.Collection("menu")
+	err = collMenu.FindOne(ctx, filter).Decode(&menu)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to find menu:" + err.Error(), http.StatusOK)
+		return
+	}
+
 	var selectedService *collection.Menu
-	for _, service := range reception.Menus {
+	for _, service := range menu.Menus {
 		if service.MenuID == menuID {
 			selectedService = &service
 			break
@@ -100,12 +110,12 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	    }
 	}
 
-	if validStaffCount == 0 {
+	if validStaffCount == 0 && reception.WorkStaffNeed {
 		common.WriteResponseWithSession(w, session, "No available staff", http.StatusOK)
 		return
 	}
 
-	if needFacility != "" && !isFacilityAvailable(bookStartTime, bookEndTime, needFacility, reception) {
+	if needFacility != "" && !isFacilityAvailable(bookStartTime, bookEndTime, needFacility, reception, menu) {
 		common.WriteResponseWithSession(w, session, "Facility not available", http.StatusOK)
 		return
 	}
@@ -119,7 +129,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if overlappingCount >= validStaffCount {
+	if overlappingCount >= validStaffCount && reception.WorkStaffNeed{
 		common.WriteResponseWithSession(w, session, "this time already booked", http.StatusOK)
 		return
 	}
@@ -165,14 +175,14 @@ func hasValidSkill(aliasName, needSkill string, staffSkills []collection.StaffSk
 	return false
 }
 
-func isFacilityAvailable(start, end time.Time, facilityName string, reception collection.ReceptionStruct) bool {
+func isFacilityAvailable(start, end time.Time, facilityName string, reception collection.ReceptionStruct, menu collection.MenuStruct) bool {
 	layout := "2006-01-02T15:04"
 
 	// 必要な設備の情報を取得
 	var facilityCount int
 	for _, facility := range reception.Facilities {
-		if facility.FacilityName == facilityName {
-			facilityCount = facility.FacilityCount
+		if facility.Bookable && facility.FacilityName == facilityName {
+			facilityCount = facility.Capacity
 			break
 		}
 	}
@@ -191,7 +201,7 @@ func isFacilityAvailable(start, end time.Time, facilityName string, reception co
 		// 予約時間が重なっているかチェック
 		if start.Before(bookedEnd) && end.After(bookedStart) {
 			// book.ServiceID に対応する Service を取得し、必要な設備を確認
-			for _, service := range reception.Menus {
+			for _, service := range menu.Menus {
 				if service.MenuID == book.MenuID && service.NeedFacility == facilityName {
 					overlappingBookings++
 					break

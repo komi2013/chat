@@ -2,17 +2,17 @@
   <div class="modal">
     <div class="modal-content">
       <h2>イベントを追加</h2>
-      <label for="timeStart">開始時間:</label>
+      <div for="timeStart">開始時間:</div>
       <input type="datetime-local" v-model="localEvent.timeStart" />
       <div>
         <div v-for="(ask, i) in reception.asks" :key="`ask-${i}`">
-          <label>{{ ask.question }}</label>
+          <div>{{ ask.question }}</div>
           <input type="text" v-model="localEvent.answers[i]" />
         </div>
 
         <div v-for="(ask, i) in reception.askChoices" :key="`choice-${i}`">
-          <label>{{ ask.question }}</label>
-          <select v-model="localEvent.answers[reception.asks.length + i]">
+          <div>{{ ask.question }}</div>
+          <select v-model="localEvent.answers[reception.asks?.length + i]">
             <option v-for="(choice, choiceIndex) in ask.choices?.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
@@ -20,8 +20,8 @@
         </div>
 
         <div v-for="(ask, i) in reception.askMultiChoices" :key="`multi-${i}`">
-          <label>{{ ask.question }}</label>
-          <select v-model="localEvent.answers[reception.asks.length + reception.askChoices.length + i]">
+          <div>{{ ask.question }}</div>
+          <select v-model="localEvent.answers[reception.asks?.length + reception.askChoices.length + i]">
             <option v-for="(choice, choiceIndex) in ask.choices?.slice(1)" :key="choiceIndex" :value="choice">
               {{ choice }}
             </option>
@@ -29,12 +29,16 @@
         </div>
       </div>
       <div>
-        <label>メニュー:</label>
+        <div>メニュー:</div>
+
         <select v-model="localEvent.menuID">
-          <option v-for="(serviceItem, serviceIndex) in reception.menus" :key="serviceItem.id" :value="serviceItem.menuID">
-            {{ serviceItem.menuName }} - {{ serviceItem.price }}円
-          </option>
+          <template v-for="(serviceItem, serviceIndex) in reception.menus" :key="serviceItem.menuID">
+            <option v-if="serviceItem.bookable" :value="serviceItem.menuID" >
+              {{ serviceItem.menuName || '無題メニュー' }} - {{ serviceItem.price }}円
+            </option>
+          </template>
         </select>
+
       </div>
 
       <button @click="submit">投稿</button>
@@ -58,6 +62,8 @@ const localEvent = ref({
   answers: [],   // askChoicesの回答を格納する配列
   serviceID: props.menuID   // 選択されたmenuのIDを格納
 });
+
+console.log('reception', props.reception)
 
 const reception = props.reception;
 

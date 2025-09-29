@@ -38,14 +38,7 @@ async function findReception() {
   }
 
   reception.value = res.reception || null;
-  // console.log('seats', reception.value.seats)
-  // const seat = reception.value.seats.find(s =>
-  //   s.passcodes?.some(pass => pass.passkey === props.code)
-  // )
-  // seatName = seat.seatName
-  // const seat = reception.value.seats.find(s => s.currentcode === props.code);
-  // seatName = seat ? seat.seatName : null;
-  seatName = res.seatName || ''
+  seatName = res.facilityName || ''
   console.log('seatName', seatName)
 
   // console.log('joinNames', reception.value.joinNames)

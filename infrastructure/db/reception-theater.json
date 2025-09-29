@@ -1,15 +1,7 @@
+// ?reception=
 {
-  "receptionID": "ch789C",
-  "channelID": "ch789",
   "receptionTitle": "小劇場",
-  "adminNames": ["Manager"],
-  "joinNames": [],
-  "skills": [],
-  "staffSkills": [],
-  "workStaffNeed": false,
-  "itemDetails": [],
-  "menus": [],
-  "asks": [],
+  "adminNames": ["mik1"],
   "askChoices": [
     {
       "question": "好きなジャンルは？",
@@ -17,10 +9,14 @@
       "sequence": 0
     }
   ],
-  "askMultiChoices": [],
-  "facilities": [{ "facilityName": "ステージ", "facilityCount": 1 }],
-  "openTimes": [{ "limitStart": "2025-09-05T18:00", "limitEnd": "2025-09-05T22:00" }],
-  "shifts": [],
-  "seats": [{ "seatName": "席A-1", "capacity": 1, "passcodes": [], "currentCode": "" }],
-  "waitConfigs": []
+  "openTimes": [
+    { "limitStart": "2025-09-24T09:00", "limitEnd": "2025-09-24T22:00" },
+    { "limitStart": "2025-09-25T09:00", "limitEnd": "2025-09-25T22:00" },
+    { "limitStart": "2025-09-26T09:00", "limitEnd": "2025-09-26T22:00" }
+  ],
+  "seats": [
+    { "seatName": "席A", "capacity": 100 },
+    { "seatName": "席B", "capacity": 100 },
+    { "seatName": "席C", "capacity": 100 }
+  ]
 }
