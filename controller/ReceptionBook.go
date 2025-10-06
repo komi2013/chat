@@ -59,7 +59,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		trueAccess = true
 	}
 	if !trueAccess {
-		common.WriteResponseWithSession(w, session, "Unauthorized", http.StatusOK)
+		common.WriteResponseWithSession(w, session, "電話とメールを登録してください", http.StatusOK)
 		return
 	}
 
@@ -144,12 +144,45 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	}
 	reception.Books = append(reception.Books, newBooking)
 
+	// update := bson.M{
+	// 	"$set": bson.M{"books": reception.Books},
+	// }
+	// _, err = coll.UpdateOne(ctx, filter, update)
+	// if err != nil {
+	// 	common.WriteResponseWithSession(w, session, "Failed to update booking", http.StatusOK)
+	// 	return
+	// }
+
+  var targetMenu *collection.Menu
+  for _, m := range menu.Menus {
+      if m.MenuID == menuID {
+          targetMenu = &m
+          break
+      }
+  }
+
+  bookTime := collection.BookTime{
+      BookStart: bookStartTime.Format(layout),
+      BookEnd:   bookEndTime.Format(layout),
+  }
+
+  updatedFacilities := reception.Facilities
+  for i, f := range updatedFacilities {
+      if f.FacilityName == targetMenu.NeedFacility {
+          updatedFacilities[i].BookTimes = append(updatedFacilities[i].BookTimes, bookTime)
+          break
+      }
+  }
+
 	update := bson.M{
-		"$set": bson.M{"books": reception.Books},
+		"$set": bson.M{
+			"books":      reception.Books,
+			"facilities": updatedFacilities,
+		},
 	}
 	_, err = coll.UpdateOne(ctx, filter, update)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, "Failed to update booking", http.StatusOK)
+		common.WriteResponseWithSession(w, session, "Failed to update booking & facility", http.StatusOK)
 		return
 	}
 

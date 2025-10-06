@@ -1,9 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-import Advertisement from '@/components/Advertisement.vue';
-import BookModal from '@/components/BookModal.vue';
-import { userIDsByName } from '@/my/channelFunc';
+import Advertisement from '@/components/Advertisement.vue'
+import BookModal from '@/components/BookModal.vue'
+import NoticePopup from '@/components/NoticePopup.vue'
+
+import { userIDsByName } from '@/my/channelFunc'
+import { useNoticesStore } from '@/stores/notices.js'
 
 const props = defineProps({
   id: String,
@@ -35,7 +38,13 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
-  if (!res.csrf) errorMessage.value = res
+  if (!res.csrf) { errorMessage.value = res; return }
+  if (res.error) {
+    errorMessage.value = res.error
+    const noticesStore = useNoticesStore()
+    noticesStore.setNotice(res.error)
+    return 
+  }
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
@@ -420,7 +429,6 @@ const selectedEvent = ref({
 });
 
 const openModal = (day, hour) => {
-  console.log('hiiii')
   showModal.value = true;
   const start = new Date(day);
   start.setHours(hour, 0);
@@ -434,7 +442,6 @@ const openModal = (day, hour) => {
 const closeModal = () => {
   showModal.value = false;
 };
-
 
 </script>
 
@@ -450,7 +457,7 @@ const closeModal = () => {
           <select id="menu-select" class="menu" v-model="selectedServiceId" @change="handleServiceChange(selectedServiceId)">
             <option disabled value="">メニュー</option>
             <template v-for="service in reception.menus">
-              <option v-if="service.bookable" :key="service.menuID" :value="service.menuID">
+              <option v-if="service.forBookType" :key="service.menuID" :value="service.menuID">
                 {{ service.menuName }} - {{ service.price }}円
               </option>              
             </template>
@@ -535,6 +542,7 @@ const closeModal = () => {
       @submit="submitEvent"
     />
   </div>
+  <NoticePopup />
 </template>
 
 <style scoped>

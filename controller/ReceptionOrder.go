@@ -21,7 +21,7 @@ import (
 )
 
 func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
-	aliasName := r.FormValue("aliasName")
+	nickname := r.FormValue("nickname")
 	receptionID := r.FormValue("receptionID")
 
   code := r.FormValue("code")
@@ -83,18 +83,12 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 	validCode := false
 	seatName := ""
 	for _, seat := range reception.Facilities {
-		for _, pass := range seat.Passcodes {
-			if pass.Passkey == code {
-				validCode = true
-				seatName = seat.FacilityName
-				break
-			}
-		}
-		if validCode {
+		if seat.CurrentCode == code {
+			seatName = seat.FacilityName
+			validCode = true
 			break
 		}
 	}
-
 	if !validCode {
 		common.WriteResponseWithSession(w, session, "コードが一致してません", http.StatusOK)
 		return
@@ -141,7 +135,7 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
   var arr []interface{}
 	arr = append(arr, "receptionOrder")
 	arr = append(arr, reception.ChannelID)
-	arr = append(arr, aliasName)
+	arr = append(arr, nickname)
 	arr = append(arr, orders)
 	common.ChunkPush(sessions, arr)
 

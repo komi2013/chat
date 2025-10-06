@@ -32,6 +32,7 @@ func main() {
 		http.HandleFunc("/ReceptionShift/", controller.ReceptionShift)
 		http.HandleFunc("/ReceptionOrder/", controller.ReceptionOrder)
 		http.HandleFunc("/ReceptionOrderDelete/", controller.ReceptionOrderDelete)
+		http.HandleFunc("/ReceptionQueueEdit/", controller.ReceptionQueueEdit)
 		// http.HandleFunc("/ShiftStaffEdit/", controller.ShiftStaffEdit)
 		// http.HandleFunc("/StorePush/", controller.StorePush)
 		// http.HandleFunc("/StoreSelect/", controller.StoreSelect)

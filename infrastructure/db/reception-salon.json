@@ -1,40 +1,19 @@
+// reception.json
 {
-  "receptionID": "ch123A",
+  "_id": "ch123A",
   "channelID": "ch123",
   "receptionTitle": "美容室レセプション",
-  "adminNames": ["Admin1"],
-  "joinNames": ["Staff1", "Staff2"],
+  "adminNames": ["mik1"],
+  "joinNames": ["mik1", "iv1"],
   "skills": ["カット", "カラー"],
   "staffSkills": [
-    { "aliasName": "Staff1", "skills": ["カット"] },
-    { "aliasName": "Staff2", "skills": ["カラー"] }
+    { "aliasName": "mik2", "skills": ["カット"] },
+    { "aliasName": "iv1", "skills": ["カラー"] }
   ],
   "workStaffNeed": true,
-  "itemDetails": [
-    {
-      "itemID": 1,
-      "itemName": "シャンプー",
-      "imgPath": "/img/shampoo.png",
-      "choices": [["ソフト", "ハード"]]
-    }
+  "asks": [
+    { "question": "ご希望のスタイリストは？", "sequence": 0 }
   ],
-  "menus": [
-    {
-      "menuID": 1,
-      "menuName": "カット",
-      "price": 3000,
-      "prepaidPrice": 2800,
-      "needSkill": "カット",
-      "needFacility": "椅子",
-      "specifyNameFlag": true,
-      "spendMinute": 30,
-      "items": [1],
-      "paidOptions": [{ "itemID": 1, "price": 500 }],
-      "freeOptions": [[]],
-      "freeMultiOptions": []
-    }
-  ],
-  "asks": [{ "question": "ご希望のスタイリストは？", "sequence": 0 }],
   "askChoices": [
     {
       "question": "髪の長さ",
@@ -49,18 +28,61 @@
       "sequence": 0
     }
   ],
-  "facilities": [{ "facilityName": "椅子", "facilityCount": 5 }],
-  "openTimes": [{ "limitStart": "2025-09-05T09:00", "limitEnd": "2025-09-05T19:00" }],
+  // "facilities": [
+  //   {
+  //     "facilityName": "椅子",
+  //     "capacity": 5,
+  //     "passcodes": [],
+  //     "bookable": true,
+  //     "bookTimes": []
+  //   }
+  // ],
+  "openTimes": [
+    {
+      "limitStart": "2025-09-05T09:00",
+      "limitEnd": "2025-09-05T19:00"
+    }
+  ],
   "shifts": [
     {
-      "aliasNames": ["Staff1"],
+      "aliasNames": ["mik1"],
       "shiftStart": "2025-09-05T09:00",
       "shiftEnd": "2025-09-05T17:00",
       "open": 1,
       "role": "美容師",
       "fix": false
     }
+  ]
+}
+
+// menu.json
+
+{
+  "_id": "ch123A",
+  "menus": [
+    {
+      "menuID": 1,
+      "menuName": "カット",
+      "price": 3000,
+      "prepaidPrice": 2800,
+      "needSkill": "カット",
+      // "needFacility": "椅子",
+      "specifyNameFlag": true,
+      "spendMinute": 30,
+      "items": [1],
+      "paidOptions": [
+        { "itemID": 1, "price": 500 }
+      ],
+      "freeOptions": [[]],
+      "freeMultiOptions": []
+    }
   ],
-  "seats": [{ "seatName": "Seat1", "capacity": 1, "passcodes": [], "currentCode": "" }],
-  "waitConfigs": [{ "guestRange": [1, 5], "waitRatio": 10 }]
+  "itemDetails": [
+    {
+      // "imgPath": "/img/shampoo.png",
+      // "choices": [["ソフト", "ハード"]]
+      "itemID": 1,
+      "itemName": "シャンプー"
+    }
+  ]
 }

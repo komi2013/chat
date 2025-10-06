@@ -44,23 +44,25 @@ async function findReception() {
   return res.reception
 }
 
-const generateKey = (shift) => `${shift.shiftStart}_${shift.role}`;
+const generateKey = (shift) => `${shift.shiftStart}_${shift.skill}`
 
 const generateSchedules = () => {
-  console.log('reception', reception.value);
+  console.log('availableSkills', availableSkills.value);
   reception.value.shifts.forEach((shift, staffIndex) => {
-    const newSchedule = {
-      key: generateKey(shift),
-      aliasNames: [...shift.aliasNames],
-      timeStart: `${shift.shiftStart}`,
-      timeEnd: `${shift.shiftEnd}`,
-      role: shift.role,
-      open: shift.open,
-      start: shift.shiftStart,
-      end: shift.shiftEnd,
-      fix: shift.fix
-    };
-    schedules.value.push(newSchedule);
+    if (availableSkills.value.includes(shift.skill) || reception.value.adminNames.includes(channel.value.myname)) {
+      const newSchedule = {
+        key: generateKey(shift),
+        aliasNames: Array.isArray(shift.aliasNames) ? [...shift.aliasNames] : [],
+        timeStart: `${shift.shiftStart}`,
+        timeEnd: `${shift.shiftEnd}`,
+        skill: shift.skill,
+        open: shift.open,
+        start: shift.shiftStart,
+        end: shift.shiftEnd,
+        fix: shift.fix
+      };
+      schedules.value.push(newSchedule);
+    }
   });
 };
 
@@ -138,14 +140,16 @@ function jump(days) {
   location.href = `/calendar/${formattedDate}/`;
 }
 
-const moveStaffToTop = (list, aliasName) => {
+const moveStaffToTop = (list, aliasName, fix) => {
+  if (!iamAdmin.value) return
   const index = list.indexOf(aliasName);
   if (index > 0) {
     list.unshift(list.splice(index, 1)[0]);
   }
 };
 
-const onOffOK = (list, name) => {
+const onOffOK = (list, name, fix) => {
+  if (!iamAdmin.value && fix) return
   const index = list.indexOf(name);
   if (index === -1) {
     list.push(name);
@@ -154,7 +158,8 @@ const onOffOK = (list, name) => {
   }
 };
 
-const toggleFix = (scheduleKey) => {
+const toggleFix = (scheduleKey, fix) => {
+  if (!iamAdmin.value) return
   const schedule = schedules.value.find(s => s.key === scheduleKey);
   if (schedule) {
     schedule.fix = !schedule.fix; // fixの状態を切り替え
@@ -180,7 +185,7 @@ const submitShift = async () => {
         aliasNames: schedule.aliasNames,
         shiftStart: schedule.start,
         shiftEnd: schedule.end,
-        role: schedule.role,
+        skill: schedule.skill,
         fix: schedule.fix,
         open: schedule.open
       };
@@ -195,7 +200,7 @@ const submitShift = async () => {
       fd.append('csrf', localStorage.getItem('csrf'));
       fd.append('updatedShifts', JSON.stringify(updatedShifts));
       // fd.append('confirmed', confirmed);
-      fd.append('availableSkills', JSON.stringify(availableSkills.value));
+      // fd.append('availableSkills', JSON.stringify(availableSkills.value));
       const res = await sendRequest('/ReceptionShift/', fd);
       if (!res.csrf) errorMessage.value = res
       res.csrf && localStorage.setItem('csrf', res.csrf);
@@ -245,19 +250,12 @@ const submitShift = async () => {
       <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
       <tr v-if="reception">
         <td>
-          <h3>スキルを選択:</h3>
+          <h3>スキル:</h3>
           <div v-for="(skill, index) in reception.skills" :key="index">
-            <label>
-              <input
-                type="checkbox"
-                :value="skill"
-                v-model="availableSkills"
-              />
-              {{ skill }}
-            </label>
+            <!-- <label> <input type="checkbox" :value="skill" v-model="availableSkills" /> </label> -->
+             {{ skill }}
           </div>
-          
-          <p>選択されたスキル: {{ availableSkills }}</p>
+          <!-- <p>選択されたスキル: {{ availableSkills }}</p> -->
         </td>
       </tr>
       <tr>
@@ -295,26 +293,26 @@ const submitShift = async () => {
                :key="'event-' + d.id" 
                class="event"
                :style="decideHeightTop(d)" >
-               {{ d.role }} : <br>
+               {{ d.skill }} : <br>
               <button
                 v-for="(aliasName, openIndex) in d.aliasNames"
                 :style="{
                   color: aliasName === channel.myname ? 'black' : 'white', 
                   backgroundColor: openIndex < d.open ? 'blue' : 'silver'
                 }"
-                @click="iamAdmin && moveStaffToTop(d.aliasNames, aliasName)"
+                @click="moveStaffToTop(d.aliasNames, aliasName, d.fix)"
 
                 >
                 {{ aliasName }}
               </button>
               <br>
               <button 
-                @click="onOffOK(d.aliasNames, channel.myname)" 
+                @click="onOffOK(d.aliasNames, channel.myname, d.fix)" 
                 :style="{ backgroundColor: d.aliasNames.includes(channel.myname) ? 'blue' : 'silver' }">
                 登録
               </button>
               <button 
-                @click="toggleFix(d.key)"
+                @click="toggleFix(d.key, d.fix)"
                 :style="{ backgroundColor: d.fix ? 'blue' : 'silver' }">
                 確定
               </button>

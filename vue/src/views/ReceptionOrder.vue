@@ -17,7 +17,7 @@ const reception = ref(null);
 const receptionOrders = ref([]);
 const errorMessage = ref('');
 const totalPrice = ref(0);
-let seatName
+const seatName = ref('')
 const iamStaff = ref(false);
 async function findReception() {
   const fd = new FormData()
@@ -27,7 +27,7 @@ async function findReception() {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('receptionID', props.id)
   fd.append('code', props.code)
-  fd.append('codeType', '2') // 1 = before enter, 2 = at seat
+  fd.append('codeType', '3') // 1 = before enter, 2 = take QR code at table, 3 = ordering
   const res = await sendRequest('/ReceptionGet/', fd)
   if (res.error) { errorMessage.value = res.error }
   res.csrf && localStorage.setItem('csrf', res.csrf)
@@ -38,8 +38,8 @@ async function findReception() {
   }
 
   reception.value = res.reception || null;
-  seatName = res.facilityName || ''
-  console.log('seatName', seatName)
+  seatName.value = res.facilityName || ''
+  console.log('seatName', seatName.value)
 
   // console.log('joinNames', reception.value.joinNames)
   iamStaff.value = Array.isArray(reception.value.joinNames) && reception.value.joinNames.length > 0
@@ -50,7 +50,7 @@ async function findReception() {
 
 async function fetchOrders() {
   const orders = await getAllIDBs('receptionOrder')
-  const orderSeats = orders.filter(order => order.seatName === seatName)
+  const orderSeats = orders.filter(order => order.seatName === seatName.value)
   receptionOrders.value = orderSeats
   totalPrice.value = orderSeats.reduce((sum, o) => sum + o.price, 0)
 }
@@ -99,7 +99,7 @@ async function deleteOrder() {
     </div>
 
     <div class="reception-orders">
-      <h2>カート内の注文</h2>
+      <h2>カート内の注文 {{seatName}}</h2>
       <div
         v-if="receptionOrders.length > 0"
         v-for="order in receptionOrders"
@@ -107,8 +107,7 @@ async function deleteOrder() {
         class="order-item"
       >
         <h3>{{ order.menuName }}</h3>
-        <p><strong>席:</strong> {{ order.seatName }}</p>
-        <p><strong>注文ID:</strong> {{ order.receptionOrderID }}</p>
+        <div v-if="iamStaff"><strong>注文ID:</strong> {{ order.receptionOrderID }}</div>
 
         <!-- 注文アイテム -->
         <div

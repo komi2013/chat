@@ -33,7 +33,7 @@
 
         <select v-model="localEvent.menuID">
           <template v-for="(serviceItem, serviceIndex) in reception.menus" :key="serviceItem.menuID">
-            <option v-if="serviceItem.bookable" :value="serviceItem.menuID" >
+            <option v-if="serviceItem.forBookType" :value="serviceItem.menuID" >
               {{ serviceItem.menuName || '無題メニュー' }} - {{ serviceItem.price }}円
             </option>
           </template>
@@ -45,10 +45,16 @@
       <button @click="$emit('close')">閉じる</button>
     </div>
   </div>
+  <NoticePopup />
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
+
+import NoticePopup from '@/components/NoticePopup.vue'
+
+import { useNoticesStore } from '@/stores/notices.js'
+
 const props = defineProps({
   time: Object,
   reception: Object,
@@ -63,11 +69,12 @@ const localEvent = ref({
   serviceID: props.menuID   // 選択されたmenuのIDを格納
 });
 
-console.log('reception', props.reception)
+console.log('reception', props.menuID)
 
 const reception = props.reception;
 
 async function submit() {
+  if (!confirm("予約")) return
   const fd = new FormData();
   fd.append('aliasName', localStorage.getItem('myname'));
   fd.append('csrf', localStorage.getItem('csrf'));
@@ -79,6 +86,11 @@ async function submit() {
 
   const res = await sendRequest('/ReceptionBook/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);
+  if (res.error) {
+    const noticesStore = useNoticesStore()
+    noticesStore.setNotice(res.error)
+    return 
+  }
   res.pushContents.forEach(content => {
     pushReceive(content);
   });

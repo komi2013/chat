@@ -24,12 +24,12 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
   receptionID := r.FormValue("receptionID")
   code := r.FormValue("code")
   codeType := r.FormValue("codeType")
-	switch codeType {
-	case "1":  // before enter
-	case "3":  // open menu
-	default:
-    codeType = "2" // order at seat
-	}
+
+  // 1 = at reception, 2 = order, 3 = at seat
+	// if codeType != "1" && codeType != "2" && codeType != "3" {
+	// 	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid codeType", http.StatusOK)
+	// 	return
+	// }
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
@@ -62,59 +62,20 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	  common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
 		return
 	}
+  var receptionLog = common.NewDailyLogger("reception_")
 
 	// after you get reception DB, more strict check
 	staffAccess = false
   for _, d := range session.ChannelAliases {
+  	receptionLog.Printf("d.Alias == aliasName && d.ChannelID == channelID && channelID == reception.ChannelID", d.Alias, aliasName, d.ChannelID, channelID, reception.ChannelID)
     if d.Alias == aliasName && d.ChannelID == channelID && channelID == reception.ChannelID {
       staffAccess = true
     }
   }
-  var receptionLog = common.NewDailyLogger("reception_")
 
   seatName := ""
 	validCode := false
-	if codeType == "1" {
-		now := time.Now()
-    for j, passcode := range reception.Passcodes {
-			receptionLog.Printf("passcode.Passkey == code:", passcode.Passkey, code)
-      if passcode.Passkey == code {
-				startTime, err1 := time.Parse("2006-01-02T15:04", passcode.PassStart)
-				endTime, err2 := time.Parse("2006-01-02T15:04", passcode.PassEnd)
-	      if err1 == nil && err2 == nil && now.After(startTime) && now.Before(endTime) {
-	        validCode = true
-	        break
-	      } else if now.After(endTime) {
-	        reception.Passcodes = append(
-	            reception.Passcodes[:j],
-	            reception.Passcodes[j+1:]...,
-	        )
-	        update := bson.M{
-	            "$set": bson.M{
-	                "passcodes": reception.Passcodes,
-	            },
-	        }
-	        _, err := coll.UpdateOne(ctx, filter, update)
-	        if err != nil {
-	            common.WriteResponseWithSession(w, session, "Update failed: "+err.Error(), http.StatusInternalServerError)
-	            return
-	        }
-	        break
-	      }
-      }
-    }
-	} else if codeType == "2" {
-		for _, seat := range reception.Facilities {
-			if seat.CurrentCode == code {
-				validCode = true
-				seatName = seat.FacilityName
-				break
-			}
-			if validCode {
-				break
-			}
-		}
-	} else if codeType == "3" {
+	if codeType == "2" {
 	    for i, seat := range reception.Facilities {
 	        for j, passcode := range seat.Passcodes {
 	            if passcode.Passkey == code {
@@ -142,19 +103,20 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	            break
 	        }
 	    }
+	} else if codeType == "3" {
+		for _, seat := range reception.Facilities {
+			if seat.CurrentCode == code {
+				// receptionLog.Printf("seat.CurrentCode == code", seat.CurrentCode, code)
+				validCode = true
+				seatName = seat.FacilityName
+				break
+			}
+		}
 	}
-
-  if !staffAccess && !validCode{
-	  if !validCode {
-	  	receptionLog.Printf("validCode is invalid", r.URL.Path, r.Form)
-	  	common.WriteResponseWithSession(w, session, "コードが一致してません", http.StatusOK)
-	  	return
-	  }
-	  if !staffAccess {
-	    receptionLog.Printf("ChannelAliases !staffAccess: %v; Req: ", session.ChannelAliases, r.URL.Path, r.Form)
-	    common.WriteResponseWithSession(w, session, "コードが一致してません", http.StatusOK)
-	    return
-	  }
+	receptionLog.Printf("seatName", seatName)
+  if !staffAccess && !validCode && codeType != "" {
+  	common.WriteResponseWithSession(w, session, "コードが一致してません。スタッフでもありません", http.StatusOK)
+  	return
   }
 
 	collMenu := common.DB.ReceptionDB.Collection("menu")

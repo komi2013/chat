@@ -18,7 +18,7 @@ const reception = ref(null); // Reception データ
 const seatName = ref('');
 const selectedOptions = ref([]);
 const selectedChoices = ref([]);
-
+let nickname
 async function findReception() {
   const fd = new FormData()
   fd.append('channelID', localStorage.getItem('channelID'))
@@ -27,13 +27,18 @@ async function findReception() {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('receptionID', props.id)
   fd.append('code', props.code)
-  fd.append('codeType', props.codeType ? '3' : '2') // 1 = before enter, 3 = open menu, 2 = order
+  fd.append('codeType', props.codeType) // 1 = before enter, 2 = take QR code, 3 = ordering
   const res = await sendRequest('/ReceptionGet/', fd)
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (props.codeType == '2') location.href = `/ReceptionMenu/${props.id}/${props.code}/3/`
+  res.reception.menus = res.menu.menus || []
+  res.reception.itemDetails = res.menu.itemDetails || []
   const itemMap = {}
   res.reception.itemDetails.forEach(item => {
     itemMap[item.itemID] = item
@@ -62,7 +67,8 @@ async function findReception() {
 
   });
   reception.value = res.reception
-  seatName.value = res.seatName
+  seatName.value = res.facilityName
+  nickname = res.nickname
 }
 
 function getItemName(itemID) {
@@ -112,7 +118,6 @@ function createReceptionOrder(menu) {
   let seq = incrementBase62Smart(localStorage.getItem('cartItemSeq'));
   localStorage.setItem('cartItemSeq', seq);
   // 必要情報の参照
-  const myname = channel.value.myname;
   const itemDetailsMaster = reception.value.itemDetails;
   const opts = selectedOptions.value[menu.menuID] || {
     freeOptions: [],
@@ -135,8 +140,10 @@ function createReceptionOrder(menu) {
   });
   const paidOptionsPrice = paidOptions.reduce((sum, opt) => sum + opt.price, 0);
   const price = menu.price + paidOptionsPrice;
-  return {
-    receptionOrderID: `${menu.menuID}${myname}${seq}`,
+
+  // 基本オブジェクト（空あり）
+  let order = {
+    receptionOrderID: `${menu.menuID}${nickname}${seq}`,
     seatName: seatName.value,
     menuID: menu.menuID,
     menuName: menu.menuName,
@@ -145,15 +152,24 @@ function createReceptionOrder(menu) {
     paidOptions,
     freeMultiOptions: opts.freeMultiOptions,
     price,
-    // totalPrice,
     items: (menu.itemDetails || []).map(d => ({
       itemID: d.itemID,
       itemName: d.itemName,
       imgPath: d.imgPath,
       choices: Array.isArray(d.choices) ? d.choices : []
-    })),
-    orderFlag: 'cart'
-  }
+    }))
+  };
+
+  // 空データを削除
+  order = Object.fromEntries(
+    Object.entries(order).filter(([_, v]) => {
+      if (Array.isArray(v)) return v.length > 0;       // 空配列は消す
+      if (v && typeof v === 'object') return Object.keys(v).length > 0; // 空オブジェクトは消す
+      return v !== null && v !== undefined && v !== ''; // null/undefined/空文字は消す
+    })
+  );
+
+  return order;
 }
 
 function removeOrder(receptionOrderID) {
@@ -176,14 +192,14 @@ const totalPrice = computed(() => {
 async function order() {
   if (!confirm("注文")) { return }
   const fd = new FormData()
-  fd.append('channelID', localStorage.getItem('channelID'))
-  fd.append('aliasName', myname)
+  // fd.append('channelID', localStorage.getItem('channelID'))
+  // fd.append('nickname', nickname)
   // ↑ for staff
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('receptionID', props.id)
   fd.append('receptionOrders', JSON.stringify(receptionOrders.value))
   fd.append('code', props.code)
-  fd.append('codeType', 2) // 1 = before enter, 2 = at seat
+  // fd.append('codeType', 3) // 1 = before enter, 2 = at seat
 
   const res = await sendRequest('/ReceptionOrder/', fd)
   if (!res.csrf) errorMessage.value = res
@@ -214,7 +230,7 @@ async function order() {
     <div v-if="reception && reception.menus.length">
       <div v-for="menu in reception.menus" class="menu-item">
         <h2>{{ menu.menuName }}</h2>
-        <p>価格: {{ menu.price }}円</p>
+        <div>価格: {{ menu.price }}円</div>
 
         <div v-for="item in menu.itemDetails" :key="itemId">
           <div style="display: inline-block;">
@@ -238,8 +254,8 @@ async function order() {
         </div>
 
         <!-- 有料オプション -->
-        <h3>有料オプション:</h3>
         <div v-if="menu.paidOptions?.length" class="option-list">
+          <h3>有料オプション:</h3>
           <label
             v-for="(option, index) in menu.paidOptions"
             :key="index"
@@ -266,13 +282,14 @@ async function order() {
         </div>
 
         <!-- 無料オプション (複数パターンで単一選択) -->
-        <h3>無料オプション:</h3>
         <div 
           v-if="menu.freeOptions?.length" 
           v-for="(optionArray, patternIndex) in menu.freeOptions" 
           :key="patternIndex"
           class="option-group"
         >
+          <h3>無料オプション:</h3>
+
           <div class="option-list">
             <label 
               v-for="optionId in optionArray" 
@@ -299,8 +316,8 @@ async function order() {
         </div>
 
         <!-- 無料複数選択オプション -->
-        <h3>無料複数選択オプション:</h3>
         <div v-if="menu.freeMultiOptions?.length" class="option-list">
+          <h3>無料複数選択オプション:</h3>
           <label
             v-for="optionId in menu.freeMultiOptions"
             :key="optionId"
@@ -331,7 +348,7 @@ async function order() {
     </div>
 
     <div class="reception-orders">
-      <h2>カート内の注文</h2>
+      <h2>カート内の注文 {{seatName}} </h2>
       <div
         v-if="receptionOrders.length > 0"
         v-for="order in receptionOrders"
@@ -339,9 +356,6 @@ async function order() {
         class="order-item"
         >
         <h3>{{ order.menuName }}</h3>
-        <p><strong>席:</strong> {{ order.seatName }}</p>
-        <p><strong>注文ID:</strong> {{ order.receptionOrderID }}</p>
-
         <!-- 削除ボタン -->
         <button class="delete-btn" @click="removeOrder(order.receptionOrderID)">
           ❌ 削除
@@ -374,7 +388,7 @@ async function order() {
         <!-- オプション -->
         <div class="options">
           <!-- 無料オプション -->
-          <div v-if="order.freeOptions.length > 0">
+          <div v-if="order.freeOptions?.length > 0">
             <div>無料オプション:</div>
             <div class="option-list">
               <div
@@ -394,7 +408,7 @@ async function order() {
           </div>
 
           <!-- 有料オプション -->
-          <div v-if="order.paidOptions.length > 0">
+          <div v-if="order.paidOptions?.length > 0">
             <div>有料オプション:</div>
             <div class="option-list">
               <div
@@ -414,7 +428,7 @@ async function order() {
           </div>
 
           <!-- 複数選択オプション -->
-          <div v-if="order.freeMultiOptions.length > 0">
+          <div v-if="order.freeMultiOptions?.length > 0">
             <p><strong>複数選択オプション:</strong></p>
             <div class="option-list">
               <div

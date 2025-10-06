@@ -29,7 +29,7 @@ type Menu struct {
   PaidOptions       []ItemOption    `bson:"paidOptions,omitempty" json:"paidOptions"`         // [[item_id, price]]
   FreeOptions       [][]int         `bson:"freeOptions,omitempty" json:"freeOptions"`         // [[item_id, ...]]
   FreeMultiOptions  []int           `bson:"freeMultiOptions,omitempty" json:"freeMultiOptions"` // [item_id, ...]
-  Bookable          bool `bson:"bookable,omitempty" json:"bookable,omitempty"`
+  ForBookType       int             `bson:"forBookType,omitempty" json:"forBookType,omitempty"`  // 1 = book only, 2 = book & at shop
 }
 
 type ItemDetail struct {

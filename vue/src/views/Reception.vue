@@ -41,7 +41,8 @@ const defaultReception = {
   }],
   facilities: [{ 
     facilityName: '',
-    capacity: 0
+    capacity: 0,
+    bookable: false
   }],
   openTimes: [{ limitStart: '', limitEnd: '' }],
   shifts: [{
@@ -49,7 +50,7 @@ const defaultReception = {
     shiftStart: '',
     shiftEnd: '',
     open: 1,
-    role: '',
+    skill: '',
     fix: false
   }],
   menus: [{
@@ -68,7 +69,7 @@ const defaultReception = {
     }],
     freeOptions: [[]], // itemID　[オレンジジュース、メロンソーダ], [パン, ご飯]
     freeMultiOptions: [],
-    bookable: true
+    forBookType: ''  // 1 = book only, 2 = book & at shop
   }],
   skills: [''],
   staffSkills: [{ aliasName: '', skills: [''] }],
@@ -84,33 +85,7 @@ const defaultReception = {
     waitRatio: 0
   }]
 }
-
 reception.value = defaultReception
-const channel = ref(null)
-const groups = ref([])
-const aliases = ref([])
-const found = ref(false)
-const errorMessage = ref('')
-onMounted(async () => {
-  channel.value = await getIDB('channel', channelID)
-  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000)
-  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000)
-  if (props.reception) {
-    try {
-      const parsed = JSON.parse(props.reception)
-      reception.value = { ...reception.value, ...parsed }
-    } catch (e) {
-      console.error('receptionパラメータのJSONパースに失敗しました:', e)
-    }
-  } else if (props.id) {
-    // reception.value = await getIDB('reception', props.id);
-    reception.value = await findReception()
-    // console.log('reception.value', reception.value)
-  // } else {
-  //   reception.value = await findReception()
-  }
-  found.value = true
-})
 
 async function findReception() {
   const fd = new FormData()
@@ -138,6 +113,32 @@ async function findReception() {
   return res.reception
 }
 
+const channel = ref(null)
+const groups = ref([])
+const aliases = ref([])
+const found = ref(false)
+const errorMessage = ref('')
+onMounted(async () => {
+  channel.value = await getIDB('channel', channelID)
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000)
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000)
+  if (props.reception) {
+    try {
+      const parsed = JSON.parse(props.reception)
+      reception.value = { ...reception.value, ...parsed }
+    } catch (e) {
+      console.error('receptionパラメータのJSONパースに失敗しました:', e)
+    }
+  } else if (props.id) {
+    // reception.value = await getIDB('reception', props.id);
+    reception.value = await findReception()
+    // console.log('reception.value', reception.value)
+  // } else {
+  //   reception.value = await findReception()
+  }
+  found.value = true
+})
+
 // ユーティリティ関数
 function addArrayItem(field) {
   reception.value[field].push('')
@@ -153,20 +154,25 @@ function addNestedItem(array, index, nestedField, initValue = '') {
 }
 
 async function submit() {
-  if (!confirm("実行▶️じ")) {
+  if (!confirm("実行▶️")) {
     return;
   }
   event.preventDefault()
   const fd = new FormData();
   console.log('reception', reception.value)
   const cleanedReception = removeEmpty(reception.value);
-  fd.append('reception', JSON.stringify(cleanedReception));
-  fd.append('channelID', channel.value.channelID);
-  fd.append('aliasName', channel.value.myname);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ReceptionEdit/', fd);
+  const cleanedMenu = removeEmpty({
+    menus: reception.value.menus || [],
+    itemDetails: reception.value.itemDetails || []
+  })
+  fd.append('reception', JSON.stringify(cleanedReception))
+  fd.append('menu', JSON.stringify(cleanedMenu))
+  fd.append('channelID', channel.value.channelID)
+  fd.append('aliasName', channel.value.myname)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/ReceptionEdit/', fd)
   if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
     pushReceive(content);
   });
@@ -408,6 +414,15 @@ function removeEmpty(obj) {
           <button @click.prevent="m.freeMultiOptions.push(m.freeMultiOptions.length)">＋無料複数オプション</button>
         </div>
 
+        <div>
+          <label for="bookType">予約可能範囲</label>
+          <select id="bookType" v-model.number="m.forBookType" >
+            <option value="" >予約不可</option>
+            <option value="1">予約のみ</option>
+            <option value="2">予約 店頭</option>
+          </select>
+        </div>
+
         <button @click.prevent="reception.menus.splice(i, 1)" v-if="reception.menus.length > 1">−</button>
       </div>
 
@@ -507,6 +522,7 @@ function removeEmpty(obj) {
       <div v-for="(f, i) in reception.facilities" :key="i">
         <input v-model="f.facilityName" placeholder="施設名" type="text" />
         <input v-model.number="f.capacity" type="number" placeholder="数" />
+        <label><input type="checkbox" v-model="f.bookable" true-value="1" false-value="0" /> 予約可能</label>
         <button @click.prevent="reception.facilities.splice(i, 1)" v-if="reception.facilities.length > 1">−</button>
       </div>
       <button @click.prevent="addObjectItem('facilities', { facilityName: '', capacity: 1 })">＋施設</button>
@@ -526,7 +542,7 @@ function removeEmpty(obj) {
     <div>
       <label>シフトが必要な期間:</label>
       <div v-for="(s, i) in reception.shifts" :key="i">
-        <input v-model="s.role" placeholder="役割" type="text" /><br>
+        <input v-model="s.skill" placeholder="役割" type="text" /><br>
         開始：<input type="datetime-local" v-model="s.shiftStart" /> 〜 終了：<input type="datetime-local" v-model="s.shiftEnd" />
         <template v-for="(name, key) in s.aliasNames" >
           <input v-model="s.aliasNames[key]" style="margin: 2px;" />
@@ -544,7 +560,7 @@ function removeEmpty(obj) {
         <button @click.prevent="reception.shifts.splice(i, 1)" v-if="reception.shifts.length > 1">−</button>
       </div>
       <button @click.prevent="addObjectItem('shifts', {
-        aliasNames: [''], shiftStart: '', shiftEnd: '', open: 1, role: '', fix: false
+        aliasNames: [''], shiftStart: '', shiftEnd: '', open: 1, skill: '', fix: false
       })">＋シフト</button>
     </div>
 

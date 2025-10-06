@@ -92,12 +92,12 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/receptionMenu/:id/:code?/',
+      path: '/receptionMenu/:id/:code/:codeType/',
       component: () => import('../views/ReceptionMenu.vue'),
       props: route => ({
         id: route.params.id,
         code: route.params.code,
-        codeType: route.query.codeType
+        codeType: route.params.codeType
       })
     },
     {

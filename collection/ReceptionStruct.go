@@ -36,39 +36,6 @@ type ReceptionStruct struct {
 	WaitConfigs      []WaitConfig       `bson:"waitConfigs,omitempty" json:"waitConfigs,omitempty"`
 }
 
-type Book struct {
-	BookStart    string   `bson:"bookStart" json:"bookStart"`
-	BookEnd      string   `bson:"bookEnd" json:"bookEnd"`
-	Answers      []string `bson:"answers,omitempty" json:"answers"`
-	MenuID    int      `bson:"menuID,omitempty" json:"menuID,omitempty"`
-	People    int      `bson:"people,omitempty" json:"people,omitempty"`
-	CreatedAt time.Time `bson:"createdAt,omitempty"`
-	Nickname     string   `bson:"nickname" json:"nickname"`
-}
-
-type WorkStaff struct {
-	AliasName  string   `bson:"aliasName" json:"aliasName"`
-	WorkStart  string   `bson:"workStart" json:"workStart"`
-	WorkEnd    string   `bson:"workEnd" json:"workEnd"`
-	Seq        int      `bson:"seq" json:"seq"`
-  // Delete     bool     `json:"delete,omitempty"`
-}
-
-type Shift struct {
-  AliasNames []string             `bson:"aliasNames" json:"aliasNames"`
-  ShiftStart string         `bson:"shiftStart" json:"shiftStart"`
-  ShiftEnd   string         `bson:"shiftEnd" json:"shiftEnd"`
-  Open      int                 `bson:"open" json:"open"`
-  Role      string             `bson:"role" json:"role"`
-  Fix         bool              `bson:"fix,omitempty" json:"fix,omitempty"`
-  // Delete      bool              `bson:"delete,omitempty" json:"delete,omitempty"`
-}
-
-type OpenTime struct {
-	LimitStart  string                 `bson:"limitStart" json:"limitStart"`
-	LimitEnd    string                 `bson:"limitEnd" json:"limitEnd"`
-}
-
 type Facility struct {
 	// FacilityCount  int    `bson:"facilityCount" json:"facilityCount"`
 	FacilityName   string `bson:"facilityName" json:"facilityName"`
@@ -76,37 +43,17 @@ type Facility struct {
 	Passcodes []Passcode `bson:"passcodes" json:"passcodes"`
 	CurrentCode string `bson:"currentCode,omitempty" json:"currentCode,omitempty"`
 	Bookable    bool   `bson:"bookable,omitempty" json:"bookable,omitempty"`
-}
-
-type StaffSkill struct {
-	AliasName        string            `bson:"aliasName,omitempty" json:"aliasName,omitempty"`
-  Skills           []string          `bson:"skills,omitempty" json:"skills,omitempty"`
-}
-
-
-// type Seat struct {
-// 	SeatName string   `bson:"seatName" json:"seatName"`
-// 	Capacity  int      `bson:"capacity" json:"capacity"`
-// 	Passcodes []Passcode `bson:"passcodes" json:"passcodes"`
-// 	CurrentCode string `bson:"currentCode,omitempty" json:"currentCode,omitempty"`
-// }
-
-type Queue struct {
-	WaitingGuest  int      `bson:"waitingGuest,omitempty" json:"waitingGuest,omitempty"`
-	QueueName 		string   `bson:"queueName,omitempty" json:"queueName,omitempty"`
-	QueuedAt     string   `bson:"queuedAt,omitempty" json:"queuedAt,omitempty"`
+	BookTimes   []BookTime  `bson:"bookTimes,omitempty" json:"bookTimes,omitempty"`
 }
 
 type WaitConfig struct {
 	GuestRange    [2]int      `bson:"guestRange,omitempty" json:"guestRange,omitempty"`
-	WaitRatio     int   `bson:"waitRatio,omitempty" json:"waitRatio,omitempty"`
+	WaitRatio     int   `bson:"waitRatio,omitempty" json:"waitRatio,omitempty"` // minutes
 }
 
-type Passcode struct {
-	Passkey        string   `bson:"passkey" json:"passkey"`
-	// AvailableUsage  int      `bson:"availableUsage,omitempty" json:"availableUsage,omitempty"`
-	PassStart   string   `bson:"passStart,omitempty" json:"passStart,omitempty"`
-	PassEnd   string   `bson:"passEnd,omitempty" json:"passEnd,omitempty"`
+type OpenTime struct {
+	LimitStart  string                 `bson:"limitStart" json:"limitStart"`
+	LimitEnd    string                 `bson:"limitEnd" json:"limitEnd"`
 }
 
 type AskChoice struct {
@@ -124,4 +71,60 @@ type AskMultiChoice struct {
 type Ask struct {
 	Question   string   `bson:"question" json:"question"`
 	Sequence   int      `bson:"sequence" json:"sequence"`
+}
+
+type Passcode struct {
+	Passkey        string   `bson:"passkey" json:"passkey"`
+	// AvailableUsage  int      `bson:"availableUsage,omitempty" json:"availableUsage,omitempty"`
+	PassStart   string   `bson:"passStart,omitempty" json:"passStart,omitempty"`
+	PassEnd   string   `bson:"passEnd,omitempty" json:"passEnd,omitempty"`
+}
+
+type StaffSkill struct {
+	AliasName        string            `bson:"aliasName,omitempty" json:"aliasName,omitempty"`
+  Skills           []string          `bson:"skills,omitempty" json:"skills,omitempty"`
+}
+
+// ↑ master data, ↓ staff input
+
+type Shift struct {
+  AliasNames []string             `bson:"aliasNames" json:"aliasNames"`
+  ShiftStart string         `bson:"shiftStart" json:"shiftStart"`
+  ShiftEnd   string         `bson:"shiftEnd" json:"shiftEnd"`
+  Open      int                 `bson:"open" json:"open"`
+  Skill      string             `bson:"skill" json:"skill"`
+  Fix         bool              `bson:"fix,omitempty" json:"fix,omitempty"`
+  // Delete      bool              `bson:"delete,omitempty" json:"delete,omitempty"`
+}
+
+type WorkStaff struct {
+	AliasName  string   `bson:"aliasName" json:"aliasName"`
+	WorkStart  string   `bson:"workStart" json:"workStart"`
+	WorkEnd    string   `bson:"workEnd" json:"workEnd"`
+	Seq        int      `bson:"seq" json:"seq"`
+  // Delete     bool     `json:"delete,omitempty"`
+}
+
+// ↓ customer input
+
+type Book struct {
+	BookStart    string   `bson:"bookStart" json:"bookStart"`
+	BookEnd      string   `bson:"bookEnd" json:"bookEnd"`
+	Answers      []string `bson:"answers,omitempty" json:"answers"`
+	MenuID    int      `bson:"menuID,omitempty" json:"menuID,omitempty"`
+	People    int      `bson:"people,omitempty" json:"people,omitempty"`
+	CreatedAt time.Time `bson:"createdAt,omitempty"`
+	Nickname     string   `bson:"nickname" json:"nickname"`
+}
+
+type BookTime struct {
+	BookStart  string                 `bson:"bookStart" json:"bookStart"`
+	BookEnd    string                 `bson:"bookEnd" json:"bookEnd"`
+}
+
+type Queue struct {
+	WaitingGuest  int      `bson:"waitingGuest,omitempty" json:"waitingGuest,omitempty"`
+	QueueName 		string   `bson:"queueName,omitempty" json:"queueName,omitempty"`
+	QueuedAt     string   `bson:"queuedAt,omitempty" json:"queuedAt,omitempty"`
+	UserID     string   `bson:"userID,omitempty" json:"userID,omitempty"`
 }

@@ -23,11 +23,11 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
   channelID := r.FormValue("channelID")
   receptionID := r.FormValue("receptionID")
 
-	var skills []string
-	if err := json.Unmarshal([]byte(r.FormValue("availableSkills")), &skills); err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "availableSkills JSON Unmarshal Error", http.StatusOK)
-		return
-	}
+	// var skills []string
+	// if err := json.Unmarshal([]byte(r.FormValue("availableSkills")), &skills); err != nil {
+	// 	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "availableSkills JSON Unmarshal Error", http.StatusOK)
+	// 	return
+	// }
 
 	var updatedShifts []collection.Shift
 	if err := json.Unmarshal([]byte(r.FormValue("updatedShifts")), &updatedShifts); err != nil {
@@ -118,7 +118,7 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		// log.Printf("Removed AliasNames: %v", removedAliases)
 
 		for i, s := range reception.Shifts {
-			if s.ShiftStart == shift.ShiftStart && s.Role == shift.Role {
+			if s.ShiftStart == shift.ShiftStart && s.Skill == shift.Skill {
 				reception.Shifts[i].AliasNames = shift.AliasNames
 				reception.Shifts[i].Fix = shift.Fix
 			}
@@ -127,30 +127,30 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 
 	// log.Printf("Updated WorkStaffs: %+v", reception.WorkStaffs)
 	var receptionLog = common.NewDailyLogger("reception_")
-	if len(skills) > 0 {
-		updated := false
-		for j, staffSkill := range reception.StaffSkills {
-			if staffSkill.AliasName == aliasName {
-				reception.StaffSkills[j].Skills = skills
-				updated = true
-				break
-			}
-		}
+	// if len(skills) > 0 {
+	// 	updated := false
+	// 	for j, staffSkill := range reception.StaffSkills {
+	// 		if staffSkill.AliasName == aliasName {
+	// 			reception.StaffSkills[j].Skills = skills
+	// 			updated = true
+	// 			break
+	// 		}
+	// 	}
 
-		if !updated {
-			newStaffSkill := collection.StaffSkill{
-				AliasName: aliasName,
-				Skills:    skills,
-			}
-			reception.StaffSkills = append(reception.StaffSkills, newStaffSkill)
-		}
-	}
+	// 	if !updated {
+	// 		newStaffSkill := collection.StaffSkill{
+	// 			AliasName: aliasName,
+	// 			Skills:    skills,
+	// 		}
+	// 		reception.StaffSkills = append(reception.StaffSkills, newStaffSkill)
+	// 	}
+	// }
 
 	update := bson.M{
 		"$set": bson.M{
 			"shifts": reception.Shifts,
 			"workStaffs":  reception.WorkStaffs,
-			"staffSkills":  reception.StaffSkills,
+			// "staffSkills":  reception.StaffSkills,
 		},
 	}
 

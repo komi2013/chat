@@ -118,6 +118,34 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
     return
 	}
 
+	// ---- menu 更新 ----
+	menuColl := common.DB.ReceptionDB.Collection("menu")
+	menuFilter := bson.M{"_id": reception.ReceptionID}
+
+	// menu に UpdatedAt を入れる
+	menu.UpdatedAt = time.Now()
+
+	menuData, err := bson.Marshal(menu)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to marshal menu", http.StatusOK)
+		return
+	}
+
+	var menuUpdateData bson.M
+	if err := bson.Unmarshal(menuData, &menuUpdateData); err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to unmarshal menu to bson.M", http.StatusOK)
+		return
+	}
+	delete(menuUpdateData, "_id")
+
+	menuUpdate := bson.M{"$set": menuUpdateData}
+	menuOpts := options.Update().SetUpsert(true)
+	_, err = menuColl.UpdateOne(ctx, menuFilter, menuUpdate, menuOpts)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to update menu", http.StatusOK)
+		return
+	}
+
 	responseData := common.BaseResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,

@@ -39,7 +39,7 @@ func LogFromJS(w http.ResponseWriter, r *http.Request) {
 	// CSRFが無効ならログを書かずにstatus:okを返す
 	if !isValidCSRF(payload.Csrf) {
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "invalid POST"})
 		return
 	}
 
