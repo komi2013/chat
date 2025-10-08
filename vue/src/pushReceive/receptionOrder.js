@@ -7,22 +7,6 @@ export async function receptionOrder(pushData) {
     body: fd,
   });
   fetch(request)
-  // const orders = pushData[4]
-  // console.log('orders', orders)
-  // if (Array.isArray(orders)) {
-  //   for (const order of orders) {
-  //     await upsertIDB(order, 'receptionOrder', 'receptionOrderID', order.receptionOrderID)
-  //   }
-  // }
-
-  // const orders = await getAllIDBs('receptionOrder')
-  // const orderSeats = orders.filter(order => order.seatName === seatName)
-
-  // if (Array.isArray(orderSeats)) {
-  //   for (const order of orderSeats) {
-  //     await deleteIDB('receptionOrder', 'receptionOrderID', order.receptionOrderID)
-  //   }
-  // }
 
   const data = pushData[4]
   if (Array.isArray(data)) {
@@ -40,6 +24,24 @@ export async function receptionOrder(pushData) {
       await deleteIDB('receptionOrder', 'receptionOrderID', order.receptionOrderID)
     }
   }
+
+
+  // const orders = pushData[4]
+  // console.log('orders', orders)
+  // if (Array.isArray(orders)) {
+  //   for (const order of orders) {
+  //     await upsertIDB(order, 'receptionOrder', 'receptionOrderID', order.receptionOrderID)
+  //   }
+  // }
+
+  // const orders = await getAllIDBs('receptionOrder')
+  // const orderSeats = orders.filter(order => order.seatName === seatName)
+
+  // if (Array.isArray(orderSeats)) {
+  //   for (const order of orderSeats) {
+  //     await deleteIDB('receptionOrder', 'receptionOrderID', order.receptionOrderID)
+  //   }
+  // }
 
 
   // if (pushData[3]) {

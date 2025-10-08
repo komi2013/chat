@@ -111,45 +111,48 @@ func ReceptionQueueEdit(w http.ResponseWriter, r *http.Request) {
 
 	queuedAt := now.Format("2006-01-02T15:04")
 
-  switch editType {
-  case "1": // 追加
-    newQueue := collection.Queue{
-      WaitingGuest: guestCount,
-      QueueName:    session.Nickname,
-      QueuedAt:     queuedAt,
-      UserID:       session.UserID,
-    }
-    reception.Queues = append(reception.Queues, newQueue)
+	switch editType {
+	case "1": // 追加
+	  newQueue := collection.Queue{
+	    WaitingGuest: guestCount,
+	    QueueName:    session.Nickname,
+	    QueuedAt:     queuedAt,
+	    UserID:       session.UserID,
+	  }
 
-    update := bson.M{"$set": bson.M{"queues": reception.Queues}}
-    _, err = coll.UpdateOne(ctx, filter, update)
-    if err != nil {
-      common.WriteResponseWithSession(w, session, "Update failed: "+err.Error(), http.StatusInternalServerError)
-      return
-    }
+	  update := bson.M{
+	    "$push": bson.M{
+	      "queues": newQueue,
+	    },
+	  }
 
-  case "2": // 削除
-    if !staffAccess {
-      common.WriteResponseWithSession(w, session, "スタッフのみ削除できます", http.StatusForbidden)
-      return
-    }
+	  _, err = coll.UpdateOne(ctx, filter, update)
+	  if err != nil {
+	    common.WriteResponseWithSession(w, session, "Update failed: "+err.Error(), http.StatusInternalServerError)
+	    return
+	  }
 
-    newQueues := []collection.Queue{}
-    for _, q := range reception.Queues {
-      if q.QueueName == queueName {
-        continue
-      }
-      newQueues = append(newQueues, q)
-    }
-    reception.Queues = newQueues
+	case "2": // 削除
+	  if !staffAccess {
+	    common.WriteResponseWithSession(w, session, "スタッフのみ削除できます", http.StatusForbidden)
+	    return
+	  }
 
-    update := bson.M{"$set": bson.M{"queues": reception.Queues}}
-    _, err = coll.UpdateOne(ctx, filter, update)
-    if err != nil {
-      common.WriteResponseWithSession(w, session, "Update failed: "+err.Error(), http.StatusInternalServerError)
-      return
-    }
-  }
+	  // QueueName（もしくはUserID）に一致するものを削除
+	  update := bson.M{
+	    "$pull": bson.M{
+	      "queues": bson.M{
+	        "queueName": queueName, // Queue構造体のフィールド名に合わせて要確認
+	      },
+	    },
+	  }
+
+	  _, err = coll.UpdateOne(ctx, filter, update)
+	  if err != nil {
+	    common.WriteResponseWithSession(w, session, "Update failed: "+err.Error(), http.StatusInternalServerError)
+	    return
+	  }
+	}
 
   responseData := common.BaseResponse{
     Csrf:         session.Csrf,

@@ -1,0 +1,224 @@
+<template>
+  <div v-show="editable">
+    <div class="editLeft" :id="'toolbar_' + messageID">
+      <button class="ql-bold"></button>
+      <button class="ql-strike"></button>
+      <button class="ql-blockquote"></button>
+      <button class="ql-code-block"></button>
+      <button class="ql-link"></button>
+      <select class="ql-color">
+        <option value="red">Red</option>
+        <option value=""></option>
+      </select>
+      <button class="emoji" @click="attach(messageID)">🌄</button>
+      <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
+      <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
+    </div>
+    <div :id="'edit_' + messageID"
+      v-html="editTxt[messageID]"
+      >
+    </div>
+  </div>
+  <div class="files" v-html="fileInfo[messageID]"></div>
+  <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
+</template>
+
+<script setup>
+import { ref, defineProps, onMounted } from 'vue';
+import { useMessagesStore } from '@/stores/messages.js';
+
+import Quill from 'quill';
+import "quill/dist/quill.snow.css";
+
+import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
+
+const props = defineProps({
+  channel: {
+    type: Object,
+    default: () => ({
+      channelID: '',
+      myname: 'お客様',
+      channelName: '問い合わせ対応'
+    })
+  },
+  message: {
+    type: Object,
+    default: () => ({
+      messageTxt: '',
+      messageID: '',
+      parentID: ''
+    })
+  },
+  threadHead: {
+    type: Object,
+    default: () => ({
+      receptionID: '',
+      parentID: '',
+      title: '新規問い合わせ'
+    })
+  }
+})
+
+const messagesStore = useMessagesStore();
+const messageID = props.message.messageID || 'new';
+const editTxt = ref({});
+const fileInfo = ref({});
+const quill = ref({});
+const editable = ref(true);
+const task = ref(false);
+
+onMounted(async () => {
+  if (messageID && messageID !== 'new') {
+    const message = messagesStore.messages.find(m => m.messageID === messageID);
+    if (message) {
+      editTxt.value[messageID] = markdownToHtml(message.messageTxt, props.channel);
+    }
+  }
+  await initQuill();
+});
+
+async function initQuill() {
+  const toolbar = document.getElementById('toolbar_' + messageID);
+  if (!toolbar) return;
+  
+  quill.value[messageID] = new Quill('#edit_' + messageID, {
+    modules: {
+      toolbar: '#toolbar_' + messageID,
+    },
+    theme: 'snow'
+  });
+  
+  if (editTxt.value[messageID]) {
+    quill.value[messageID].root.innerHTML = editTxt.value[messageID];
+  }
+}
+
+function attach(messageID) {
+  const fileInput = document.getElementById('fileInput_' + messageID);
+  fileInput.click();
+  fileInput.onchange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      uploadFile(file, messageID);
+    });
+  };
+}
+
+async function uploadFile(file, messageID) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('csrf', localStorage.getItem('csrf'));
+  
+  const response = await fetch('/upload/', {
+    method: 'POST',
+    body: formData
+  });
+  const result = await response.json();
+  
+  if (result.filelink) {
+    const currentContent = quill.value[messageID].root.innerHTML;
+    quill.value[messageID].root.innerHTML = currentContent + `＊f＊${result.filelink}・＊f＊ `;
+  }
+}
+
+function tasking() {
+  task.value = !task.value;
+}
+
+async function msgUpsert(messageID, isDelete) {
+  if (!quill.value[messageID]) return;
+  
+  const content = quill.value[messageID].root.innerHTML.replace(/\uFEFF/g, '');
+  const messageTxt = htmlToMarkdown(content);
+  
+  // デフォルト値を設定
+  const channel = props.channel || { myname: 'お客様' };
+  const threadHead = props.threadHead || { receptionID: '', parentID: '' };
+  const message = props.message || { parentID: '' };
+  
+  // messageIDを生成
+  const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
+  
+  // 投稿処理
+  const fd = new FormData();
+  fd.append('channelID', props.threadHead.receptionID || '');
+  fd.append('messageID', thisMsgID);
+  fd.append('parentID', message.parentID || '');
+  fd.append('messageTxt', messageTxt);
+  fd.append('csrf', localStorage.getItem('csrf'));
+  
+  const res = await sendRequest('/ReceptionThreadPush/', fd);
+  if (res && res.csrf) {
+    localStorage.setItem('csrf', res.csrf);
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content);
+      }
+    }
+  }
+}
+
+// sendRequest関数のフォールバック実装
+async function sendRequest(url, formData) {
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData
+  });
+  return await response.json();
+}
+
+</script>
+
+<style>
+.editLeft {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.editLeft button {
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.editLeft button:hover {
+  background: #f0f0f0;
+}
+
+.editLeft button.selected {
+  background: #007bff;
+  color: white;
+}
+
+.ql-snow.ql-toolbar {
+  padding: 8px 0px;
+}
+
+.ql-snow.ql-toolbar .attachment {
+  font-size: 12px;
+  padding-top: 0px;
+}
+
+.files {
+  margin-top: 10px;
+}
+
+.emoji {
+  font-size: 16px;
+}
+
+/* エディターのスタイル */
+#edit_new, #edit_* {
+  min-height: 100px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.ql-editor {
+  min-height: 100px;
+}
+</style>

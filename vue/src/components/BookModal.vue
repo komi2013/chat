@@ -69,7 +69,7 @@ const localEvent = ref({
   serviceID: props.menuID   // 選択されたmenuのIDを格納
 });
 
-console.log('reception', props.menuID)
+// console.log('reception', props.menuID)
 
 const reception = props.reception;
 
