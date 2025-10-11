@@ -7,9 +7,11 @@ export async function alias(pd) {
   const accessRight = pd[4][3]
   // const del = pd[4][4] ?? false
   const aliasImg = pd[5]
+  const inquiry = !!pd[6]
+  const preKey = inquiry ? '@' : channelID // @customer nickname
   const alias = {
     // aliasID: channelID + userID,
-    aliasID: channelID + aliasName,
+    aliasID: preKey + aliasName,
     channelID: channelID,
     aliasName: aliasName,
     aliasImg: aliasImg,

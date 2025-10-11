@@ -18,6 +18,7 @@ type SessionStruct struct {
   Mail         string    `bson:"mail,omitempty" json:"mail,omitempty"`
   Telephone    string    `bson:"telephone,omitempty" json:"telephone,omitempty"`
   Nickname     string    `bson:"nickname,omitempty" json:"nickname,omitempty"`
+  NickImg     string    `bson:"nickImg,omitempty" json:"nickImg,omitempty"`
 }
 
 type ChannelAlias struct {

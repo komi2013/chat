@@ -38,7 +38,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
 			return
 		}
-		session, err = common.ReGenerateCSRF(session)
+		session, err = common.PushReGenerate(session)
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
@@ -50,7 +50,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
 		}
-		session, err = common.ReGenerateCSRF(session)
+		session, err = common.PushReGenerate(session)
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 		}

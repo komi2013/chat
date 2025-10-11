@@ -123,14 +123,13 @@ const router = createRouter({
       props: route => ({id: route.params.id}),
     },
     {
-      path: '/receptionThread/:channelID/@@:nickname/',
+      path: '/receptionThread/:channelID/:code/',
       component: () => import('../views/ReceptionThread.vue'),
       props: route => ({
         channelID: route.params.channelID,
-        nickname: route.params.nickname,
-        backID: route.query.backID,
-        messageID: route.query.messageID,
-        code: route.query.code
+        code: route.params.code,
+        backID: route.query.backID
+        // messageID: route.query.messageID
       })
     },
     {

@@ -179,7 +179,6 @@ function handleSelection(group) {
   asGroup.value = false;
 }
 
-let dm = false;
 let clicked = false;
 const msgUpsert = async (messageID, delMessage) => {
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
@@ -194,9 +193,12 @@ const msgUpsert = async (messageID, delMessage) => {
   const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
   const myAlias = props.aliases.find(alias => alias.aliasName === localStorage.getItem('myname'));
   let alreadyNames = props.threadHead.newThread ? [] : props.threadHead.aliasNames
-  dm = props.threadHead.parentID.includes('@');
+  const dm = props.threadHead.parentID.includes('@')
+  let toInquiryUser = false
   if (dm) {
     const splitNames = props.threadHead.parentID.split('@')
+    console.log('splitNames', splitNames)
+    if (splitNames[0] == "") toInquiryUser = true
     const matchedGroup = props.groups.find(group => splitNames.includes(group.groupName))
     const dmAliasNames = matchedGroup?.aliasNames || []
     const dmNames = splitNames.filter(name => name !== matchedGroup?.groupName)
@@ -259,11 +261,13 @@ const msgUpsert = async (messageID, delMessage) => {
   const userIDs = JSON.stringify(userIDsByName(props.aliases, totalNames))
   fd.set('userIDs', userIDs)
   let editThreadHead = props.threadHead
-  editThreadHead.joinNames = [...(editThreadHead.joinNames ?? [localStorage.getItem('myname')]), ...newNames]
   editThreadHead.aliasNames = totalNames
   console.log('editThreadHead.newReply', editThreadHead.newReply)
   if (uniqueNewIDs.length > 0 || editThreadHead.newReply) {
-    delete editThreadHead.newReply
+    if (editThreadHead.newReply) {
+      delete editThreadHead.newReply
+      editThreadHead.newThread = true
+    }
     fd.set('contents', JSON.stringify(editThreadHead));
     fd.set('pushTitle', 'threadHead');
     fd.set('csrf', localStorage.getItem("csrf"));
@@ -276,12 +280,12 @@ const msgUpsert = async (messageID, delMessage) => {
     }
   }
   console.log('props.threadHead.newThread, userIDs, totalNames', props.threadHead.newThread, userIDs, totalNames)
-  if (props.threadHead.newThread) {
+  if (editThreadHead.newThread) {
     editThreadHead.messageTxt = messageData
     editThreadHead.aliasImg = myAlias.aliasImg
     editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
     editThreadHead.adminNames = [localStorage.getItem('myname')]
-    delete editThreadHead.newThread
+    // delete editThreadHead.newThread
     fd.set('pushTitle', 'threadHead')
     fd.set('contents', JSON.stringify(editThreadHead))
   } else {
@@ -300,6 +304,7 @@ const msgUpsert = async (messageID, delMessage) => {
     fd.set('pushTitle', pushTitle)
   }
   fd.set('csrf', localStorage.getItem("csrf"));
+  const uri = toInquiryUser ? '/ReceptionThreadCustomer/' : '/ContentsPush/'
   const res = await sendRequest('/ContentsPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {

@@ -57,7 +57,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 	}
 
   trueAccess := false
-  for _, d := range session.ChannelAliases {
+  for _, d := range session.ChannelAliases { // to prevent bad request with different name
     if d.Alias == updatedBy && d.ChannelID == channelID {
       trueAccess = true
     }

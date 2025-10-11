@@ -43,7 +43,7 @@ func LogFromJS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tm := time.Unix(payload.Timestamp/1000, 0).Format("2006-01-02 15:04:05")
+	tm := time.Now().Format("2006-01-02 15:04:05")
 	clientIP := common.GetClientIP(r)
 	userAgent := r.UserAgent()
 	isMobile := common.IsMobile(userAgent)
@@ -67,6 +67,8 @@ func LogFromJS(w http.ResponseWriter, r *http.Request) {
 }
 
 // csrfの有効性チェック（失敗したらfalse）
+// YxEq6JQ4Jc5iIX29
+// V29BgeVwLChuoBCy1v7Duu
 func isValidCSRF(csrf string) bool {
 	if len(csrf) <= 16 {
 		return false

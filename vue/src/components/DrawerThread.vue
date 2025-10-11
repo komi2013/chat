@@ -22,7 +22,7 @@ const fetchAllThreadHeads = async () => {
       ];
 
       sorted.forEach(d => {
-        if (!d.backID || (d.joinNames && d.joinNames.includes(localStorage.getItem('myname')) && d.displayStatus === 1)) {
+        if (!d.backID || (d.aliasNames && d.aliasNames.includes(localStorage.getItem('myname')) && d.displayStatus === 1)) {
           threadHeadsStore.insert(d)
         }
       });

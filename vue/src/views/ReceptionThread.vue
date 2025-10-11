@@ -14,22 +14,19 @@ import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
   channelID: String,
-  nickname: String,
-  backID: String,
-  messageID: String,
-  code: String
+  code: String,
+  backID: String
+  // messageID: String,
+  
 })
 
-let myname = localStorage.getItem('myname') || 'お客様';
+let myname = localStorage.getItem('myname')
 const reception = ref(null);
-const threadHead = ref({
-  parentID: '',
-  title: '',
-});
+const threadHead = ref(null)
 const fetched = ref(false);
 const copyable = ref(false);
 const errorMessage = ref('');
-
+let nickname
 // receptionBook.vueのfindReception()を参考にした関数
 async function findReception() {
   const fd = new FormData();
@@ -49,21 +46,29 @@ async function findReception() {
       await pushReceive(content)
     }
   }
+  nickname = res.nickname
   return res.reception;
 }
 
+// 問い合わせ用のシンプルなchannelオブジェクトを作成
+const groups = ref([])
+const channel = ref({channelID: '', myname: '', channelName: ''})
+let msg = {messageTxt: '',messageID: '',parentID: '@'}
 onMounted(async () => {
   reception.value = await findReception()
-  if (reception.value) {
-    const parentID = '@@' + props.nickname;
-    threadHead.value = await getIDB('threadHead', parentID);
-    await makeThreadHead()
-    document.title = threadHead.value.title
-    const content = await document.getElementById('content');
-    content.scrollTop = await content.scrollHeight;
-    await window.scrollTo(0, content.scrollHeight);
-    readStatus()
-  }
+  const parentID = '@' + nickname
+  threadHead.value = await getIDB('threadHead', parentID)
+  msg.parentID = parentID
+
+  await makeThreadHead()
+  document.title = threadHead.value.title
+  channel.value.channelID = props.channelID
+  channel.value.myname = nickname
+  channel.value.channelName = threadHead.value.title
+  const content = await document.getElementById('content');
+  content.scrollTop = await content.scrollHeight;
+  await window.scrollTo(0, content.scrollHeight);
+  readStatus()
   fetched.value = true
 });
 
@@ -74,14 +79,8 @@ const messages = computed(() => {
   return messagesStore.messages;
 });
 
-const msg = {
-  messageTxt: '',
-  messageID: '',
-  parentID: '@@' + props.nickname
-};
-
 async function makeThreadHead() {
-  const parentID = '@@' + props.nickname;
+  const parentID = '@' + nickname
   if (threadHead.value) {
     // 問い合わせ対応では、スタッフかどうかを判定
     if (reception.value && reception.value.joinNames && reception.value.joinNames.includes(myname)) {
@@ -93,25 +92,16 @@ async function makeThreadHead() {
     messagesStore.insert(message)
   } else {
     const threadHeadValue = {
+      channelID: props.channelID,
       receptionID: reception.value.receptionID,
       parentID: parentID,
-      title: '新規問い合わせ',
+      title: reception.value.receptionTitle + 'への問い合わせ',
       messageTxt: '',
-      aliasName: reception.value.customerName || 'お客様',
-      aliasNames: [reception.value.customerName || 'お客様'],
-      joinNames: reception.value.joinNames || [reception.value.customerName || 'お客様'],
+      aliasName: nickname,
+      aliasNames: [nickname],
       displayStatus: 0,
       newThread: true,
-      threadType: 'reception' // 問い合わせ用の識別子
-    }
-    
-    if (parentID.startsWith('@@')) {
-      const nickname = parentID.replace('@@', '');
-      threadHeadValue.title = getSubstring(nickname, 0, 12);
-      threadHeadValue.messageTxt = reception.value.receptionTitle || '問い合わせ';
-      threadHeadValue.aliasNames = [reception.value.customerName || 'お客様', nickname]
-      threadHeadValue.aliasNames = [...new Set(threadHeadValue.aliasNames)]
-      threadHeadValue.joinNames = threadHeadValue.aliasNames
+      // threadType: 'reception' // 問い合わせ用の識別子
     }
     threadHead.value = threadHeadValue;
     if (props.backID) {
@@ -131,8 +121,7 @@ async function makeThreadHead() {
         ])
       ]
       threadHead.value.adminNames = originalThreadHead.adminNames
-      threadHead.value.joinNames = [reception.value.customerName || 'お客様', originalThreadHead.aliasName]
-      messagesStore.insert(message);
+      messagesStore.insert(message)
     }
   }
 }
@@ -140,7 +129,7 @@ async function makeThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updIDBone('threadHead', '@@' + props.nickname, 'displayStatus', 0);
+    updIDBone('threadHead', '@' + nickname, 'displayStatus', 0);
     revertFaviconBadge()
   }
 }
@@ -148,21 +137,9 @@ function readStatus () {
 function backTo() {
   const backID = threadHead.value.backID;
   if (backID) {
-    location.href = '/receptionThread/' + props.channelID + '/@@' + props.nickname + '/' + backID + '/?code=' + props.code;
-  } else {
-    location.href = '/reception/' + props.nickname + '/?code=' + props.code;
+    location.href = '/receptionThread/' + props.channelID + '/' + props.code + '/?backID=' + backID
   }
 }
-
-// 問い合わせ用のシンプルなchannelオブジェクトを作成
-const channel = computed(() => {
-  if (!reception.value) return null;
-  return {
-    channelID: reception.value.receptionID,
-    myname: reception.value.customerName || 'お客様',
-    channelName: reception.value.facilityName || '問い合わせ対応'
-  };
-});
 
 </script>
 
@@ -187,6 +164,7 @@ const channel = computed(() => {
     </div>
     <Messages 
       :channel="channel"
+      :groups="groups"
       :messages="messages"
       :threadHead="threadHead"
       :copyable="copyable"

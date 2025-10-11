@@ -28,31 +28,16 @@ func SessionGet(w http.ResponseWriter, r *http.Request) (collection.SessionStruc
   return session, err
 }
 
-func ReGenerateCSRF(session collection.SessionStruct) (collection.SessionStruct, error) {
-	coll := DB.SessionDB.Collection("session")
-	randomPart := StringRand(16)
-	timestamp := time.Now().Unix()
-	timePart := Base62Encode(timestamp)
-	session.Csrf = randomPart + timePart
-	filter := bson.D{{Key: "_id", Value: session.SessionID}}
-	update := bson.D{
-		{Key: "$set", Value: bson.D{
-			{Key: "csrf", Value: session.Csrf},
-		}},
-	}
-	opts := options.Update().SetUpsert(false)
-	_, err := coll.UpdateOne(context.TODO(), filter, update, opts)
-	return session, err
-}
-
 // func ReGenerateCSRF(session collection.SessionStruct) (collection.SessionStruct, error) {
-// 	// coll := db1.Collection("session")
 // 	coll := DB.SessionDB.Collection("session")
-// 	session.Csrf = StringRand(16)
-// 	filter := bson.D{{"_id", session.SessionID}}
+// 	randomPart := StringRand(16)
+// 	timestamp := time.Now().Unix()
+// 	timePart := Base62Encode(timestamp)
+// 	session.Csrf = randomPart + timePart
+// 	filter := bson.D{{Key: "_id", Value: session.SessionID}}
 // 	update := bson.D{
-// 		{"$set", bson.D{
-// 			{"csrf", session.Csrf},
+// 		{Key: "$set", Value: bson.D{
+// 			{Key: "csrf", Value: session.Csrf},
 // 		}},
 // 	}
 // 	opts := options.Update().SetUpsert(false)
@@ -117,8 +102,10 @@ func CSRFcheckMake(session collection.SessionStruct, token string) (collection.S
 
 func PushReGenerate(session collection.SessionStruct) (collection.SessionStruct, error) {
 	coll := DB.SessionDB.Collection("session")
-	token := StringRand(16)
-	session.Csrf = token
+	randomPart := StringRand(16)
+	timestamp := time.Now().Unix()
+	timePart := Base62Encode(timestamp)
+	session.Csrf = randomPart + timePart
 
 	var returnContents []string
 	if len(session.PushContents) > 100 {
@@ -174,6 +161,7 @@ func SessionRegenerate(session collection.SessionStruct, w http.ResponseWriter) 
 	}
 	return newSession, nil
 }
+
 
 // func SessionCheck(db1 *mongo.Database, w http.ResponseWriter, r *http.Request, token string) (collection.SessionStruct, error) {
 //   var session collection.SessionStruct

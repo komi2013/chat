@@ -12,7 +12,7 @@
       </select>
       <button class="emoji" @click="attach(messageID)">🌄</button>
       <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
-      <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
+      <button class="emoji" @click="msgUpsert(messageID)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
       v-html="editTxt[messageID]"
@@ -60,16 +60,18 @@ const props = defineProps({
   }
 })
 
+console.log('sssfd f ')
+
 const messagesStore = useMessagesStore();
-const messageID = props.message.messageID || 'new';
+const messageID = props.message.messageID
 const editTxt = ref({});
 const fileInfo = ref({});
 const quill = ref({});
 const editable = ref(true);
 const task = ref(false);
-
+console.log('messageID a', messageID, props.message.messageID)
 onMounted(async () => {
-  if (messageID && messageID !== 'new') {
+  if (messageID) {
     const message = messagesStore.messages.find(m => m.messageID === messageID);
     if (message) {
       editTxt.value[messageID] = markdownToHtml(message.messageTxt, props.channel);
@@ -126,7 +128,7 @@ function tasking() {
   task.value = !task.value;
 }
 
-async function msgUpsert(messageID, isDelete) {
+async function msgUpsert(messageID) {
   if (!quill.value[messageID]) return;
   
   const content = quill.value[messageID].root.innerHTML.replace(/\uFEFF/g, '');
@@ -139,16 +141,25 @@ async function msgUpsert(messageID, isDelete) {
   
   // messageIDを生成
   const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
-  
-  // 投稿処理
-  const fd = new FormData();
+  console.log('thisMsgID', messageID, thisMsgID)
+  const fd = new FormData()
+  let editThreadHead = props.threadHead
   fd.append('channelID', props.threadHead.receptionID || '');
   fd.append('messageID', thisMsgID);
-  fd.append('parentID', message.parentID || '');
+  fd.append('parentID', message.parentID);
   fd.append('messageTxt', messageTxt);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  
-  const res = await sendRequest('/ReceptionThreadPush/', fd);
+  fd.append('csrf', localStorage.getItem('csrf'))
+  if (editThreadHead.newThread || editThreadHead.newReply) {
+    editThreadHead.messageTxt = messageTxt
+    // editThreadHead.aliasImg = myAlias.aliasImg
+    // editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
+    // editThreadHead.adminNames = [localStorage.getItem('myname')]
+    // delete editThreadHead.newThread
+    editThreadHead.newThread = true
+    delete editThreadHead.newReply
+    fd.set('threadHead', JSON.stringify(editThreadHead))
+  }
+  const res = await sendRequest('/ReceptionThreadCustomer/', fd);
   if (res && res.csrf) {
     localStorage.setItem('csrf', res.csrf);
     if (Array.isArray(res.pushContents)) {
@@ -157,6 +168,7 @@ async function msgUpsert(messageID, isDelete) {
       }
     }
   }
+  location.href = ''
 }
 
 // sendRequest関数のフォールバック実装
@@ -218,7 +230,4 @@ async function sendRequest(url, formData) {
   border-radius: 4px;
 }
 
-.ql-editor {
-  min-height: 100px;
-}
 </style>

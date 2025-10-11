@@ -27,22 +27,21 @@ const threadHead = ref({
   parentID: '',
   title: '',
 });
+
 const fetched = ref(false);
 const copyable = ref(false);
 
 onMounted(async () => {
   channel.value = await getIDB('channel', props.channel_id)
-  if (channel.value) {
-    aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
-    groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
-    threadHead.value = await getIDB('threadHead', props.parentID);
-    await makeThreadHead()
-    document.title = threadHead.value.title
-    const content = await document.getElementById('content');
-    content.scrollTop = await content.scrollHeight;
-    await window.scrollTo(0, content.scrollHeight);
-    readStatus()
-  }
+  aliases.value = await getIDBs('alias', 'channelIDIndex', props.channel_id, 10000);
+  groups.value = await getIDBs('group', 'channelIDIndex', props.channel_id, 10000);
+  threadHead.value = await getIDB('threadHead', props.parentID);
+  await makeThreadHead()
+  document.title = threadHead.value.title
+  const content = await document.getElementById('content');
+  content.scrollTop = await content.scrollHeight;
+  await window.scrollTo(0, content.scrollHeight);
+  readStatus()
   fetched.value = true
 });
 
@@ -76,7 +75,6 @@ async function makeThreadHead() {
       messageTxt: '',
       aliasName: channel.value.myname,
       aliasNames: [channel.value.myname],
-      joinNames: [channel.value.myname],
       displayStatus: 0,
       newThread: true
     }
@@ -93,7 +91,6 @@ async function makeThreadHead() {
         }
       });
       threadHeadValue.aliasNames = [...new Set(threadHeadValue.aliasNames)]
-      threadHeadValue.joinNames = threadHeadValue.aliasNames
     }
     threadHead.value = threadHeadValue;
     if (props.backID) {
@@ -102,7 +99,7 @@ async function makeThreadHead() {
       threadHead.value.parentID = props.parentID;
       threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
       threadHead.value.messageTxt = message.messageTxt;
-      threadHead.value.threadType = 0;
+      // threadHead.value.threadType = 0;
       threadHead.value.backID = props.backID
       threadHead.value.newReply = true
       const originalThreadHead = await getIDB('threadHead', props.backID)
@@ -113,8 +110,6 @@ async function makeThreadHead() {
         ])
       ]
       threadHead.value.adminNames = originalThreadHead.adminNames
-      threadHead.value.joinNames = [channel.value.myname, originalThreadHead.aliasName]
-      // console.log('threadHead.value.aliasNames', threadHead.value)
       messagesStore.insert(message);
     }
   }
