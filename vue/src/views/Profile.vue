@@ -69,13 +69,13 @@ async function editAlias() {
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'alias');
-  fd.append('userIDs', JSON.stringify(aliases.map(d => d.userID)));
+  fd.append('aliasNames', JSON.stringify(aliases.map(d => d.aliasName)))
   const contents = [alias.value.userID, channel.value.myname, alias.value.aliasBio];
   fd.append('contents', JSON.stringify(contents));
   // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
   fd.append('imgPath', aliasImg.value);
   fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
+  const res = await sendRequest('/ChannelEdit/', fd);
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {

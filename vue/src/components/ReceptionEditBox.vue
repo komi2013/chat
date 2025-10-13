@@ -11,7 +11,6 @@
         <option value=""></option>
       </select>
       <button class="emoji" @click="attach(messageID)">🌄</button>
-      <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
       <button class="emoji" @click="msgUpsert(messageID)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
@@ -68,7 +67,7 @@ const editTxt = ref({});
 const fileInfo = ref({});
 const quill = ref({});
 const editable = ref(true);
-const task = ref(false);
+
 console.log('messageID a', messageID, props.message.messageID)
 onMounted(async () => {
   if (messageID) {
@@ -124,37 +123,25 @@ async function uploadFile(file, messageID) {
   }
 }
 
-function tasking() {
-  task.value = !task.value;
-}
-
+let clicked = false
 async function msgUpsert(messageID) {
-  if (!quill.value[messageID]) return;
-  
+  console.log('quill.value.root.innerHTML', quill.value[messageID].root.innerHTML)
+  if (quill.value[messageID].root.innerHTML == '<p><br></p>') return
+  if (clicked) return
+  clicked = true
   const content = quill.value[messageID].root.innerHTML.replace(/\uFEFF/g, '');
   const messageTxt = htmlToMarkdown(content);
-  
-  // デフォルト値を設定
-  const channel = props.channel || { myname: 'お客様' };
-  const threadHead = props.threadHead || { receptionID: '', parentID: '' };
-  const message = props.message || { parentID: '' };
-  
-  // messageIDを生成
   const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
-  console.log('thisMsgID', messageID, thisMsgID)
   const fd = new FormData()
   let editThreadHead = props.threadHead
-  fd.append('channelID', props.threadHead.receptionID || '');
+  console.log('editThreadHead', editThreadHead)
+  fd.append('channelID', props.channel.channelID)
   fd.append('messageID', thisMsgID);
-  fd.append('parentID', message.parentID);
+  fd.append('parentID', props.message.parentID);
   fd.append('messageTxt', messageTxt);
   fd.append('csrf', localStorage.getItem('csrf'))
   if (editThreadHead.newThread || editThreadHead.newReply) {
     editThreadHead.messageTxt = messageTxt
-    // editThreadHead.aliasImg = myAlias.aliasImg
-    // editThreadHead.title = getSubstring(removeMark(messageData), 0, 30)
-    // editThreadHead.adminNames = [localStorage.getItem('myname')]
-    // delete editThreadHead.newThread
     editThreadHead.newThread = true
     delete editThreadHead.newReply
     fd.set('threadHead', JSON.stringify(editThreadHead))
@@ -168,16 +155,10 @@ async function msgUpsert(messageID) {
       }
     }
   }
-  location.href = ''
-}
-
-// sendRequest関数のフォールバック実装
-async function sendRequest(url, formData) {
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData
-  });
-  return await response.json();
+  quill.value[messageID].root.innerHTML = ''
+  fileInfo.value = []
+  clicked = false
+  if (props.threadHead.newThread) { location.href = '' }
 }
 
 </script>
@@ -224,7 +205,7 @@ async function sendRequest(url, formData) {
 }
 
 /* エディターのスタイル */
-#edit_new, #edit_* {
+#edit_new {
   min-height: 100px;
   border: 1px solid #ccc;
   border-radius: 4px;

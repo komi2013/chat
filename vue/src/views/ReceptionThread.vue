@@ -59,7 +59,6 @@ onMounted(async () => {
   const parentID = '@' + nickname
   threadHead.value = await getIDB('threadHead', parentID)
   msg.parentID = parentID
-
   await makeThreadHead()
   document.title = threadHead.value.title
   channel.value.channelID = props.channelID
@@ -82,7 +81,7 @@ const messages = computed(() => {
 async function makeThreadHead() {
   const parentID = '@' + nickname
   if (threadHead.value) {
-    // 問い合わせ対応では、スタッフかどうかを判定
+    threadHead.value.inquirerFlag = true
     if (reception.value && reception.value.joinNames && reception.value.joinNames.includes(myname)) {
       threadHead.value.edit = true;
     }

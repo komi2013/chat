@@ -1,4 +1,3 @@
-import { userIDsByName } from '@/my/channelFunc';
 import { useNoticesStore } from '@/stores/notices.js';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
@@ -115,7 +114,7 @@ async function stampTime() {
 
 async function revertTimestamp() {
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [aliasName])));
+  fd.append('pushNames', JSON.stringify([aliasName]))
   fd.append('channelID', channelID);
   fd.append('updatedBy', channel.myname);
   fd.append('contents', JSON.stringify(['revert', 'del_' + action, now, aliasName]));

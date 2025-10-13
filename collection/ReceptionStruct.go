@@ -14,6 +14,7 @@ type ReceptionStruct struct {
 	AdminNames       []string           `bson:"adminNames" json:"adminNames"`
 	Passcodes        []Passcode         `bson:"passcodes" json:"passcodes"`
 	JoinNames        []string           `bson:"joinNames" json:"joinNames"`
+	InquiryNames     []string           `bson:"inquiryNames,omitempty" json:"inquiryNames,omitempty"`
 	Subscriptions    []string           `bson:"subscriptions,omitempty" json:"subscriptions,omitempty"`
 	OrderUserIDs     []string           `bson:"orderUserIDs,omitempty" json:"orderUserIDs,omitempty"`
 	UpdatedAt        time.Time          `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
@@ -34,6 +35,7 @@ type ReceptionStruct struct {
 	// ItemDetails      []ItemDetail       `bson:"itemDetails,omitempty" json:"itemDetails,omitempty"`
 	Queues           []Queue            `bson:"queues,omitempty" json:"queues,omitempty"`
 	WaitConfigs      []WaitConfig       `bson:"waitConfigs,omitempty" json:"waitConfigs,omitempty"`
+
 }
 
 type Facility struct {

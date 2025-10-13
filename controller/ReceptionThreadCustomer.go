@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -32,8 +33,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	// セッションチェック
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "。サインインし直してください", http.StatusOK)
 		return
 	}
 
@@ -64,10 +64,10 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 
 	// aliasデータの準備
 	aliasData := []interface{}{
-		"",  // [0] userID
+		session.UserID,  // [0] userID
 		session.Nickname, // [1] aliasName
 		"",              // [2] bio
-		"customer",      // [3] accessRight
+		"inquirer",      // [3] accessRight
 	}
 
 	// alias用のpush配列
@@ -85,7 +85,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		parentID,          // [0] parentID
 		messageID,         // [1] messageID
 		messageTxt,        // [2] messageTxt
-		session.Nickname,  // [3] aliasImg
+		session.NickImg,  // [3] aliasImg
 		[]string{session.Nickname}, // [4] aliasNames
 		"",              // [5] backID
 		[]interface{}{}, // [6] emojis
@@ -104,33 +104,89 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	pushTest, _ := json.Marshal(threadHeadArray)
 	log.Printf("threadHeadArray JSON: %s", string(pushTest))
 
-	// OrderUserIDsにカスタマー側のuserIDを追加
-	userIDs := make([]string, len(reception.OrderUserIDs))
-	copy(userIDs, reception.OrderUserIDs)
+	// チャンネルコレクションの取得（1回でOK）
+	collChannel := common.DB.ChannelDB.Collection("channel")
+
+	// 1️⃣ 既存チャンネルの取得
+	var channel collection.ChannelStruct
+	filterChannel := bson.M{"_id": channelID}
+	err = collChannel.FindOne(ctx, filterChannel).Decode(&channel)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		return
+	}
+
+	// 2️⃣ 新しいAliasを作成
+	newAlias := collection.Alias{
+		AliasName:   session.Nickname,
+		AliasImg:    session.NickImg,
+		UserID:      session.UserID,
+		Bio:         "",
+		AccessRight: "inquirer",
+	}
+
+	// 3️⃣ MongoDBへ更新
+	update := bson.M{
+		"$push": bson.M{
+			"aliases":    newAlias,
+		},
+	}
+
+	_, err = collChannel.UpdateOne(ctx, filterChannel, update)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, fmt.Sprintf("alias登録失敗: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("✅ Alias '%s' (userID: %s) を channel '%s' に登録しました",
+		session.Nickname, session.UserID, channelID)
+
+
+	uniqueIDs := make(map[string]struct{})
+	var userIDs []string
+	pushNameSet := make(map[string]struct{}, len(reception.InquiryNames))
+	for _, name := range reception.InquiryNames {
+		pushNameSet[name] = struct{}{}
+	}
+	for _, alias := range channel.Aliases {
+		if _, ok := pushNameSet[alias.AliasName]; ok {
+			if _, exists := uniqueIDs[alias.UserID]; !exists {
+				uniqueIDs[alias.UserID] = struct{}{}
+				userIDs = append(userIDs, alias.UserID)
+			}
+		}
+	}
 	userIDs = append(userIDs, session.UserID) // カスタマー側のセッションを追加
+	log.Printf("Filtered userIDs (matched pushNames): %v", userIDs)
+
+
 
 	// セッションを取得してプッシュ
 	sessionColl := common.DB.SessionDB.Collection("session")
 	sessionFilter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
 	cursor, err := sessionColl.Find(ctx, sessionFilter)
 	if err != nil {
-		log.Printf("sessionColl.Find: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, "Failed to find sessions", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
 		return
 	}
 	defer cursor.Close(ctx)
 
 	var sessions []collection.SessionStruct
 	if err = cursor.All(ctx, &sessions); err != nil {
-		log.Printf("cursor.All: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
 		return
 	}
 
-	// フィルタリングされたセッションにプッシュ
 	filteredSessions := common.FilterSessionsByChannelID(sessions, channelID)
 
-	common.ChunkPush(filteredSessions, aliasPushArray)
+	var pushTargetSessions []collection.SessionStruct
+	for _, s := range filteredSessions {
+		if s.UserID != session.UserID {
+			pushTargetSessions = append(pushTargetSessions, s)
+		}
+	}
+	common.ChunkPush(pushTargetSessions, aliasPushArray)
+
 	if threadHeadNew {
 		common.ChunkPush(filteredSessions, threadHeadArray)
 	} else {

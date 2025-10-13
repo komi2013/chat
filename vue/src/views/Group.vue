@@ -10,7 +10,6 @@ import { useThreadHeadsStore } from '@/stores/threadHeads.js';
 import { useChannelsStore } from '@/stores/channels.js';
 
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath } from '@/my/emoji.js';
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -66,7 +65,7 @@ async function removeGroup(group) {
   }
   const fd = new FormData()
   fd.append('channelID', channel.value.channelID)
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value)))
+  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
   fd.append('updatedBy', channel.value.myname)
   fd.append('pushTitle', 'group')
   const contents = [
@@ -88,7 +87,7 @@ async function editGroup(group) {
   }
   const fd = new FormData();
   fd.append('channelID', channel.value.channelID);
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'group');
   const contents = [

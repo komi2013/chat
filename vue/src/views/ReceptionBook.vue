@@ -5,7 +5,6 @@ import Advertisement from '@/components/Advertisement.vue'
 import BookModal from '@/components/BookModal.vue'
 import NoticePopup from '@/components/NoticePopup.vue'
 
-import { userIDsByName } from '@/my/channelFunc'
 import { useNoticesStore } from '@/stores/notices.js'
 
 const props = defineProps({

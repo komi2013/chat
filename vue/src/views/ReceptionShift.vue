@@ -206,35 +206,7 @@ const submitShift = async () => {
       res.csrf && localStorage.setItem('csrf', res.csrf);
       res.pushContents.forEach(content => {
         pushReceive(content);
-      });
-    } else {
-      updatedShifts.forEach(updated => {
-        const index = reception.value.shifts.findIndex(shift => 
-          generateKey(shift) === generateKey(updated)
-        );
-        if (index !== -1) {
-          // shallow merge
-          reception.value.shifts[index] = {
-            ...reception.value.shifts[index],
-            ...updated
-          };
-        }
-      });
-      fd.append('channelID', localStorage.getItem('channelID'));
-      fd.append('updatedBy', channel.value.myname);
-      fd.append('pushTitle', 'reception');
-      fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
-      // const contents = [alias.value.userID, channel.value.myname, alias.value.bio];
-      fd.append('contents', JSON.stringify(reception.value));
-      // fd.append('imgPaths', JSON.stringify([aliasImg.value]));
-      // fd.append('imgPath', aliasImg.value);
-      fd.append('csrf', localStorage.getItem('csrf'));
-      const res = await sendRequest('/ContentsPush/', fd);
-      if (!res.csrf) errorMessage.value = res
-      res.csrf && localStorage.setItem('csrf', res.csrf);
-      res.pushContents.forEach(content => {
-        pushReceive(content);
-      });
+      })
     }
   }
 };

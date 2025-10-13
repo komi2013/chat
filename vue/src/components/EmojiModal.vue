@@ -31,7 +31,6 @@
 import { ref, defineProps, defineEmits } from 'vue';
 
 import { emojiPath } from '@/my/emoji.js';
-import { userIDsByName } from '@/my/channelFunc';
 import { validateEmoji, rotateEmoji, masterEmojis } from '@/my/emoji';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
@@ -50,7 +49,7 @@ const selectEmoji = async (emoji) => {
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', localStorage.getItem('myname'));
-  fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
+  fd.append('pushNames', JSON.stringify(props.threadHead.aliasNames))
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, emoji, props.parentID];
   fd.append('contents', JSON.stringify(contents));
@@ -75,7 +74,7 @@ const inputEmoji = async () => {
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', localStorage.getItem('myname'));
-  fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
+  fd.append('pushNames', JSON.stringify(props.threadHead.aliasNames))
   fd.append('pushTitle', 'emoji');
   const contents = [props.messageID, selectedEmoji.value, props.parentID];
   fd.append('contents', JSON.stringify(contents));

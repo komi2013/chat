@@ -5,8 +5,8 @@ import (
 )
 
 type ChannelStruct struct {
-  InvitationCode     string    `bson:"_id"`
-  ChannelID     string    `bson:"channelID"`
+  ChannelID     string    `bson:"_id"`
+  InvitationCode     string    `bson:"invitationCode"`
   ChannelName      string    `bson:"channelName"`
   ChannelDescription      string    `bson:"channelDescription"`
   CreatedAt     time.Time    `bson:"createdAt"`
@@ -21,12 +21,6 @@ type ChannelStruct struct {
   PushSessions    []SessionStruct `bson:"pushSessions,omitempty"`
 }
 
-// type PushSession struct {
-//   SessionID  string
-//   Subscription  string
-// }
-
-
 type Alias struct {
 	AliasName string `bson:"aliasName"`
 	AliasImg string `bson:"aliasImg"`
@@ -34,6 +28,12 @@ type Alias struct {
 	Bio    string `bson:"bio,omitempty"`
 	AccessRight string `bson:"accessRight,omitempty"`
 }
+
+// type PushSession struct {
+//   SessionID  string
+//   Subscription  string
+// }
+
 
 // type Group struct {
 // 	GroupName string

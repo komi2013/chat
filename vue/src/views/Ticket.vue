@@ -5,8 +5,6 @@ import Advertisement from '@/components/Advertisement.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
 import TimestampDrawer from '@/components/DrawerTimestamp.vue';
 
-// import { takeUserIDs } from '@/my/channelFunc.js';
-
 const props = defineProps({
   ticketID: String,
 });
@@ -196,7 +194,7 @@ async function saveChanges() {
   }
 
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
   fd.append('channelID', localStorage.getItem("channelID"));
   fd.append('updatedBy', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));

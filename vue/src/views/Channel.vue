@@ -10,7 +10,6 @@ import PeopleImg from '@/components/PeopleImg.vue'
 import SelectAlias from '@/components/SelectAlias.vue'
 
 import { markdownToHtml, htmlToMarkdown } from '@/my/markdown.js';
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -96,7 +95,7 @@ async function channelEdit () {
   fd.append('channelID', props.id)
   fd.append('updatedBy', channel.value.myname)
   fd.append('pushTitle', 'channelEdit')
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
+  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
   const contents = [
     channel.value.channelName,
     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
@@ -141,7 +140,7 @@ const invite = async () => {
   fd.append('updatedBy', channel.value.myname);
   fd.append('channelName', channel.value.channelName);
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')));
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
+  // fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
   if (guest.value) {
     fd.append('guest', true)
     const noGuestAliases = aliases.value.filter(alias => !('guest' in alias))
@@ -158,26 +157,6 @@ const invite = async () => {
   invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`;
   invitationQR.value = await QRCode.toDataURL(invitationCode.value);
   res.csrf && localStorage.setItem('csrf', res.csrf);
-  // if (res) {
-  //   fd = new FormData();
-  //   fd.append('channelID', props.id);
-  //   fd.append('updatedBy', channel.value.myname);
-  //   fd.append('pushTitle', 'channelEdit');
-  //   fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
-  //   const contents = [
-  //     channel.value.channelName,
-  //     htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')),
-  //     untilDate
-  //   ];
-  //   fd.append('contents', JSON.stringify(contents));
-  //   fd.append('csrf', localStorage.getItem('csrf'));
-  //   const res = await sendRequest('/ContentsPush/', fd);
-  //   if (!res.csrf) errorMessage.value = res
-  //   res.csrf && localStorage.setItem('csrf', res.csrf);
-  //   res.pushContents.forEach(content => {
-  //     pushReceive(content);
-  //   });
-  // }
 };
 
 const removeName = (alias) => {
@@ -185,7 +164,6 @@ const removeName = (alias) => {
 };
 
 const removeNames = async () => {
-  // console.log(aliases.value);
   const deleteAliases = aliases.value.filter(d => d.deleteFlag);
   console.log('deleteAliases', deleteAliases);
   if (!confirm("実行")) {
@@ -194,15 +172,10 @@ const removeNames = async () => {
   const fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
-  // fd.append('deleteUserIDs', JSON.stringify(deleteAliases.map(d => d.userID)));
-  // const contents = [
-  //   channel.value.channelName,
-  //   htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, ''))
-  // ];
+  fd.append('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
   fd.append('deleteAliases', JSON.stringify(deleteAliases));
   fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ChannelDelete/', fd);
+  const res = await sendRequest('/ChannelEdit/', fd);
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
@@ -223,13 +196,13 @@ async function adminEdit() {
   for (const alias of diffAdmins) {
     fd.set('channelID', props.id)
     fd.set('updatedBy', channel.value.myname)
-    fd.set('userIDs', JSON.stringify(aliases.value.map(d => d.userID)))
+    fd.set('aliasNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
     fd.set('pushTitle', 'alias')
     const contents = [alias.userID, alias.aliasName, alias.aliasBio, alias.accessRight]
     fd.set('contents', JSON.stringify(contents))
     fd.set('imgPath', alias.aliasImg);
     fd.set('csrf', localStorage.getItem('csrf'))
-    const res = await sendRequest('/ContentsPush/', fd)
+    const res = await sendRequest('/ChannelEdit/', fd)
     if (!res.csrf) errorMessage.value = res
     res.csrf && localStorage.setItem('csrf', res.csrf)
     if (Array.isArray(res.pushContents)) {

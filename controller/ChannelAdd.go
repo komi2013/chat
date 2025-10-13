@@ -28,23 +28,12 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	channelName := r.FormValue("channelName")
 	channelDescription := r.FormValue("channelDescription")
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheckTake: %v; Req:", err, r.URL.Path, r.Form)
   	http.Error(w, err.Error(), http.StatusServiceUnavailable)
     return
 	}
-
-  // collUser := db1.Collection("user")
   collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": session.UserID}
   var user collection.UserStruct
@@ -54,7 +43,6 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-	// --- チャンネル上限チェック ---
 	uniqueChannels := make(map[string]struct{})
 	for _, alias := range user.ChannelAliases {
 	  uniqueChannels[alias.ChannelID] = struct{}{}

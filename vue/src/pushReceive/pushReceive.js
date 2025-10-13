@@ -26,6 +26,9 @@ import { timestampRevert } from './timestampRevert.js';
 import { topEdit } from './topEdit.js';
 
 export async function pushReceive(notificationData, direct = false) {
+  // console.log('before data', notificationData)
+  // return
+  // console.log('after data', notificationData)
   const pd = JSON.parse(notificationData)
   pd.directPush = direct
   const dupli = {

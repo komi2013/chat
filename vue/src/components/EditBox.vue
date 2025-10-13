@@ -45,7 +45,6 @@ import EditOptionModal from '@/components/EditOptionModal.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
 
 import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -184,9 +183,7 @@ const msgUpsert = async (messageID, delMessage) => {
   if (!messageID && quill.root.innerHTML == '<p><br></p>') {
     return;
   }
-  if (clicked) {
-    return;
-  }
+  if (clicked) return
   clicked = true;
   const messageData = delMessage ? '' : htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const pushTitle = messageID ? 'threadEdit' : 'thread';
@@ -204,44 +201,37 @@ const msgUpsert = async (messageID, delMessage) => {
     const dmNames = splitNames.filter(name => name !== matchedGroup?.groupName)
     alreadyNames = [...new Set([...alreadyNames, ...dmNames, ...dmAliasNames])]
   }
-  const alreadyUserIDs = new Set(userIDsByName(props.aliases, alreadyNames))
-  console.log('alreadyUserIDs', alreadyUserIDs)
+  // const alreadyUserIDs = new Set(userIDsByName(props.aliases, alreadyNames))
+  // console.log('alreadyUserIDs', alreadyUserIDs)
   let yets = [];
-  let newNames = []
-  if (Array.isArray(props.groups) && !dm) {
-    for (const d of props.groups) {
-      const atName = `＠＠${d.groupName}・＠＠`;
-      if (messageData.includes(atName)) {
-        for (const d2 of d.aliasNames) {
-          newNames.push(d2);
-          if (task.value) {
-            yets.push({
-              aliasName: d2,
-              emoji: '☑️'
-            });       
-          }
+  let mentionNames = [];
+  if (!dm) {
+    const addMentions = (names) => {
+      for (const aliasName of names) {
+        mentionNames.push(aliasName);
+        if (task.value) {
+          yets.push({ aliasName, emoji: '☑️' });
+        }
+      }
+    };
+    if (Array.isArray(props.groups)) {
+      for (const g of props.groups) {
+        if (messageData.includes(`＠＠${g.groupName}・＠＠`)) {
+          addMentions(g.aliasNames);
         }
       }
     }
-  }
-  for (const d of props.aliases) {
-    const atName = `＠＠${d.aliasName}・＠＠`;
-    if (messageData.includes(atName) && !dm) {
-      if (!dm) {
-        newNames.push(d.aliasName);        
-      }
-      if (task.value) {
-        yets.push({
-          aliasName: d.aliasName,
-          emoji: '☑️'
-        });       
+    for (const a of props.aliases) {
+      if (messageData.includes(`＠＠${a.aliasName}・＠＠`)) {
+        addMentions([a.aliasName]);
       }
     }
   }
-  const newUserIDs = userIDsByName(props.aliases, newNames);
+
+  // const newUserIDs = userIDsByName(props.aliases, newNames);
   // const alreadyUserIDsSet = new Set(alreadyUserIDs)
-  const totalNames = [...new Set([...newNames, ...alreadyNames, localStorage.getItem('myname')])]
-  const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDs.has(id));
+  const totalNames = [...new Set([...mentionNames, ...alreadyNames, localStorage.getItem('myname')])]
+  // const uniqueNewIDs = newUserIDs.filter(id => !alreadyUserIDs.has(id));
   const fileInput = document.getElementById('fileInput_' + messageID);
   if (fileInput && fileInput.files.length > 10) {
     alert('too many files');
@@ -258,12 +248,12 @@ const msgUpsert = async (messageID, delMessage) => {
   fd.append('updatedBy', localStorage.getItem('myname'));
   // fd.append('userIDs', JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])]));
   // const userIDs = JSON.stringify([...new Set([...newUserIDs, ...alreadyUserIDs])])
-  const userIDs = JSON.stringify(userIDsByName(props.aliases, totalNames))
-  fd.set('userIDs', userIDs)
+  // const userIDs = JSON.stringify(userIDsByName(props.aliases, totalNames))
+  fd.set('pushNames', JSON.stringify(totalNames))
   let editThreadHead = props.threadHead
   editThreadHead.aliasNames = totalNames
   console.log('editThreadHead.newReply', editThreadHead.newReply)
-  if (uniqueNewIDs.length > 0 || editThreadHead.newReply) {
+  if (mentionNames.length > 0 || editThreadHead.newReply) {
     if (editThreadHead.newReply) {
       delete editThreadHead.newReply
       editThreadHead.newThread = true
@@ -279,7 +269,7 @@ const msgUpsert = async (messageID, delMessage) => {
       }
     }
   }
-  console.log('props.threadHead.newThread, userIDs, totalNames', props.threadHead.newThread, userIDs, totalNames)
+  // console.log('props.threadHead.newThread, userIDs, totalNames', props.threadHead.newThread, userIDs, totalNames)
   if (editThreadHead.newThread) {
     editThreadHead.messageTxt = messageData
     editThreadHead.aliasImg = myAlias.aliasImg

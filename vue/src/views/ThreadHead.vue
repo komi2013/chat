@@ -10,7 +10,6 @@ import SelectPeople from '@/components/SelectPeople.vue';
 import SelectAlias from '@/components/SelectAlias.vue';
 
 import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js';
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -59,7 +58,7 @@ const postThreadHead = async () => {
   const fd = new FormData();
   fd.append('channelID', channelID);
   fd.append('updatedBy', channel.value.myname);
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, threadHead.value.aliasNames)));
+  fd.append('pushNames', JSON.stringify(threadHead.value.aliasNames))
   fd.append('pushTitle', 'threadHead');
   fd.append('csrf', localStorage.getItem('csrf'));
   let editThreadHead = threadHead.value;

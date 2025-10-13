@@ -7,7 +7,6 @@ import Advertisement from '@/components/Advertisement.vue';
 import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
 
-import { userIDsByGroups } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 
@@ -110,8 +109,6 @@ function removeStampCode(index) {
 }
 
 async function handleSubmit(event) {
-  console.log('selectedGroup', selectedGroup.value);
-  console.log(userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName));
   const recordsToPost = [];
   for (let stampCode of stampCodes.value) {
     stampCode.channelID = localStorage.channelID;
@@ -155,8 +152,10 @@ async function postData(stampCodes) {
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'timestampCode');
-  fd.append('userIDs', JSON.stringify(userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName)));
-  // const contents = [alias.value.userID, channel.value.myname, alias.value.bio];
+  const pushNames = groups.value
+    .filter(group => group.groupName === selectedGroup.value.groupName)
+    .flatMap(group => group.aliasNames || [])
+  fd.append('pushNames', JSON.stringify(pushNames))
   fd.append('contents', JSON.stringify(stampCodes));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);

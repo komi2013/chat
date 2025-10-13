@@ -5,7 +5,6 @@ import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import SelectPeople from '@/components/SelectPeople.vue';
 
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({

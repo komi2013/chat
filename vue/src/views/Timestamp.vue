@@ -6,7 +6,6 @@ import Advertisement from '@/components/Advertisement.vue';
 import DrawerTimestamp from '@/components/DrawerTimestamp.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 
-import { userIDsByName, userIDsByGroups } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -61,12 +60,12 @@ async function stamp(action) {
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   fd.append('pushTitle', 'timestamp');
-  const userIDs = [...new Set([
-    ...userIDsByGroups(aliases.value, groups.value, props.adminName),
-    ...userIDsByName(aliases.value, [channel.value.myname])
-  ])];
+  const pushNames = [...new Set([
+    ...groups.value.filter(group => group.groupName === props.adminName).flatMap(group => group.aliasNames || []),
+    ...[channel.value.myname]
+  ])]
 
-  fd.append('userIDs', JSON.stringify(userIDs));
+  fd.append('pushNames', JSON.stringify(pushNames));
   const now = timeFormat('YYYY-MM-DDThh:mm');
   fd.append('contents', JSON.stringify([props.code, action, now, channel.value.myname]));
   fd.append('csrf', localStorage.getItem('csrf'));

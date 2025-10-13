@@ -5,7 +5,6 @@ import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 import SelectPeople from '@/components/SelectPeople.vue';
 
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -80,7 +79,7 @@ const submit = async () => {
     event.channelID = channelID
     event.aliasName = localStorage.getItem('myname')
     const fd = new FormData()
-    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, event.aliasNames)))
+    fd.append('pushNames', JSON.stringify(event.aliasNames))
     fd.append('channelID', channelID)
     fd.append('updatedBy', localStorage.getItem('myname'))
     fd.append('contents', JSON.stringify(event))
@@ -104,7 +103,7 @@ const delCalendar = async () => {
   }
   calendar.value.delete = 1
   const fd = new FormData()
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, calendar.value.aliasNames)))
+  fd.append('pushNames', JSON.stringify(calendar.value.aliasNames))
   fd.append('channelID', channelID)
   fd.append('updatedBy', localStorage.getItem('myname'))
   fd.append('contents', JSON.stringify(calendar.value))

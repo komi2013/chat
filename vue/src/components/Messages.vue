@@ -8,7 +8,6 @@ import { useChannelsStore } from '@/stores/channels';
 import { isEmojiOpen, selectedMessageId, openEmoji, closeEmoji, selectEmoji, calcEmoji, emojiPath, isEmojiedOpen, openEmojied, closeEmojied, rotateEmoji } from '@/my/emoji';
 import { toggleEdit, toggleBookmark } from '@/my/toggle.js';
 import { markdownToHtml } from '@/my/markdown';
-import { userIDsByName } from '@/my/channelFunc';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -72,11 +71,12 @@ const moreMessages = async (later = false) => {
 }
 
 function editable(myname, message) {
-  const now = Date.now();
+  if (props.threadHead.inquirerFlag) return false
+  const now = Date.now()
   const createdAtTimestamp = new Date(message.createdAt).getTime();
   const within10min = Math.floor((now - createdAtTimestamp) / (1000 * 60)) < 10;
   if (within10min && myname === message.aliasName) {
-    return true;
+    return true
   }
   const isInSameGroup = props.groups.some(group => 
     within10min && group.aliasNames.includes(myname) && group.groupName === message.aliasName
@@ -121,7 +121,7 @@ const clickEmoji = async (message, emoji) => {
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'))
   fd.append('updatedBy', localStorage.getItem('myname'))
-  fd.append('userIDs', JSON.stringify(userIDsByName(props.aliases, props.threadHead.aliasNames)));
+  fd.append('pushNames', JSON.stringify(props.threadHead.aliasNames))
   fd.append('pushTitle', 'emoji');
   const contents = [message.messageID, emoji.emoji, message.parentID, del]
   fd.append('contents', JSON.stringify(contents));

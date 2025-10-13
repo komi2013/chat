@@ -133,16 +133,6 @@ const router = createRouter({
       })
     },
     {
-      path: '/receptionThreadHead/:channelID/:parent_id/',
-      name: 'receptionThreadHead',
-      component: () => import('../views/ReceptionThreadHead.vue'),
-      props: route => ({
-        channelID: route.params.channelID,
-        parent_id: route.params.parent_id,
-        code: route.query.code
-      })
-    },
-    {
       path: '/redirect/',
       name: 'redirect',
       component: () => import('../views/Redirect.vue')

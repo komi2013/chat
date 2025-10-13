@@ -9,7 +9,6 @@ import SelectGroup from '@/components/SelectGroup.vue';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 import { useNoticesStore } from '@/stores/notices.js';
-import { userIDsByName, userIDsByGroups } from '@/my/channelFunc';
 
 const props = defineProps({
   admin: String,
@@ -74,7 +73,7 @@ const daysInMonth = ref('');
 const timestamps = ref('');
 let thisMonthEntries;
 const approveds = ref(null);
-let userIDs = []
+let pushNames = []
 const fetched = ref(false)
 const errorMessage = ref('')
 onMounted(async () => {
@@ -117,10 +116,9 @@ onMounted(async () => {
   if (nextApprover) {
     selectedGroup.value = groups.value.find(group => group.groupName === nextApprover) || null;
   }
-
-  userIDs = [...new Set([
-    ...userIDsByGroups(aliases.value, groups.value, props.admin),
-    ...userIDsByName(aliases.value, [channel.value.myname])
+  pushNames = [...new Set([
+    ...groups.value.filter(group => group.groupName === props.admin).flatMap(group => group.aliasNames || []),
+    ...[channel.value.myname]
   ])]
   fetched.value = true
 });
@@ -218,8 +216,11 @@ async function approve() {
   }
   const fd = new FormData();
   localStorage.setItem('nextApprover', selectedGroup.value.groupName); // just shortcut already selected
-  const nextApproverIDs = userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName);
-  fd.append('userIDs', JSON.stringify([...new Set([...userIDs, ...nextApproverIDs])]));
+  // const nextApproverIDs = userIDsByGroups(aliases.value, groups.value, selectedGroup.value.groupName);
+  const approverNames = groups.value
+    .filter(group => group.groupName === selectedGroup.value.groupName)
+    .flatMap(group => group.aliasNames || [])
+  fd.append('pushNames', JSON.stringify([...new Set([...pushNames, ...approverNames])]));
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify([1, thisMonthEntries, props.stamper, selectedGroup.value.groupName]));
@@ -240,7 +241,7 @@ async function deleteReport() {
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
-  fd.append('userIDs', JSON.stringify(userIDs));
+  fd.append('pushNames', JSON.stringify(pushNames));
   fd.append('contents', JSON.stringify([2, targetName]));
   fd.append('pushTitle', 'timestampReport');
   fd.append('csrf', localStorage.getItem('csrf'));
@@ -260,7 +261,7 @@ async function submitReport() {
     return;
   }
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDs));
+  fd.append('pushNames', JSON.stringify(pushNames));
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   const timestampIDs = thisMonthEntries.map(entry => entry.timestampID);
@@ -372,7 +373,7 @@ async function manualPost(changedRecords) {
     return;
   }
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(userIDs));
+  fd.append('pushNames', JSON.stringify(pushNames));
   fd.append('channelID', localStorage.getItem('channelID'));
   fd.append('updatedBy', channel.value.myname);
   fd.append('contents', JSON.stringify(changedRecords));

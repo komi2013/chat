@@ -7,8 +7,6 @@ import SelectPeople from '@/components/SelectPeople.vue';
 import { useCalendarsStore } from '@/stores/calendars.js';
 // import { useNoticesStore } from '@/stores/notices.js';
 
-import { userIDsByName } from '@/my/channelFunc';
-
 const props = defineProps({
   date: String,
 });
@@ -114,7 +112,7 @@ watch(searchUsers, async (newNames, oldNames) => {
 
   if (addName) {
     const fd = new FormData()
-    fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])))
+    fd.append('pushNames', JSON.stringify([addName]))
     fd.append('channelID', channelID)
     fd.append('updatedBy', localStorage.getItem('myname'))
     const param = { date: today }

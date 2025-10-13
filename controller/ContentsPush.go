@@ -5,7 +5,7 @@ import (
   "encoding/json"
   "log"
   "net/http"
-  // "time"
+  "time"
 
   // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
@@ -16,10 +16,10 @@ import (
 )
 
 func ContentsPush(w http.ResponseWriter, r *http.Request) {
-	var userIDs []string
-  if err := json.Unmarshal([]byte(r.FormValue("userIDs")), &userIDs); err != nil {
-  	log.Printf("userIDs: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON userIDs", http.StatusBadRequest)
+	var pushNames []string
+  if err := json.Unmarshal([]byte(r.FormValue("pushNames")), &pushNames); err != nil {
+  	log.Printf("pushNames: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON pushNames", http.StatusBadRequest)
     return
   }
 
@@ -40,15 +40,6 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
@@ -67,6 +58,32 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "no true access right", http.StatusServiceUnavailable)
     return
   }
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  var channel collection.ChannelStruct
+	collChannel := common.DB.ChannelDB.Collection("channel")
+	filterChannel := bson.M{"_id": channelID}
+	err = collChannel.FindOne(ctx, filterChannel).Decode(&channel)
+	if err != nil {
+	  common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		return
+	}
+	uniqueIDs := make(map[string]struct{})
+	var userIDs []string
+	pushNameSet := make(map[string]struct{}, len(pushNames))
+	for _, name := range pushNames {
+		pushNameSet[name] = struct{}{}
+	}
+	for _, alias := range channel.Aliases {
+		if _, ok := pushNameSet[alias.AliasName]; ok {
+			if _, exists := uniqueIDs[alias.UserID]; !exists {
+				uniqueIDs[alias.UserID] = struct{}{}
+				userIDs = append(userIDs, alias.UserID)
+			}
+		}
+	}
+	log.Printf("Filtered userIDs (matched pushNames): %v", userIDs)
+
   imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
