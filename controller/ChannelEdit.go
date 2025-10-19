@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"log"
+	// "log"
 	"net/http"
 	"time"
 
@@ -15,12 +15,12 @@ import (
 )
 
 func ChannelEdit(w http.ResponseWriter, r *http.Request) {
-	// ======== Step 1: Parse Request Values (Before SessionCheckTake) ========
 	var (
-		pushNames  []string
-		contents   interface{}
+		pushNames     []string
+		contents      interface{}
 		deleteAliases []string
 	)
+
 	if err := json.Unmarshal([]byte(r.FormValue("pushNames")), &pushNames); r.FormValue("pushNames") != "" && err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "pushNames JSON Unmarshal Error", http.StatusOK)
 		return
@@ -29,11 +29,11 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "contents JSON Unmarshal Error", http.StatusOK)
 		return
 	}
-
 	if err := json.Unmarshal([]byte(r.FormValue("deleteAliases")), &deleteAliases); r.FormValue("deleteAliases") != "" && err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "deleteAliases JSON Unmarshal Error", http.StatusOK)
 		return
 	}
+
 	var admin collection.Alias
 	if err := json.Unmarshal([]byte(r.FormValue("admin")), &admin); r.FormValue("admin") != "" && err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "admin JSON Unmarshal Error", http.StatusOK)
@@ -48,14 +48,12 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	csrf := r.FormValue("csrf")
 	generateInvitation := r.FormValue("generateInvitation") != ""
 
-	// ======== Step 2: Session validation ========
 	session, err := common.SessionCheckTake(w, r, csrf)
 	if err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+"session check some error", http.StatusOK)
 		return
 	}
 
-	// ======== Step 3: Authorization check ========
 	trueAccess := false
 	for _, d := range session.ChannelAliases {
 		if d.Alias == updatedBy && d.ChannelID == channelID && !d.GuestFlag {
@@ -68,7 +66,6 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ======== Step 4: Find existing channel ========
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -81,15 +78,14 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ======== Step 5: InvitationCode handling ========
 	responseCode := channel.InvitationCode
 	if guest {
 		responseCode = channel.InvitationGuestCode
 	}
 
-	// ======== Step 6: Prepare Push Target ========
+	// ======== Step 6: PushNamesからPush対象ユーザーを抽出 ========
 	uniqueIDs := make(map[string]struct{})
-	var userIDs []string
+	var pushUserIDs []string
 	pushNameSet := make(map[string]struct{}, len(pushNames))
 	for _, name := range pushNames {
 		pushNameSet[name] = struct{}{}
@@ -98,17 +94,17 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		if _, ok := pushNameSet[alias.AliasName]; ok {
 			if _, exists := uniqueIDs[alias.UserID]; !exists {
 				uniqueIDs[alias.UserID] = struct{}{}
-				userIDs = append(userIDs, alias.UserID)
+				pushUserIDs = append(pushUserIDs, alias.UserID)
 			}
 		}
 	}
 
+	// ======== ★ 変更点: collSession.Find() はここで1回のみ実行 ========
 	var allSessions []collection.SessionStruct
-	if r.FormValue("pushNames") != "" {
+	if len(pushUserIDs) > 0 {
 		collSession := common.DB.SessionDB.Collection("session")
-		cursor, err := collSession.Find(ctx, bson.M{"userID": bson.M{"$in": userIDs}})
+		cursor, err := collSession.Find(ctx, bson.M{"userID": bson.M{"$in": pushUserIDs}})
 		if err != nil {
-			// log.Printf("collSession.Find: %v; Req:", err, r.URL.Path)
 			common.WriteResponseWithSession(w, session, err.Error()+"Push session fetch error", http.StatusOK)
 			return
 		}
@@ -119,8 +115,8 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	aliasUpdateAdmins := make([]collection.Alias, len(channel.Aliases))
-
 	updateFields := bson.M{}
+
 	if channelName != "" {
 		updateFields["channelName"] = channelName
 	}
@@ -140,13 +136,18 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		updateFields["invitedAt"] = time.Now()
 	}
 
+	// ======== Step 7: deleteAliases処理（別UserIDリストを使う） ========
 	if len(deleteAliases) > 0 {
 		newAliases := make([]collection.Alias, 0, len(channel.Aliases))
+		deleteUserIDs := make([]string, 0)
+
+		// 削除対象エイリアスのUserID収集と新しいAliases作成
 		for _, a := range channel.Aliases {
 			shouldDelete := false
 			for _, del := range deleteAliases {
 				if a.AliasName == del {
 					shouldDelete = true
+					deleteUserIDs = append(deleteUserIDs, a.UserID)
 					break
 				}
 			}
@@ -156,41 +157,26 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 		updateFields["aliases"] = newAliases
 
-		// ======== Step X: Delete corresponding ChannelAliases from session ========
-		userIDSet := make(map[string]struct{})
-		for _, alias := range channel.Aliases {
-			for _, del := range deleteAliases {
-				if alias.AliasName == del {
-					userIDSet[alias.UserID] = struct{}{}
+		// ======== ★ 変更点: すでに取得したallSessionsから対象ユーザーを抽出 ========
+		deleteSessions := make([]collection.SessionStruct, 0)
+		for _, s := range allSessions {
+			for _, id := range deleteUserIDs {
+				if s.UserID == id {
+					deleteSessions = append(deleteSessions, s)
+					break
 				}
 			}
 		}
-		userIDs := make([]string, 0, len(userIDSet))
-		for id := range userIDSet {
-			userIDs = append(userIDs, id)
-		}
+
+		// 該当セッションをDB更新
 		collSession := common.DB.SessionDB.Collection("session")
-		cursor, err := collSession.Find(ctx, bson.M{"userID": bson.M{"$in": userIDs}})
-		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+": Session find error", http.StatusOK)
-			return
-		}
-
-		var sessions []collection.SessionStruct
-		if err := cursor.All(ctx, &sessions); err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+": Session decode error", http.StatusOK)
-			return
-		}
-
-		// セッションごとにChannelAliasesを削除して更新
-		for _, s := range sessions {
+		for _, s := range deleteSessions {
 			filteredAliases := make([]collection.ChannelAlias, 0)
 			for _, alias := range s.ChannelAliases {
 				if alias.ChannelID != channelID {
 					filteredAliases = append(filteredAliases, alias)
 				}
 			}
-
 			_, err := collSession.UpdateOne(
 				ctx,
 				bson.M{"_id": s.SessionID},
@@ -204,9 +190,10 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		// === userコレクションから対象ユーザー取得 ===
+
+		// ======== ユーザー削除も同様に更新 ========
 		collUser := common.DB.UserDB.Collection("user")
-		cursor, err = collUser.Find(ctx, bson.M{"_id": bson.M{"$in": userIDs}})
+		cursor, err := collUser.Find(ctx, bson.M{"_id": bson.M{"$in": deleteUserIDs}})
 		if err != nil {
 			common.WriteResponseWithSession(w, session, err.Error()+":User find error", http.StatusOK)
 			return
@@ -216,9 +203,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 			common.WriteResponseWithSession(w, session, err.Error()+":User decode error", http.StatusOK)
 			return
 		}
-		// === 各ユーザーのChannelAliasesを更新（ループ版） ===
 		for _, u := range users {
-			// 削除対象のchannelID以外を残す
 			filteredAliases := make([]collection.ChannelAlias, 0)
 			for _, alias := range u.ChannelAliases {
 				if alias.ChannelID != channelID {
@@ -231,11 +216,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 					"updatedAt":      time.Now(),
 				},
 			}
-			_, err := collUser.UpdateOne(
-				ctx,
-				bson.M{"_id": u.UserID},
-				update,
-			)
+			_, err := collUser.UpdateOne(ctx, bson.M{"_id": u.UserID}, update)
 			if err != nil {
 				common.WriteResponseWithSession(w, session, err.Error()+":User update error", http.StatusOK)
 				return
@@ -247,7 +228,6 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		for i, a := range aliasUpdateAdmins {
 			if a.AliasName == admin.AliasName {
 				aliasUpdateAdmins[i] = admin
-				log.Printf("a=%d", a)
 				updated = true
 				break
 			}
@@ -259,7 +239,6 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	update := bson.M{"$set": updateFields}
-
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
@@ -267,6 +246,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ======== Push通知処理 ========
 	channelArr := []interface{}{
 		"channelEdit",
 		channelID,
@@ -276,33 +256,23 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	if channelName != "" {
 		common.ChunkPush(allSessions, channelArr)
 	}
+
 	for _, aliasName := range deleteAliases {
-		aliasData := []interface{}{
-			"",  // [0] userID
-			aliasName, // [1] aliasName
-			"",              // [2] bio
-			"delete",      // [3] accessRight
-		}
-		aliasPushArray := []interface{}{
-			"alias",         // [0] pushTitle
-			channelID,       // [1] channelID
-			updatedBy, // [2] updatedBy
-			aliasData,       // [3] aliasData
-			"", // [4] aliasImg
-		}
+		aliasData := []interface{}{"", aliasName, "", "delete"}
+		aliasPushArray := []interface{}{"alias", channelID, updatedBy, aliasData, ""}
 		common.ChunkPush(allSessions, aliasPushArray)
 
 		for _, s := range allSessions {
-			log.Printf("[DEBUG] Checking session: ChannelAliasCount=%d",s.ChannelAliases)
+			// log.Printf("[DEBUG] Checking session: ChannelAliasCount=%d",s.ChannelAliases)
 
 			for _, chAlias := range s.ChannelAliases {
-				log.Printf("[DEBUG]   ChannelAlias: ChannelID=%s, Alias=%s, GuestFlag=%v",
-					chAlias.ChannelID, chAlias.Alias, chAlias.GuestFlag)
+				// log.Printf("[DEBUG]   ChannelAlias: ChannelID=%s, Alias=%s, GuestFlag=%v",
+				// 	chAlias.ChannelID, chAlias.Alias, chAlias.GuestFlag)
 
 				// 一致チェック
 				if chAlias.ChannelID == channelID && chAlias.Alias == aliasName {
-					log.Printf("[MATCH] Found matching alias! aliasName=%s, channelID=%s, updatedBy=%s, sessionUserID=%s",
-						aliasName, channelID, updatedBy, s.UserID)
+					// log.Printf("[MATCH] Found matching alias! aliasName=%s, channelID=%s, updatedBy=%s, sessionUserID=%s",
+					// 	aliasName, channelID, updatedBy, s.UserID)
 
 					// push データ内容を出力
 					channelPushArray := []interface{}{
@@ -311,11 +281,11 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 						updatedBy,     // updatedBy
 						"delete",      // contents
 					}
-					log.Printf("[PUSH DATA] %+v", channelPushArray)
+					// log.Printf("[PUSH DATA] %+v", channelPushArray)
 
 					// push 実行
 					common.ChunkPush([]collection.SessionStruct{s}, channelPushArray)
-					log.Printf("[PUSH SENT] To session: %s (UserID=%s)", s.SessionID, s.UserID)
+					// log.Printf("[PUSH SENT] To session: %s (UserID=%s)", s.SessionID, s.UserID)
 
 					break
 				}
@@ -323,34 +293,24 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// JSON整形して出力するヘルパー
-	// toJSON := func(v interface{}) string {
-	// 	b, err := json.MarshalIndent(v, "", "  ")
-	// 	if err != nil {
-	// 		return err.Error()
-	// 	}
-	// 	return string(b)
-	// }
-	// log.Printf("aliasUpdateAdmins=%s", toJSON(aliasUpdateAdmins))
-
 	if r.FormValue("admin") != "" {
 		aliasData := []interface{}{
-			admin.UserID,    // [0] userID
-			admin.AliasName, // [1] aliasName
-			admin.AliasBio,  // [2] bio
-			admin.AccessRight,      // [3] accessRight
+			admin.UserID,
+			admin.AliasName,
+			admin.AliasBio,
+			admin.AccessRight,
 		}
 		aliasPushArray := []interface{}{
-			"alias",         // [0] pushTitle
-			channelID,       // [1] channelID
-			updatedBy, // [2] updatedBy
-			aliasData,       // [3] aliasData
-			admin.AliasImg, // [4] aliasImg
+			"alias",
+			channelID,
+			updatedBy,
+			aliasData,
+			admin.AliasImg,
 		}
 		common.ChunkPush(allSessions, aliasPushArray)
 	}
 
-	// ======== Step 9: Respond ========
+	// ======== Response ========
 	responseData := struct {
 		InvitationCode string   `json:"invitationCode"`
 		Csrf           string   `json:"csrf"`
