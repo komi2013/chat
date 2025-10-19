@@ -2,29 +2,29 @@ export async function alias(pd) {
   const channelID = pd[2];
   const updatedBy = pd[3];
   const userID = pd[4][0];
-  const aliasName = pd[4][1];
+  const aliasName = pd[4][1]
   const bio = pd[4][2]
   const accessRight = pd[4][3]
   // const del = pd[4][4] ?? false
   const aliasImg = pd[5]
-  const inquiry = !!pd[6]
-  const preKey = inquiry ? '@' : channelID // @customer nickname
+  const atMark = accessRight === 'inquirer' ? '@' : '' // @customer nickname
   const alias = {
     // aliasID: channelID + userID,
-    aliasID: preKey + aliasName,
+    aliasID: channelID + atMark + aliasName,
     channelID: channelID,
-    aliasName: aliasName,
+    aliasName: atMark + aliasName,
     aliasImg: aliasImg,
     userID: userID,
     aliasBio: bio,
     accessRight: accessRight,
   }
+  // console.log('alias', alias)
+  const pre = await getIDB('alias', alias.aliasID)
   if (accessRight === 'delete') {
     deleteIDB('alias', 'aliasID', alias.aliasID);
   } else {
     upsertIDB(alias, 'alias', 'aliasID', alias.aliasID);
   }
-  const pre = await getIDB('alias', alias.aliasID);
   if (pre) {
     const logID = pd[1] + pd[2] + pd[3] + pd[0];
     const log = {

@@ -24,7 +24,7 @@ type SessionStruct struct {
 type ChannelAlias struct {
     ChannelID string `bson:"channelID" json:"channelID"`
     Alias     string `bson:"alias" json:"alias"`
-    Guest     bool `bson:"guest,omitempty" json:"guest,omitempty"`
+    GuestFlag     bool `bson:"guestFlag,omitempty" json:"guestFlag,omitempty"`
 }
 
 

@@ -24,17 +24,16 @@ const channel = ref(null)
 const groups = ref([])
 const aliases = ref([])
 const fetched = ref(false)
-let groupLockUntilDate
+// let groupLockUntilDate
 const today = new Date()
 const errorMessage = ref('')
 onMounted(async () => {
   channel.value = await getIDB('channel', props.id);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
-  groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
+  // groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
   groups.value.forEach(group => {
-    if (group.aliasNames.includes(channel.value.myname) && today > groupLockUntilDate) {
-    // if (group.aliasNames.includes(channel.value.myname)) {
+    if (group.aliasNames.includes(channel.value.myname)) {
       group.editable = true;
     } else {
       group.editable = false;
@@ -104,21 +103,21 @@ async function editGroup(group) {
   });
 }
 
-function getAliasesByNames(aliasNames) {
-  return aliasNames
-    .map((name) => {
-      const match = aliases.value.find((entry) => entry.aliasName === name);
-      if (match) {
-        return {
-          id: match.aliasID,
-          name: match.aliasName,
-          image: match.aliasImg,
-        };
-      }
-      return null;
-    })
-    .filter(Boolean); // null 値を除外
-}
+// function getAliasesByNames(aliasNames) {
+//   return aliasNames
+//     .map((name) => {
+//       const match = aliases.value.find((entry) => entry.aliasName === name);
+//       if (match) {
+//         return {
+//           id: match.aliasID,
+//           name: match.aliasName,
+//           image: match.aliasImg,
+//         };
+//       }
+//       return null;
+//     })
+//     .filter(Boolean); // null 値を除外
+// }
 
 </script>
 

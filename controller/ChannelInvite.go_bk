@@ -143,7 +143,7 @@ func ChannelInvite(w http.ResponseWriter, r *http.Request) {
 		CreatedBy: updatedBy,
     CreatedAt: time.Now(),
 		PushSessions: addSessions,
-		AliasNames: aliasNames,
+		// AliasNames: aliasNames,
 		Aliases: aliases,
 		Guest: guest,
 		UntilDate: untilDate,

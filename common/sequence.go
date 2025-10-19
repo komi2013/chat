@@ -45,18 +45,10 @@ func IncrementBase62Smart(s string) string {
 	return string(runes)
 }
 
+// channelID, userID
 func CountUpID(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	// client, err := mongo.Connect(ctx, options.Client().ApplyURI(Mongo1))
-	// if err != nil {
-	// 	return "", err
-	// }
-	// defer client.Disconnect(ctx)
-
-	// db := client.Database(MongoDb1)
-	// coll := db.Collection("sequence")
 	coll := DB.SequenceDB.Collection("sequence")
 
 	var seq collection.SequenceStruct

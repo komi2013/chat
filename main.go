@@ -19,7 +19,7 @@ func main() {
 		http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)
-		http.HandleFunc("/ChannelInvite/", controller.ChannelInvite)
+		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
 		http.HandleFunc("/ChannelJoin/", controller.ChannelJoin)
 		http.HandleFunc("/ContentsJustPush/", controller.ContentsJustPush)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)
@@ -55,8 +55,8 @@ func main() {
 			console.AdPublish()
 		case "TestPush":
 			console.TestPush()
-		case "TestCountUp":
-			console.TestCountUp()
+		case "TestCode":
+			console.TestCode()
 		}
 	}
 }

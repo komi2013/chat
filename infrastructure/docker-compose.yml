@@ -59,7 +59,7 @@ services:
     volumes:
       - ./:/data/
 
-  mongo-express:
+  mongo-express: #basic auth : admin/pass
     image: mongo-express
     ports:
       - 8081:8081

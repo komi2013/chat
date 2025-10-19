@@ -77,7 +77,6 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		session.Nickname, // [2] updatedBy
 		aliasData,       // [3] aliasData
 		session.NickImg, // [4] aliasImg
-		1,                // inquiry flag
 	}
 
 	// threadデータの準備
@@ -121,7 +120,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		AliasName:   session.Nickname,
 		AliasImg:    session.NickImg,
 		UserID:      session.UserID,
-		Bio:         "",
+		AliasBio:         "",
 		AccessRight: "inquirer",
 	}
 

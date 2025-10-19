@@ -9,7 +9,6 @@ const channel = ref(null);
 const aliases = ref([]);
 const storeNames = ref([]);
 const selectedStore = ref("");
-const aliasNames = ref([]);
 const message = ref("");
 document.title = '広告設定'
 
