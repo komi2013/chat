@@ -80,7 +80,7 @@ func isValidCSRF(csrf string) bool {
 
 	now := time.Now().Unix()
 	// 24時間以内ならOK
-	log.Print("now-decodedTs", now, decodedTs, 24*60*60)
+	log.Print("now-decodedTs", now-decodedTs, 24*60*60, now-decodedTs <= 24*60*60)
 	return now-decodedTs <= 24*60*60
 }
 

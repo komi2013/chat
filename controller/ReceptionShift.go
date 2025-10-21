@@ -163,7 +163,7 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 
 	// log.Printf("Updated %d document(s)", updateResult.ModifiedCount)
 
-	responseData := common.BaseResponse{
+	responseData := common.ReceptionResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 		Reception:    reception,

@@ -18,6 +18,7 @@ type DBs struct {
   ReceptionDB *mongo.Database
   SequenceDB *mongo.Database
   SessionDB *mongo.Database
+  TweetDB *mongo.Database
   UserDB    *mongo.Database
 
 }
@@ -68,6 +69,11 @@ func InitMongo() {
     log.Fatalf("Mongo sessionClient connect error: %v", err)
   }
 
+  tweetClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoTweet))
+  if err != nil {
+    log.Fatalf("Mongo sessionClient connect error: %v", err)
+  }
+
   userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoUser))
   if err != nil {
     log.Fatalf("Mongo userClient connect error: %v", err)
@@ -82,6 +88,7 @@ func InitMongo() {
     ReceptionDB: receptionClient.Database("chatReception"),
     SequenceDB: sequenceClient.Database("chatSequence"),
     SessionDB: sessionClient.Database("chatSession"),
+    TweetDB: tweetClient.Database("chatTweet"),
     UserDB:    userClient.Database("chatUser"),
 
   }

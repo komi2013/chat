@@ -13,6 +13,12 @@ type BaseResponse struct {
 	Csrf         string   `json:"csrf"`
 	PushContents []string `json:"pushContents"`
 	Error        string   `json:"error,omitempty"`
+}
+
+type ReceptionResponse struct {
+	Csrf         string   `json:"csrf"`
+	PushContents []string `json:"pushContents"`
+	Error        string   `json:"error,omitempty"`
   Mail         string   `json:"mail,omitempty"`
   Telephone    string   `json:"telephone,omitempty"`
 	Reception 	 collection.ReceptionStruct `json:"reception,omitempty"`
@@ -20,6 +26,7 @@ type BaseResponse struct {
 	FacilityName string    `json:"facilityName,omitempty"`
 	Nickname     string    `json:"nickname,omitempty"`
 }
+
 
 func ResponseErrorStatus(w http.ResponseWriter, err error) bool {
 	if err != nil {

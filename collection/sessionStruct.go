@@ -27,6 +27,11 @@ type ChannelAlias struct {
     GuestFlag     bool `bson:"guestFlag,omitempty" json:"guestFlag,omitempty"`
 }
 
+type TweetPosts struct {
+    ParentID string `bson:"parentID" json:"parentID"`
+    PostedAt     time.Time `bson:"postedAt" json:"postedAt"`
+}
+
 
 // type Content struct {
 // 	PushID string      `bson:"push_id"`

@@ -138,7 +138,7 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 	}
 
   // reception の値だけここでセット
-	responseData := common.BaseResponse{
+	responseData := common.ReceptionResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 		Mail:         session.Mail,

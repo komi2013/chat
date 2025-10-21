@@ -206,6 +206,15 @@ const router = createRouter({
       component: () => import('../views/TopEdit.vue')
     },
     {
+      path: '/tweet/:parentID?/',
+      component: () => import('../views/Tweet.vue'),
+      props: route => ({
+        parentID: route.params.parentID,
+        backID: route.query.backID,
+        messageID: route.query.messageID
+      })
+    },
+    {
       path: '/user/',
       component: () => import('../views/User.vue')
     },

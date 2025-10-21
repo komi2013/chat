@@ -146,7 +146,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseData := common.BaseResponse{
+	responseData := common.ReceptionResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 		Reception:    reception,
