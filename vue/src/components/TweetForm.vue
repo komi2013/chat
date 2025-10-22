@@ -1,87 +1,275 @@
 <template>
-  <div class="tweet-form">
-    <div id="tweet-toolbar">
+  <div>
+    <div class="editLeft" :id="'toolbar_' + messageID">
       <button class="ql-bold"></button>
-      <button class="ql-italic"></button>
+      <button class="ql-strike"></button>
+      <button class="ql-blockquote"></button>
+      <button class="ql-code-block"></button>
       <button class="ql-link"></button>
+      <select class="ql-color">
+        <option value="red">Red</option>
+        <option value=""></option>
+      </select>
+      <button class="emoji" @click="attach(messageID)">🌄</button>
+      <button class="emoji" v-if="messageID" @click="msgUpsert(messageID)">🗑</button>
+      <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
-    <div id="tweet-editor" class="tweet-editor"></div>
-    <button @click="submitTweet">投稿</button>
+    <div :id="'edit_' + messageID"
+      v-html="editTxt[messageID]"
+      >
+    </div>
   </div>
+  <div class="files" v-html="fileInfo[messageID]"></div>
+  <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
+
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, defineProps, onMounted } from 'vue';
+import { useMessagesStore } from '@/stores/messages.js';
+
 import Quill from 'quill';
-import 'quill/dist/quill.snow.css';
-// import { sendRequest } from '@/my/sendRequest.js';
+import "quill-mention";
+import "quill/dist/quill.snow.css";
+
+import EditOptionModal from '@/components/EditOptionModal.vue';
+
+import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
+import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
-  parentID: String,
-  channelID: String
+  message: Object,
+  threadHead: Object,
 });
 
-let quill;
+const message = props.message;
+// console.log('message', message)
+let task = ref(false);
+const messageID = message.messageID
+const parentID = message.parentID
+const messagesStore = useMessagesStore();
 
-onMounted(() => {
-  quill = new Quill('#tweet-editor', {
-    modules: { toolbar: '#tweet-toolbar' },
-    theme: 'snow',
-  });
-});
+let editTxt = ref({});
+editTxt.value[messageID] = markdownToHtml(props.message.messageTxt)
 
-const submitTweet = async () => {
-  const messageTxt = quill.root.innerHTML.trim();
-  const plainText = quill.getText().trim();
+let quill
+async function initQuill() {
+  quill = new Quill('#edit_' + messageID, {
+    modules: {
+      toolbar: '#toolbar_' + messageID,
+      mention: {
+        allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+        mentionDenotationChars: ["@"],
+        source: function(searchTerm, renderList, mentionChar) {
+          let values;
+          if (mentionChar === "@") {
+            let aliasForMention = props.threadHead.nickNames
+            values = aliasForMention.map((name) => {
+              return {
+                id: name,
+                value: name,
+                icon: ''
+              };
+            });
+          }
 
-  if (!plainText) return alert('内容を入力してください。');
-  if (plainText.length > 500) return alert('500文字以内で入力してください。');
+          if (searchTerm.length === 0) {
+            renderList(values, searchTerm);
+          } else {
+            const matches = values.filter(item => item.value.toLowerCase().includes(searchTerm.toLowerCase()));
+            renderList(matches, searchTerm);
+          }
+        },
+        renderItem: function(item) {
+          const mentionWithImage = document.createElement("div");
+          if (item.icon.charAt(0) == ',') {
+            const arr = item.icon.split(',');
+            mentionWithImage.innerHTML = 
+              `<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
+          } else {
+            mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
+          }
+          return mentionWithImage;
+        },
+        onOpen: function() {
+          const quillMentionList = document.getElementById('quill-mention-list');
+          const rect = quillMentionList.getBoundingClientRect();
+          if (rect.left > 150 && rect.left < 300) {
+            quillMentionList.style.left = (- 1 * rect.left) + 'px';
+          }
+        }
+      }
+    },
+    theme: 'snow'
+  })
+}
 
-  const fd = new FormData();
-  // fd.append('channelID', props.channelID);
-  fd.append('parentID', props.parentID ?? '')
-  // fd.append('nickname', localStorage.getItem('nickname'));
-  // fd.append('nickImg', localStorage.getItem('nickImg') || '');
-  fd.append('messageTxt', messageTxt);
-  fd.append('csrf', localStorage.getItem('csrf'));
+onMounted(async () => {
+  await initQuill()
+})
 
-  const res = await sendRequest('/TweetPost/', fd);
+const attach = () => {
+  const fileInput = document.getElementById('fileInput_' + messageID);
+  if (fileInput) {
+    fileInput.click();
+  }
+  fileInput.addEventListener('change', handleFileInputChange);
+}
 
-  if (res && res.status === 425) {
-    alert('投稿制限中です。20時間後に再度お試しください。');
+const fileInfo = ref({});
+const handleFileInputChange = (event) => {
+  const files = event.target.files;
+  const newFileInfo = document.createElement('div');
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fileContainer = document.createElement('div');
+    if (file.type.startsWith('image/')) {
+      const image = document.createElement('img');
+      image.src = URL.createObjectURL(file);
+      image.style.maxWidth = '50px';
+      image.style.maxHeight = '50px';
+      fileContainer.appendChild(image);
+    } else {
+      const fileName = document.createTextNode(file.name);
+      fileContainer.appendChild(fileName);
+    }
+    newFileInfo.appendChild(fileContainer);
+  }
+  fileInfo.value[messageID] = newFileInfo.outerHTML;
+}
+
+let clicked = false
+const msgUpsert = async (messageID) => {
+  console.log('align-items')
+  if (quill.root.innerHTML == '<p><br></p>') return
+  console.log('b')
+  if (clicked) return
+  clicked = true
+  console.log('c')
+  const messageData = htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
+  let mentionNames = [];
+  for (const name of props.threadHead.nickNames) {
+    if (messageData.includes(`＠＠${name}・＠＠`)) {
+      addMentions([name])
+    }
+  }
+  const addMentions = (names) => {
+    for (const aliasName of names) {
+      mentionNames.push(aliasName)
+    }
+  }
+  const fileInput = document.getElementById('fileInput_' + messageID);
+  if (fileInput && fileInput.files.length > 10) {
+    alert('too many files');
     return;
   }
-
-  if (res && res.messageID) {
-    alert('投稿完了しました！');
-    quill.root.innerHTML = '';
-  } else if (res && res.error) {
-    alert(res.error);
+  const fd = new FormData();
+  if (fileInput && fileInput.files.length > 0) {
+    for (const file of fileInput.files) {
+      fd.append('files[]', file);
+    }
   }
-
+  fd.append('parentID', parentID ?? '')
+  fd.append('messageTxt', messageData);
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetPost/', fd)
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  quill.root.innerHTML = ''
+  fileInfo.value = []
+  clicked = false;
+  if (props.threadHead.newThread) {
+    location.href = ''
+  }
+}
 
-};
 </script>
 
-<style scoped>
-.tweet-form {
-  margin: 10px;
+<style>
+
+.editLeft {
+  display: inline-block;
+  width: 99%;
 }
-#tweet-toolbar {
-  border: 1px solid #ccc;
-  border-bottom: none;
+
+/*.editRight {
+  display: inline-block;
+  width: 30%;
 }
-#tweet-editor {
-  border: 1px solid #ccc;
-  height: 150px;
+*/
+.editText .ql-container.ql-snow {
+  border: 1px solid #d1d5db;
+  border-bottom-width: 0;
 }
-button {
-  margin-top: 10px;
+.editText .ql-editor {
+  padding: 4px 0px;
 }
+
+.files {
+  border-top: none;
+  border-right: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
+  border-left: 1px solid #d1d5db;
+}
+.ql-snow.ql-toolbar {
+  padding: 8px 0px;
+}
+.ql-snow.ql-toolbar .emoji {
+  font-size: 12px;
+  padding-top: 0px;
+}
+.ql-snow.ql-toolbar .selected {
+  background-color: #92a7b54a;
+  border-radius: 5px;
+}
+.ql-mention-list-container {
+  background-color: white;
+  bottom: 0px;
+}
+
+.ql-mention-list {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  left: -30px;
+  width: 300px;
+  bottom: 0px;
+}
+
+.ql-mention-list-item {
+  display: flex;
+  align-items: center;
+  background-color: white;
+}
+
+.ql-mention-list-item-text {
+  margin-left: 8px;
+}
+
+.ql-mention-list-item-image {
+  width: 24px;
+  height: 24px;
+}
+
+.min-icon {
+  width: 26px;
+  max-width: 26px;
+  height: 26px;
+  max-height: 26px;
+  border-radius: 4px;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: center;
+  align-items: center;
+}
+
+.mention {
+  background-color: #a7cad63d;
+  color: blue;
+}
+
 </style>

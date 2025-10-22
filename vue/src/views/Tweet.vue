@@ -1,14 +1,14 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-// import { useRoute } from 'vue-router';
-
+import { ref, onMounted } from 'vue';
 import Advertisement from '@/components/Advertisement.vue';
 import DrawerThread from '@/components/DrawerThread.vue';
-import TweetForm from '@/components/TweetForm.vue';
 import TweetMsgs from '@/components/TweetMsgs.vue';
+import TweetForm from '@/components/TweetForm.vue';
 
-import { removeMark } from '@/my/markdown.js';
-import { useMessagesStore } from '@/stores/messages.js';
+import { useMessagesStore } from '@/stores/messages.js'
+
+import { removeMark } from '@/my/markdown.js'
+import { pushReceive } from '@/pushReceive/pushReceive.js'
 
 const props = defineProps({
   parentID: String,
@@ -16,155 +16,137 @@ const props = defineProps({
   messageID: String
 })
 
-// const route = useRoute();
-const parentID = props.parentID // URLからparent_idを取得
-
-const threadHead = ref({
-  parentID: '',
-  title: '',
-  aliasName: '',
-});
-const tweets = ref([]);
+const parentID = props.parentID
+const threadHead = ref({ parentID: '', title: '' });
 const fetched = ref(false);
-const copyable = ref(false);
 const errorMessage = ref('');
-const messagesStore = useMessagesStore();
+const copyable = ref(false);
 
-const msg = ref({
-  messageTxt: '',
-  messageID: '',
-  parentID: parentID,
-});
-
-// =====================================
-// 🔹 API呼び出し関数
-// =====================================
-async function fetchTweets() {
+const messagesStore = useMessagesStore()
+async function fetchThreadHead() {
   if (!parentID) {
-    // parentIDがない場合（新規作成）
-    threadHead.value = {
-      parentID: '',
-      title: '新規スレッド',
-      messageTxt: '',
-      aliasName: localStorage.getItem('myname') || 'unknown',
-      aliasNames: [],
-      newThread: true,
-    };
-    fetched.value = true;
-    return;
+    threadHead.value = { parentID: '', title: '新規スレッド' }
+    return
   }
   const fd = new FormData();
   fd.append('parentID', parentID);
-  fd.append('csrf', localStorage.getItem('csrf'));
-
-  const res = await sendRequest('/TweetGet/', fd);
-
-  if (!res || res.error) {
-    errorMessage.value = res?.error || 'データ取得に失敗しました';
-    return;
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetGet/', fd)
+  if (res.error) {
+    errorMessage.value = res.error
+    return
   }
-
-  if (res.csrf) localStorage.setItem('csrf', res.csrf);
-
-  // Tweetデータ構造を展開
-  const tweetData = res.tweet || {};
-  threadHead.value = tweetData.tweetHeads?.[0] || { parentID, title: '無題' };
-  tweets.value = tweetData.tweets || [];
-  console.log('threadHead', threadHead.value.messageTxt)
-  messagesStore.insert(threadHead.value.messageTxt)
-  // storeに反映
-  tweets.value.forEach(t => messagesStore.insert(t));
-
-  fetched.value = true;
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  const heads = res.tweet.tweetHeads
+  const tweets = res.tweet.tweets
+  if (heads.length > 0) {
+    threadHead.value = heads[0]
+    let message = threadHead.value;
+    message.messageID = threadHead.value.parentID
+    message.createdAt = threadHead.value.updatedAt
+    messagesStore.insert(message)
+    if (Array.isArray(tweets)) {
+      for (const tweet of tweets) {
+        messagesStore.insert(tweet)
+      }
+    }
+    return
+  }
+  if (props.backID) {
+    const message = await getIDB('thread', props.parentID);
+    threadHead.value = message;
+    threadHead.value.parentID = props.parentID;
+    threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
+    threadHead.value.messageTxt = message.messageTxt;
+    // threadHead.value.threadType = 0;
+    threadHead.value.backID = props.backID
+    threadHead.value.newReply = true
+    const originalThreadHead = await getIDB('threadHead', props.backID)
+    threadHead.value.aliasNames = [
+      ...new Set([
+        ...originalThreadHead.aliasNames,
+        ...threadHeadValue.aliasNames
+      ])
+    ]
+    threadHead.value.adminNames = originalThreadHead.adminNames
+    messagesStore.insert(message)
+    return
+  }
+  // threadHead.value = heads.length > 0 ? heads[0] : { parentID, title: 'headなし' }
 }
 
-// =====================================
-// 🔹 スクロール時に追加取得（ページング）
-// =====================================
-async function loadOlderTweets() {
-  const offset = tweets.value.length;
-  const limit = 20;
-
-  const fd = new FormData();
-  fd.append('parentID', parentID);
-  fd.append('offset', offset);
-  fd.append('limit', limit);
-  fd.append('csrf', localStorage.getItem('csrf'));
-
-  const res = await sendRequest('/TweetGet/', fd);
-  if (res && res.tweet?.tweets?.length) {
-    const older = res.tweet.tweets;
-    tweets.value = [...older, ...tweets.value];
-  }
-}
-
-// =====================================
-// 🔹 初期ロード
-// =====================================
 onMounted(async () => {
-  await fetchTweets();
-  document.title = threadHead.value.title || 'Tweet';
-  const content = document.getElementById('content');
-  if (content) content.scrollTop = content.scrollHeight;
+  await fetchThreadHead()
+  document.title = threadHead.value.title
+  const content = await document.getElementById('content')
+  content.scrollTop = await content.scrollHeight
+  await window.scrollTo(0, content.scrollHeight)
+  // readStatus()
+  fetched.value = true
 });
 
 function backTo() {
   location.href = '/';
 }
+
+const msg = {
+  messageTxt: '',
+  messageID: '',
+  parentID: props.parentID
+}
+
 </script>
 
 <template>
-<DrawerThread />
-<div id="content">
-  <div v-if="fetched">
-    <div v-if="threadHead">
-      <div class="headTitle">
-        <a :href="'/tweet/' + threadHead.parentID + '/'">
-          {{ threadHead.title }}
-        </a>
+  <DrawerThread />
+  <div id="content">
+    <div v-if="!fetched"><br><br>Loading…</div>
+    <div v-if="fetched">
+      <div class="headTitle" v-if="threadHead">
+        <a :href="'/tweet/' + threadHead.parentID + '/'">{{ threadHead.title }}</a>
       </div>
       <div class="headIcon">
-        <span>
-          <a @click="backTo"> ⬅ </a>
-        </span>
+        <span><a @click="backTo">⬅</a></span>
         <span :class="[{ 'selected': copyable, 'emoji-stamp': copyable }]">
-          <a @click="copyable = !copyable"> 📄 </a>
+          <a @click="copyable = !copyable">📄</a>
         </span>
       </div>
-    </div>
 
-    <TweetMsgs
-      :messages="tweets"
-      :threadHead="threadHead"
-      :copyable="copyable"
-      :messageID="parentID"
-    />
-
-    <div class="editText">
-      <TweetForm
-        :message="msg"
+      <TweetMsgs
+        :parentID="parentID"
         :threadHead="threadHead"
+        :copyable="copyable"
+        :messageID="messageID"
       />
+
+      <div class="editText">
+        <TweetForm
+          :message="msg"
+          :threadHead="threadHead"
+        />
+      </div>
+
+      <div v-if="errorMessage">
+        <p style="color:red;">{{ errorMessage }}</p>
+      </div>
     </div>
   </div>
-  <div v-if="!fetched"><br><br> Loading... </div>
-  <div v-if="errorMessage">
-    <p style="color:red;">{{ errorMessage }}</p>
-  </div>
-</div>
-
-<div id="ad_right">
-  <Advertisement /> <Advertisement /> <Advertisement />
-</div>
+  <div id="ad_right"><Advertisement /><Advertisement /><Advertisement /></div>
 </template>
 
 <style>
+
 #content {
   height: 100%;
   overflow-y: auto;
 }
 
-@media screen and (min-width : 701px) {
+@media screen and (min-width : 701px) { 
   .headTitle {
     width: 50%;
     min-height: 40px;
@@ -175,6 +157,7 @@ function backTo() {
     text-align: right;
     display: inline-block;
   }
+
 }
 
 @media screen and (max-width : 700px) {
@@ -189,5 +172,6 @@ function backTo() {
     text-align: right;
     display: inline-block;
   }
+
 }
 </style>

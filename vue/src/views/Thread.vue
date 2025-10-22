@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-
 import Advertisement from '@/components/Advertisement.vue';
 import DrawerThread from '@/components/DrawerThread.vue';
 import EditBox from '@/components/EditBox.vue';
