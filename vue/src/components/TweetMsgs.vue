@@ -9,13 +9,14 @@ import { markdownToHtml } from '@/my/markdown';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
+  parentID: String,
   messages: Object,
   threadHead: Object,
   copyable: Boolean,
-  messageID: String
-});
+  messageID: String,
+  nickname: String
+})
 
-const myname = localStorage.getItem('myname') || ''
 function tF(a, b = null){ return timeFormat(a, b) }
 
 const messagesStore = useMessagesStore();
@@ -57,16 +58,6 @@ const moreMessages = async (later = false) => {
   }
 }
 
-function editable(myname, message) {
-  if (props.threadHead.inquirerFlag) return false
-  const now = Date.now()
-  const createdAtTimestamp = new Date(message.createdAt).getTime();
-  const within10min = Math.floor((now - createdAtTimestamp) / (1000 * 60)) < 10;
-  if (within10min && myname === message.nickname) {
-    return true
-  }
-}
-
 function replyable (message) {
   if (message.messageID !== message.parentID && !message.backID) {
     return true;
@@ -98,16 +89,17 @@ function reply(message) {
 }
 
 const clickEmoji = async (message, emoji) => {
-  const del = message.emojis.some(e => e.nickname === localStorage.get('nickname') && e.emoji === emoji.emoji)
-  const fd = new FormData();
-  const contents = [message.messageID, emoji.emoji, message.parentID, del]
-  fd.append('contents', JSON.stringify(contents));
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  const fd = new FormData()
+  fd.append('parentID', props.parentID)
+  fd.append('messageID', message.messageID)
+  fd.append('emoji', emoji.emoji)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetEmoji/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
     pushReceive(content);
   });
+  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
   rotateEmoji(emoji.emoji);
 };
 
@@ -139,10 +131,6 @@ const clickEmoji = async (message, emoji) => {
           </div>
           <div v-if="copyable" class="name-time">{{ message.nickname }} {{ tF('MM-DD hh:mm', message.createdAt) }}</div>
           <div v-if="!copyable" class="setting">
-            <span
-              v-if="editable(myname, message)"
-              :class="{ 'selected': message.editFlg }"
-              @click="toggleEdit(message, message.messageID, $event)"> ✏️ </span>
             <span v-if="replyable(message)"
                   :class="[{ 'selected': message.reply }, 'message-wrapper']">
               <a :class="{'message-button': message.reply}" @click="reply(message)"> 💬 </a>
@@ -158,7 +146,7 @@ const clickEmoji = async (message, emoji) => {
           <div
             v-html="markdownToHtml(message.messageTxt)"
             class="ql-editor"></div>
-          <template v-for="emoji in calcEmoji(message.emojis, myname)">
+          <template v-for="emoji in calcEmoji(message.emojis, nickname)">
             <template v-if="emojiPath(emoji.emoji)">
               <span class="img-stamp"
                 :class="{ 'selected': emoji.selected }">
@@ -175,7 +163,7 @@ const clickEmoji = async (message, emoji) => {
               </span>
             </template>
           </template>
-          <span v-if="calcEmoji(message.emojis, myname).length"
+          <span v-if="calcEmoji(message.emojis, nickname).length"
             class="emojied"
             @click="openEmojied(message.messageID)" >&nbsp;⋮&nbsp;
           </span>

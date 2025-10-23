@@ -120,5 +120,5 @@ export let masterEmojis = JSON.parse(localStorage.getItem('emojis')) || [
   '/img/arigatou.png','/img/kakunin.png','/img/odaijini.png','/img/soudesune.png',
   '/img/naruhodo.png','/img/shouchi.png',
   '👍','👎','👌','👏','💪','🤝','✅','☑️','🎉','💖','🔥','🎶',
-  '😜','😋','😇','😊','😎','🥰','🤩'
+  '😜','😋','😇','😊','😎','🥰','🤩','🚫'
 ];

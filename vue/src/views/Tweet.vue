@@ -17,11 +17,11 @@ const props = defineProps({
 })
 
 const parentID = props.parentID
-const threadHead = ref({ parentID: '', title: '' });
-const fetched = ref(false);
-const errorMessage = ref('');
-const copyable = ref(false);
-
+const threadHead = ref({ parentID: '', title: '' })
+const fetched = ref(false)
+const errorMessage = ref('')
+const copyable = ref(false)
+const nickname = ref('')
 const messagesStore = useMessagesStore()
 async function fetchThreadHead() {
   if (!parentID) {
@@ -42,6 +42,7 @@ async function fetchThreadHead() {
       await pushReceive(content)
     }
   }
+  nickname.value = res.nickname
   const heads = res.tweet.tweetHeads
   const tweets = res.tweet.tweets
   if (heads.length > 0) {
@@ -122,6 +123,7 @@ const msg = {
         :threadHead="threadHead"
         :copyable="copyable"
         :messageID="messageID"
+        :nickname="nickname"
       />
 
       <div class="editText">

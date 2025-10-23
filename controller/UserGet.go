@@ -36,7 +36,7 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
   // collUser := db1.Collection("user")
   collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": session.UserID}
-  var user collection.UserStruct
+  var user collection.UserResponse
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
   if err != nil {
     log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
@@ -48,7 +48,7 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
   if err != nil {
     log.Printf("coll.Find: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
   }
-  var nicknames []collection.NicknameStruct
+  var nicknames []collection.NicknameResponse
   if err = cursor.All(context.TODO(), &nicknames); err != nil {
     log.Printf("cursor.All: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
   }
@@ -56,8 +56,8 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
   responseData := struct {
     Csrf         string       `json:"csrf"`
     PushContents []string     `json:"pushContents"`
-    User       collection.UserStruct  `json:"user"`
-    Nicknames   []collection.NicknameStruct `json:"nicknames"`
+    User       collection.UserResponse  `json:"user"`
+    Nicknames   []collection.NicknameResponse `json:"nicknames"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,

@@ -1,121 +1,95 @@
 <template>
   <div class="modal" @click.self="closeModal">
     <div class="modal-content">
-
-      <div class="emoji-list">
-        <template v-for="emoji in masterEmojis" :key="emoji">
-          <template v-if="emojiPath(emoji)">
-            <span>
-              <img
-                class="emoji-img"
-                :src="emoji"
-                @click="selectEmoji(emoji)"
-              />
-            </span>
-          </template>
-          <template v-else>
-            <span
-              class="emoji"
-              @click="selectEmoji(emoji)"
-            >
-              {{ emoji }}
-            </span>
-          </template>
+      <template class="emoji-list" v-for="emoji in masterEmojis">
+        <template v-if="emojiPath(emoji)">
+          <span>
+            <img class="emoji-img" :src="emoji" @click="selectEmoji(emoji)" />
+          </span>
         </template>
-      </div>
+        <template v-else>
+          <span class="emoji" @click="selectEmoji(emoji)" >{{ emoji }}</span>
+        </template>
+      </template>
 
-      <input
-        type="text"
-        v-model="selectedEmoji"
-        maxlength="2"
+      <input 
+        type="text" 
+        v-model="selectedEmoji" 
+        maxlength="2" 
         class="emoji-input"
-        placeholder="😀"
         @change="inputEmoji"
       />
-
-      <button class="close-btn" @click="closeModal">×</button>
-
+ 
+      <button @click="closeModal"> x </button>
       <br>
-      <span v-if="emojiValidErr" class="emoji-valid-err">
-        絵文字か1文字にしてください
-      </span>
-
+      <span v-if="emojiValidErr" class="emoji-valid-err">絵文字か1文字にしてください</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, defineProps, defineEmits } from 'vue';
-// import { sendRequest } from '@/my/fetch';
+
 import { emojiPath } from '@/my/emoji.js';
 import { validateEmoji, rotateEmoji, masterEmojis } from '@/my/emoji';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
-const props = defineProps({
-  tweetID: String,   // 対象ツイートID
-  parentID: String,  // 親ドキュメントID
-  participants: Array // 通知対象ユーザー
-});
 
-const emit = defineEmits(['closeEmoji']);
+import { useMessagesStore } from '@/stores/messages'
+
+const props = defineProps([
+  'messageID',
+  'parentID'
+]);
+
+const emit = defineEmits()
+const messagesStore = useMessagesStore()
+const selectEmoji = async (emoji) => {
+  const fd = new FormData()
+  fd.append('parentID', props.parentID)
+  fd.append('messageID', props.messageID)
+  fd.append('emoji', emoji);
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetEmoji/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+  rotateEmoji(emoji)
+  emit('closeEmoji')
+};
 
 const selectedEmoji = ref('');
 const emojiValidErr = ref(false);
-
-// ========================================
-// 🔹 絵文字をクリック選択したとき
-// ========================================
-const selectEmoji = async (emoji) => {
-  await sendEmoji(emoji);
-  rotateEmoji(emoji);
-  emit('closeEmoji');
-};
-
-// ========================================
-// 🔹 絵文字を直接入力したとき
-// ========================================
 const inputEmoji = async () => {
   if (!validateEmoji(selectedEmoji.value)) {
     emojiValidErr.value = true;
     return;
   }
-  await sendEmoji(selectedEmoji.value);
+  const fd = new FormData()
+  fd.append('parentID', props.parentID)
+  fd.append('messageID', props.messageID)
+  fd.append('emoji', emoji);
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetEmoji/', fd);
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.pushContents.forEach(content => {
+    pushReceive(content);
+  });
+  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
   rotateEmoji(selectedEmoji.value);
   emit('closeEmoji');
-};
-
-// ========================================
-// 🔹 API送信共通処理
-// ========================================
-async function sendEmoji(emoji) {
-  const fd = new FormData();
-  fd.append('channelID', localStorage.getItem('channelID'));
-  fd.append('updatedBy', localStorage.getItem('myname'));
-  fd.append('pushNames', JSON.stringify(props.participants));
-  fd.append('tweetID', props.tweetID);
-  fd.append('parentID', props.parentID);
-  fd.append('emoji', emoji);
-  fd.append('csrf', localStorage.getItem('csrf'));
-
-  const res = await sendRequest('/TweetEmoji/', fd)
-  if (res.csrf) localStorage.setItem('csrf', res.csrf);
-
-  if (Array.isArray(res.pushContents)) {
-    for (const content of res.pushContents) {
-      pushReceive(content);
-    }
-  }
 }
 
-// ========================================
-// 🔹 モーダルを閉じる
-// ========================================
 const closeModal = () => {
   emit('closeEmoji');
 };
+
 </script>
 
 <style scoped>
+
 .modal {
   position: fixed;
   top: 0;
@@ -133,50 +107,28 @@ const closeModal = () => {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  width: 280px;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-}
-
-.close-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
 }
 
 .emoji-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
+  gap: 10px;
 }
 
 .emoji {
-  font-size: 20px;
-  cursor: pointer;
-  padding: 4px;
+  max-width: 20px;
+  max-height: 20px;
+  padding: 6px;
 }
 
 .emoji-img {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
+  max-width: 20px;
+  max-height: 20px;
+  vertical-align: middle;
+  padding: 6px;
 }
-
 .emoji-input {
-  width: 36px;
-  text-align: center;
-  font-size: 18px;
-  margin-top: 10px;
+  width: 24px;
 }
 
-.emoji-valid-err {
-  color: red;
-  font-size: 12px;
-}
 </style>

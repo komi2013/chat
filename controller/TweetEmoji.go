@@ -1,102 +1,115 @@
 package controller
 
 import (
-  "context"
-  "encoding/json"
-  "net/http"
+	"context"
+	"encoding/json"
+	"net/http"
 
-  "go.mongodb.org/mongo-driver/bson"
-  "go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
-  "chat/common"
-  "chat/collection"
+	"chat/common"
+	"chat/collection"
 )
 
-// /TweetEmoji/ : 絵文字の追加・削除を行うAPI
+// TweetEmoji : Tweetに絵文字を登録・編集する
 func TweetEmoji(w http.ResponseWriter, r *http.Request) {
-  ctx := context.Background()
-  r.ParseMultipartForm(10 << 20)
+	ctx := context.Background()
 
-  coll := common.DB.TweetDB.Collection("tweet")
+	messageID := r.FormValue("messageID") // 対象TweetのMessageID
+	emoji := r.FormValue("emoji")         // 絵文字（例: "👍"）
+	parentID := r.FormValue("parentID")   // スレッド親ID
+	csrf := r.FormValue("csrf")
 
-  parentID := r.FormValue("parentID")   // 親ドキュメントID
-  tweetID := r.FormValue("tweetID")     // 絵文字を付ける対象のtweet
-  aliasName := r.FormValue("aliasName") // 操作するユーザー
-  emojiValue := r.FormValue("emoji")    // 絵文字
-  deleteFlag := r.FormValue("delete") == "true"
-
-  if parentID == "" || tweetID == "" || aliasName == "" || emojiValue == "" {
-    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "missing parameters", http.StatusOK)
-    return
-  }
-
-	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
-	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";session check some error", http.StatusOK)
+	if messageID == "" || emoji == "" {
+		common.WriteResponseWithoutSession(w, csrf, "messageIDまたはemojiが指定されていません。", http.StatusOK)
 		return
 	}
 
-  // 該当tweetを含むドキュメントを取得
-  var tweetDoc collection.TweetStruct
-  err = coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
-  if err != nil {
-    if err == mongo.ErrNoDocuments {
-      common.WriteResponseWithSession(w, session, err.Error()+";tweet", http.StatusOK)
-      return
-    }
-    common.WriteResponseWithSession(w, session, err.Error()+";tweet other error", http.StatusOK)
-    return
-  }
-
-  found := false
-  for i, t := range tweetDoc.Tweets {
-    if t.MessageID == tweetID {
-      found = true
-      if deleteFlag {
-        // 削除処理
-        newEmojis := []collection.Emoji{}
-        for _, e := range t.Emojis {
-          if !(e.AliasName == aliasName && e.Emoji == emojiValue) {
-            newEmojis = append(newEmojis, e)
-          }
-        }
-        tweetDoc.Tweets[i].Emojis = newEmojis
-      } else {
-        // 追加処理（重複防止）
-        exists := false
-        for _, e := range t.Emojis {
-          if e.AliasName == aliasName && e.Emoji == emojiValue {
-            exists = true
-            break
-          }
-        }
-        if !exists {
-          tweetDoc.Tweets[i].Emojis = append(tweetDoc.Tweets[i].Emojis,
-            collection.Emoji{AliasName: aliasName, Emoji: emojiValue})
-        }
-      }
-      break
-    }
-  }
-
-  if !found {
-    common.WriteResponseWithSession(w, session, "tweet not found", http.StatusOK)
-    return
-  }
-
-  // 更新（ドキュメント全体置き換え）
-  _, err = coll.ReplaceOne(ctx, bson.M{"_id": parentID}, tweetDoc)
-  if err != nil {
-    common.WriteResponseWithSession(w, session, err.Error()+";tweet ReplaceOne", http.StatusOK)
-    return
-  }
-	responseData := common.BaseResponse{
-		Csrf:         session.Csrf,
-		PushContents: session.PushContents,
-		// Mail:         session.Mail,
-		// Telephone:    session.Telephone,
-		// Nickname:     session.Nickname,
+	// === セッションチェック ===
+	session, err := common.SessionCheckTake(w, r, csrf)
+	if err != nil {
+		common.WriteResponseWithoutSession(w, csrf, err.Error()+";session check error", http.StatusOK)
+		return
 	}
-  w.Header().Set("Content-Type", "application/json")
-  json.NewEncoder(w).Encode(responseData)
+
+	coll := common.DB.TweetDB.Collection("tweet")
+	var tweetDoc collection.TweetStruct
+
+	// 親スレッド取得
+	err = coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "スレッドが見つかりません:"+err.Error(), http.StatusOK)
+		return
+	}
+
+	// === 対象ツイートを探索 ===
+	var message collection.Tweet
+	found := false
+	for i, t := range tweetDoc.Tweets {
+		if t.MessageID == messageID {
+			found = true
+			emojis := t.Emojis
+			index := -1
+
+			// === 同じemoji + ニックネームが存在するか確認 ===
+			for j, e := range emojis {
+				if e.Emoji == emoji && e.AliasName == session.Nickname {
+					index = j
+					break
+				}
+			}
+
+			if index >= 0 {
+				// === 既に存在している場合は削除 ===
+				emojis = append(emojis[:index], emojis[index+1:]...)
+			} else {
+				// === 存在しない場合は追加 ===
+				emojis = append(emojis, collection.Emoji{
+					AliasName: session.Nickname,
+					Emoji:     emoji,
+				})
+			}
+
+			// 更新を反映
+			tweetDoc.Tweets[i].Emojis = emojis
+			message = tweetDoc.Tweets[i]
+			break
+		}
+	}
+
+
+	if !found {
+		common.WriteResponseWithSession(w, session, "指定されたメッセージが見つかりません。", http.StatusOK)
+		return
+	}
+
+	// === MongoDBに反映 ===
+	_, err = coll.UpdateOne(ctx,
+		bson.M{"_id": parentID},
+		bson.M{"$set": bson.M{
+			"tweets": tweetDoc.Tweets,
+		}},
+		options.Update().SetUpsert(true),
+	)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "DB更新エラー:"+err.Error(), http.StatusOK)
+		return
+	}
+
+	// ======== Response ========
+	responseData := struct {
+		Csrf           string   `json:"csrf"`
+		PushContents   []string `json:"pushContents"`
+		Message          collection.Tweet   `json:"message"`
+		// Nickname       string   `json:"nickname"`
+	}{
+		Csrf:           session.Csrf,
+		PushContents:   session.PushContents,
+		Message: message,
+		// Nickname: session.Nickname,
+
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(responseData)
 }

@@ -65,13 +65,15 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 
 	// ======== Response ========
 	responseData := struct {
-		Tweet          collection.TweetStruct   `json:"tweet"`
 		Csrf           string   `json:"csrf"`
 		PushContents   []string `json:"pushContents"`
+		Tweet          collection.TweetStruct   `json:"tweet"`
+		Nickname       string   `json:"nickname"`
 	}{
-		Tweet: tweet,
 		Csrf:           session.Csrf,
 		PushContents:   session.PushContents,
+		Tweet: tweet,
+		Nickname: session.Nickname,
 	}
 
   w.Header().Set("Content-Type", "application/json")

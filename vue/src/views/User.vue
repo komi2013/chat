@@ -81,6 +81,7 @@ async function submitUser(index) {
   res.pushContents.forEach(content => {
     pushReceive(content)
   })
+  localStorage.setItem('nickname', res.nickname)
   noticesStore.setNotice(res.message)
 }
 
