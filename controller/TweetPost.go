@@ -6,7 +6,7 @@ import (
 	// "math/rand"
 	"log"
 	"net/http"
-	"regexp"
+	// "regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,7 +22,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 
 	// === リクエストパラメータ取得 ===
 	parentID := r.FormValue("parentID")
-	parentMessageID := r.FormValue("parentMessageID")
+	backID := r.FormValue("backID")
 	messageTxt := r.FormValue("messageTxt")
 
 	if len(messageTxt) == 0 {
@@ -34,17 +34,41 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// === セッションチェック ===
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";session check error", http.StatusOK)
 		return
 	}
+	now := time.Now()
 
+	// restriction post 
+	var recentPosts []collection.TweetPost
+	for _, post := range session.TweetPosts {
+		if now.Sub(post.PostedAt) < 20*time.Hour {
+			recentPosts = append(recentPosts, post)
+			if !post.PostAdminFlag && post.ParentID == parentID && post.PostCount >= 3 {
+				common.WriteResponseWithSession(w, session, "このスレッドでは20時間以内に3回投稿しています", http.StatusOK)
+				return
+			}
+		}
+	}
+
+	limitedThreads := 0
+	for _, post := range recentPosts {
+		if !post.PostAdminFlag && post.PostCount >= 3 {
+			limitedThreads++
+		}
+	}
+
+	if limitedThreads >= 3 {
+		common.WriteResponseWithSession(w, session, "20時間以内に3つのスレッドで上限投稿しています", http.StatusOK)
+		return
+	}
+	// restriction post 
+
+	// take and make tweet data
 	coll := common.DB.TweetDB.Collection("tweet")
 	var tweetDoc collection.TweetStruct
-
-	// parentID が指定されているときのみ既存スレッドを取得
 	if parentID != "" {
 		err = coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
 		if err != nil {
@@ -52,103 +76,127 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		parentID = common.StringRand(8)
+		tweetID, err := common.CountUpID("tweetID")
+		if err != nil {
+			common.WriteResponseWithSession(w, session, err.Error()+" CountUpID error", http.StatusOK)
+			return
+		}
+		parentID = tweetID
 		tweetDoc = collection.TweetStruct{
 			ID:         parentID,
-			TweetHeads: []collection.TweetHead{},
+			TweetHead: collection.TweetHead{},
 		}		
 	}
 
-	now := time.Now()
-	userID := session.UserID
-	nickname := session.Nickname
-	nickImg := session.NickImg
-
-	var userTweets []collection.Tweet
-	threadCount := make(map[string]int)
-	var lastTweet *collection.Tweet
-
-	// === 投稿制限チェック ===
-	for _, t := range tweetDoc.Tweets {
-		if t.UserID == userID {
-			userTweets = append(userTweets, t)
-			threadCount[t.ParentID]++
-			if lastTweet == nil || t.CreatedAt > lastTweet.CreatedAt {
-				tmp := t
-				lastTweet = &tmp
-			}
-		}
-	}
-
-	if len(threadCount) >= 5 {
-		if lastTweet != nil {
-			lastTime, _ := time.Parse(time.RFC3339, lastTweet.CreatedAt)
-			if now.Sub(lastTime) < 20*time.Hour {
-				common.WriteResponseWithSession(w, session, "全体で20時間経過していません。投稿できません。", http.StatusOK)
-				return
-			}
-		}
-	} else {
-		for _, t := range userTweets {
-			if t.ParentID == parentID {
-				lastTime, _ := time.Parse(time.RFC3339, t.CreatedAt)
-				if now.Sub(lastTime) < 20*time.Hour {
-					common.WriteResponseWithSession(w, session, "このスレッドでは20時間経過していません。", http.StatusOK)
-					return
-				}
-			}
-		}
-	}
-
-	// === TweetHead更新 or 新規作成 ===
-	headFound := false
-	for i, head := range tweetDoc.TweetHeads {
-		if head.ParentID == parentID {
-			tweetDoc.TweetHeads[i].UpdatedAt = now
-			headFound = true
+	for i, t := range tweetDoc.Tweets {
+		if t.MessageID == backID {
+			// log.Printf("before=%s", common.ToJSON(tweetDoc.Tweets[i]))
+			tweetDoc.Tweets[i].TweetCount = t.TweetCount + 1
 			break
 		}
 	}
+	// log.Printf("after=%s", common.ToJSON(tweetDoc.Tweets))
+	// === TweetHead更新 or 新規作成 ===
+	// headFound := false
+	// if tweetDoc.TweetHead.ParentID == parentID {
+	// 	headFound = true
+	// }
 
-	if headFound {
+	parentMessageID := parentID
+	if backID != "" {
+		parentMessageID = backID
+	}
+
+	if tweetDoc.TweetHead.ParentID == parentID { // head found
 		// === 新規Tweet作成 ===
 		newTweet := collection.Tweet{
 			MessageID:  common.StringRand(8),
-			ParentID:   parentID,
+			ParentID:   parentMessageID,
 			MessageTxt: messageTxt,
-			Nickname:   nickname,
-			NickImg:    nickImg,
-			UserID:     userID,
+			Nickname:   session.Nickname,
+			NickImg:    session.NickImg,
+			UserID:     session.UserID,
 			CreatedAt:  now.Format(time.RFC3339),
 			BackID:     "",
 			Emojis:     []collection.Emoji{},
 		}
 		tweetDoc.Tweets = append(tweetDoc.Tweets, newTweet)
+		// --- Nicknames に session.Nickname を追加してユニーク化 ---
+		exists := false
+		for _, n := range tweetDoc.TweetHead.Nicknames {
+			if n == session.Nickname {
+				exists = true
+				break
+			}
+		}
+		if !exists && session.Nickname != "" {
+			tweetDoc.TweetHead.Nicknames = append(tweetDoc.TweetHead.Nicknames, session.Nickname)
+		}
 	} else {
-		title := GenerateTitle(messageTxt)
 		newHead := collection.TweetHead{
 			ParentID:   parentID,
-			MessageID:  parentMessageID,
-			Nickname:   nickname,
-			NickImg:    nickImg,
-			Title:      title,
+			MessageID:  parentID,
+			Nickname:   session.Nickname,
+			NickImg:    session.NickImg,
+			// Title:      title,
 			MessageTxt: messageTxt,
-			UpdatedAt:  now,
+			// UpdatedAt:  now,
 			CreatedAt:  now.Format(time.RFC3339),
-			NickNames:  []string{nickname},
+			Nicknames:  []string{session.Nickname},
 			Emojis:     []collection.Emoji{},
 		}
-		tweetDoc.TweetHeads = append(tweetDoc.TweetHeads, newHead)
+		// tweetDoc.TweetHeads = append(tweetDoc.TweetHeads, newHead)
+		tweetDoc.TweetHead = newHead
 	}
+	// take and make tweet data
+	// take sessions for push from nickname
+	var nicknameDocs []collection.NicknameStruct
+	nicknameColl := common.DB.NicknameDB.Collection("nickname")
+	cursor, err := nicknameColl.Find(ctx, bson.M{"_id": bson.M{"$in": tweetDoc.TweetHead.Nicknames}})
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+" nickname find  error", http.StatusOK)
+		return
+	}
+	if err = cursor.All(ctx, &nicknameDocs); err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+" nickname cursor decode error", http.StatusOK)
+		return
+	}
+	userIDs := []string{}
+	for _, n := range nicknameDocs {
+		userIDs = append(userIDs, n.UserID)
+	}
+	sessionColl := common.DB.SessionDB.Collection("session")
+	var filteredSessions []collection.SessionStruct
+	sessCur, err := sessionColl.Find(ctx, bson.M{"userID": bson.M{"$in": userIDs}})
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+" session find error", http.StatusOK)
+		return
+	}
+	if err = sessCur.All(ctx, &filteredSessions); err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+" session cursor decode error", http.StatusOK)
+		return
+	}
+	liteHead := collection.TweetHeadLite{
+		ParentID:   tweetDoc.TweetHead.ParentID,
+		MessageTxt: tweetDoc.TweetHead.MessageTxt,
+		CreatedAt:  tweetDoc.TweetHead.CreatedAt,
+	}
+	tweetHeadArray := []interface{}{
+		"tweetHead",        // Push識別子
+		parentID,           // parentID
+		session.Nickname,   // 更新者（SessionStructのNickname）
+		liteHead, // 通知データ本体
+	}
+	// take sessions for push from nickname
 
-	// tweetDoc.Tweets = append(tweetDoc.Tweets, newTweet)
-	log.Printf("tweetDoc=%s", common.ToJSON(tweetDoc))
+	// update data
 	_, err = coll.UpdateOne(ctx,
 		bson.M{"_id": parentID},
 		bson.M{
 			"$set": bson.M{
 				"tweets":     tweetDoc.Tweets,
-				"tweetHeads": tweetDoc.TweetHeads,
+				"tweetHead": tweetDoc.TweetHead,
+				"updatedAt": now,
 			},
 		},
 		options.Update().SetUpsert(true),
@@ -158,32 +206,79 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// === レスポンス ===
-	responseData := common.BaseResponse{
-		Csrf:     session.Csrf,
-		PushContents: session.PushContents,
+	// parentID := r.FormValue("parentID")
+	// postAdminFlagStr := r.FormValue("postAdminFlag")
+	postAdminFlag := false
+	if tweetDoc.TweetHead.Nickname == session.Nickname {
+		postAdminFlag = true
 	}
+	// postAdminFlag, _ := strconv.Atoi(postAdminFlagStr)
+	// now := time.Now()
+
+	collSession := common.DB.SessionDB.Collection("session")
+	var sessionDoc collection.SessionStruct
+	err = collSession.FindOne(ctx, bson.M{"userID": session.UserID}).Decode(&sessionDoc)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+";session not found", http.StatusOK)
+		return
+	}
+
+	// === TweetPosts 更新処理 ===
+	var updatedPosts []collection.TweetPost
+	found := false
+	for _, post := range sessionDoc.TweetPosts {
+		// 20時間以上前の投稿は削除
+		if now.Sub(post.PostedAt) >= 20*time.Hour {
+			continue
+		}
+
+		if post.ParentID == parentID {
+			found = true
+			post.PostCount++
+			post.PostAdminFlag = postAdminFlag
+			post.PostedAt = now
+		}
+		updatedPosts = append(updatedPosts, post)
+	}
+	log.Printf("updatedPosts=%s", common.ToJSON(updatedPosts))
+	// 新規スレッド投稿の場合
+	if !found {
+		newPost := collection.TweetPost{
+			ParentID:      parentID,
+			PostCount:     1,
+			PostAdminFlag: postAdminFlag,
+			PostedAt:      now,
+		}
+		updatedPosts = append(updatedPosts, newPost)
+	}
+
+	// === MongoDBに更新（Upsert相当） ===
+	_, err = collSession.UpdateOne(ctx,
+		bson.M{"userID": session.UserID},
+		bson.M{"$set": bson.M{"tweetPosts": updatedPosts}},
+		options.Update().SetUpsert(true),
+	)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+";tweetPosts update failed", http.StatusOK)
+		return
+	}
+	// update data
+
+	common.ChunkPush(filteredSessions, tweetHeadArray)
+
+	responseData := struct {
+		Csrf         string                 `json:"csrf"`
+		PushContents []string               `json:"pushContents"`
+		Date     string                 `json:"date"`
+		ParentID     string                 `json:"parentID"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+		Date:         now.Format("20060102"),
+		ParentID:     parentID,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(responseData)
 }
 
-func GenerateTitle(messageTxt string) string {
-	// HTMLタグ除去
-	re := regexp.MustCompile(`<[^>]*>`)
-	clean := re.ReplaceAllString(messageTxt, "")
-
-	// 改行などの削除
-	clean = regexp.MustCompile(`\r?\n`).ReplaceAllString(clean, "")
-
-	// 不要な記号や装飾などの軽い除去（JSの removeMark 相当の一部）
-	clean = regexp.MustCompile(`[*_~>`+"`"+`]`).ReplaceAllString(clean, "")
-
-	// 必要に応じてさらに特殊なMarkdown除去処理を追加可
-
-	// 30文字に制限（マルチバイト対応）
-	runes := []rune(clean)
-	if len(runes) > 30 {
-		return string(runes[:30]) + "…"
-	}
-	return clean
-}

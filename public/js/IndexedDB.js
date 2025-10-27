@@ -19,11 +19,12 @@ const indexedDBStores = [
   ['timestamp', 'timestampID'],
   ['timestampCode', 'code'],
   ['ticket', 'ticketID'],
+  ['tweetHead', 'parentID'],
 ];
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 118);
+    const request = indexedDB.open('chat', 119);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);

@@ -19,9 +19,14 @@
       >
     </div>
   </div>
+  <div v-if="errorMessage">
+    <p style="color:red;">{{ errorMessage }}</p>
+  </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
-
+  <p style="text-align:right; font-size:12px; color:gray;">
+    {{ remainingChars }} / 280
+  </p>
 </template>
 
 <script setup>
@@ -40,6 +45,7 @@ import { pushReceive } from '@/pushReceive/pushReceive.js';
 const props = defineProps({
   message: Object,
   threadHead: Object,
+  backID: String,
 });
 
 const message = props.message;
@@ -47,7 +53,7 @@ const message = props.message;
 let task = ref(false);
 const messageID = message.messageID
 const parentID = message.parentID
-const messagesStore = useMessagesStore();
+// const messagesStore = useMessagesStore();
 
 let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt)
@@ -63,7 +69,7 @@ async function initQuill() {
         source: function(searchTerm, renderList, mentionChar) {
           let values;
           if (mentionChar === "@") {
-            let aliasForMention = props.threadHead.nickNames
+            let aliasForMention = props.threadHead.nicknames
             values = aliasForMention.map((name) => {
               return {
                 id: name,
@@ -81,15 +87,16 @@ async function initQuill() {
           }
         },
         renderItem: function(item) {
-          const mentionWithImage = document.createElement("div");
-          if (item.icon.charAt(0) == ',') {
-            const arr = item.icon.split(',');
-            mentionWithImage.innerHTML = 
-              `<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
-          } else {
-            mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
-          }
-          return mentionWithImage;
+          return item.value
+          // const mentionWithImage = document.createElement("div");
+          // if (item.icon.charAt(0) == ',') {
+          //   const arr = item.icon.split(',');
+          //   mentionWithImage.innerHTML = 
+          //     `<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
+          // } else {
+          //   mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
+          // }
+          // return mentionWithImage;
         },
         onOpen: function() {
           const quillMentionList = document.getElementById('quill-mention-list');
@@ -102,7 +109,40 @@ async function initQuill() {
     },
     theme: 'snow'
   })
+  handleTextLimit()
+  handleAutoLink()
 }
+
+const remainingChars = ref(280)
+function handleTextLimit() {
+  quill.on('text-change', () => {
+    const text = quill.getText().trimEnd()
+    if (text.length > 280) {
+      // 制限を超えた部分を削除（過剰入力を防ぐ）
+      quill.deleteText(280, text.length)
+    }
+    remainingChars.value = 280 - quill.getLength() + 1
+  })
+}
+
+function handleAutoLink() {
+  quill.on('text-change', (delta, oldDelta, source) => {
+    if (source !== 'user') return;
+    const text = quill.getText();
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+      const url = match[0];
+      const index = match.index;
+      // すでにリンクが設定されていない場合のみリンク化
+      const formats = quill.getFormat(index, url.length);
+      if (!formats.link) {
+        quill.formatText(index, url.length, 'link', url);
+      }
+    }
+  });
+}
+
 
 onMounted(async () => {
   await initQuill()
@@ -139,16 +179,14 @@ const handleFileInputChange = (event) => {
 }
 
 let clicked = false
+const errorMessage = ref('')
 const msgUpsert = async (messageID) => {
-  console.log('align-items')
   if (quill.root.innerHTML == '<p><br></p>') return
-  console.log('b')
   if (clicked) return
   clicked = true
-  console.log('c')
   const messageData = htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   let mentionNames = [];
-  for (const name of props.threadHead.nickNames) {
+  for (const name of props.threadHead.nicknames) {
     if (messageData.includes(`＠＠${name}・＠＠`)) {
       addMentions([name])
     }
@@ -170,7 +208,8 @@ const msgUpsert = async (messageID) => {
     }
   }
   fd.append('parentID', parentID ?? '')
-  fd.append('messageTxt', messageData);
+  fd.append('messageTxt', messageData)
+  fd.append('backID', props.backID ?? '')
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/TweetPost/', fd)
   res.csrf && localStorage.setItem('csrf', res.csrf)
@@ -182,11 +221,23 @@ const msgUpsert = async (messageID) => {
   quill.root.innerHTML = ''
   fileInfo.value = []
   clicked = false;
-  if (props.threadHead.newThread) {
-    location.href = ''
+  if (res.error) {
+    errorMessage.value = res.error
+    return
   }
+  const backIDURL = props.backID ? '?backID=' + props.backID : ''
+  // console.log(`/tweet/${res.date}/${res.parentID}.html${backIDURL}`)
+  location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
+
+  // if (props.threadHead.newThread) {
+  //   location.href = ''
+  // }
 }
 
+
+  const backIDURL = props.backID ? '?backID=' + props.backID : ''
+  
+  console.log(`/tweet/.html${backIDURL}`)
 </script>
 
 <style>
@@ -272,4 +323,11 @@ const msgUpsert = async (messageID) => {
   color: blue;
 }
 
+.ql-editor a {
+  color: #007bff !important; /* 任意のリンク色に変更 */
+}
+
+.ql-editor a:hover {
+  color: #0056b3 !important;
+}
 </style>

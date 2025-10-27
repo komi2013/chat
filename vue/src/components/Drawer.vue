@@ -40,6 +40,7 @@ onMounted(async () => {
       <tr><td><a href="/user/" > ユーザー設定 </a></td></tr>
       <tr v-if="!iamGuest"><td><a href="/entryFormEdit/" > フォーム編集 </a></td></tr>
       <tr v-if="!iamGuest"><td><a href="/topEdit/" > ホームページ編集 </a></td></tr>
+      <tr><td><a href="/tweets/" > ツイート </a></td></tr>
       <tr><td><a href="/adSetting/" > 広告設定 </a></td></tr>
       <tr><td><a href="/setting/" > 設定 </a></td></tr>
       <tr><td><a href="/sign/" > サインイン </a></td></tr>

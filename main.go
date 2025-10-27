@@ -41,6 +41,7 @@ func main() {
 		http.HandleFunc("/SignInTmp/", controller.SignInTmp)
 		http.HandleFunc("/TweetEmoji/", controller.TweetEmoji)
 		http.HandleFunc("/TweetGet/", controller.TweetGet)
+		http.HandleFunc("/TweetGetLatest/", controller.TweetGetLatest)
 		http.HandleFunc("/TweetPost/", controller.TweetPost)
 		http.HandleFunc("/upload/", controller.Upload)
 		http.HandleFunc("/UserEdit/", controller.UserEdit)

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"regexp"
 
 )
 
@@ -101,3 +102,23 @@ func SliceStrContains(slice []string, target string) bool {
   return false
 }
 
+func GenerateTitle(messageTxt string) string {
+	// HTMLタグ除去
+	re := regexp.MustCompile(`<[^>]*>`)
+	clean := re.ReplaceAllString(messageTxt, "")
+
+	// 改行などの削除
+	clean = regexp.MustCompile(`\r?\n`).ReplaceAllString(clean, "")
+
+	// 不要な記号や装飾などの軽い除去（JSの removeMark 相当の一部）
+	clean = regexp.MustCompile(`[*_~>`+"`"+`]`).ReplaceAllString(clean, "")
+
+	// 必要に応じてさらに特殊なMarkdown除去処理を追加可
+
+	// 30文字に制限（マルチバイト対応）
+	runes := []rune(clean)
+	if len(runes) > 30 {
+		return string(runes[:30]) + "…"
+	}
+	return clean
+}

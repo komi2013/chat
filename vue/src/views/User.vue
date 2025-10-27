@@ -13,8 +13,16 @@ document.title = 'ユーザー設定'
 
 const user = ref(null)
 const nicknames = ref([])
-const nickname = ref(null)
-const nickImg = ref(null)
+const activeIndex = ref(0)
+const nickname = ref(localStorage.getItem('nickname'))
+const nickImg = ref('')
+const nickBio = ref('')
+const coordinateInput = ref(null)
+const fetched = ref(false)
+const errorMessage = ref('')
+const toLink = ref('')
+const noticesStore = useNoticesStore()
+const nicknameForm = ref(true)
 async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -25,24 +33,27 @@ async function findUser() {
     pushReceive(content)
   })
   user.value = res.user
-  nicknames.value = res.nicknames
+
+  const fetchedNicks = res.nicknames || []
+  fetchedNicks.forEach((n, i) => {
+    nicknames.value.push({
+      nickname: n.nickname || '',
+      nickImg: n.nickImg || ''
+    })
+    // 任意の追加処理
+    if (i === 2) nicknameForm.value = false
+  })
+  console.log('nicknames', nicknames.value)
 }
 
-const coordinateInput = ref(null)
-const fetched = ref(false)
-const errorMessage = ref('')
-const toLink = ref('')
 onMounted(async () => {
   toLink.value = localStorage.getItem('TO')
   localStorage.removeItem("TO")
   await findUser()
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
-
   }
-  if (user.value) {
-    fetched.value = true
-  }
+  if (user.value) fetched.value = true
 })
 
 function parseCoordinates() {
@@ -56,7 +67,6 @@ function parseCoordinates() {
 
   const lat = Number(parts[0])
   const lng = Number(parts[1])
-
   if (!isNaN(lat) && !isNaN(lng)) {
     user.value.latitude = lat.toFixed(2)
     user.value.longitude = lng.toFixed(2)
@@ -65,7 +75,7 @@ function parseCoordinates() {
     user.value.longitude = ''
   }
 }
-const noticesStore = useNoticesStore()
+
 async function submitUser(index) {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -85,18 +95,28 @@ async function submitUser(index) {
   noticesStore.setNotice(res.message)
 }
 
+async function switchNickname(selectedName) {
+  const selected = nicknames.value.find(n => n.nickname === selectedName)
+  if (!selected) return
+  nickname.value = selected.nickname
+  nickImg.value = selected.nickImg
+}
+
 </script>
 
 <template>
   <Drawer />
   <div id="content">
     <div>
-      <form @submit.prevent="handleSubmit" v-if="fetched">
+      <form v-if="fetched">
         <h2 class="sp_head">ユーザーページ</h2>
         <div v-if="user && user.latitude && toLink">
           <br><br><a :href="toLink"> 招待参加ページ </a><br><br>
         </div>
-        <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>
+        <div v-if="errorMessage"> 
+          <div class="errorMessage">{{ errorMessage }}</div> 
+        </div>
+
         <label>経緯度: <a href="https://maps.google.com/" target="_blank">Googleマップ</a>の右クリックで取得できます<br />
           <input v-model="coordinateInput"
                  required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
@@ -107,9 +127,10 @@ async function submitUser(index) {
         </label>
 
         <div v-if="user && user.latitude" style="margin-top: 5px; font-size: 14px;">
-          ➤ 緯度（latitude）: <strong>{{ user.latitude }}</strong><br />
-          ➤ 経度（longitude）: <strong>{{ user.longitude }}</strong>
+          ➤ 緯度: <strong>{{ user.latitude }}</strong><br />
+          ➤ 経度: <strong>{{ user.longitude }}</strong>
         </div>
+
         <div class="centralize">
           <span>　ーーー　オプション　ーーー　</span>
         </div>
@@ -122,29 +143,40 @@ async function submitUser(index) {
           <input type="text" v-model="user.telephone" placeholder="電話番号" class="divText">
         </div>
 
-        <div>
-          <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
-        </div>
-        <PeopleImg v-model="nickImg" />
+
+          <div class="nickname-editor">
+            <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
+            <PeopleImg v-model="nickImg" />
+          </div>
+
         <div class="centralize">
-          <button type="submit" class="wide-text" @click="submitUser">更新</button>
+          <button type="button" class="wide-text" @click="submitUser(activeIndex)">このニックネームを更新</button>
         </div>
       </form>
-      <ul>
-        <li v-for="nick in nicknames">
-          <img v-if="nick.nickImg && nick.nickImg.charAt(0) != ','" 
-            :src="nick.nickImg" class="min-icon">
-          <span v-if="nick.nickImg && nick.nickImg.charAt(0) == ','"
-            :style="'background-color:' + nick.nickImg.split(',')[2] "
-            class="min-icon">
-              <span>{{nick.nickImg.split(',')[1]}}</span>
-          </span>
-          <span>{{nick.nickname}}</span>
-        </li>
-      </ul>
+
+      <div v-for="(nick, i) in nicknames" :key="i">
+        <span v-if="nick.nickname !== nickname" class="select-name" @click="switchNickname(nick.nickname)" >
+          ⬜
+        </span>
+        <span v-if="nick.nickname == nickname" class="select-name" >✅</span>
+        <img v-if="nick.nickImg && nick.nickImg.charAt(0) != ','" 
+             :src="nick.nickImg" class="min-icon">
+        <span v-else-if="nick.nickImg && nick.nickImg.charAt(0) == ','"
+              :style="'background-color:' + nick.nickImg.split(',')[2]"
+              class="min-icon">
+          <span>{{ nick.nickImg.split(',')[1] }}</span>
+        </span>
+        <span>{{ nick.nickname }}</span>
+        <!-- ✅ 現在のnickname以外だけに◯を表示 -->
+      </div>
+
     </div>
   </div>
-  <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
+
+  <div id="ad_right">
+    <Advertisement /> <Advertisement /> <Advertisement />
+  </div>
+
   <NoticePopup />
 </template>
 
@@ -155,27 +187,48 @@ async function submitUser(index) {
   margin: 4px;
   padding: 4px;
 }
-
 .centralize {
   text-align: center;
   width: 100%;
 }
-
 .min-icon {
   width: 26px;
-  max-width: 26px;
   height: 26px;
-  max-height: 26px;
   border-radius: 4px;
   display: inline-flex;
-  vertical-align: middle;
   justify-content: center;
   align-items: center;
 }
-
 .divText {
   margin: 4px;
   padding: 4px;
 }
+.nickname-tabs {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+.nickname-tab {
+  margin: 0 4px;
+  padding: 6px 10px;
+  border: 1px solid #aaa;
+  background: #f8f8f8;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.nickname-tab.active {
+  background: #cde7ff;
+  border-color: #409eff;
+  font-weight: bold;
+}
+.nickname-editor {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 6px;
+}
 
+.select-name {
+  margin: 6px;
+}
 </style>

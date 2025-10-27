@@ -19,6 +19,7 @@ type SessionStruct struct {
   Telephone    string    `bson:"telephone,omitempty" json:"telephone,omitempty"`
   Nickname     string    `bson:"nickname,omitempty" json:"nickname,omitempty"`
   NickImg     string    `bson:"nickImg,omitempty" json:"nickImg,omitempty"`
+  TweetPosts  []TweetPost    `bson:"tweetPosts,omitempty" json:"tweetPosts,omitempty"`
 }
 
 type ChannelAlias struct {
@@ -27,11 +28,12 @@ type ChannelAlias struct {
     GuestFlag     bool `bson:"guestFlag,omitempty" json:"guestFlag,omitempty"`
 }
 
-type TweetPosts struct {
-    ParentID string `bson:"parentID" json:"parentID"`
-    PostedAt     time.Time `bson:"postedAt" json:"postedAt"`
+type TweetPost struct {
+    ParentID       string    `bson:"parentID" json:"parentID"`
+    PostCount      int    `bson:"postCount" json:"postCount"`
+    PostAdminFlag  bool    `bson:"postAdminFlag" json:"postAdminFlag"`
+    PostedAt       time.Time `bson:"postedAt" json:"postedAt"`
 }
-
 
 // type Content struct {
 // 	PushID string      `bson:"push_id"`

@@ -9,12 +9,14 @@ import { markdownToHtml } from '@/my/markdown';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
+  date: String,
   parentID: String,
   messages: Object,
   threadHead: Object,
   copyable: Boolean,
   messageID: String,
-  nickname: String
+  nickname: String,
+  messagesCount: String
 })
 
 function tF(a, b = null){ return timeFormat(a, b) }
@@ -24,39 +26,76 @@ const messages = computed(() => {
   return messagesStore.messages
 });
 
-const limit = 20;
-let offset = 0
+const limit = 10;
+let offset = props.messageID ? -1 : limit
 let offsetNew = 0
-const more = ref(false)
+console.log('aaa', props.messagesCount)
+const more = props.messagesCount < limit ? ref(false) : ref(true)
 const moreNew = ref(false)
 const parentMessageID = props.threadHead ? props.threadHead.parentID : ''
 const moreMessages = async (later = false) => {
-  let threads = []
-  if (props.messageID) {
-    // threads = await 
-  } else {
-    // threads = await 
+  const fd = new FormData();
+  fd.append('parentID', props.parentID);
+  fd.append('backID', props.backID ?? '');
+  fd.append('skip', offset);
+  fd.append('csrf', localStorage.getItem('csrf'));
+
+  const res = await sendRequest('/TweetGet/', fd);
+  if (res.error) {
+    errorMessage.value = res.error;
+    return;
   }
-  threads.forEach((message, index) => {
-    message.href = `/thread//${message.parentID}/?messageID=${message.messageID}`
+
+  // === 共通更新 ===
+  res.csrf && localStorage.setItem('csrf', res.csrf);
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content);
+    }
+  }
+  // nickname.value = res.nickname
+
+  const tweets = res.tweet.tweets || [];
+  const head = res.tweet.tweetHeads?.[0] || {};
+
+  // === 取得データ格納 ===
+  tweets.forEach((t, index) => {
+    t.href = `/thread/${props.parentID}/?messageID=${t.messageID}`;
     if (later) {
       if (index < limit || offset === 0) {
-        messagesStore.insert(message)
+        messagesStore.insert(t);
       }
     } else {
       if (index < limit) {
-        messagesStore.unshift(message, 1)
+        messagesStore.unshift(t, 1);
       }
     }
-  })
+  });
+
+  // === ページング処理 ===
   if (later) {
-    offsetNew = offsetNew + limit
-    moreNew.value = threads.length > limit
+    offsetNew += limit;
+    moreNew.value = tweets.length > limit;
   } else {
-    offset = offset + limit
-    more.value = threads.length > limit
+    offset += limit;
+    more.value = tweets.length > limit;
   }
-}
+
+  // === messageID指定がある場合（jump機能） ===
+  if (props.messageID) {
+    // index検索
+    const idx = tweets.findIndex(t => t.messageID === props.messageID);
+    if (idx !== -1) {
+      // DOM反映後にスクロール
+      await nextTick();
+      const el = document.querySelector(`#tweet-${props.messageID}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight'); // optional: CSSで光らせる
+      }
+    }
+  }
+};
 
 function replyable (message) {
   if (message.messageID !== message.parentID && !message.backID) {
@@ -80,12 +119,14 @@ onMounted(async () => {
 })
 
 function reply(message) {
-  const messageID = message.messageID;
-  let URL = `/thread//${secondPart}/`;
-  let queryString = message.parentID && message.parentID !== message.messageID && !message.reply
-    ? `?${createGetParams({ backID: message.parentID })}` 
-    : '';
-  location.href = URL + queryString;
+  // const messageID = message.messageID;
+  // let URL = `/tweet/${message.parentID}/`
+  // let queryString = message.parentID && message.parentID !== message.messageID && !message.reply
+  //   ? `?${createGetParams({ backID: message.parentID })}` 
+  //   : '';
+  // let queryString = `?${createGetParams({ backID: message.parentID, messageID: message.messageID })}` 
+  location.href = `/tweet/${props.date}/${message.parentID}.html?backID=${message.messageID}`
+
 }
 
 const clickEmoji = async (message, emoji) => {
@@ -134,11 +175,8 @@ const clickEmoji = async (message, emoji) => {
             <span v-if="replyable(message)"
                   :class="[{ 'selected': message.reply }, 'message-wrapper']">
               <a :class="{'message-button': message.reply}" @click="reply(message)"> 💬 </a>
-              <span v-if="message.threadCount" @click="reply(message)" class="badge">{{ message.threadCount}}</span>
+              <span v-if="message.tweetCount" @click="reply(message)" class="badge">{{ message.tweetCount}}</span>
             </span>
-            <span
-              :class="{ 'selected': message.bookmark }"
-              @click="toggleBookmark(message, threadHead)"> 🔖 </span>
             <span @click="openEmoji(message.messageID)"> 😄 </span>
           </div>
         </div>

@@ -49,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, watch } from 'vue';
 
 import { emojiRanges, isEmojiInRange, getRandomEmoji, getRandomColor } from '@/my/emoji';
 
@@ -58,6 +58,8 @@ const props = defineProps({
   modelValue: String,
   editable: Boolean
 });
+
+console.log('modelValue', props.modelValue)
 
 const emojiImg = ref(!props.modelValue || props.modelValue.charAt(0) == ',');
 
@@ -137,6 +139,24 @@ const validateEmoji = () => {
   aliasImg.value = "," + selectedEmoji.value + "," + selectedColor.value;
   emit("update:modelValue", aliasImg.value);
 };
+
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    console.log('modelValue changed →', newVal)
+    if (!newVal) return
+    aliasImg.value = newVal
+    if (newVal.charAt(0) === ',') {
+      const parts = newVal.split(',')
+      selectedEmoji.value = parts[1] || ''
+      selectedColor.value = parts[2] || '#cccccc'
+      emojiImg.value = true
+    } else {
+      emojiImg.value = false
+    }
+  },
+  { immediate: true } // 初回も実行
+)
 
 </script>
 
