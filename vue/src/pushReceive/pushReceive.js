@@ -24,6 +24,7 @@ import { timestampCode } from './timestampCode.js';
 import { timestampReport } from './timestampReport.js';
 import { timestampRevert } from './timestampRevert.js';
 import { topEdit } from './topEdit.js';
+import { tweetHead } from './tweetHead.js';
 
 export async function pushReceive(notificationData, direct = false) {
   // console.log('before data', notificationData)
@@ -75,6 +76,7 @@ export async function pushReceive(notificationData, direct = false) {
     timestampReport: timestampReport,
     timestampRevert: timestampRevert,
     topEdit: topEdit,
+    tweetHead: tweetHead,
   };
 
   const action = actions[pd[1]];

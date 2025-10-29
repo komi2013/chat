@@ -62,6 +62,13 @@ const router = createRouter({
       })
     },
     {
+      path: '/nickname/:name/',
+      component: () => import('../views/Nickname.vue'),
+      props: route => ({
+        name: route.params.name
+      })
+    },
+    {
       path: '/people/:id/:name/',
       component: () => import('../views/People.vue'),
       props: route => ({

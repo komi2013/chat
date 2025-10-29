@@ -8,6 +8,8 @@ import { removeMark } from '@/my/markdown.js'
 
 function tF(a, b = null){ return timeFormat(a, b) }
 
+document.title = 'ツイートスレッド一覧'
+
 // === 状態 ===
 const tweets = ref([]) // TweetStruct配列
 const errorMessage = ref('')
@@ -85,7 +87,6 @@ onMounted(async () => {
 <template>
   <DrawerTweet />
   <div id="content">
-    <h2>最新スレッド一覧</h2>
 
     <div v-if="!fetched"><br><br>Loading…</div>
     <div v-else>

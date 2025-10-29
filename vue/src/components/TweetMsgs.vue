@@ -153,7 +153,7 @@ const clickEmoji = async (message, emoji) => {
       <div v-if="!more || k > 0">
         <div class="msg-header">
           <div v-if="!copyable" class="icon_td">
-            <a :href="'/people/' + '' + '/' + message.nickname + '/'">
+            <a :href="'/nickname/' + message.nickname + '/'">
               <img v-if="message.nickImg && message.nickImg.charAt(0) != ','" 
                 :src="message.nickImg" class="icon-img">
               <span v-if="message.nickImg && message.nickImg.charAt(0) == ','"

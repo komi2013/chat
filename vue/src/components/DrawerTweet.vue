@@ -12,6 +12,7 @@ const tweetHeads = ref([])
 // === IndexedDBからTweetHeadを取得 ===
 const fetchTweetHeads = async () => {
   const data = await getAllIDBs('tweetHead')
+  console.log('data', data)
   if (Array.isArray(data) && data.length > 0) {
     // displayStatusの順に並べ替え（mention → unread → read → mute）
     const sorted = [
@@ -36,7 +37,8 @@ function getStatusClass(status) {
 
 // === 遷移先 ===
 function goThread(head) {
-  location.href = `/tweet/${head.parentID}.html`
+  const date = timeFormat('YYYYMMDD', head.createdAt)
+  location.href = `/tweet/${date}/${head.parentID}.html`
 }
 
 onMounted(async () => {

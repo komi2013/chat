@@ -185,15 +185,15 @@ const msgUpsert = async (messageID) => {
   if (clicked) return
   clicked = true
   const messageData = htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
+  const addMentions = (names) => {
+    for (const aliasName of names) {
+      mentionNames.push(aliasName)
+    }
+  }
   let mentionNames = [];
   for (const name of props.threadHead.nicknames) {
     if (messageData.includes(`＠＠${name}・＠＠`)) {
       addMentions([name])
-    }
-  }
-  const addMentions = (names) => {
-    for (const aliasName of names) {
-      mentionNames.push(aliasName)
     }
   }
   const fileInput = document.getElementById('fileInput_' + messageID);

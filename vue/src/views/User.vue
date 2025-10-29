@@ -20,9 +20,9 @@ const nickBio = ref('')
 const coordinateInput = ref(null)
 const fetched = ref(false)
 const errorMessage = ref('')
-const toLink = ref('')
 const noticesStore = useNoticesStore()
 const nicknameForm = ref(true)
+
 async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -38,20 +38,43 @@ async function findUser() {
   fetchedNicks.forEach((n, i) => {
     nicknames.value.push({
       nickname: n.nickname || '',
-      nickImg: n.nickImg || ''
+      nickImg: n.nickImg || '',
+      nickBio: n.nickBio || ''   // ← bio も保持
     })
-    // 任意の追加処理
     if (i === 2) nicknameForm.value = false
   })
+
+  // ✅ ローカルストレージのnicknameに一致するデータを反映
+  const storedName = localStorage.getItem('nickname')
+  const found = nicknames.value.find(n => n.nickname === storedName)
+
+  if (found) {
+    nickname.value = found.nickname
+    nickImg.value = found.nickImg
+    nickBio.value = found.nickBio || ''
+  } else if (nicknames.value.length > 0) {
+    // 一致しない場合は最初のデータを表示
+    nickname.value = nicknames.value[0].nickname
+    nickImg.value = nicknames.value[0].nickImg
+    nickBio.value = nicknames.value[0].nickBio || ''
+  }
+
   console.log('nicknames', nicknames.value)
 }
 
+const toLink = ref('')
+const isTO = ref(false)
 onMounted(async () => {
-  toLink.value = localStorage.getItem('TO')
-  localStorage.removeItem("TO")
   await findUser()
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
+  }
+  if (localStorage.getItem('TO')) {
+    isTO.value = true
+    if (user.value && user.value.latitude) {
+      toLink.value = localStorage.getItem('TO')
+      localStorage.removeItem("TO")      
+    }
   }
   if (user.value) fetched.value = true
 })
@@ -85,6 +108,7 @@ async function submitUser(index) {
   fd.append('telephone', user.value.telephone)
   fd.append('nickname', nickname.value ?? "")
   fd.append('nickImg', nickImg.value)
+  fd.append('nickBio', nickBio.value)
   const res = await sendRequest('/UserEdit/', fd)
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
@@ -92,6 +116,8 @@ async function submitUser(index) {
     pushReceive(content)
   })
   localStorage.setItem('nickname', res.nickname)
+  toLink.value = localStorage.getItem('TO')
+  localStorage.removeItem("TO")    
   noticesStore.setNotice(res.message)
 }
 
@@ -100,6 +126,7 @@ async function switchNickname(selectedName) {
   if (!selected) return
   nickname.value = selected.nickname
   nickImg.value = selected.nickImg
+  nickBio.value = selected.nickBio
 }
 
 </script>
@@ -110,8 +137,10 @@ async function switchNickname(selectedName) {
     <div>
       <form v-if="fetched">
         <h2 class="sp_head">ユーザーページ</h2>
-        <div v-if="user && user.latitude && toLink">
-          <br><br><a :href="toLink"> 招待参加ページ </a><br><br>
+        <div v-if="isTO">
+          <br><br><a :href="toLink"> 招待参加ページ </a><br>
+          <span>必須項目を登録してから参加ページにお願いします</span>
+          <br>
         </div>
         <div v-if="errorMessage"> 
           <div class="errorMessage">{{ errorMessage }}</div> 
@@ -143,11 +172,12 @@ async function switchNickname(selectedName) {
           <input type="text" v-model="user.telephone" placeholder="電話番号" class="divText">
         </div>
 
+        <div class="nickname-editor">
+          <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
+          <PeopleImg v-model="nickImg" />
+        </div>
 
-          <div class="nickname-editor">
-            <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
-            <PeopleImg v-model="nickImg" />
-          </div>
+        <textarea v-model="nickBio"></textarea>
 
         <div class="centralize">
           <button type="button" class="wide-text" @click="submitUser(activeIndex)">このニックネームを更新</button>

@@ -10,6 +10,7 @@ type NicknameStruct struct {
   NickImg     string    `bson:"nickImg,omitempty" json:"nickImg,omitempty"`
   Good         int    	`bson:"good,omitempty" json:"good,omitempty"`
   Bad   			 int    		`bson:"bad,omitempty" json:"bad,omitempty"`
+  Report   int       `bson:"report,omitempty" json:"report,omitempty"`
   NickBio			string 		`bson:"nickBio,omitempty" json:"nickBio,omitempty"`
   CreatedAt    time.Time `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
   UpdatedAt    time.Time `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
@@ -20,6 +21,7 @@ type NicknameResponse struct {
   NickImg     string    `bson:"nickImg,omitempty" json:"nickImg,omitempty"`
   Good         int    	`bson:"good,omitempty" json:"good,omitempty"`
   Bad   			 int    		`bson:"bad,omitempty" json:"bad,omitempty"`
+  Report   int       `bson:"report,omitempty" json:"report,omitempty"`
   NickBio			string 		`bson:"nickBio,omitempty" json:"nickBio,omitempty"`
   CreatedAt    time.Time `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
 }

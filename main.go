@@ -24,6 +24,7 @@ func main() {
 		http.HandleFunc("/ContentsJustPush/", controller.ContentsJustPush)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)
 		http.HandleFunc("/LogFromJS/", controller.LogFromJS)
+		http.HandleFunc("/NicknameGet/", controller.NicknameGet)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
 		http.HandleFunc("/ReceptionBook/", controller.ReceptionBook)
 		// http.HandleFunc("/ReceptionCheck/", controller.ReceptionCheck)
