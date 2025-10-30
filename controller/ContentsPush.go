@@ -84,13 +84,13 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Filtered userIDs (matched pushNames): %v", userIDs)
 
-  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0)
+  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0, 1)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs)
+	fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 2)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

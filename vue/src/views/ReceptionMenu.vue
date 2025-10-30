@@ -21,9 +21,6 @@ const selectedChoices = ref([]);
 let nickname
 async function findReception() {
   const fd = new FormData()
-  fd.append('channelID', localStorage.getItem('channelID'))
-  fd.append('aliasName', myname)
-  // ↑ for staff
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('receptionID', props.id)
   fd.append('code', props.code)
@@ -95,13 +92,10 @@ function getItemNames(itemIds, itemDetails) {
   }
   return ['データがありません'];
 }
-let channel
-let myname
+
 const errorMessage = ref('')
 onMounted(async() => {
-  channel = await getIDB('channel', localStorage.getItem('channelID'))
-  myname = channel ? channel.myname : ''
-  await findReception();
+  await findReception()
 });
 
 const receptionOrders = ref([]);
@@ -109,22 +103,18 @@ const receptionOrders = ref([]);
 async function addCart(menu) {
   console.log('menu', menu)
   const receptionOrder = createReceptionOrder(menu)
-  // await upsertIDB(receptionOrder, 'receptionOrder', 'receptionOrderID', receptionOrder.receptionOrderID)
   receptionOrders.value.push(receptionOrder)
 }
 
 function createReceptionOrder(menu) {
-  // seq を自動生成
   let seq = incrementBase62Smart(localStorage.getItem('cartItemSeq'));
   localStorage.setItem('cartItemSeq', seq);
-  // 必要情報の参照
   const itemDetailsMaster = reception.value.itemDetails;
   const opts = selectedOptions.value[menu.menuID] || {
     freeOptions: [],
     paidOptions: [],
     freeMultiOptions: []
   };
-  // pureChoices をここで正規化
   const pureChoices = Object.entries(selectedChoices.value[menu.menuID] || {})
     .filter(([_, val]) => val !== '' && val !== null && val !== undefined)
     .reduce((obj, [key, val]) => {
@@ -140,8 +130,6 @@ function createReceptionOrder(menu) {
   });
   const paidOptionsPrice = paidOptions.reduce((sum, opt) => sum + opt.price, 0);
   const price = menu.price + paidOptionsPrice;
-
-  // 基本オブジェクト（空あり）
   let order = {
     receptionOrderID: `${menu.menuID}${nickname}${seq}`,
     seatName: seatName.value,
@@ -159,8 +147,6 @@ function createReceptionOrder(menu) {
       choices: Array.isArray(d.choices) ? d.choices : []
     }))
   };
-
-  // 空データを削除
   order = Object.fromEntries(
     Object.entries(order).filter(([_, v]) => {
       if (Array.isArray(v)) return v.length > 0;       // 空配列は消す
@@ -173,13 +159,9 @@ function createReceptionOrder(menu) {
 }
 
 function removeOrder(receptionOrderID) {
-  // 配列から削除
   receptionOrders.value = receptionOrders.value.filter(
     order => order.receptionOrderID !== receptionOrderID
   );
-
-  // IndexedDB から削除
-  // deleteFromIDB('receptionOrder', receptionOrderID);
 }
 
 const totalPrice = computed(() => {
@@ -192,9 +174,6 @@ const totalPrice = computed(() => {
 async function order() {
   if (!confirm("注文")) { return }
   const fd = new FormData()
-  // fd.append('channelID', localStorage.getItem('channelID'))
-  // fd.append('nickname', nickname)
-  // ↑ for staff
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('receptionID', props.id)
   fd.append('receptionOrders', JSON.stringify(receptionOrders.value))
@@ -204,9 +183,6 @@ async function order() {
   const res = await sendRequest('/ReceptionOrder/', fd)
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
-  // res.pushContents.forEach(content => {
-  //   pushReceive(content)
-  // })
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)

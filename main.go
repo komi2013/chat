@@ -56,12 +56,10 @@ func main() {
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
 		switch os.Args[1] {
-		case "AdPublish":
-			console.AdPublish()
-		case "TestPush":
-			console.TestPush()
-		case "TestCode":
-			console.TestCode()
+			case "AdPublish":	console.AdPublish()
+			case "FileClean":	console.FileClean()
+			case "TestPush": console.TestPush()
+			case "TestCode": console.TestCode()
 		}
 	}
 }

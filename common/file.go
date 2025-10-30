@@ -24,7 +24,7 @@ import (
 
 )
 
-func ImgSave(img string, userID string, name string, channelID string, fileIDLength int) (string, error) {
+func ImgSave(img string, userID string, name string, channelID string, fileIDLength int, fileType int) (string, error) {
 	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
@@ -34,11 +34,15 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			LogError("failed to decode base64", err)
 			return "", fmt.Errorf("failed to decode base64: %w", err)
 		}
-		fileID := StringRand(fileIDLength)
+		nameTail := StringRand(fileIDLength)
+		fileID, err := CountUpID("fileID")
+		if err != nil {
+			return "", fmt.Errorf("fileID CountUpID: %w", err)
+		}
     if channelID == "" {
-      channelID = "tweet"
+      channelID = "-tweet-"
     }
-    fileName := name + fileID
+    fileName := name + nameTail
 		dirPath := OSImgDir + "/img/" + channelID + "/"
 		err = os.MkdirAll("."+dirPath, 0755)
 		if err != nil {
@@ -62,24 +66,17 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 		fileSizeMB = math.Floor(fileSizeMB*100) / 100
 		coll := DB.FileDB.Collection("file")
 		fileDocument := collection.FileStruct{
-			// FileID:     channelID + fileName,
+			FileID:     fileID,
 			ChannelID:  channelID,
 			UploadedBy: userID,
-			ImgPath:    imgPath,
+			FilePath:   filePath,
+			PublicPath:  imgPath,
 			FileSize:   fileSizeMB,
-			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+			FileType: fileType,
 		}
-		filter := bson.M{"_id": channelID + fileName}
-		update := bson.M{
-	    "$set": bson.M{
-        "channelID":  fileDocument.ChannelID,
-        "uploadedBy": fileDocument.UploadedBy,
-        "imgPath":    fileDocument.ImgPath,
-        "fileSize":   fileDocument.FileSize,
-        "createdAt":  fileDocument.CreatedAt,
-	    },
-		}
-
+		filter := bson.M{"_id": fileID}
+		update := bson.M{"$set": fileDocument}
 		opts := options.Update().SetUpsert(true)
 		_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 		if err != nil {
@@ -90,7 +87,7 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 	return imgPath, nil
 }
 
-func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string) ([]string, error) {
+func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string, fileType int) ([]string, error) {
 	const (
 		maxFileSize      = 100 << 20 // 100MB (1ファイルあたりの上限)
 		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
@@ -131,7 +128,11 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 		}
 		defer file.Close()
 
-		fileID := StringRand(4)
+		// fileID := StringRand(4)
+		fileID, err := CountUpID("fileID")
+		if err != nil {
+			return nil, fmt.Errorf("fileID CountUpID: %w", err)
+		}
 		filePath := fmt.Sprintf("/upload/file/%s/%s/%s", channelID, fileID, fileHeader.Filename)
 		saveDir := fmt.Sprintf(UploadDir + "/upload_data/file/%s/%s/", channelID, fileID)
 
@@ -161,10 +162,12 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 			FileID:      fileID,
 			ChannelID:   channelID,
 			UploadedBy:  uploadedBy,
-			ImgPath:     filePath,
+			FilePath:     saveDir + fileHeader.Filename,
+			PublicPath:  filePath,
 			FileSize:    fileSizeMB,
-			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 			AvailableBy: userIDs,
+			FileType: fileType,
 		}
 
 		_, err = coll.InsertOne(context.TODO(), fileDoc)

@@ -62,6 +62,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
         aliasName,
         channelID,
         3,
+        1,
       )
       if err != nil {
         common.WriteResponseWithSession(w, session, "ItemDetails[i].ImgPath: " + err.Error(), http.StatusOK)

@@ -56,16 +56,17 @@ export const markdownToHtml = (markdown) => {
     return ''; 
   }
   let html = markdown.replace(/<(?!\/?(table|thead|tbody|tfoot|tr|th|td)\b)[^>]*>/gi, '');
-  html = html.replace(/\n/g, '');
-  html = applyEmphasis(html);
-  html = applyStrikethrough(html);
-  html = applyBlockquotes(html);
-  html = applyCodeBlocks(html);
-  html = applyAttach(html);
-  html = applyLinks(html);
-  html = applyColors(html);
-  html = applyMention(html);
-  html = applyParagraphs(html);
+  html = html.replace(/\n/g, '')
+  html = applyEmphasis(html)
+  html = applyStrikethrough(html)
+  html = applyBlockquotes(html)
+  html = applyCodeBlocks(html)
+  html = applyAttach(html)
+  html = applyImage(html)
+  html = applyLinks(html)
+  html = applyColors(html)
+  html = applyMention(html)
+  html = applyParagraphs(html)
   return html;
 };
 
@@ -88,6 +89,10 @@ const applyCodeBlocks = (markdown) => {
 const applyAttach = (markdown) => {
   return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="$1" download>$1</a></p>`);
 };
+
+const applyImage = (markdown) => {
+  return markdown.replace(/＊img＊([^]*?)・＊img＊/g, `<div class="img-center"><img src="$1" alt="expired"></div>`);
+}
 
 const applyLinks = (markdown) => {
   return markdown.replace(/「([^]*?)」（([^]*?)）/g, '<a href="$2" target="_blank">$1</a>');

@@ -372,4 +372,7 @@ code {
   width: max-content;
   right: 0px;
 }
+.img-center {
+  text-align: center;
+}
 </style>

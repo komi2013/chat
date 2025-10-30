@@ -183,6 +183,8 @@ const errorMessage = ref('')
 const msgUpsert = async (messageID) => {
   if (quill.root.innerHTML == '<p><br></p>') return
   if (clicked) return
+  const imgOK = await getImagePath(messageID)
+  if (!imgOK) return
   clicked = true
   const messageData = htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
   const addMentions = (names) => {
@@ -196,21 +198,18 @@ const msgUpsert = async (messageID) => {
       addMentions([name])
     }
   }
-  const fileInput = document.getElementById('fileInput_' + messageID);
-  if (fileInput && fileInput.files.length > 10) {
-    alert('too many files');
-    return;
-  }
-  const fd = new FormData();
-  if (fileInput && fileInput.files.length > 0) {
-    for (const file of fileInput.files) {
-      fd.append('files[]', file);
-    }
-  }
+  // const imgPath = getImagePath()
+  // const imgOK = await getImagePath(messageID)
+  // if (imgOK === false) {
+  //   clicked = false;
+  //   return;
+  // }
+  const fd = new FormData()
   fd.append('parentID', parentID ?? '')
   fd.append('messageTxt', messageData)
   fd.append('backID', props.backID ?? '')
   fd.append('csrf', localStorage.getItem('csrf'))
+  fd.append('imgPath', imgPath)
   const res = await sendRequest('/TweetPost/', fd)
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
@@ -227,13 +226,77 @@ const msgUpsert = async (messageID) => {
   }
   const backIDURL = props.backID ? '?backID=' + props.backID : ''
   // console.log(`/tweet/${res.date}/${res.parentID}.html${backIDURL}`)
-  location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
+  // location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
 
   // if (props.threadHead.newThread) {
   //   location.href = ''
   // }
 }
 
+let imgPath = ''
+async function getImagePath(messageID) {
+  const fileInput = document.getElementById('fileInput_' + messageID);
+  // ファイルなし（画像なし投稿OK）
+  if (!fileInput || fileInput.files.length === 0) {
+    return true
+  }
+
+  // 複数枚 → エラー
+  if (fileInput.files.length > 1) {
+    alert('アップロードできるのは画像1枚のみです');
+    return false
+  }
+
+  const file = fileInput.files[0];
+
+  // 非画像ファイル → エラー
+  if (!file.type.startsWith('image/')) {
+    alert('画像ファイルのみアップロード可能です');
+    return false
+  }
+
+  // Canvas経由でBase64化（最大250px）
+  imgPath = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 250;
+        let width = img.width;
+        let height = img.height;
+
+        // アスペクト比を維持したままリサイズ
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round(height * (maxSize / width));
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round(width * (maxSize / height));
+            height = maxSize;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // JPEGでBase64化（品質90%）
+        const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+        resolve(dataURL);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  return true
+}
 
   const backIDURL = props.backID ? '?backID=' + props.backID : ''
   

@@ -21,7 +21,6 @@ import (
 )
 
 func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
-	nickname := r.FormValue("nickname")
 	receptionID := r.FormValue("receptionID")
 
   code := r.FormValue("code")
@@ -135,8 +134,12 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
   var arr []interface{}
 	arr = append(arr, "receptionOrder")
 	arr = append(arr, reception.ChannelID)
-	arr = append(arr, nickname)
+	arr = append(arr, session.Nickname)
 	arr = append(arr, orders)
+
+// anybody any phone can order but order history will be different data 
+// former phone order and latter phone order
+
 	common.ChunkPush(sessions, arr)
 
 	responseData := common.BaseResponse{

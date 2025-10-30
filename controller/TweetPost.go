@@ -20,7 +20,6 @@ import (
 func TweetPost(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
-	// === リクエストパラメータ取得 ===
 	parentID := r.FormValue("parentID")
 	backID := r.FormValue("backID")
 	messageTxt := r.FormValue("messageTxt")
@@ -65,6 +64,12 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// restriction post 
+
+  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, session.Nickname, "", 3, 1)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error()+";ImgSave", http.StatusOK)
+		return
+	}
 
 	// take and make tweet data
 	coll := common.DB.TweetDB.Collection("tweet")
@@ -112,7 +117,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		newTweet := collection.Tweet{
 			MessageID:  common.StringRand(8),
 			ParentID:   parentMessageID,
-			MessageTxt: messageTxt,
+			MessageTxt: messageTxt + "＊img＊" + imgPath + "・＊img＊",
 			Nickname:   session.Nickname,
 			NickImg:    session.NickImg,
 			UserID:     session.UserID,

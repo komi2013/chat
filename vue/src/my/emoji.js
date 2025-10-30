@@ -109,16 +109,15 @@ export const rotateEmoji = (emoji) => {
   masterEmojis = masterEmojis.filter(e => e !== emoji);
   masterEmojis.unshift(emoji);
   const imageEmojis = masterEmojis.filter(e => e.startsWith('/img/'));
-  const normalEmojis = masterEmojis.filter(e => !e.startsWith('/img/')).slice(0, 34);
+  const normalEmojis = masterEmojis.filter(e => !e.startsWith('/img/')).slice(0, 35);
   masterEmojis = [...normalEmojis, ...imageEmojis];
   localStorage.setItem('emojis', JSON.stringify(masterEmojis));
 };
 
-
 export let masterEmojis = JSON.parse(localStorage.getItem('emojis')) || [
-  '🙇','😁','🤔','😂','🤣','😱','😭','😅',
+  '🙇','😁','🤔','😂','🤣','😱','😭','😅','👍','👌',
   '/img/arigatou.png','/img/kakunin.png','/img/odaijini.png','/img/soudesune.png',
   '/img/naruhodo.png','/img/shouchi.png',
-  '👍','👎','👌','👏','💪','🤝','✅','☑️','🎉','💖','🔥','🎶',
+  '👎','👏','💪','🤝','✅','☑️','🎉','💖','🔥','🎶',
   '😜','😋','😇','😊','😎','🥰','🤩','🚫'
 ];

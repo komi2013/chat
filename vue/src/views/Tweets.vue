@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-// import { sendRequest } from '@/my/common.js'
 import DrawerTweet from '@/components/DrawerTweet.vue'
 
 import { pushReceive } from '@/pushReceive/pushReceive.js'
@@ -10,13 +9,10 @@ function tF(a, b = null){ return timeFormat(a, b) }
 
 document.title = 'ツイートスレッド一覧'
 
-// === 状態 ===
-const tweets = ref([]) // TweetStruct配列
+const tweets = ref([])
 const errorMessage = ref('')
 const fetched = ref(false)
-// const nickname = ref('')
 
-// === 最新Tweet取得 ===
 async function fetchLatestTweets() {
   const fd = new FormData();
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -33,46 +29,8 @@ async function fetchLatestTweets() {
   }
   if (Array.isArray(res.tweets)) tweets.value = res.tweets
   fetched.value = true
-  // try {
-  //   const fd = new FormData()
-  //   fd.append('csrf', localStorage.getItem('csrf') || '')
-
-  //   const res = await sendRequest('/TweetGetLatest/', fd)
-
-  //   if (res.error) {
-  //     errorMessage.value = res.error
-  //     return
-  //   }
-
-  //   if (res.csrf) localStorage.setItem('csrf', res.csrf)
-  //   nickname.value = res.nickname
-
-  //   if (Array.isArray(res.tweets)) {
-  //     tweets.value = res.tweets
-  //   } else {
-  //     errorMessage.value = '取得データが不正です'
-  //   }
-  // } catch (e) {
-  //   console.error('TweetGetLatest error:', e)
-  //   errorMessage.value = 'サーバーとの通信に失敗しました'
-  // } finally {
-  //   fetched.value = true
-  // }
 }
 
-// === 日付フォーマット ===
-// function formatDate(isoStr) {
-//   if (!isoStr) return ''
-//   const date = new Date(isoStr)
-//   return date.toLocaleString('ja-JP', {
-//     month: '2-digit',
-//     day: '2-digit',
-//     hour: '2-digit',
-//     minute: '2-digit'
-//   })
-// }
-
-// === タイトル生成 ===
 function getTitle(text) {
   if (!text) return '(無題)'
   const plain = removeMark(text).replace(/<[^>]+>/g, '')
@@ -87,7 +45,7 @@ onMounted(async () => {
 <template>
   <DrawerTweet />
   <div id="content">
-
+    <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="/tweet/">新規作成</a></div>
     <div v-if="!fetched"><br><br>Loading…</div>
     <div v-else>
       <div v-if="errorMessage" class="error">
