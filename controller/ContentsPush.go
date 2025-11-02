@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "log"
+  // "log"
   "net/http"
   "time"
 
@@ -16,10 +16,11 @@ import (
 )
 
 func ContentsPush(w http.ResponseWriter, r *http.Request) {
+  csrf := r.FormValue("csrf")
+
 	var pushNames []string
   if err := json.Unmarshal([]byte(r.FormValue("pushNames")), &pushNames); err != nil {
-  	log.Printf("pushNames: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON pushNames", http.StatusBadRequest)
+    common.WriteResponseWithoutSession(w, csrf, err.Error()+";Invalid JSON pushNames", http.StatusOK)
     return
   }
 
@@ -29,21 +30,18 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 
   var contents interface{}
   if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); err != nil {
-  	log.Printf("contents: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON contents", http.StatusBadRequest)
+    common.WriteResponseWithoutSession(w, csrf, err.Error()+";Invalid JSON contents", http.StatusOK)
     return
   }
 
 	if err := r.ParseMultipartForm(10 << 20); err != nil { // 最大10MB
-		log.Printf("ParseMultipartForm: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, "Failed to parse form because more than 10MB", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, csrf, err.Error()+";files more than 10MB", http.StatusOK)
 		return
 	}
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
-  	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
     return
 	}
 
@@ -54,8 +52,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
     }
   }
   if !trueAccess {
-    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
-    http.Error(w, "no true access right", http.StatusServiceUnavailable)
+    common.WriteResponseWithSession(w, session, "no true access right", http.StatusOK)
     return
   }
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -82,30 +79,30 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	log.Printf("Filtered userIDs (matched pushNames): %v", userIDs)
+	var contentsPush = common.NewDailyLogger("contents_push_channel_id")
+	contentsPush.Printf(channelID)
 
   imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0, 1)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, err.Error()+";imgPath", http.StatusOK)
 		return
 	}
 
 	fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 2)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, err.Error()+";FileSave", http.StatusOK)
 		return
 	}
 
-  // coll := db1.Collection("session")
   coll := common.DB.SessionDB.Collection("session")
   filter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
   cursor, err := coll.Find(context.TODO(), filter)
   if err != nil {
-    log.Printf("coll.Find: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error()+";coll.Find", http.StatusOK)
   }
   var sessions []collection.SessionStruct
   if err = cursor.All(context.TODO(), &sessions); err != nil {
-    log.Printf("cursor.All: %v; Req: ", err, userIDs, r.URL.Path, r.Form)
+  	common.WriteResponseWithSession(w, session, err.Error()+";cursor.All", http.StatusOK)
   }
   filteredSessions := common.FilterSessionsByChannelID(sessions, channelID)
   var arr []interface{}
@@ -120,11 +117,6 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   }
   
 	common.ChunkPush(filteredSessions, arr)
-
-	// session, err = common.ReGenerateData(db1, session)
-	// if err != nil {
-	// 	log.Printf("ReGenerateData: %v; Req:", err, r.URL.Path, r.Form)
-	// }
 
 	responseData := struct {
 		Csrf         string        `json:"csrf"`

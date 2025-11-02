@@ -1,11 +1,14 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
+import Quill from 'quill'
+import 'quill/dist/quill.snow.css'
 
 import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 import PeopleImg from '@/components/PeopleImg.vue';
 
+import { htmlToMarkdown, markdownToHtml } from '@/my/markdown.js'
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 import { useNoticesStore } from '@/stores/notices.js';
 
@@ -33,34 +36,71 @@ async function findUser() {
     pushReceive(content)
   })
   user.value = res.user
-
   const fetchedNicks = res.nicknames || []
   fetchedNicks.forEach((n, i) => {
     nicknames.value.push({
       nickname: n.nickname || '',
       nickImg: n.nickImg || '',
-      nickBio: n.nickBio || ''   // ← bio も保持
+      nickBio: n.nickBio || ''
     })
     if (i === 2) nicknameForm.value = false
   })
-
-  // ✅ ローカルストレージのnicknameに一致するデータを反映
   const storedName = localStorage.getItem('nickname')
   const found = nicknames.value.find(n => n.nickname === storedName)
-
   if (found) {
     nickname.value = found.nickname
     nickImg.value = found.nickImg
     nickBio.value = found.nickBio || ''
   } else if (nicknames.value.length > 0) {
-    // 一致しない場合は最初のデータを表示
     nickname.value = nicknames.value[0].nickname
     nickImg.value = nicknames.value[0].nickImg
     nickBio.value = nicknames.value[0].nickBio || ''
   }
-
-  console.log('nicknames', nicknames.value)
 }
+
+let quillBio
+function initQuillBio() {
+  const toolbarOptions = [
+    ['bold', 'strike'],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    ['blockquote', 'code-block'],
+    [{ 'color': [] }, { 'background': [] }]
+  ]
+  quillBio = new Quill('#nickBioEditor', {
+    theme: 'snow',
+    modules: { toolbar: toolbarOptions }
+  })
+
+  if (nickBio.value) {
+    quillBio.root.innerHTML = markdownToHtml(nickBio.value)
+  }
+  quillBio.on('text-change', (delta, oldDelta, source) => {
+    if (source !== 'user') return
+    const text = quillBio.getText().trimEnd()
+    if (text.length > 200) {
+      quillBio.deleteText(200, text.length)
+      return
+    }
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    let match
+    while ((match = urlRegex.exec(text)) !== null) {
+      const url = match[0]
+      const index = match.index
+      const formats = quillBio.getFormat(index, url.length)
+      if (!formats.link) {
+        quillBio.formatText(index, url.length, 'link', url)
+      }
+    }
+    const html = quillBio.root.innerHTML
+    nickBio.value = htmlToMarkdown(html)
+  })
+}
+
+watch(nickBio, (newVal) => {
+  if (quillBio && newVal !== htmlToMarkdown(quillBio.root.innerHTML)) {
+    quillBio.root.innerHTML = markdownToHtml(newVal || '')
+  }
+})
 
 const toLink = ref('')
 const isTO = ref(false)
@@ -99,6 +139,34 @@ function parseCoordinates() {
   }
 }
 
+const nicknameFormVisible = ref(false)
+const editingMode = ref('')
+
+const editableNickname = ref('')
+
+const MAX_NICKNAMES = 3
+
+async function openNicknameForm(mode) {
+  if (mode === 'new' && nicknames.value.length >= MAX_NICKNAMES) {
+    alert('ニックネームは3つまで作成できます。')
+    return
+  }
+
+  editingMode.value = mode
+  nicknameFormVisible.value = true
+
+  if (mode === 'edit') {
+    editableNickname.value = nickname.value
+  } else {
+    editableNickname.value = ''
+    nickImg.value = ''
+    nickBio.value = ''
+    if (quillBio) quillBio.root.innerHTML = ''
+  }
+  await nextTick()
+  initQuillBio()
+}
+
 async function submitUser(index) {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -106,18 +174,22 @@ async function submitUser(index) {
   fd.append('longitude', user.value.longitude)
   fd.append('mail', user.value.mail)
   fd.append('telephone', user.value.telephone)
-  fd.append('nickname', nickname.value ?? "")
   fd.append('nickImg', nickImg.value)
   fd.append('nickBio', nickBio.value)
+
+  if (editingMode.value === 'new') {
+    fd.append('nickname', editableNickname.value)
+  } else {
+    fd.append('nickname', nickname.value)
+  }
+
   const res = await sendRequest('/UserEdit/', fd)
   if (!res.csrf) errorMessage.value = res
   res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
+  res.pushContents.forEach(content => pushReceive(content))
   localStorage.setItem('nickname', res.nickname)
-  toLink.value = localStorage.getItem('TO')
-  localStorage.removeItem("TO")    
+
+  nicknameFormVisible.value = false
   noticesStore.setNotice(res.message)
 }
 
@@ -127,6 +199,7 @@ async function switchNickname(selectedName) {
   nickname.value = selected.nickname
   nickImg.value = selected.nickImg
   nickBio.value = selected.nickBio
+  if (quillBio) quillBio.root.innerHTML = markdownToHtml(selected.nickBio || '')
 }
 
 </script>
@@ -163,24 +236,43 @@ async function switchNickname(selectedName) {
         <div class="centralize">
           <span>　ーーー　オプション　ーーー　</span>
         </div>
-
         <div>
           <input type="text" v-model="user.mail" placeholder="メール" class="divText">
         </div>
-
         <div>
           <input type="text" v-model="user.telephone" placeholder="電話番号" class="divText">
         </div>
-
-        <div class="nickname-editor">
-          <input type="text" v-model="nickname" placeholder="ニックネーム" class="divText">
-          <PeopleImg v-model="nickImg" />
+        <div v-if="!nicknameFormVisible" class="centralize">
+          <button type="button" class="wide-text" @click="openNicknameForm('edit')">
+            このニックネームを変更
+          </button>
+          <button type="button" class="wide-text" @click="openNicknameForm('new')">
+            新しいニックネームを作成
+          </button>
         </div>
 
-        <textarea v-model="nickBio"></textarea>
-
+        <div v-if="nicknameFormVisible" class="nickname-editor">
+          <h3 v-if="editingMode === 'edit'">ニックネームの編集</h3>
+          <h3 v-if="editingMode === 'new'">新しいニックネームを作成</h3>
+          <input
+            type="text"
+            v-model="editableNickname"
+            :disabled="editingMode === 'edit'"
+            placeholder="ニックネーム"
+            class="divText"
+          />
+          <PeopleImg v-model="nickImg" />
+          <div class="bio-editor">
+            <div id="nickBioEditor" class="quill-editor"></div>
+          </div>
+          <div class="centralize">
+            <button type="button" class="wide-text" @click="nicknameFormVisible = false">
+              キャンセル
+            </button>
+          </div>
+        </div>
         <div class="centralize">
-          <button type="button" class="wide-text" @click="submitUser(activeIndex)">このニックネームを更新</button>
+          <button type="button" class="wide-text" @click="submitUser(activeIndex)">更新</button>
         </div>
       </form>
 
@@ -197,9 +289,7 @@ async function switchNickname(selectedName) {
           <span>{{ nick.nickImg.split(',')[1] }}</span>
         </span>
         <span>{{ nick.nickname }}</span>
-        <!-- ✅ 現在のnickname以外だけに◯を表示 -->
       </div>
-
     </div>
   </div>
 
@@ -257,8 +347,22 @@ async function switchNickname(selectedName) {
   margin-top: 8px;
   border-radius: 6px;
 }
-
 .select-name {
   margin: 6px;
 }
+.quill-editor {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px;
+  margin: 4px;
+  background: #fff;
+}
+.ql-toolbar.ql-snow {
+  border: 1px solid #ccc;
+  border-bottom: none;
+}
+.bio-editor {
+  margin-top: 10px;
+}
+
 </style>

@@ -26,10 +26,13 @@ const messages = computed(() => {
   return messagesStore.messages
 });
 
+console.log(props.nickname, props.threadHead.nickname)
+
+const iAmAdmin = ref(props.nickname === props.threadHead.nickname)
+
 const limit = 10;
 let offset = props.messageID ? -1 : limit
 let offsetNew = 0
-console.log('aaa', props.messagesCount)
 const more = props.messagesCount < limit ? ref(false) : ref(true)
 const moreNew = ref(false)
 const parentMessageID = props.threadHead ? props.threadHead.parentID : ''
@@ -46,19 +49,16 @@ const moreMessages = async (later = false) => {
     return;
   }
 
-  // === 共通更新 ===
   res.csrf && localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content);
     }
   }
-  // nickname.value = res.nickname
 
   const tweets = res.tweet.tweets || [];
   const head = res.tweet.tweetHeads?.[0] || {};
 
-  // === 取得データ格納 ===
   tweets.forEach((t, index) => {
     t.href = `/thread/${props.parentID}/?messageID=${t.messageID}`;
     if (later) {
@@ -71,8 +71,6 @@ const moreMessages = async (later = false) => {
       }
     }
   });
-
-  // === ページング処理 ===
   if (later) {
     offsetNew += limit;
     moreNew.value = tweets.length > limit;
@@ -80,18 +78,14 @@ const moreMessages = async (later = false) => {
     offset += limit;
     more.value = tweets.length > limit;
   }
-
-  // === messageID指定がある場合（jump機能） ===
   if (props.messageID) {
-    // index検索
     const idx = tweets.findIndex(t => t.messageID === props.messageID);
     if (idx !== -1) {
-      // DOM反映後にスクロール
       await nextTick();
       const el = document.querySelector(`#tweet-${props.messageID}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('highlight'); // optional: CSSで光らせる
+        el.classList.add('highlight');
       }
     }
   }
@@ -142,7 +136,39 @@ const clickEmoji = async (message, emoji) => {
   });
   messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
   rotateEmoji(emoji.emoji);
-};
+}
+
+const deleteMessage = async (messageID) => {
+  if (!confirm("🗑削除")) return
+  const fd = new FormData()
+  fd.append('parentID', props.parentID)
+  fd.append('messageID', messageID)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetPost/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = ''
+}
+
+const reportName = async (nickname) => {
+  if (!confirm("🚫ブロック")) return
+  const fd = new FormData()
+  fd.append('parentID', props.parentID)
+  fd.append('blockName', nickname)
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetPost/', fd)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  // location.href = ''
+}
 
 </script>
 
@@ -178,6 +204,8 @@ const clickEmoji = async (message, emoji) => {
               <span v-if="message.tweetCount" @click="reply(message)" class="badge">{{ message.tweetCount}}</span>
             </span>
             <span @click="openEmoji(message.messageID)"> 😄 </span>
+            <span v-if="iAmAdmin" @click="deleteMessage(message.messageID)"> 🗑 </span>
+            <span v-if="iAmAdmin" @click="reportName(message.nickname)"> 🚫 </span>
           </div>
         </div>
         <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >

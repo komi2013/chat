@@ -46,7 +46,7 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nickname.NickImg, err = common.ImgSave(r.FormValue("nickImg"), session.UserID, nickname.Nickname, "", 3, 3)
+	nickname.NickImg, err = common.ImgSave(r.FormValue("nickImg"), session.UserID, nickname.Nickname, "", 0, 3)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

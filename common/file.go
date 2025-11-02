@@ -40,7 +40,7 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			return "", fmt.Errorf("fileID CountUpID: %w", err)
 		}
     if channelID == "" {
-      channelID = "-tweet-"
+      channelID = "-no-channel-"
     }
     fileName := name + nameTail
 		dirPath := OSImgDir + "/img/" + channelID + "/"

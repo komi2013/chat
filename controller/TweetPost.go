@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	// "math/rand"
-	"log"
+	// "log"
 	"net/http"
 	// "regexp"
 	"time"
@@ -23,8 +23,9 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	parentID := r.FormValue("parentID")
 	backID := r.FormValue("backID")
 	messageTxt := r.FormValue("messageTxt")
-
-	if len(messageTxt) == 0 {
+	messageID := r.FormValue("messageID")
+	blockName := r.FormValue("blockName")
+	if len(messageTxt) == 0 && messageID == "" && blockName == "" {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "本文が空です。", http.StatusOK)
 		return
 	}
@@ -38,8 +39,11 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";session check error", http.StatusOK)
 		return
 	}
+	if session.Nickname == "" {
+		common.WriteResponseWithSession(w, session, "ニックネームが登録されていません", http.StatusOK)
+		return
+	}
 	now := time.Now()
-
 	// restriction post 
 	var recentPosts []collection.TweetPost
 	for _, post := range session.TweetPosts {
@@ -54,7 +58,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 
 	limitedThreads := 0
 	for _, post := range recentPosts {
-		if !post.PostAdminFlag && post.PostCount >= 3 {
+		if post.PostCount >= 3 {
 			limitedThreads++
 		}
 	}
@@ -70,7 +74,9 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		common.WriteResponseWithSession(w, session, err.Error()+";ImgSave", http.StatusOK)
 		return
 	}
-
+	if imgPath != "" {
+		messageTxt = messageTxt + "＊img＊" + imgPath + "・＊img＊"
+	}
 	// take and make tweet data
 	coll := common.DB.TweetDB.Collection("tweet")
 	var tweetDoc collection.TweetStruct
@@ -92,20 +98,32 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 			TweetHead: collection.TweetHead{},
 		}		
 	}
-
-	for i, t := range tweetDoc.Tweets {
-		if t.MessageID == backID {
-			// log.Printf("before=%s", common.ToJSON(tweetDoc.Tweets[i]))
-			tweetDoc.Tweets[i].TweetCount = t.TweetCount + 1
-			break
+	iamAdmin := false
+	if tweetDoc.TweetHead.Nickname == session.Nickname {
+		iamAdmin = true
+	}
+	for _, b := range tweetDoc.TweetHead.BlockNames {
+		if b == session.Nickname && !iamAdmin {
+			common.WriteResponseWithSession(w, session, "あなたはブロックされています", http.StatusOK)
+			return
 		}
 	}
-	// log.Printf("after=%s", common.ToJSON(tweetDoc.Tweets))
-	// === TweetHead更新 or 新規作成 ===
-	// headFound := false
-	// if tweetDoc.TweetHead.ParentID == parentID {
-	// 	headFound = true
-	// }
+	newTweets := make([]collection.Tweet, 0, len(tweetDoc.Tweets))
+	for i, t := range tweetDoc.Tweets {
+		// 🔹 backID の tweetCount カウントアップ
+		if t.MessageID == backID {
+			t.TweetCount++
+		}
+
+		// 🔹 削除条件（messageID が指定されていて、削除対象に一致）
+		if t.MessageID == messageID && iamAdmin {
+			continue // ← append せずスキップ（削除）
+		}
+
+		// 🔹 残すツイートを追加
+		newTweets = append(newTweets, tweetDoc.Tweets[i])
+	}
+	tweetDoc.Tweets = newTweets
 
 	parentMessageID := parentID
 	if backID != "" {
@@ -113,11 +131,10 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tweetDoc.TweetHead.ParentID == parentID { // head found
-		// === 新規Tweet作成 ===
 		newTweet := collection.Tweet{
 			MessageID:  common.StringRand(8),
 			ParentID:   parentMessageID,
-			MessageTxt: messageTxt + "＊img＊" + imgPath + "・＊img＊",
+			MessageTxt: messageTxt,
 			Nickname:   session.Nickname,
 			NickImg:    session.NickImg,
 			UserID:     session.UserID,
@@ -125,8 +142,9 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 			BackID:     "",
 			Emojis:     []collection.Emoji{},
 		}
-		tweetDoc.Tweets = append(tweetDoc.Tweets, newTweet)
-		// --- Nicknames に session.Nickname を追加してユニーク化 ---
+		if messageTxt != "" {
+			tweetDoc.Tweets = append(tweetDoc.Tweets, newTweet)
+		}
 		exists := false
 		for _, n := range tweetDoc.TweetHead.Nicknames {
 			if n == session.Nickname {
@@ -134,8 +152,11 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		if !exists && session.Nickname != "" {
+		if !exists {
 			tweetDoc.TweetHead.Nicknames = append(tweetDoc.TweetHead.Nicknames, session.Nickname)
+		}
+		if blockName != "" {
+			tweetDoc.TweetHead.BlockNames = append(tweetDoc.TweetHead.BlockNames, blockName)
 		}
 	} else {
 		newHead := collection.TweetHead{
@@ -211,14 +232,10 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// parentID := r.FormValue("parentID")
-	// postAdminFlagStr := r.FormValue("postAdminFlag")
 	postAdminFlag := false
 	if tweetDoc.TweetHead.Nickname == session.Nickname {
 		postAdminFlag = true
 	}
-	// postAdminFlag, _ := strconv.Atoi(postAdminFlagStr)
-	// now := time.Now()
 
 	collSession := common.DB.SessionDB.Collection("session")
 	var sessionDoc collection.SessionStruct
@@ -245,7 +262,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		}
 		updatedPosts = append(updatedPosts, post)
 	}
-	log.Printf("updatedPosts=%s", common.ToJSON(updatedPosts))
+	// log.Printf("updatedPosts=%s", common.ToJSON(updatedPosts))
 	// 新規スレッド投稿の場合
 	if !found {
 		newPost := collection.TweetPost{

@@ -23,7 +23,11 @@
       <button @click="closeModal"> x </button>
       <br>
       <span v-if="emojiValidErr" class="emoji-valid-err">絵文字か1文字にしてください</span>
+      <div v-if="errorMessage">
+        <p style="color:red;">{{ errorMessage }}</p>
+      </div>      
     </div>
+
   </div>
 </template>
 
@@ -42,6 +46,8 @@ const props = defineProps([
   'parentID'
 ]);
 
+const errorMessage = ref('')
+
 const emit = defineEmits()
 const messagesStore = useMessagesStore()
 const selectEmoji = async (emoji) => {
@@ -55,9 +61,13 @@ const selectEmoji = async (emoji) => {
   res.pushContents.forEach(content => {
     pushReceive(content);
   });
-  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
   rotateEmoji(emoji)
-  emit('closeEmoji')
+  if ( res.error ) {
+    errorMessage.value = res.error
+  } else {
+    messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+    emit('closeEmoji')
+  }
 };
 
 const selectedEmoji = ref('');
@@ -76,10 +86,15 @@ const inputEmoji = async () => {
   res.csrf && localStorage.setItem('csrf', res.csrf);
   res.pushContents.forEach(content => {
     pushReceive(content);
-  });
-  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
-  rotateEmoji(selectedEmoji.value);
-  emit('closeEmoji');
+  })
+
+  rotateEmoji(selectedEmoji.value)
+  if ( res.error ) {
+    errorMessage.value = res.error
+  } else {
+    messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+    emit('closeEmoji')
+  }
 }
 
 const closeModal = () => {

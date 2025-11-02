@@ -128,7 +128,6 @@ async function initQuill() {
 let editable = ref(false)
 onMounted(async () => {
   editable.value = !props.threadHead.broadcastFlag || (props.threadHead.broadcastFlag && props.threadHead.adminNames.includes(localStorage.getItem('myname')))
-  // console.log('editable', editable)
   if (editable.value) {
     await initQuill()
   }
@@ -194,7 +193,6 @@ const msgUpsert = async (messageID, delMessage) => {
   let toInquiryUser = false
   if (dm) {
     const splitNames = props.threadHead.parentID.split('@')
-    console.log('splitNames', splitNames)
     if (splitNames[0] == "") toInquiryUser = true
     const matchedGroup = props.groups.find(group => splitNames.includes(group.groupName))
     const dmAliasNames = matchedGroup?.aliasNames || []

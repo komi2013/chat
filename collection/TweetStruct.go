@@ -42,6 +42,7 @@ type TweetHead struct {
   CreatedAt     string    `bson:"createdAt,omitempty" json:"createdAt,omitempty"`
   Emojis        []Emoji  `bson:"emojis,omitempty" json:"emojis,omitempty"`
   MessageID     string    `bson:"messageID,omitempty" json:"messageID,omitempty"`
+  BlockNames   []string  `bson:"blockNames" json:"blockNames"`
 }
 
 type TweetHeadLite struct {

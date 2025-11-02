@@ -23,7 +23,7 @@ const msg = {
   messageID: '',
   parentID: parentID
 }
-// console.log('parentID', parentID)
+
 const threadHead = ref({ parentID: '', title: '' })
 const fetched = ref(false)
 const errorMessage = ref('')
@@ -37,7 +37,7 @@ async function fetchThreadHead() {
     threadHead.value = { parentID: '', title: '新規スレッド', nicknames: [] }
     return
   }
-  const fd = new FormData();
+  const fd = new FormData()
   fd.append('parentID', parentID)
   fd.append('backID', props.backID ?? '')
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -190,6 +190,7 @@ function backTo() {
           :threadHead="threadHead"
           :backID="backID"
           :tweetPosts="tweetPosts"
+          :newTweet="!parentID"
         />
       </div>
 

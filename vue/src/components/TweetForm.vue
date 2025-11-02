@@ -46,18 +46,15 @@ const props = defineProps({
   message: Object,
   threadHead: Object,
   backID: String,
+  newTweet: Boolean,
 });
 
 const message = props.message;
-// console.log('message', message)
 let task = ref(false);
 const messageID = message.messageID
 const parentID = message.parentID
-// const messagesStore = useMessagesStore();
-
 let editTxt = ref({});
 editTxt.value[messageID] = markdownToHtml(props.message.messageTxt)
-
 let quill
 async function initQuill() {
   quill = new Quill('#edit_' + messageID, {
@@ -78,7 +75,6 @@ async function initQuill() {
               };
             });
           }
-
           if (searchTerm.length === 0) {
             renderList(values, searchTerm);
           } else {
@@ -88,15 +84,6 @@ async function initQuill() {
         },
         renderItem: function(item) {
           return item.value
-          // const mentionWithImage = document.createElement("div");
-          // if (item.icon.charAt(0) == ',') {
-          //   const arr = item.icon.split(',');
-          //   mentionWithImage.innerHTML = 
-          //     `<span class="min-icon" style="background-color:${arr[2]}"><span>${arr[1]}</span></span>${item.value}`;
-          // } else {
-          //   mentionWithImage.innerHTML = `<img src="${item.icon}" class="min-icon">${item.value}`;
-          // }
-          // return mentionWithImage;
         },
         onOpen: function() {
           const quillMentionList = document.getElementById('quill-mention-list');
@@ -118,7 +105,6 @@ function handleTextLimit() {
   quill.on('text-change', () => {
     const text = quill.getText().trimEnd()
     if (text.length > 280) {
-      // 制限を超えた部分を削除（過剰入力を防ぐ）
       quill.deleteText(280, text.length)
     }
     remainingChars.value = 280 - quill.getLength() + 1
@@ -134,7 +120,6 @@ function handleAutoLink() {
     while ((match = urlRegex.exec(text)) !== null) {
       const url = match[0];
       const index = match.index;
-      // すでにリンクが設定されていない場合のみリンク化
       const formats = quill.getFormat(index, url.length);
       if (!formats.link) {
         quill.formatText(index, url.length, 'link', url);
@@ -178,12 +163,14 @@ const handleFileInputChange = (event) => {
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 
+console.log('newThread', props.newTweet)
+
 let clicked = false
 const errorMessage = ref('')
 const msgUpsert = async (messageID) => {
   if (quill.root.innerHTML == '<p><br></p>') return
   if (clicked) return
-  const imgOK = await getImagePath(messageID)
+  const imgOK = await getImagePath(messageID) // make imgPath
   if (!imgOK) return
   clicked = true
   const messageData = htmlToMarkdown(quill.root.innerHTML.replace(/\uFEFF/g, ''));
@@ -198,12 +185,6 @@ const msgUpsert = async (messageID) => {
       addMentions([name])
     }
   }
-  // const imgPath = getImagePath()
-  // const imgOK = await getImagePath(messageID)
-  // if (imgOK === false) {
-  //   clicked = false;
-  //   return;
-  // }
   const fd = new FormData()
   fd.append('parentID', parentID ?? '')
   fd.append('messageTxt', messageData)
@@ -217,6 +198,7 @@ const msgUpsert = async (messageID) => {
       await pushReceive(content)
     }
   }
+  console.log('what??')
   quill.root.innerHTML = ''
   fileInfo.value = []
   clicked = false;
@@ -224,13 +206,15 @@ const msgUpsert = async (messageID) => {
     errorMessage.value = res.error
     return
   }
-  const backIDURL = props.backID ? '?backID=' + props.backID : ''
-  // console.log(`/tweet/${res.date}/${res.parentID}.html${backIDURL}`)
-  // location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
+  let location_href
+  if (props.newTweet) {
+    const backIDURL = props.backID ? '?backID=' + props.backID : ''
 
-  // if (props.threadHead.newThread) {
-  //   location.href = ''
-  // }
+    location_href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
+  } else {
+    location_href = ''
+  }
+  console.log(location_href)
 }
 
 let imgPath = ''
@@ -298,9 +282,8 @@ async function getImagePath(messageID) {
   return true
 }
 
-  const backIDURL = props.backID ? '?backID=' + props.backID : ''
-  
-  console.log(`/tweet/.html${backIDURL}`)
+const backIDURL = props.backID ? '?backID=' + props.backID : ''
+
 </script>
 
 <style>
@@ -310,11 +293,6 @@ async function getImagePath(messageID) {
   width: 99%;
 }
 
-/*.editRight {
-  display: inline-block;
-  width: 30%;
-}
-*/
 .editText .ql-container.ql-snow {
   border: 1px solid #d1d5db;
   border-bottom-width: 0;

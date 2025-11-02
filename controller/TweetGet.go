@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"log"
+	// "log"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,10 +17,9 @@ import (
 func TweetGet(w http.ResponseWriter, r *http.Request) {
 	parentID := r.FormValue("parentID")
 	backID := r.FormValue("backID")
-	// skipStr := r.FormValue("skip")
 	csrf := r.FormValue("csrf")
 	if parentID == "" {
-		common.WriteResponseWithoutSession(w, csrf, "parentID is required", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, csrf, "parentID is required", http.StatusOK)
 		return
 	}
 
@@ -36,8 +35,7 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 	// === セッションチェック ===
 	session, err := common.SessionCheckTake(w, r, csrf)
 	if err != nil {
-		log.Printf("SessionCheckTake: %v; Req: %v", err, r.URL.Path)
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
 		return
 	}
 
@@ -45,8 +43,6 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	coll := common.DB.TweetDB.Collection("tweet")
-
-	// === ドキュメント取得 ===
 	var tweetDoc collection.TweetStruct
 	err = coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
 	if err != nil {
@@ -54,21 +50,9 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// === 絞り込み処理 ===
 	var filteredTweets []collection.Tweet
-	// var filteredHead collection.TweetHead
-
-	// if backID != "" {
-	// 	// log.Printf("tweetDoc.Tweets: %s", common.ToJSON(tweetDoc.Tweets))
-
-	// } else {
-	// 	// 全スレッド
-	// 	filteredTweets = tweetDoc.Tweets
-		
-	// }
 	filteredHead := tweetDoc.TweetHead
 	for _, t := range tweetDoc.Tweets {
-		// log.Printf("Tweets: %s", common.ToJSON(t))
 		if t.ParentID == backID {
 			filteredTweets = append(filteredTweets, t)
 		} else if backID == "" && t.ParentID == parentID {
@@ -80,7 +64,6 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 				MessageTxt: t.MessageTxt,
 				Nickname:   t.Nickname,
 				NickImg:    t.NickImg,
-				// UpdatedAt:  time.Now(),
 				Nicknames:  tweetDoc.TweetHead.Nicknames,
 				BackID:     t.BackID,
 				CreatedAt:  t.CreatedAt,
@@ -90,8 +73,7 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 			filteredHead = head
 		}
 	}
-	// log.Printf("filteredTweets: %s", common.ToJSON(filteredTweets))
-	// === ページング (skip, limit) ===
+
 	start := skip
 	end := skip + limit + 1
 
@@ -100,12 +82,9 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 		// filteredTweets = filteredTweets
 	} else {
 		total := len(filteredTweets)
-
-		// --- 範囲外チェック ---
 		if start >= total {
 			filteredTweets = []collection.Tweet{}
 		} else {
-			// --- 後ろからのインデックス計算 ---
 			revStart := total - end
 			if revStart < 0 {
 				revStart = 0
@@ -118,7 +97,6 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// === レスポンス形式統一 ===
 	responseData := struct {
 		Csrf         string                 `json:"csrf"`
 		PushContents []string               `json:"pushContents"`

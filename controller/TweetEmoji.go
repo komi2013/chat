@@ -40,6 +40,13 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, b := range tweetDoc.TweetHead.BlockNames {
+		if b == session.Nickname {
+			common.WriteResponseWithSession(w, session, "あなたはブロックされています", http.StatusOK)
+			return
+		}
+	}
+
 	var message collection.Tweet
 	found := false
 	emojiCountUpDown := 0
