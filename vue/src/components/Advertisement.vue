@@ -20,13 +20,14 @@ function selectValidAd() {
   } else {
     currentAd.value = null;
   }
+  console.log(currentAd.value)
 }
 
 let intervalId = null;
 
 onMounted(() => {
   selectValidAd();
-  intervalId = setInterval(selectValidAd, 60 * 1000); // 毎分実行
+  intervalId = setInterval(selectValidAd, 120 * 1000); // 毎分実行
 });
 
 onUnmounted(() => {

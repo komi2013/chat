@@ -137,8 +137,8 @@ function parseCoordinates(ad) {
 }
 
 async function submitAd(index) {
-  const ad = ads.value[index];
-  const fd = new FormData();
+  const ad = ads.value[index]
+  const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   const bannerBase64 = isBase64Image(previewBanner.value)
     ? previewBanner.value
@@ -146,21 +146,22 @@ async function submitAd(index) {
   const squareBase64 = isBase64Image(previewSquare.value)
     ? previewSquare.value
     : await imageUrlToBase64(previewSquare.value);
-  fd.append('previewBanner', bannerBase64);
-  fd.append('previewSquare', squareBase64);
-  fd.append('adText', ad.adText);
-  fd.append('adLink', ad.adLink);
-  fd.append('latitude', ad.latitude);
-  fd.append('longitude', ad.longitude);
-  fd.append('adStart', `${ad.adStartDay}${String(ad.adStartHour).padStart(2, '0')}`);
-  fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`);
-  fd.append('distance', ad.distance);
-  const res = await sendRequest('/AdEdit/', fd);
+  fd.append('adID', ad.adID)
+  fd.append('previewBanner', bannerBase64)
+  fd.append('previewSquare', squareBase64)
+  fd.append('adText', ad.adText)
+  fd.append('adLink', ad.adLink)
+  fd.append('latitude', ad.latitude)
+  fd.append('longitude', ad.longitude)
+  fd.append('adStart', `${ad.adStartDay}${String(ad.adStartHour).padStart(2, '0')}`)
+  fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`)
+  fd.append('distance', ad.distance)
+  const res = await sendRequest('/AdEdit/', fd)
   if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+    pushReceive(content)
+  })
 }
 
 function isBase64Image(str) {

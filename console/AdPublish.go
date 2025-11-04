@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-	// "go.mongodb.org/mongo-driver/mongo"
-	// "go.mongodb.org/mongo-driver/mongo/options"
 
   "chat/collection"
 	"chat/common"
@@ -17,70 +15,48 @@ import (
 func AdPublish() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	// client, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-	// if err != nil {
-	// 	log.Fatalf("MongoDB接続エラー: %v", err)
-	// }
-	// defer client.Disconnect(ctx)
-
-	// db := client.Database(common.MongoDb1)
-
+	var adPublishLog = common.NewDailyLogger("ad_publish_")
+	var adPublishErrLog = common.NewDailyLogger("ad_publish_err_")
 	now := time.Now()
-
 	var targetHour int
 	if now.Minute() >= 30 {
 		targetHour = (now.Hour() + 11) % 24
 	} else {
 		targetHour = (now.Hour() + 10) % 24
 	}
-
 	weekDay := int(now.Weekday()) + 1
 	if weekDay > 7 {
 		weekDay = 1
 	}
-
 	adStartKey := weekDay*100 + targetHour
-	log.Printf("adStartKey: %v", adStartKey)
+	adPublishLog.Printf("adStartKey: %v", adStartKey)
 	filter := bson.M{
 		"adStart": adStartKey,
 	}
-
-	// adColl := db.Collection("ad")
 	adColl := common.DB.AdDB.Collection("ad")
 	cursor, err := adColl.Find(ctx, filter)
 	if err != nil {
-		log.Fatalf("Findエラー: %v", err)
+		adPublishErrLog.Printf("Findエラー: %v", err)
 	}
-
 	var ads []collection.AdStruct
 	if err := cursor.All(ctx, &ads); err != nil {
 		log.Fatalf("Decodeエラー: %v", err)
 	}
-
-	// userColl := db.Collection("user")
 	userColl := common.DB.UserDB.Collection("user")
-	// sessionColl := db.Collection("session")
 	sessionColl := common.DB.SessionDB.Collection("session")
-
 	for _, ad := range ads {
 		delta := float64(ad.Distance) / 100.0
-
 		minLat := ad.Latitude - delta
 		maxLat := ad.Latitude + delta
 		minLng := ad.Longitude - delta
 		maxLng := ad.Longitude + delta
-
 		fmt.Printf("Ad [%s] 範囲: Lat %.2f~%.2f, Lng %.2f~%.2f\n", ad.UserID, minLat, maxLat, minLng, maxLng)
-
 		twoWeeksAgo := time.Now().AddDate(0, 0, -14)
-
 		userFilter := bson.M{
 			"latitude":  bson.M{"$gte": minLat, "$lte": maxLat},
 			"longitude": bson.M{"$gte": minLng, "$lte": maxLng},
 			"signedAt": bson.M{"$gte": twoWeeksAgo},
 		}
-
 		var users []collection.UserStruct
 		cursor, err := userColl.Find(ctx, userFilter)
 		if err != nil {
@@ -91,23 +67,19 @@ func AdPublish() {
 			log.Printf("ユーザーデコードエラー: %v", err)
 			continue
 		}
-
 		var userIDs []string
 		for _, u := range users {
 			fmt.Printf("  - UserID: %s (Lat: %.2f, Lng: %.2f)\n", u.UserID, u.Latitude, u.Longitude)
 			userIDs = append(userIDs, u.UserID)
 		}
-
 		if len(userIDs) == 0 {
 			fmt.Println("  → 該当ユーザーなし → セッション検索スキップ")
 			continue
 		}
-
 		// Session検索
 		sessionFilter := bson.M{
 			"userID": bson.M{"$in": userIDs},
 		}
-
 		var sessions []collection.SessionStruct
 		cursor, err = sessionColl.Find(ctx, sessionFilter)
 		if err != nil {
@@ -131,10 +103,7 @@ func AdPublish() {
 	  arr = append(arr, ad.AdEnd)
 	  arr = append(arr, ad.AdLink)
 	  arr = append(arr, ad.PathSquare)
-	  // arr = append(arr, ad.PathBanner)
-	  // arr = append(arr, ad.AdText)
 		common.ChunkPush(sessions, arr)
-
 		filter := bson.M{
 			"userID": ad.UserID, // ← AdStruct に `ID primitive.ObjectID` が必要
 		}
@@ -144,13 +113,11 @@ func AdPublish() {
 				"updatedAt":  time.Now(),
 			},
 		}
-
 		res, err := adColl.UpdateOne(ctx, filter, update)
 		if err != nil {
 			log.Printf("広告 [%s] の非アクティブ化失敗: %v", ad.UserID, err)
 			continue
 		}
-
 		fmt.Printf("広告 [%s] を非アクティブ化（matched: %d, modified: %d）\n", ad.UserID, res.MatchedCount, res.ModifiedCount)
 	}
 }

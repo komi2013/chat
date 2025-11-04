@@ -5,6 +5,7 @@ import (
 )
 
 type AdStruct struct {
+	AdID string  `bson:"_id" json:"adID"`
 	PathBanner string  `bson:"pathBanner" json:"pathBanner"`
 	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
 	AdText     string  `bson:"adText" json:"adText"`
@@ -29,6 +30,17 @@ type AdPriceStruct struct {
 	AdEnd          int     `bson:"adEnd" json:"adEnd"`                   // 例: 059
 	AdPriceYen     int     `bson:"adPriceYen" json:"adPriceYen"`
 	UpdatedAt      time.Time    `bson:"updatedAt"`
+}
+
+type AdResponse struct {
+	// AdStart    int     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
+	// AdEnd      int     `bson:"adEnd" json:"adEnd"`        // 例: 223（月曜23時）
+	PathBanner string  `bson:"pathBanner" json:"pathBanner"`
+	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
+	AdText     string  `bson:"adText" json:"adText"`
+	AdLink     string  `bson:"adLink" json:"adLink"`
+	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
+	UpdatedAt  time.Time    `bson:"updatedAt" json:"updatedAt,omitempty"`
 }
 
 // 近畿の範囲

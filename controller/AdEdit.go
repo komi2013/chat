@@ -1,28 +1,18 @@
 package controller
 
 import (
-  // "bytes"
   "chat/collection"
   "chat/common"
   "context"
-  // "encoding/base64"
   "encoding/json"
-  // "errors"
-  // "image"
-  // "image/jpeg"
-  // "image/png"
-  // "io"
-  // "log"
   "net/http"
   "strconv"
   "strings"
   "time"
 
   _ "image/gif"
-  // _ "image/webp"
 
   "go.mongodb.org/mongo-driver/bson"
-  // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -136,16 +126,28 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   ad.UserID = session.UserID
   ad.UpdatedAt = time.Now()
 
-  filter := bson.M{
-    "userID":  ad.UserID,
-  }
+	adID := r.FormValue("adID")
+	if adID == "" {
+		newID, err := common.CountUpID("adID")
+		if err != nil {
+			common.WriteResponseWithSession(w, session, err.Error()+" CountUpID error", http.StatusOK)
+			return
+		}
+		ad.AdID = newID
+	} else {
+		ad.AdID = adID
+	}
+
+	filter := bson.M{
+		"adID": ad.AdID,
+		"userID": ad.UserID,
+	}
 
   update := bson.M{
     "$set": ad,
   }
 
   opts := options.Update().SetUpsert(true)
-
   adCollection := common.DB.AdDB.Collection("ad")
   _, err = adCollection.UpdateOne(ctx, filter, update, opts)
   if err != nil {

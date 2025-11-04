@@ -1,18 +1,18 @@
 <script setup>
-import { RouterView } from 'vue-router';
-import { onMounted } from 'vue';
+import { RouterView } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { loadAdvertisements } from '@/my/advertisement'
 
-onMounted(async () => { //for outsideApp
-  window.advertisements = await getAllIDBs('advertisement');
+const initialized = ref(false)
+
+onMounted(async () => {
+  await loadAdvertisements()
+  initialized.value = true // ✅ 完了後に RouterView を描画
 })
-
-
 </script>
 
 <template>
-  <RouterView />
+  <div v-if="initialized">
+    <RouterView />
+  </div>
 </template>
-
-<style scoped>
-
-</style>

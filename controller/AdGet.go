@@ -11,20 +11,12 @@ import (
   "time"
 
   "go.mongodb.org/mongo-driver/bson"
-  // "go.mongodb.org/mongo-driver/mongo"
-  // "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AdGet(w http.ResponseWriter, r *http.Request) {
 
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
@@ -33,7 +25,6 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  // coll := db1.Collection("ad")
   coll := common.DB.AdDB.Collection("ad")
   filter := bson.M{
     "userID": session.UserID,
