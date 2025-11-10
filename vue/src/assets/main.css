@@ -23,10 +23,12 @@ a {
     min-width: 1000px;
   }
 
+/*
   #container {
     display: flex;
-    min-width: 1012px; /* 300 + 400 + 300 = 1000pxが最低 */
+    min-width: 1012px;  300 + 400 + 300 = 1000pxが最低
   }
+*/
 
   #drawer {
     margin-top : -1px;

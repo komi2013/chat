@@ -12,7 +12,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="initialized">
+  <template v-if="initialized">
     <RouterView />
-  </div>
+  </template>
 </template>

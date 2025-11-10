@@ -17,8 +17,12 @@ type AdStruct struct {
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
 	Distance   int     `bson:"distance" json:"distance"`   // 半径のスケール
 	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
-	UpdatedAt  time.Time    `bson:"updatedAt"`
-	ActiveFlag bool    `bson:"activeFlag,omitempty" json:"activeFlag,omitempty"`
+	UpdatedAt  time.Time  `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
+	PaidAt time.Time  `bson:"paidAt,omitempty" json:"paidAt,omitempty"`
+	InvoicedAt time.Time  `bson:"invoicedAt,omitempty" json:"invoicedAt,omitempty"`
+	PublishedAt time.Time    `bson:"published,omitempty" json:"published,omitempty"`
+	NextInvoicedFlag bool    `bson:"nextInvoicedFlag,omitempty" json:"nextInvoicedFlag,omitempty"` // when no geo ad, running current ad and want ad next week
+  CurrentRunFlag bool    `bson:"currentRunFlag,omitempty" json:"currentRunFlag,omitempty"`
 }
 
 type AdPriceStruct struct {
@@ -29,7 +33,8 @@ type AdPriceStruct struct {
 	AdStart        int     `bson:"adStart" json:"adStart"`               // 例: 000
 	AdEnd          int     `bson:"adEnd" json:"adEnd"`                   // 例: 059
 	AdPriceYen     int     `bson:"adPriceYen" json:"adPriceYen"`
-	UpdatedAt      time.Time    `bson:"updatedAt"`
+	UpdatedAt      time.Time   `bson:"updatedAt" json:"updatedAt"`
+	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
 }
 
 type AdResponse struct {

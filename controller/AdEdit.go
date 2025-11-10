@@ -58,18 +58,18 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   }
   startDay, err := strconv.Atoi(adStartStr[:1])
   startHour, err2 := strconv.Atoi(adStartStr[1:])
-  if err != nil || err2 != nil || startDay < 0 || startDay > 6 || startHour < 0 || startHour > 23 {
-    common.WriteResponseWithoutSession(w, csrf, err.Error()+err2.Error()+";開始時刻形式が不正（曜日:0-6, 時:00-23）:", http.StatusOK)
+  if err != nil || err2 != nil || startDay < 1 || startDay > 7 || startHour < 0 || startHour > 24 {
+    common.WriteResponseWithoutSession(w, csrf, err.Error()+err2.Error()+";開始時刻形式が不正（曜日:1-7, 時:00-24）:", http.StatusOK)
     return
   }
   endDay, err := strconv.Atoi(adEndStr[:1])
   endHour, err2 := strconv.Atoi(adEndStr[1:])
-  if err != nil || err2 != nil || endDay < 0 || endDay > 6 || endHour < 0 || endHour > 23 {
-    common.WriteResponseWithoutSession(w, csrf, err.Error()+err2.Error()+";終了時刻形式が不正（曜日:0-6, 時:00-23）:", http.StatusOK)
+  if err != nil || err2 != nil || endDay < 1 || endDay > 7 || endHour < 0 || endHour > 24 {
+    common.WriteResponseWithoutSession(w, csrf, err.Error()+err2.Error()+";終了時刻形式が不正（曜日:1-7, 時:00-24）:", http.StatusOK)
     return
   }
-  ad.AdStart = startDay*100 + startHour // 例: 0*100 + 0 = 000
-  ad.AdEnd   = endDay*100 + endHour     // 例: 0*100 + 1 = 001
+  ad.AdStart = startDay*100 + startHour
+  ad.AdEnd   = endDay*100 + endHour
   distanceStr := r.FormValue("distance")
   distance := 0
   if distanceStr != "" {
@@ -79,25 +79,49 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   }
   ad.Distance = distance
 
+  // === セッション確認 ===
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
     common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
     return
   }
 
-	previewBanner := r.FormValue("previewBanner")
-	if previewBanner != "" {
-	  path, err := common.SaveBase64Image(previewBanner, session.UserID, "Banner")
-	  if err != nil {
-	    common.WriteResponseWithSession(w, session, err.Error()+";Banner画像保存失敗", http.StatusOK)
-	    return
-	  }
-	  ad.PathBanner = path
-	}
+  adID := r.FormValue("adID")
+
+  // === 🔍 ユーザーの既存広告チェック ===
+  ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+  defer cancel()
+
+  adCollection := common.DB.AdDB.Collection("ad")
+  var existingAds []collection.AdStruct
+  cursor, err := adCollection.Find(ctx, bson.M{"userID": session.UserID})
+  if err != nil {
+    common.WriteResponseWithSession(w, session, err.Error()+";Find error", http.StatusOK)
+    return
+  }
+  if err := cursor.All(ctx, &existingAds); err != nil {
+    common.WriteResponseWithSession(w, session, err.Error()+";cursor decode error", http.StatusOK)
+    return
+  }
+
+  // === 条件チェック ===
+  if len(existingAds) >= 2 {
+    existing := existingAds[0]
+    if adID == "" {
+      // 新規登録だけど既に1件存在
+      common.WriteResponseWithSession(w, session, "現在は1ユーザーにつき2件のみ登録可能です", http.StatusOK)
+      return
+    }
+    if adID != existing.AdID {
+      // 既存のadIDと一致しない（他人や別データ）
+      common.WriteResponseWithSession(w, session, "指定された広告はこのユーザーに属していません", http.StatusOK)
+      return
+    }
+  }
 
 	previewSquare := r.FormValue("previewSquare")
 	if previewSquare != "" {
-	  path, err := common.SaveBase64Image(previewSquare, session.UserID, "Square")
+	  path, err := common.SaveBase64Image(previewSquare, session.UserID, "_" + adID)
 	  if err != nil {
 	    common.WriteResponseWithSession(w, session, err.Error()+";Square画像保存失敗", http.StatusOK)
 	    return
@@ -105,20 +129,18 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 	  ad.PathSquare = path
 	}
 
-  ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-  defer cancel()
-
+  // === 価格計算 ===
   priceList, err := common.GetPrices(ctx, ad)
   if err != nil {
-    priceList = []collection.AdPriceStruct{
-      {AdPriceYen: 200},
-    }
+    // priceList = []collection.AdPriceStruct{
+    //   {AdPriceYen: 200},
+    // }
   }
 
   maxPrice := 0
   for _, p := range priceList {
-    if p.AdPriceYen > maxPrice {
-      maxPrice = p.AdPriceYen
+    if p.AdYen > maxPrice {
+      maxPrice = p.AdYen
     }
   }
   ad.AdYen = maxPrice
@@ -126,7 +148,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   ad.UserID = session.UserID
   ad.UpdatedAt = time.Now()
 
-	adID := r.FormValue("adID")
+  // === ID割り当て ===
 	if adID == "" {
 		newID, err := common.CountUpID("adID")
 		if err != nil {
@@ -138,6 +160,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 		ad.AdID = adID
 	}
 
+	// === Upsert ===
 	filter := bson.M{
 		"adID": ad.AdID,
 		"userID": ad.UserID,
@@ -148,22 +171,22 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
   }
 
   opts := options.Update().SetUpsert(true)
-  adCollection := common.DB.AdDB.Collection("ad")
   _, err = adCollection.UpdateOne(ctx, filter, update, opts)
   if err != nil {
     common.WriteResponseWithSession(w, session, err.Error()+";UpdateOne", http.StatusOK)
+    return
   }
 
+  // === 正常レスポンス ===
   responseData := struct {
     Csrf          string       `json:"csrf"`
     PushContents  []string     `json:"pushContents"`
-    Ad      collection.AdStruct  `json:"ad"`
+    Ad            collection.AdStruct  `json:"ad"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,
-    Ad:     ad,
+    Ad:           ad,
   }
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(responseData)
 }
-

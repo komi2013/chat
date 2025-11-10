@@ -14,6 +14,7 @@ type DBs struct {
   AdPriceDB *mongo.Database
   ChannelDB *mongo.Database
   FileDB *mongo.Database
+  InvoiceDB *mongo.Database
   NicknameDB *mongo.Database
   ReceptionDB *mongo.Database
   SequenceDB *mongo.Database
@@ -47,6 +48,11 @@ func InitMongo() {
   fileClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoFile))
   if err != nil {
     log.Fatalf("Mongo fileClient connect error: %v", err)
+  }
+
+  invoiceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoInvoice))
+  if err != nil {
+    log.Fatalf("Mongo invoiceClient connect error: %v", err)
   }
 
   nicknameClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoNickname))
@@ -84,6 +90,7 @@ func InitMongo() {
     AdPriceDB: adPriceClient.Database("chatAdPrice"),
     ChannelDB: channelClient.Database("chatChannel"),
     FileDB: fileClient.Database("chatFile"),
+    InvoiceDB: invoiceClient.Database("chatInvoice"),
     NicknameDB: nicknameClient.Database("chatNickname"),
     ReceptionDB: receptionClient.Database("chatReception"),
     SequenceDB: sequenceClient.Database("chatSequence"),

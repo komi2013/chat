@@ -5,82 +5,63 @@ import (
   "chat/common"
   "context"
   "encoding/json"
-  "log"
+  // "log"
   // "math"
   "net/http"
   "strconv"
   // "strings"
   "time"
 
-  // "go.mongodb.org/mongo-driver/bson"
-  // "go.mongodb.org/mongo-driver/mongo"
-  // "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AdPriceGet(w http.ResponseWriter, r *http.Request) {
 
 	var ad collection.AdStruct
-	// ad.PathBanner = r.FormValue("pathBanner")
-	// ad.PathSquare = r.FormValue("pathSquare")
 	latStr := r.FormValue("latitude")
 	lngStr := r.FormValue("longitude")
 	adStartStr := r.FormValue("adStart")
 	adEndStr := r.FormValue("adEnd")
 	distanceStr := r.FormValue("distance")
 
-	// if ad.PathBanner != "" && !strings.HasPrefix(ad.PathBanner, "http://") && !strings.HasPrefix(ad.PathBanner, "https://") {
-	// 	log.Print("pathBanner は http:// または https:// で始まる必要があります")
-	// 	http.Error(w, "pathBanner は http:// または https:// で始まる必要があります", http.StatusBadRequest)
-	// 	return
-	// }
-
-	// if ad.PathSquare != "" && !strings.HasPrefix(ad.PathSquare, "http://") && !strings.HasPrefix(ad.PathSquare, "https://") {
-	// 	log.Print("pathSquare は http:// または https:// で始まる必要があります")
-	// 	http.Error(w, "pathSquare は http:// または https:// で始まる必要があります", http.StatusBadRequest)
-	// 	return
-	// }
-
 	lat, err := strconv.ParseFloat(latStr, 64)
 	if err != nil || lat < -90 || lat > 90 {
-		log.Printf("緯度 (latitude) が不正です: %v", latStr)
-		http.Error(w, "緯度 (latitude) が不正です", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "緯度 (latitude) が不正です: "+latStr, http.StatusOK)
 		return
 	}
+
 	lng, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil || lng < -180 || lng > 180 {
-		log.Printf("経度 (longitude) が不正です: %v", lngStr)
-		http.Error(w, "経度 (longitude) が不正です", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "経度 (longitude) が不正です: "+lngStr, http.StatusOK)
 		return
 	}
+
 	ad.Latitude = lat
 	ad.Longitude = lng
 
 	if len(adStartStr) != 3 || len(adEndStr) != 3 {
-		log.Print("adStart および adEnd は3桁の文字列である必要があります")
-		http.Error(w, "adStart および adEnd は3桁の文字列である必要があります", http.StatusBadRequest)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adStart および adEnd は3桁の文字列である必要があります", http.StatusOK)
 		return
 	}
 
 	startDay, err := strconv.Atoi(adStartStr[:1])
 	startHour, err2 := strconv.Atoi(adStartStr[1:])
-	if err != nil || err2 != nil || startDay < 0 || startDay > 6 || startHour < 0 || startHour > 23 {
-		log.Printf("adStart の形式が不正です（曜日:0-6, 時:00-23）: %s", adStartStr)
-		http.Error(w, "adStart の形式が不正です（曜日:0-6, 時:00-23）", http.StatusBadRequest)
+	if err != nil || err2 != nil || startDay < 1 || startDay > 7 || startHour < 0 || startHour > 24 {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adStart の形式が不正です（曜日:1-7, 時:00-24）: "+adStartStr, http.StatusOK)
 		return
 	}
 
 	endDay, err := strconv.Atoi(adEndStr[:1])
 	endHour, err2 := strconv.Atoi(adEndStr[1:])
-	if err != nil || err2 != nil || endDay < 0 || endDay > 6 || endHour < 0 || endHour > 23 {
-		log.Printf("adEnd の形式が不正です（曜日:0-6, 時:00-23）: %s", adEndStr)
-		http.Error(w, "adEnd の形式が不正です（曜日:0-6, 時:00-23）", http.StatusBadRequest)
+	if err != nil || err2 != nil || endDay < 1 || endDay > 7 || endHour < 0 || endHour > 24 {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adEnd の形式が不正です（曜日:1-7, 時:00-24）: "+adEndStr, http.StatusOK)
 		return
 	}
 
 	ad.AdStart = startDay*100 + startHour // 例: 0*100 + 0 = 000
 	ad.AdEnd   = endDay*100 + endHour     // 例: 0*100 + 1 = 001
 
-	distance := 1
+	// 距離チェック
+	distance := 0
 	if distanceStr != "" {
 		if d, err := strconv.Atoi(distanceStr); err == nil && d >= 1 && d <= 999 {
 			distance = d
@@ -88,41 +69,19 @@ func AdPriceGet(w http.ResponseWriter, r *http.Request) {
 	}
 	ad.Distance = distance
 
-  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-  defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
-  if err != nil {
-    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
-    return
-  }
-  // var ad collection.AdStruct
-  // coll := db1.Collection("adPrice")
-  // coll := common.DB.AdPriceDB.Collection("adPrice")
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+	if err != nil {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+" session check some error", http.StatusOK)
+		return
+	}
 
 	priceList, err := common.GetPrices(ctx, ad)
 	if err != nil {
-		log.Printf("Price lookup failed: %s", err)
-	}
-
-	var priceInfos []collection.AdPriceStruct
-	for _, p := range priceList {
-		priceInfos = append(priceInfos, collection.AdPriceStruct{
-			AdPriceYen:           p.AdPriceYen,
-			AdStart:       p.AdStart,
-			AdEnd:         p.AdEnd,
-			LatitudeNorth: p.LatitudeNorth,
-			LatitudeSouth: p.LatitudeSouth,
-			LongitudeEast: p.LongitudeEast,
-			LongitudeWest: p.LongitudeWest,
-		})
+		common.WriteResponseWithSession(w, session, err.Error()+" session Find", http.StatusOK)
+		return
 	}
 
 	responseData := struct {
@@ -132,7 +91,7 @@ func AdPriceGet(w http.ResponseWriter, r *http.Request) {
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
-		AdPrices:     priceInfos,
+		AdPrices:     priceList,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -14,6 +14,7 @@ import (
 func main() {
   common.InitMongo()
 	if len(os.Args) == 1 {
+		http.HandleFunc("/AdDelete/", controller.AdDelete)
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)
 		http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)

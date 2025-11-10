@@ -1,0 +1,168 @@
+package common
+
+import (
+  "crypto/ecdsa"
+  "fmt"
+  // "log"
+
+  "github.com/ethereum/go-ethereum/crypto"
+  hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
+)
+
+// マスターシードは環境変数やKMSに保存してください。
+const masterSeed = "why where god woops wave sausage worth useful legal winner thank yellow" // 12 or 24 words
+
+// InvoiceID → invoiceAddress
+func GenerateInvoiceAddress(invoiceID string) (string, error) {
+  wallet, err := hdwallet.NewFromMnemonic(masterSeed)
+  if err != nil {
+    return "", err
+  }
+
+  // derivation path: m/44'/60'/0'/0/{invoiceID}
+  path := hdwallet.MustParseDerivationPath(fmt.Sprintf("m/44'/60'/0'/0/%d", invoiceID))
+
+  account, err := wallet.Derive(path, false)
+  if err != nil {
+    return "", err
+  }
+
+  address := account.Address.Hex()
+  return address, nil
+}
+
+// 必要に応じて秘密鍵を取得（出金したい場合のみ使用）
+func GetPrivateKey(invoiceID string) (*ecdsa.PrivateKey, error) {
+  wallet, err := hdwallet.NewFromMnemonic(masterSeed)
+  if err != nil {
+    return nil, err
+  }
+
+  path := hdwallet.MustParseDerivationPath(fmt.Sprintf("m/44'/60'/0'/0/%d", invoiceID))
+  account, err := wallet.Derive(path, false)
+  if err != nil {
+    return nil, err
+  }
+
+  privKey, err := wallet.PrivateKey(account)
+  if err != nil {
+    return nil, err
+  }
+
+  return privKey, nil
+}
+
+// Ethereum形式の公開鍵
+func GetPublicKeyHex(priv *ecdsa.PrivateKey) string {
+  return crypto.PubkeyToAddress(priv.PublicKey).Hex()
+}
+
+
+const (
+    blockscoutAPI = "https://polygon.blockscout.com/api"
+    jpycContract  = "0x6De037ef9aD2725EB40118Bb1702ebb27e4Aeb24"
+)
+
+// Blockscout トークン転送レスポンス
+type TokenTxResponse struct {
+    Status  string      `json:"status"`
+    Message string      `json:"message"`
+    Result  []TokenTx   `json:"result"`
+}
+
+type TokenTx struct {
+    Hash        string `json:"hash"`
+    From        string `json:"from"`
+    To          string `json:"to"`
+    Value       string `json:"value"`       // JPYC は decimals=18
+    TimeStamp   string `json:"timeStamp"`
+    BlockNumber string `json:"blockNumber"`
+}
+
+//
+// 指定アドレスの JPYC 入金を検知
+//
+func CheckJPYCReceived(invoiceAddress string, expectAmount float64) (*TokenTx, error) {
+
+    url := fmt.Sprintf(
+        "%s?module=account&action=tokentx&address=%s&contractaddress=%s&page=1&offset=20&sort=desc",
+        blockscoutAPI,
+        invoiceAddress,
+        jpycContract,
+    )
+
+    resp, err := http.Get(url)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    body, _ := ioutil.ReadAll(resp.Body)
+
+    var data TokenTxResponse
+    if err := json.Unmarshal(body, &data); err != nil {
+        return nil, err
+    }
+
+    if data.Status != "1" {
+        return nil, fmt.Errorf("API error: %s", data.Message)
+    }
+
+    // 最新 20 件から探す
+    for _, tx := range data.Result {
+
+        // 自分の InvoiceAddress に向けた入金のみ
+        if !strings.EqualFold(tx.To, invoiceAddress) {
+            continue
+        }
+
+        // Value（文字列の整数） → JPYC の実数へ変換
+        amountWei := tx.Value
+        amt := WeiToJPYC(amountWei)
+
+        if amt >= expectAmount {
+            return &tx, nil
+        }
+    }
+
+    return nil, nil // まだ入金なし
+}
+
+//
+// Wei → JPYC 変換
+//
+func WeiToJPYC(v string) float64 {
+    // JPYC decimals=18
+    f := new(big.Float)
+    f.SetString(v)
+
+    base := new(big.Float).SetFloat64(1e18)
+
+    out := new(big.Float).Quo(f, base)
+
+    result, _ := out.Float64()
+    return result
+}
+
+// //
+// // 5秒おきに確認するサンプル
+// //
+// func main() {
+//     invoice := "0x1234...ユーザー専用Invoiceアドレス"
+//     expect := 100.0 // 100 JPYC
+
+//     for {
+//         tx, err := CheckJPYCReceived(invoice, expect)
+//         if err != nil {
+//             log.Println("error:", err)
+//         }
+
+//         if tx != nil {
+//             log.Printf("入金検知！ TX=%s From=%s Amount=%.2f JPYC\n", tx.Hash, tx.From, WeiToJPYC(tx.Value))
+//             break
+//         }
+
+//         log.Println("まだ入金なし…")
+//         time.Sleep(5 * time.Second)
+//     }
+// }

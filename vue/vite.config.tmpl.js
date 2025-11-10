@@ -13,7 +13,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: '../public/vue-tmpl',
     emptyOutDir: false, // ← SPA側出力を消さない
     rollupOptions: {
       input: {
