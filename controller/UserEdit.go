@@ -35,6 +35,7 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 	user.Longitude = lng
 	user.Mail = r.FormValue("mail")
 	user.Telephone = r.FormValue("telephone")
+	user.WalletAddress = r.FormValue("walletAddress")
 
 	var nickname collection.NicknameStruct
 	nickname.Nickname = r.FormValue("nickname")
@@ -122,6 +123,7 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 			"telephone": user.Telephone,
 			"nickname": nickname.Nickname,
 			"nickImg": nickname.NickImg,
+			"walletAddress": user.WalletAddress,
 		},
 	}
 	filterUser := bson.M{"userID": session.UserID}

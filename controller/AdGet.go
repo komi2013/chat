@@ -5,7 +5,8 @@ import (
   "chat/common"
   "context"
   "encoding/json"
-  "log"
+  "fmt"
+  // "log"
   // "math"
   "net/http"
   "time"
@@ -20,8 +21,7 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
     return
   }
 
@@ -32,21 +32,40 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
 	var ads []collection.AdStruct
 	cursor, err := coll.Find(ctx, filter)
 	if err != nil {
-	    log.Fatal(err)
+    common.WriteResponseWithSession(w, session, err.Error()+";coll.Find", http.StatusOK)
+    return
 	}
 	defer cursor.Close(ctx)
 	if err := cursor.All(ctx, &ads); err != nil {
-	    log.Fatal(err)
+    common.WriteResponseWithSession(w, session, err.Error()+";cursor.All", http.StatusOK)
+    return
 	}
+
+  url := fmt.Sprintf(
+    "%s/api?module=account&action=tokentx&address=%s&contractaddress=%s&sort=desc",
+    common.PolygonAPI,
+    common.SystemWalletAddress,
+    common.JpycContract,
+  )
+
+  // resp, err := http.Get(url)
+  // if err != nil {
+  //   common.WriteResponseWitSession(w, csrf, err.Error()+";http.Get", http.StatusOK)
+  //   return
+  // }
 
   responseData := struct {
     Csrf         string       `json:"csrf"`
     PushContents []string     `json:"pushContents"`
     Ads       []collection.AdStruct  `json:"ads"`
+    SystemWalletAddress   string       `json:"systemWalletAddress"`
+    JpycCheckURL   string       `json:"jpycCheckURL"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,
-    Ads         : ads,
+    Ads:          ads,
+    SystemWalletAddress: common.SystemWalletAddress,
+    JpycCheckURL: url,
   }
 
   w.Header().Set("Content-Type", "application/json")

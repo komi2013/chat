@@ -9,6 +9,7 @@ type InvoiceStruct struct {
   InvoiceID    string    `bson:"_id" json:"invoiceID"`          // MongoDB _id
   UserID       string    `bson:"userID" json:"userID"`           // 誰の注文か
   AmountJPYC   int       `bson:"amountJPYC" json:"amountJPYC"`   // 金額（JPYC）
+  FromAddress      string    `bson:"fromAddress" json:"fromAddress"`
   InvoiceAddress      string    `bson:"invoiceAddress" json:"invoiceAddress"`         // 受取用ウォレットアドレス（invoice用）
   InvoiceStatus       int    `bson:"invoiceStatus" json:"invoiceStatus"`           // 1=pending, 2=paid, 3=expired
   PaidTxHash   string    `bson:"paidTxHash,omitempty" json:"paidTxHash,omitempty"` // 入金されたTX

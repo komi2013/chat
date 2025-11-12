@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [
     vue(),
   ],
-  build: {
-    outDir: '../public/vue',
-    emptyOutDir: true
-  },
+  // build: {
+  //   outDir: '../public/vue',
+  //   emptyOutDir: true
+  // },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

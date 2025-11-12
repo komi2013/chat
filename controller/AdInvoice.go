@@ -127,12 +127,22 @@ func AdInvoice(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
+  collUser := common.DB.UserDB.Collection("user")
+  filterUser := bson.M{"_id": session.UserID}
+  var user collection.UserResponse
+  err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
+  if err != nil {
+		common.WriteResponseWithSession(w, session, "user FindOne:"+err.Error(), http.StatusOK)
+		return
+  }
+
 	invoice := collection.InvoiceStruct{
 		InvoiceID:      newID,
 		UserID:         session.UserID,
 		AdID:           ad.AdID,
 		AmountJPYC:     ad.AdYen,
-		InvoiceAddress: common.MyAddress,
+		FromAddress:    user.WalletAddress,
+		InvoiceAddress: common.SystemWalletAddress,
 		InvoiceStatus:  1, // pending
 		CreatedAt:      now,
 		ExpiresAt:      now.Add(24 * time.Hour),

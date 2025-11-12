@@ -26,7 +26,8 @@ onMounted(async () => {
   fetched.value = true
 })
 
-// --- 広告取得 ---
+let systemWalletAddress
+let jpycCheckURL
 async function findAds() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -46,6 +47,8 @@ async function findAds() {
     if (ad.pathSquare) previewSquare.value[ad.adID] = ad.pathSquare
   })
   ads.value.push(convertApiAdToUiAd({}))
+  systemWalletAddress = res.systemWalletAddress
+  jpycCheckURL = res.jpycCheckURL
 }
 
 // --- APIデータをUI形式に変換 ---
@@ -315,6 +318,10 @@ function handleTrim(event, adID, targetW, targetH, type) {
         <div class="centralize"><button type="button" @click="invoiceAd(index)">請求書発行</button></div>
         <div class="centralize"><button type="button" @click="deleteAd(index)">削除</button></div>
       </form>
+    </div>
+    <div class="ads"><span>システムJPYCアドレス口座: </span>{{systemWalletAddress}}</div>
+    <div class="ads">
+      <a :href="jpycCheckURL" target="_blank">システムJPYCアドレス口座履歴URL</a>
     </div>
   </div>
   <div id="ad_right"><Advertisement /><Advertisement /><Advertisement /></div>

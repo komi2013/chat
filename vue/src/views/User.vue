@@ -174,6 +174,7 @@ async function submitUser(index) {
   fd.append('longitude', user.value.longitude)
   fd.append('mail', user.value.mail)
   fd.append('telephone', user.value.telephone)
+  fd.append('walletAddress', user.value.walletAddress)
   fd.append('nickImg', nickImg.value)
   fd.append('nickBio', nickBio.value)
 
@@ -237,10 +238,10 @@ async function switchNickname(selectedName) {
           <span>　ーーー　オプション　ーーー　</span>
         </div>
         <div>
-          <input type="text" v-model="user.mail" placeholder="メール" class="divText">
+          <input type="text" v-model="user.mail" placeholder="メール" class="wide-text">
         </div>
         <div>
-          <input type="text" v-model="user.telephone" placeholder="電話番号" class="divText">
+          <input type="text" v-model="user.telephone" placeholder="電話番号" class="wide-text">
         </div>
         <div v-if="!nicknameFormVisible" class="centralize">
           <button type="button" class="wide-text" @click="openNicknameForm('edit')">
@@ -271,6 +272,11 @@ async function switchNickname(selectedName) {
             </button>
           </div>
         </div>
+
+        <div>
+          <input type="text" v-model="user.walletAddress" placeholder="JPYCアドレス" class="wide-text">
+        </div>
+
         <div class="centralize">
           <button type="button" class="wide-text" @click="submitUser(activeIndex)">更新</button>
         </div>
@@ -319,10 +325,10 @@ async function switchNickname(selectedName) {
   justify-content: center;
   align-items: center;
 }
-.divText {
+/*.divText {
   margin: 4px;
   padding: 4px;
-}
+}*/
 .nickname-tabs {
   display: flex;
   justify-content: center;

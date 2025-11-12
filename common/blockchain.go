@@ -27,7 +27,7 @@ const (
 )
 
 // JPYC コントラクト（EVM 共通）
-const jpycContract = "0x0dc24f370ceb37895112d3bc53631e2aef9fb1a4"
+const JpycContract = "0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29"
 
 // API エンドポイント
 var chainAPI = map[string]string{
@@ -39,7 +39,8 @@ var chainAPI = map[string]string{
 // ====== アドレス生成 ======
 //
 
-const MyAddress = "0x0dc24f370ceb37895112d3bc53631e2aef9fb1a4"
+const PolygonAPI = "https://polygon.blockscout.com"
+const SystemWalletAddress = "0x0dc24f370ceb37895112d3bc53631e2aef9fb1a4"
 
 // HD Wallet 生成（共通）
 func GenerateInvoiceAddress(invoiceID string) (string, error) {
@@ -113,7 +114,7 @@ func CheckJPYCReceived(chain, invoiceAddress string, expectAmount float64) (*Tok
         "%s?module=account&action=tokentx&address=%s&contractaddress=%s&page=1&offset=20&sort=desc",
         api,
         invoiceAddress,
-        jpycContract,
+        JpycContract,
     )
 
     resp, err := http.Get(url)
