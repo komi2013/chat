@@ -16,7 +16,8 @@ const props = defineProps({
   copyable: Boolean,
   messageID: String,
   nickname: String,
-  messagesCount: String
+  messagesCount: String,
+  backID: String,
 })
 
 function tF(a, b = null){ return timeFormat(a, b) }
@@ -26,8 +27,7 @@ const messages = computed(() => {
   return messagesStore.messages
 });
 
-console.log(props.nickname, props.threadHead.nickname)
-
+const errorMessage = ref('')
 const iAmAdmin = ref(props.nickname === props.threadHead.nickname)
 
 const limit = 10;
@@ -41,36 +41,40 @@ const moreMessages = async (later = false) => {
   fd.append('parentID', props.parentID);
   fd.append('backID', props.backID ?? '');
   fd.append('skip', offset);
-  fd.append('csrf', localStorage.getItem('csrf'));
-
-  const res = await sendRequest('/TweetGet/', fd);
-  if (res.error) {
-    errorMessage.value = res.error;
-    return;
+  fd.append('csrf', localStorage.getItem('csrf'))
+  const res = await sendRequest('/TweetGet/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
   }
-
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
-      await pushReceive(content);
+      await pushReceive(content)
     }
   }
-
+  if (res.error) { errorMessage.value = res.error }
   const tweets = res.tweet.tweets || [];
   const head = res.tweet.tweetHeads?.[0] || {};
-
+  if (!later) tweets.reverse()
   tweets.forEach((t, index) => {
-    t.href = `/thread/${props.parentID}/?messageID=${t.messageID}`;
+    // t.href = `/thread/${props.parentID}/?messageID=${t.messageID}`
+    if (props.backID) {
+      t.href = `/tweet/${props.date}/${props.parentID}.html?backID=${props.backID}&messageID=${t.messageID}`
+    } else {
+      t.href = `/tweet/${props.date}/${props.parentID}.html?messageID=${t.messageID}`
+    }
     if (later) {
       if (index < limit || offset === 0) {
-        messagesStore.insert(t);
+        messagesStore.insert(t)
       }
     } else {
       if (index < limit) {
-        messagesStore.unshift(t, 1);
+        messagesStore.unshift(t, 1)
       }
     }
-  });
+  })
+  console.log(later)
   if (later) {
     offsetNew += limit;
     moreNew.value = tweets.length > limit;
@@ -138,36 +142,41 @@ const clickEmoji = async (message, emoji) => {
   rotateEmoji(emoji.emoji);
 }
 
-const deleteMessage = async (messageID) => {
-  if (!confirm("🗑削除")) return
+const sendEmoji = async (message, emoji) => {
+  let confirmMessage
+  switch (emoji) {
+    case "🚫":
+      confirmMessage = 'ブロック'
+      break;
+    case "⚠️":
+      confirmMessage = '通報'
+      break;
+    case "🗑":
+      confirmMessage = '削除'
+      break;
+  }
+  if (!confirm(confirmMessage)) return
   const fd = new FormData()
   fd.append('parentID', props.parentID)
-  fd.append('messageID', messageID)
+  fd.append('messageID', message.messageID)
+  fd.append('emoji', emoji)
   fd.append('csrf', localStorage.getItem('csrf'))
-  const res = await sendRequest('/TweetPost/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  const res = await sendRequest('/TweetEmoji/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  location.href = ''
-}
-
-const reportName = async (nickname) => {
-  if (!confirm("🚫ブロック")) return
-  const fd = new FormData()
-  fd.append('parentID', props.parentID)
-  fd.append('blockName', nickname)
-  fd.append('csrf', localStorage.getItem('csrf'))
-  const res = await sendRequest('/TweetPost/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  if (Array.isArray(res.pushContents)) {
-    for (const content of res.pushContents) {
-      await pushReceive(content)
-    }
+  if (res.error) { errorMessage.value = res.error }
+  if (emoji.emoji) {
+    messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+    rotateEmoji(emoji.emoji)    
   }
-  // location.href = ''
 }
 
 </script>
@@ -176,10 +185,10 @@ const reportName = async (nickname) => {
   <div v-if="more" @click="moreMessages(false)" class="more"> - - more - - </div>
   <div class="messages" :contenteditable="copyable">
     <template v-for="(message, k) in messages" :key="message.messageID" >
-      <div v-if="!more || k > 0">
+      <div v-if="!more || k > 0" :id="message.messageID">
         <div class="msg-header">
           <div v-if="!copyable" class="icon_td">
-            <a :href="'/nickname/' + message.nickname + '/'">
+            <a :href="message.anonymousFlag ? null : '/nickname/' + message.nickname + '/'">
               <img v-if="message.nickImg && message.nickImg.charAt(0) != ','" 
                 :src="message.nickImg" class="icon-img">
               <span v-if="message.nickImg && message.nickImg.charAt(0) == ','"
@@ -204,8 +213,9 @@ const reportName = async (nickname) => {
               <span v-if="message.tweetCount" @click="reply(message)" class="badge">{{ message.tweetCount}}</span>
             </span>
             <span @click="openEmoji(message.messageID)"> 😄 </span>
-            <span v-if="iAmAdmin" @click="deleteMessage(message.messageID)"> 🗑 </span>
-            <span v-if="iAmAdmin" @click="reportName(message.nickname)"> 🚫 </span>
+            <span v-if="iAmAdmin || nickname === message.nickname" @click="sendEmoji(message, '🗑')"> 🗑 </span>
+            <span @click="sendEmoji(message, '🚫')"> 🚫 </span>
+            <span @click="sendEmoji(message, '⚠️')"> ⚠️ </span>
           </div>
         </div>
         <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
@@ -214,17 +224,12 @@ const reportName = async (nickname) => {
             class="ql-editor"></div>
           <template v-for="emoji in calcEmoji(message.emojis, nickname)">
             <template v-if="emojiPath(emoji.emoji)">
-              <span class="img-stamp"
-                :class="{ 'selected': emoji.selected }">
-                  <img :src="emoji.emoji" 
-                    class="emoji-img" 
-                    @click="clickEmoji(message, emoji)" />{{emoji.count}}
+              <span class="img-stamp" :class="{ 'selected': emoji.selected }">
+                  <img :src="emoji.emoji" class="emoji-img" @click="clickEmoji(message, emoji)" />{{emoji.count}}
               </span>
             </template>
             <template v-if="!emojiPath(emoji.emoji)">
-              <span class="emoji-stamp"
-                :class="{ 'selected': emoji.selected }"
-                @click="clickEmoji(message, emoji)" >
+              <span class="emoji-stamp" :class="{ 'selected': emoji.selected }" @click="clickEmoji(message, emoji)" >
                 {{ emoji.emoji }}{{emoji.count}}
               </span>
             </template>
@@ -251,6 +256,9 @@ const reportName = async (nickname) => {
         :parentID="message.parentID"
         :threadHead="threadHead" />
     </template>
+  </div>
+  <div v-if="errorMessage">
+    <p style="color:red;">{{ errorMessage }}</p>
   </div>
   <div v-if="moreNew" @click="moreMessages(true)" class="more"> - - more - - </div>
 </template>

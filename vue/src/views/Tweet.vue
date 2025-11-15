@@ -12,12 +12,12 @@ import { pushReceive } from '@/pushReceive/pushReceive.js'
 
 const props = defineProps({
   date: String,
-  parentID: String,
+  parentIDhtml: String,
   backID: String,
   messageID: String
 })
 
-const parentID = props.parentID.replace(/\.html$/, '')
+const parentID = props.parentIDhtml.replace(/\.html$/, '')
 const msg = {
   messageTxt: '',
   messageID: '',
@@ -32,6 +32,7 @@ const nickname = ref('')
 const messagesStore = useMessagesStore()
 const postable = ref(true)
 const messagesCount = ref(0)
+const alreadyJoinFlag = ref(false)
 async function fetchThreadHead() {
   if (!parentID) {
     threadHead.value = { parentID: '', title: '新規スレッド', nicknames: [] }
@@ -40,21 +41,25 @@ async function fetchThreadHead() {
   const fd = new FormData()
   fd.append('parentID', parentID)
   fd.append('backID', props.backID ?? '')
+  fd.append('messageID', props.messageID ?? '')
+  // fd.append('skip', -1)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/TweetGet/', fd)
-  if (res.error) {
-    errorMessage.value = res.error
+  if (!res.csrf) {
+    errorMessage.value = res
     return
   }
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   nickname.value = res.nickname
   const head = res.tweet.tweetHead
   const tweets = res.tweet.tweets
+  alreadyJoinFlag.value = res.alreadyJoinFlag
   checkTweetPostLimit(res.tweetPosts, parentID)
   // if (props.backID) {
   //   // const message = await getIDB('thread', props.parentID);
@@ -85,14 +90,15 @@ async function fetchThreadHead() {
   messagesStore.insert(message)
   // console.log('tweets', tweets)
   messagesCount.value = tweets ? tweets.length : 0
+  console.log('props.parentID', props.parentID)
   if (Array.isArray(tweets)) {
     for (const tweet of tweets) {
       if (props.backID) {
-        tweet.href = `/tweet/${props.date}/${message.parentID}.html?backID=${props.backID}messageID=${message.messageID}`
+        tweet.href = `/tweet/${props.date}/${parentID}.html?backID=${props.backID}&messageID=${tweet.messageID}`
       } else {
-        tweet.href = `/tweet/${props.date}/${message.parentID}.html?messageID=${message.messageID}`
+        tweet.href = `/tweet/${props.date}/${parentID}.html?messageID=${tweet.messageID}`
       }
-
+      // console.log('tweet href', tweet.href)
       messagesStore.insert(tweet)
     }
   }
@@ -182,6 +188,7 @@ function backTo() {
         :messageID="messageID"
         :nickname="nickname"
         :messagesCount="messagesCount"
+        :backID="backID"
       />
 
       <div v-if="postable" class="editText">
@@ -191,6 +198,7 @@ function backTo() {
           :backID="backID"
           :tweetPosts="tweetPosts"
           :newTweet="!parentID"
+          :alreadyJoinFlag="alreadyJoinFlag"
         />
       </div>
 

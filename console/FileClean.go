@@ -23,6 +23,7 @@ func FileClean() {
 	var fileCleanError = common.NewDailyLogger("file_clean_error_")
 	filter := bson.M{
 		"updatedAt": bson.M{"$lt": now.Add(-1 * time.Hour)},
+		"usageType": bson.M{"$nin": []int{1, 2, 3}},
 	}
 	cursor, err := coll.Find(ctx, filter, options.Find())
 	if err != nil {
@@ -38,53 +39,26 @@ func FileClean() {
 	deletedCount := 0
 	for _, f := range files {
 		var limit time.Duration
-		if f.ChannelID == "-tweet-" {
+		switch f.UsageType {
+		case 0: // contentsPush
+			limit = 24 * 5 * time.Hour
+		case 4: //tweet
 			limit = 1 * time.Hour
-		} else {
+		default:
 			limit = 24 * time.Hour
+			continue
 		}
 		if now.Sub(f.UpdatedAt) < limit {
 			continue
 		}
-
-		switch f.FileType {
-		case 1:
-			if err := os.Remove(f.FilePath); err != nil {
-				if os.IsNotExist(err) {
-					fileCleanError.Printf("⚠️ Not found (img): %s", f.FilePath)
-				} else {
-					fileCleanError.Printf("⚠️ Delete error (img): %v", err)
-				}
+		if err := os.Remove(f.FilePath); err != nil {
+			if os.IsNotExist(err) {
+				fileCleanError.Printf("⚠️ Not found (img): %s", f.FilePath)
 			} else {
-				fileCleanLog.Printf("🗑️ Deleted image: %s", f.FilePath)
+				fileCleanError.Printf("⚠️ Delete error (img): %v", err)
 			}
-		case 2:
-			// UploadDir + "/upload_data/file/" + channelID + "/" + fileID + "/"
-			// saveDir := filepath.Join(common.UploadDir, "upload_data", "file", f.ChannelID, f.FileID)
-			if err := os.Remove(f.FilePath); err != nil {
-				if os.IsNotExist(err) {
-					fileCleanError.Printf("⚠️ Not found (img): %s", f.FilePath)
-				} else {
-					fileCleanError.Printf("⚠️ Delete error (img): %v", err)
-				}
-			} else {
-				fileCleanLog.Printf("🗑️ Deleted image: %s", f.FilePath)
-			}
-		case 3:
-			continue
-
-		default:
-			fileCleanError.Printf("⚠️ Unknown FileType=%d (FileID=%s)", f.FileType, f.FileID)
-			continue
-		}
-
-		if f.FileType != 3 {
-			_, err := coll.DeleteOne(ctx, bson.M{"_id": f.FileID})
-			if err != nil {
-				fileCleanError.Printf("⚠️ Failed to delete MongoDB doc for %s: %v", f.FileID, err)
-			} else {
-				deletedCount++
-			}			
+		} else {
+			fileCleanLog.Printf("🗑️ Deleted image: %s", f.FilePath)
 		}
 	}
 	fileCleanLog.Printf("✅ File cleanup completed. Deleted %d documents.", deletedCount)

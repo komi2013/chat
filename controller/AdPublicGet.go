@@ -20,12 +20,22 @@ func AdPublicGet(w http.ResponseWriter, r *http.Request) {
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
 
-  session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
-  if err != nil {
-    log.Printf("SessionCheckTake: %v; Req: %v %v", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
-    return
-  }
+  // session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+  // if err != nil {
+  //   log.Printf("SessionCheckTake: %v; Req: %v %v", err, r.URL.Path, r.Form)
+  //   http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  //   return
+  // }
+
+	// tmplPath = "public/index.html"
+	session, err := common.SessionGet(w, r)
+	if err != nil {
+		log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
+	}
+	session, err = common.PushReGenerate(session)
+	if err != nil {
+		log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+	}
 
   coll := common.DB.AdDB.Collection("ad")
 

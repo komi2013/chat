@@ -1,19 +1,19 @@
 package common
 
 import (
-	"bytes"
+	// "bytes"
 	"context"
-  "encoding/base64"
-  "errors"
-  "image"
-  "image/jpeg"
-  "image/png"
+  // "encoding/base64"
+  // "errors"
+  // "image"
+  // "image/jpeg"
+  // "image/png"
 	"log"
   // "math"
-  "os"
-  "path/filepath"
+  // "os"
+  // "path/filepath"
 	"sort"
-	"strings"
+	// "strings"
 	// "time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -130,50 +130,50 @@ func isTimeInRange(reqStart, reqEnd, priceStart, priceEnd int) bool {
 	return !(reqEnd < priceStart || reqStart > priceEnd)
 }
 
-func SaveBase64Image(base64Str, userID, suffix string) (string, error) {
-  if idx := strings.Index(base64Str, "base64,"); idx != -1 {
-    base64Str = base64Str[idx+7:]
-  }
-  data, err := base64.StdEncoding.DecodeString(base64Str)
-  if err != nil {
-    return "", err
-  }
+// func SaveBase64Image(base64Str, userID, suffix string) (string, error) {
+//   if idx := strings.Index(base64Str, "base64,"); idx != -1 {
+//     base64Str = base64Str[idx+7:]
+//   }
+//   data, err := base64.StdEncoding.DecodeString(base64Str)
+//   if err != nil {
+//     return "", err
+//   }
 
-  img, format, err := image.Decode(bytes.NewReader(data))
-  if err != nil {
-    return "", err
-  }
+//   img, format, err := image.Decode(bytes.NewReader(data))
+//   if err != nil {
+//     return "", err
+//   }
 
-  filename := OSImgDir + "/ad/" + userID + "_" + suffix + "." + format
-  log.Printf("filename error: %v", filename)
-  outFile, err := createFileWithDirs(filename) // 自動ディレクトリ作成も
-  if err != nil {
-  	log.Printf("filename error: %v", err)
-    return "", err
-  }
-  defer outFile.Close()
+//   filename := OSImgDir + "/ad/" + userID + "_" + suffix + "." + format
+//   log.Printf("filename error: %v", filename)
+//   outFile, err := createFileWithDirs(filename) // 自動ディレクトリ作成も
+//   if err != nil {
+//   	log.Printf("filename error: %v", err)
+//     return "", err
+//   }
+//   defer outFile.Close()
 
-  switch format {
-  case "jpeg":
-    err = jpeg.Encode(outFile, img, nil)
-  case "png":
-    err = png.Encode(outFile, img)
-  default:
-    return "", errors.New("対応していない画像形式")
-  }
+//   switch format {
+//   case "jpeg":
+//     err = jpeg.Encode(outFile, img, nil)
+//   case "png":
+//     err = png.Encode(outFile, img)
+//   default:
+//     return "", errors.New("対応していない画像形式")
+//   }
 
-  if err != nil {
-    return "", err
-  }
+//   if err != nil {
+//     return "", err
+//   }
 
-  return PublicImgPath + "/ad/" + userID + "_" + suffix + "." + format, nil
-}
+//   return PublicImgPath + "/ad/" + userID + "_" + suffix + "." + format, nil
+// }
 
-func createFileWithDirs(path string) (*os.File, error) {
-  dir := filepath.Dir(path)
-  if err := os.MkdirAll(dir, 0755); err != nil {
-    return nil, err
-  }
-  return os.Create(path)
-}
+// func createFileWithDirs(path string) (*os.File, error) {
+//   dir := filepath.Dir(path)
+//   if err := os.MkdirAll(dir, 0755); err != nil {
+//     return nil, err
+//   }
+//   return os.Create(path)
+// }
 

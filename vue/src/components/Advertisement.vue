@@ -20,7 +20,7 @@ function selectValidAd() {
   } else {
     currentAd.value = null;
   }
-  console.log(currentAd.value)
+  // console.log(currentAd.value)
 }
 
 let intervalId = null;

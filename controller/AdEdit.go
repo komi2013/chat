@@ -121,7 +121,7 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 
 	previewSquare := r.FormValue("previewSquare")
 	if previewSquare != "" {
-	  path, err := common.SaveBase64Image(previewSquare, session.UserID, "_" + adID)
+	  path, err := common.ImgSave(previewSquare, session.UserID, adID, "-ad-", 0, 5)
 	  if err != nil {
 	    common.WriteResponseWithSession(w, session, err.Error()+";Square画像保存失敗", http.StatusOK)
 	    return
@@ -129,7 +129,6 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 	  ad.PathSquare = path
 	}
 
-  // === 価格計算 ===
   priceList, err := common.GetPrices(ctx, ad)
   if err != nil {
     // priceList = []collection.AdPriceStruct{

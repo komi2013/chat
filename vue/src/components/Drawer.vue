@@ -15,7 +15,7 @@ onMounted(async () => {
     iamGuest.value = props.aliases.some(
       alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
     )
-  } else {
+  } else if (localStorage.getItem('csrf')) {
     const aliases = await getIDBs('alias', 'channelIDIndex', localStorage.getItem("channelID"), 10000)
     iamGuest.value = aliases.some(
       alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')

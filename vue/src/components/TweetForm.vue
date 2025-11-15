@@ -12,6 +12,7 @@
       </select>
       <button class="emoji" @click="attach(messageID)">🌄</button>
       <button class="emoji" v-if="messageID" @click="msgUpsert(messageID)">🗑</button>
+      <button v-if="!alreadyJoinFlag" class="emoji" @click="asAnonymous" :class="{ 'selected': anonymous }">🎭</button>
       <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
@@ -39,6 +40,7 @@ import "quill/dist/quill.snow.css";
 
 import EditOptionModal from '@/components/EditOptionModal.vue';
 
+import { emojiRanges, isEmojiInRange, getRandomEmoji, getRandomColor } from '@/my/emoji';
 import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
@@ -47,6 +49,7 @@ const props = defineProps({
   threadHead: Object,
   backID: String,
   newTweet: Boolean,
+  alreadyJoinFlag: Boolean,
 });
 
 const message = props.message;
@@ -130,6 +133,9 @@ function handleAutoLink() {
 
 
 onMounted(async () => {
+  if ( !props.alreadyJoinFlag ) {
+    removeAnonymous()
+  }
   await initQuill()
 })
 
@@ -163,8 +169,6 @@ const handleFileInputChange = (event) => {
   fileInfo.value[messageID] = newFileInfo.outerHTML;
 }
 
-console.log('newThread', props.newTweet)
-
 let clicked = false
 const errorMessage = ref('')
 const msgUpsert = async (messageID) => {
@@ -191,6 +195,8 @@ const msgUpsert = async (messageID) => {
   fd.append('backID', props.backID ?? '')
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('imgPath', imgPath)
+  fd.append('anonymous', anonymous.value ?? '')
+  fd.append('anonymousImg', anonymousImg.value ?? '')
   const res = await sendRequest('/TweetPost/', fd)
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
@@ -198,7 +204,6 @@ const msgUpsert = async (messageID) => {
       await pushReceive(content)
     }
   }
-  console.log('what??')
   quill.root.innerHTML = ''
   fileInfo.value = []
   clicked = false;
@@ -206,15 +211,14 @@ const msgUpsert = async (messageID) => {
     errorMessage.value = res.error
     return
   }
-  let location_href
+  // let location_href
   if (props.newTweet) {
     const backIDURL = props.backID ? '?backID=' + props.backID : ''
-
-    location_href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
+    location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
   } else {
-    location_href = ''
+    location.href = ''
   }
-  console.log(location_href)
+  // console.log(location_href)
 }
 
 let imgPath = ''
@@ -284,6 +288,40 @@ async function getImagePath(messageID) {
 
 const backIDURL = props.backID ? '?backID=' + props.backID : ''
 
+const anonymous = ref(localStorage.getItem('anonymous'))
+const anonymousImg = ref(localStorage.getItem('anonymousImg'))
+
+function generateRandomName() {
+  const firstNames = ['Fox', 'Wolf', 'Star', 'Light', 'River', 'Aqua', 'Comet', 'Nova', 'Ember', 'Blue', 'Yellow']
+  const lastNames = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
+  const first = firstNames[Math.floor(Math.random() * firstNames.length)]
+  const last = lastNames[Math.floor(Math.random() * lastNames.length)]
+  const num = Math.floor(Math.random() * 999)
+  return `${first}${num}${last}`
+}
+
+function getAliasImg() {
+  return "," + getRandomEmoji() + "," + getRandomColor()
+}
+
+function asAnonymous() {
+  if (anonymous.value) {
+    removeAnonymous()
+  } else {
+    anonymous.value = generateRandomName()
+    localStorage.setItem('anonymous', anonymous.value)
+    anonymousImg.value = getAliasImg()
+    localStorage.setItem('anonymousImg', anonymousImg.value)
+  }
+  console.log('匿名モード:', anonymous.value, anonymousImg.value)
+}
+
+function removeAnonymous() {
+  anonymous.value = ''
+  localStorage.removeItem('anonymous')
+  anonymousImg.value = ''
+  localStorage.removeItem('anonymousImg')
+}
 </script>
 
 <style>

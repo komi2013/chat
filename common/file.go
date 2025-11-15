@@ -13,6 +13,7 @@ import (
   "os"
   "path/filepath"
   // "runtime"
+  "regexp"
   "strings"
   "time"
 
@@ -24,7 +25,16 @@ import (
 
 )
 
-func ImgSave(img string, userID string, name string, channelID string, fileIDLength int, fileType int) (string, error) {
+func EmojiImgValid (imgStr string) (bool) {
+	pattern := regexp.MustCompile(`^,.{1,2},#[0-9a-fA-F]{6}$`)
+	return pattern.MatchString(imgStr)
+	// if !pattern.MatchString(imgStr) {
+	// 	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "画像が不正", http.StatusOK)
+	// 	return
+	// }
+}
+
+func ImgSave(img string, userID string, name string, channelID string, fileIDLength int, usageType int) (string, error) {
 	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
@@ -73,7 +83,7 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			PublicPath:  imgPath,
 			FileSize:   fileSizeMB,
 			UpdatedAt:  time.Now(),
-			FileType: fileType,
+			UsageType: usageType,
 		}
 		filter := bson.M{"_id": fileID}
 		update := bson.M{"$set": fileDocument}
@@ -87,7 +97,7 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 	return imgPath, nil
 }
 
-func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string, fileType int) ([]string, error) {
+func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string, usageType int) ([]string, error) {
 	const (
 		maxFileSize      = 100 << 20 // 100MB (1ファイルあたりの上限)
 		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
@@ -167,7 +177,7 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 			FileSize:    fileSizeMB,
 			UpdatedAt:   time.Now(),
 			AvailableBy: userIDs,
-			FileType: fileType,
+			UsageType: usageType,
 		}
 
 		_, err = coll.InsertOne(context.TODO(), fileDoc)
@@ -179,3 +189,4 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 
 	return fileLinks, nil
 }
+

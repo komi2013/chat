@@ -78,7 +78,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// アイコン画像保存
-	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 0, 3)
+	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 0, 1)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, err.Error()+" image save error", http.StatusOK)
 		return

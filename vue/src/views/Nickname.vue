@@ -59,7 +59,7 @@ onMounted(async () => {
         </div>
         <p>👍: {{ nickData.good }}</p>
         <p>👎: {{ nickData.bad }}</p>
-        <p>🚫: {{ nickData.report }}</p>
+        <p>⚠️: {{ nickData.report }}</p>
         <p>自己紹介:</p>
         <p> {{ nickData.nickBio }} </p>
         <p>作成日: {{ tF('YYYY/MM/DD', nickData.createdAt.toLocaleString('ja-JP')) }}</p>

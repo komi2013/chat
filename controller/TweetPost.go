@@ -23,14 +23,17 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	parentID := r.FormValue("parentID")
 	backID := r.FormValue("backID")
 	messageTxt := r.FormValue("messageTxt")
-	messageID := r.FormValue("messageID")
-	blockName := r.FormValue("blockName")
-	if len(messageTxt) == 0 && messageID == "" && blockName == "" {
+	if len(messageTxt) == 0 {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "本文が空です。", http.StatusOK)
 		return
 	}
 	if len([]rune(messageTxt)) > 500 {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "文字数が500を超えています。", http.StatusOK)
+		return
+	}
+
+	if r.FormValue("anonymousImg") != "" && !common.EmojiImgValid(r.FormValue("anonymousImg")) {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "画像が不正", http.StatusOK)
 		return
 	}
 
@@ -43,6 +46,15 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 		common.WriteResponseWithSession(w, session, "ニックネームが登録されていません", http.StatusOK)
 		return
 	}
+	nickname := session.Nickname
+	if r.FormValue("anonymous") != "" {
+		nickname = r.FormValue("anonymous")
+	}
+	nickImg := session.NickImg
+	if r.FormValue("anonymousImg") != "" {
+		nickImg = r.FormValue("anonymousImg")
+	}
+
 	now := time.Now()
 	// restriction post 
 	var recentPosts []collection.TweetPost
@@ -69,7 +81,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	}
 	// restriction post 
 
-  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, session.Nickname, "", 3, 1)
+  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, session.Nickname, "", 3, 4)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, err.Error()+";ImgSave", http.StatusOK)
 		return
@@ -98,78 +110,75 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 			TweetHead: collection.TweetHead{},
 		}		
 	}
-	iamAdmin := false
-	if tweetDoc.TweetHead.Nickname == session.Nickname {
-		iamAdmin = true
-	}
-	for _, b := range tweetDoc.TweetHead.BlockNames {
-		if b == session.Nickname && !iamAdmin {
+	iamAdmin := tweetDoc.TweetHead.UserID == session.UserID
+	for _, b := range tweetDoc.TweetHead.BlockUserIDs {
+		if b == session.UserID && !iamAdmin {
 			common.WriteResponseWithSession(w, session, "あなたはブロックされています", http.StatusOK)
 			return
 		}
 	}
 	newTweets := make([]collection.Tweet, 0, len(tweetDoc.Tweets))
 	for i, t := range tweetDoc.Tweets {
-		// 🔹 backID の tweetCount カウントアップ
 		if t.MessageID == backID {
 			t.TweetCount++
 		}
-
-		// 🔹 削除条件（messageID が指定されていて、削除対象に一致）
-		if t.MessageID == messageID && iamAdmin {
-			continue // ← append せずスキップ（削除）
-		}
-
-		// 🔹 残すツイートを追加
 		newTweets = append(newTweets, tweetDoc.Tweets[i])
 	}
 	tweetDoc.Tweets = newTweets
-
 	parentMessageID := parentID
 	if backID != "" {
 		parentMessageID = backID
 	}
-
 	if tweetDoc.TweetHead.ParentID == parentID { // head found
 		newTweet := collection.Tweet{
 			MessageID:  common.StringRand(8),
 			ParentID:   parentMessageID,
 			MessageTxt: messageTxt,
-			Nickname:   session.Nickname,
-			NickImg:    session.NickImg,
-			UserID:     session.UserID,
+			Nickname:   nickname,
+			NickImg:    nickImg,
 			CreatedAt:  now.Format(time.RFC3339),
 			BackID:     "",
 			Emojis:     []collection.Emoji{},
+			UserID:     session.UserID,
+			HiddenName:  session.Nickname,
 		}
 		if messageTxt != "" {
 			tweetDoc.Tweets = append(tweetDoc.Tweets, newTweet)
 		}
 		exists := false
 		for _, n := range tweetDoc.TweetHead.Nicknames {
+			if n == nickname {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			tweetDoc.TweetHead.Nicknames = append(tweetDoc.TweetHead.Nicknames, nickname)
+		}
+		exists = false
+		for _, n := range tweetDoc.TweetHead.HiddenNames {
 			if n == session.Nickname {
 				exists = true
 				break
 			}
 		}
 		if !exists {
-			tweetDoc.TweetHead.Nicknames = append(tweetDoc.TweetHead.Nicknames, session.Nickname)
-		}
-		if blockName != "" {
-			tweetDoc.TweetHead.BlockNames = append(tweetDoc.TweetHead.BlockNames, blockName)
+			tweetDoc.TweetHead.HiddenNames = append(tweetDoc.TweetHead.HiddenNames, session.Nickname)
 		}
 	} else {
 		newHead := collection.TweetHead{
 			ParentID:   parentID,
 			MessageID:  parentID,
-			Nickname:   session.Nickname,
-			NickImg:    session.NickImg,
+			Nickname:   nickname,
+			NickImg:    nickImg,
 			// Title:      title,
 			MessageTxt: messageTxt,
-			// UpdatedAt:  now,
 			CreatedAt:  now.Format(time.RFC3339),
-			Nicknames:  []string{session.Nickname},
+			Nicknames:  []string{nickname},
 			Emojis:     []collection.Emoji{},
+			UserID:     session.UserID,
+			HiddenName:  session.Nickname,
+			HiddenNames:  []string{session.Nickname},
 		}
 		// tweetDoc.TweetHeads = append(tweetDoc.TweetHeads, newHead)
 		tweetDoc.TweetHead = newHead
@@ -178,7 +187,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	// take sessions for push from nickname
 	var nicknameDocs []collection.NicknameStruct
 	nicknameColl := common.DB.NicknameDB.Collection("nickname")
-	cursor, err := nicknameColl.Find(ctx, bson.M{"_id": bson.M{"$in": tweetDoc.TweetHead.Nicknames}})
+	cursor, err := nicknameColl.Find(ctx, bson.M{"_id": bson.M{"$in": tweetDoc.TweetHead.HiddenNames}})
 	if err != nil {
 		common.WriteResponseWithSession(w, session, err.Error()+" nickname find  error", http.StatusOK)
 		return
@@ -233,7 +242,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postAdminFlag := false
-	if tweetDoc.TweetHead.Nickname == session.Nickname {
+	if tweetDoc.TweetHead.Nickname == session.Nickname || tweetDoc.TweetHead.HiddenName == session.Nickname {
 		postAdminFlag = true
 	}
 

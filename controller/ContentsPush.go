@@ -82,13 +82,13 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 	var contentsPush = common.NewDailyLogger("contents_push_channel_id")
 	contentsPush.Printf(channelID)
 
-  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0, 1)
+  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 0, 0)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, err.Error()+";imgPath", http.StatusOK)
 		return
 	}
 
-	fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 2)
+	fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 0)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, err.Error()+";FileSave", http.StatusOK)
 		return

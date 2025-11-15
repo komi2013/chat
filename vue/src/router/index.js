@@ -213,11 +213,11 @@ const router = createRouter({
       component: () => import('../views/TopEdit.vue')
     },
     {
-      path: '/tweet/:date?/:parentID?',
+      path: '/tweet/:date?/:parentIDhtml?',
       component: () => import('../views/Tweet.vue'),
       props: route => ({
         date: route.params.date,
-        parentID: route.params.parentID,
+        parentIDhtml: route.params.parentIDhtml,
         backID: route.query.backID,
         messageID: route.query.messageID
       })

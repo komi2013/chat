@@ -40,6 +40,7 @@ type AdPriceStruct struct {
 type AdResponse struct {
 	// AdStart    int     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
 	// AdEnd      int     `bson:"adEnd" json:"adEnd"`        // 例: 223（月曜23時）
+	AdID string  `bson:"_id" json:"advertisementID"`
 	PathBanner string  `bson:"pathBanner" json:"pathBanner"`
 	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
 	AdText     string  `bson:"adText" json:"adText"`

@@ -94,7 +94,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ========== UPDATE PHASE ==========
-	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 3, 3)
+	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 3, 1)
 	if err != nil {
 		log.Printf("ImgSave: %v; Req:", err, r.URL.Path, r.Form)
 		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)

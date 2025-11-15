@@ -37,7 +37,9 @@ export function calcEmoji(emojis, aliasName) {
         selected: name === aliasName
       });
     }
+    console.log(name, '=', aliasName)
     return acc;
+
   }, []);
   return result;
 }

@@ -66,13 +66,13 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
     log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
-  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 3, 1)
+  imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 3, 0)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
 
-  fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 2)
+  fileLinks, err := common.FileSave(r, channelID, updatedBy, userIDs, 0)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
