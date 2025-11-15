@@ -61,36 +61,13 @@ async function fetchThreadHead() {
   const tweets = res.tweet.tweets
   alreadyJoinFlag.value = res.alreadyJoinFlag
   checkTweetPostLimit(res.tweetPosts, parentID)
-  // if (props.backID) {
-  //   // const message = await getIDB('thread', props.parentID);
-  //   threadHead.value = message
-  //   threadHead.value.parentID = props.parentID;
-  //   threadHead.value.title = getSubstring(removeMark(message.messageTxt), 0, 12);
-  //   threadHead.value.messageTxt = message.messageTxt;
-  //   // threadHead.value.threadType = 0;
-  //   threadHead.value.backID = props.backID
-  //   threadHead.value.newReply = true
-  //   const originalThreadHead = await getIDB('threadHead', props.backID)
-  //   threadHead.value.aliasNames = [
-  //     ...new Set([
-  //       ...originalThreadHead.aliasNames,
-  //       ...threadHeadValue.aliasNames
-  //     ])
-  //   ]
-  //   threadHead.value.adminNames = originalThreadHead.adminNames
-  //   messagesStore.insert(message)
-  //   return
-  // }
-
   threadHead.value = head
   threadHead.value.title = getSubstring(removeMark(threadHead.value.messageTxt), 0, 12)
   let message = threadHead.value
   message.messageID = threadHead.value.parentID
   message.createdAt = threadHead.value.updatedAt
   messagesStore.insert(message)
-  // console.log('tweets', tweets)
   messagesCount.value = tweets ? tweets.length : 0
-  console.log('props.parentID', props.parentID)
   if (Array.isArray(tweets)) {
     for (const tweet of tweets) {
       if (props.backID) {
@@ -98,13 +75,9 @@ async function fetchThreadHead() {
       } else {
         tweet.href = `/tweet/${props.date}/${parentID}.html?messageID=${tweet.messageID}`
       }
-      // console.log('tweet href', tweet.href)
       messagesStore.insert(tweet)
     }
   }
-
-
-  // threadHead.value = heads.length > 0 ? heads[0] : { parentID, title: 'headなし' }
 }
 
 function checkTweetPostLimit(tweetPosts, parentID) {
@@ -112,11 +85,8 @@ function checkTweetPostLimit(tweetPosts, parentID) {
     postable.value = true
     return
   }
-
   const now = new Date()
   const TWENTY_HOURS = 20 * 60 * 60 * 1000
-
-  // 20時間以内の投稿のみ抽出
   const recentPosts = tweetPosts.filter(post => {
     if (!post.postedAt) return false
     const postedAt = new Date(post.postedAt)
@@ -129,7 +99,6 @@ function checkTweetPostLimit(tweetPosts, parentID) {
   )
   if (sameThread) {
     postable.value = false
-    console.log('❌ 投稿制限: このスレッドでは20時間以内に3回投稿済み')
     errorMessage.value = '投稿回数制限を超えました。明日投稿できます'
     return
   }
@@ -140,11 +109,9 @@ function checkTweetPostLimit(tweetPosts, parentID) {
   )
   if (limitedThreads.length >= 3) {
     postable.value = false
-    console.log('❌ 投稿制限: 20時間以内に3スレッドで上限投稿済み')
     errorMessage.value = '投稿回数制限を超えました。明日投稿できます'
     return
   }
-  // 制限なし → 投稿可能
   postable.value = true
 }
 

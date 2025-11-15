@@ -198,52 +198,43 @@ const msgUpsert = async (messageID) => {
   fd.append('anonymous', anonymous.value ?? '')
   fd.append('anonymousImg', anonymousImg.value ?? '')
   const res = await sendRequest('/TweetPost/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  quill.root.innerHTML = ''
-  fileInfo.value = []
-  clicked = false;
   if (res.error) {
-    errorMessage.value = res.error
+    errorMessage.value = res.error 
     return
   }
-  // let location_href
   if (props.newTweet) {
     const backIDURL = props.backID ? '?backID=' + props.backID : ''
     location.href = `/tweet/${res.date}/${res.parentID}.html${backIDURL}`
   } else {
     location.href = ''
   }
-  // console.log(location_href)
 }
 
 let imgPath = ''
 async function getImagePath(messageID) {
   const fileInput = document.getElementById('fileInput_' + messageID);
-  // ファイルなし（画像なし投稿OK）
   if (!fileInput || fileInput.files.length === 0) {
     return true
   }
-
-  // 複数枚 → エラー
   if (fileInput.files.length > 1) {
     alert('アップロードできるのは画像1枚のみです');
     return false
   }
-
   const file = fileInput.files[0];
-
-  // 非画像ファイル → エラー
   if (!file.type.startsWith('image/')) {
     alert('画像ファイルのみアップロード可能です');
     return false
   }
-
-  // Canvas経由でBase64化（最大250px）
   imgPath = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -252,8 +243,6 @@ async function getImagePath(messageID) {
         const maxSize = 250;
         let width = img.width;
         let height = img.height;
-
-        // アスペクト比を維持したままリサイズ
         if (width > height) {
           if (width > maxSize) {
             height = Math.round(height * (maxSize / width));
@@ -265,14 +254,11 @@ async function getImagePath(messageID) {
             height = maxSize;
           }
         }
-
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-
-        // JPEGでBase64化（品質90%）
         const dataURL = canvas.toDataURL('image/jpeg', 0.9);
         resolve(dataURL);
       };
@@ -287,7 +273,6 @@ async function getImagePath(messageID) {
 }
 
 const backIDURL = props.backID ? '?backID=' + props.backID : ''
-
 const anonymous = ref(localStorage.getItem('anonymous'))
 const anonymousImg = ref(localStorage.getItem('anonymousImg'))
 
@@ -313,7 +298,6 @@ function asAnonymous() {
     anonymousImg.value = getAliasImg()
     localStorage.setItem('anonymousImg', anonymousImg.value)
   }
-  console.log('匿名モード:', anonymous.value, anonymousImg.value)
 }
 
 function removeAnonymous() {

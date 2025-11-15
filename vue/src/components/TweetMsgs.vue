@@ -58,7 +58,6 @@ const moreMessages = async (later = false) => {
   const head = res.tweet.tweetHeads?.[0] || {};
   if (!later) tweets.reverse()
   tweets.forEach((t, index) => {
-    // t.href = `/thread/${props.parentID}/?messageID=${t.messageID}`
     if (props.backID) {
       t.href = `/tweet/${props.date}/${props.parentID}.html?backID=${props.backID}&messageID=${t.messageID}`
     } else {
@@ -74,7 +73,6 @@ const moreMessages = async (later = false) => {
       }
     }
   })
-  console.log(later)
   if (later) {
     offsetNew += limit;
     moreNew.value = tweets.length > limit;
@@ -96,7 +94,7 @@ const moreMessages = async (later = false) => {
 };
 
 function replyable (message) {
-  if (message.messageID !== message.parentID && !message.backID) {
+  if (message.messageID !== message.parentID && !props.backID) {
     return true;
   } else {
     return false;
@@ -106,25 +104,9 @@ function replyable (message) {
 let threadPosition
 let threadPositionNew
 let threadCount
-onMounted(async () => {
-  // if (props.messageID) {
-  //   moreNew.value = true
-  //   more.value = true
-  //   await moreMessages(true)
-  // } else {
-  //   await moreMessages()
-  // }
-})
 
 function reply(message) {
-  // const messageID = message.messageID;
-  // let URL = `/tweet/${message.parentID}/`
-  // let queryString = message.parentID && message.parentID !== message.messageID && !message.reply
-  //   ? `?${createGetParams({ backID: message.parentID })}` 
-  //   : '';
-  // let queryString = `?${createGetParams({ backID: message.parentID, messageID: message.messageID })}` 
   location.href = `/tweet/${props.date}/${message.parentID}.html?backID=${message.messageID}`
-
 }
 
 const clickEmoji = async (message, emoji) => {
@@ -134,10 +116,17 @@ const clickEmoji = async (message, emoji) => {
   fd.append('emoji', emoji.emoji)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/TweetEmoji/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
   rotateEmoji(emoji.emoji);
 }
@@ -207,15 +196,13 @@ const sendEmoji = async (message, emoji) => {
           </div>
           <div v-if="copyable" class="name-time">{{ message.nickname }} {{ tF('MM-DD hh:mm', message.createdAt) }}</div>
           <div v-if="!copyable" class="setting">
-            <span v-if="replyable(message)"
-                  :class="[{ 'selected': message.reply }, 'message-wrapper']">
+            <span v-if="replyable(message)" :class="[{'selected': message.tweetCount}, 'message-wrapper']">
               <a :class="{'message-button': message.reply}" @click="reply(message)"> 💬 </a>
               <span v-if="message.tweetCount" @click="reply(message)" class="badge">{{ message.tweetCount}}</span>
             </span>
             <span @click="openEmoji(message.messageID)"> 😄 </span>
-            <span v-if="iAmAdmin || nickname === message.nickname" @click="sendEmoji(message, '🗑')"> 🗑 </span>
+            <span @click="sendEmoji(message, '🗑')"> 🗑 </span>
             <span @click="sendEmoji(message, '🚫')"> 🚫 </span>
-            <span @click="sendEmoji(message, '⚠️')"> ⚠️ </span>
           </div>
         </div>
         <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
@@ -407,6 +394,7 @@ code {
   font-size: 12px;
   width: max-content;
   right: 0px;
+  opacity: 1;
 }
 .img-center {
   text-align: center;

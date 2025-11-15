@@ -57,21 +57,16 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now()
 	// restriction post 
-	var recentPosts []collection.TweetPost
+	limitedThreads := 0
 	for _, post := range session.TweetPosts {
 		if now.Sub(post.PostedAt) < 20*time.Hour {
-			recentPosts = append(recentPosts, post)
 			if !post.PostAdminFlag && post.ParentID == parentID && post.PostCount >= 3 {
 				common.WriteResponseWithSession(w, session, "このスレッドでは20時間以内に3回投稿しています", http.StatusOK)
 				return
 			}
 		}
-	}
-
-	limitedThreads := 0
-	for _, post := range recentPosts {
-		if post.PostCount >= 3 {
-			limitedThreads++
+		if post.ParentID != parentID {
+			limitedThreads++			
 		}
 	}
 
@@ -120,7 +115,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	newTweets := make([]collection.Tweet, 0, len(tweetDoc.Tweets))
 	for i, t := range tweetDoc.Tweets {
 		if t.MessageID == backID {
-			t.TweetCount++
+			tweetDoc.Tweets[i].TweetCount++
 		}
 		newTweets = append(newTweets, tweetDoc.Tweets[i])
 	}

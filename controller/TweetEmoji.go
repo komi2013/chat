@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	// "log"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -62,7 +64,7 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 			isMyTweet := session.UserID == t.UserID
 			reportCount := len(newEmojis)
 			shouldDelete := false
-			if emoji == "⚠️" && reportCount >= 5 {
+			if emoji == "🗑" && reportCount >= 5 {
 				shouldDelete = true
 			}
 			if emoji == "🗑" && (isMyTweet || iAmAdmin) {
@@ -86,9 +88,9 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 					tweeter = t.HiddenName
 				}
 	    }
-	    if emoji == "🚫" && iAmAdmin {
-		    tweetDoc.TweetHead.BlockUserIDs = append(tweetDoc.TweetHead.BlockUserIDs, t.UserID)
-	    }
+			if emoji == "🚫" && (reportCount >= 5 || iAmAdmin) && t.UserID != tweetDoc.TweetHead.UserID {
+			  tweetDoc.TweetHead.BlockUserIDs = append(tweetDoc.TweetHead.BlockUserIDs, t.UserID)
+			}
 			break
 		}
 	}
@@ -98,7 +100,7 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 		newEmojis, countChange := toggleEmoji(tweetDoc.TweetHead.Emojis, emoji, session.Nickname, tweetDoc.TweetHead.Nickname, session.UserID)
 		reportCount := len(newEmojis)
 		shouldDelete := false
-		if emoji == "⚠️" && reportCount >= 5 {
+		if emoji == "🗑" && reportCount >= 5 {
 			shouldDelete = true
 		}
 		if emoji == "🗑" && iAmAdmin {
@@ -132,7 +134,7 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 👍👎⚠️ によるスコア変動
+	// 👍👎 によるスコア変動
 	if emojiCountUpDown != 0 {
 		nickColl := common.DB.NicknameDB.Collection("nickname")
 		filter := bson.M{"_id": tweeter}
@@ -145,7 +147,9 @@ func TweetEmoji(w http.ResponseWriter, r *http.Request) {
 				updateFields["good"] = existingNick.Good + emojiCountUpDown
 			case "👎":
 				updateFields["bad"] = existingNick.Bad + emojiCountUpDown
-			case "⚠️":
+			case "🗑":
+				updateFields["report"] = existingNick.Report + emojiCountUpDown
+			case "🚫":
 				updateFields["report"] = existingNick.Report + emojiCountUpDown
 			}
 
@@ -202,7 +206,7 @@ func toggleEmoji(
 	emojiCountUpDown := 0
 	if index >= 0 {
 		emojis = append(emojis[:index], emojis[index+1:]...)
-		if (emoji == "👍" || emoji == "👎" || emoji == "🚫") && sessionNickname != targetNickname {
+		if (emoji == "👍" || emoji == "👎" || emoji == "🗑" || emoji == "🚫") && sessionNickname != targetNickname {
 			emojiCountUpDown = -1
 		}
 	} else {
@@ -211,7 +215,7 @@ func toggleEmoji(
 			Emoji:     emoji,
 			UserID:    userID,
 		})
-		if (emoji == "👍" || emoji == "👎" || emoji == "🚫") && sessionNickname != targetNickname {
+		if (emoji == "👍" || emoji == "👎" || emoji == "🗑" || emoji == "🚫") && sessionNickname != targetNickname {
 			emojiCountUpDown = 1
 		}
 	}
