@@ -42,9 +42,7 @@ jobs:
 
       - name: Build Go app
         run: |
-          cd chat
           GOOS=linux GOARCH=amd64 go build -o chat
-
       # -----------------------------------------------------
       # 4) Setup SSH
       # -----------------------------------------------------
@@ -60,25 +58,20 @@ jobs:
       # -----------------------------------------------------
       - name: Upload files to server
         run: |
-          # Blue/Green deploy directory
           RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
 
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
             mkdir -p /Work/chat/releases/$RELEASE_DIR
           "
 
-          # 転送 (Go バイナリ)
-          rsync -avz chat/chat \
+          # Go binary
+          rsync -avz chat \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/chat
 
-          # 転送 (Vue 静的ファイル)
+          # Vue outputs
           rsync -avz public/vue/ \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/public/vue/
 
-          # 本番の public/data やアップロードファイルは削除しない
-          # public/vue のみ更新する
-
-          # symlink 切り替え & systemctl 再起動
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
             ln -sfn /Work/chat/releases/$RELEASE_DIR/public/vue /Work/chat/public/vue &&
