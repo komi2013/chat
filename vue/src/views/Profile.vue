@@ -91,14 +91,21 @@ async function join () {
   fd.append('myimg', aliasImg.value)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ChannelJoin/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  // if (res.csrf) location.href = '/profile/' + props.id + '/'
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
+  location.href = '/profile/' + props.id + '/'
 }
 
 // async function switchAlias (aliasName) {
@@ -116,11 +123,7 @@ async function join () {
 <Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
 <div id="content">
   <div v-if="fetched">
-    <div v-if="errorMessage"> 
-      <div class="errorMessage">{{errorMessage}}</div>
-      <a href="/setting/"> データ設定ページ </a><br>
-      <!-- <a href="/sign/"> サインインページ </a> -->
-    </div>
+    <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>
     <div class="sp_head">
       <div v-if="channel"><a :href="'/channel/' + id + '/'">{{channel.channelName}}</a></div>
         <!--     <span>

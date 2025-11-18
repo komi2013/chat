@@ -27,11 +27,11 @@ import { topEdit } from './topEdit.js';
 import { tweetHead } from './tweetHead.js';
 
 export async function pushReceive(notificationData, direct = false) {
-  // console.log('before data', notificationData)
   // return
   // console.log('after data', notificationData)
   const pd = JSON.parse(notificationData)
   pd.directPush = direct
+  console.log('push data', pd)
   const dupli = {
     pushDuplicationID: pd[1] + pd[2] + pd[3] + pd[0],
     pushID: pd[0],
@@ -46,6 +46,8 @@ export async function pushReceive(notificationData, direct = false) {
     deleteIDB('pushDuplication', 'pushDuplicationID', pre.pushDuplicationID)
     return
   }
+  // ★ ここで古いデータ削除
+  await cleanOldPushDuplication()
   upsertIDB(dupli, 'pushDuplication', 'pushDuplicationID', dupli.pushDuplicationID)
   const actions = {
     advertisement: advertisement,
@@ -85,6 +87,25 @@ export async function pushReceive(notificationData, direct = false) {
     action(pd)  // 対応する関数を呼び出す
   } else {
     console.log('Unknown action.')
+  }
+}
+
+// 古い pushDuplication を削除（1ヶ月前より古い）
+async function cleanOldPushDuplication() {
+  const all = await getAllIDBs("pushDuplication");
+  const now = Date.now();
+  const oneMonth = 30 * 24 * 60 * 60 * 1000;
+
+  for (const item of all) {
+    if (!item.updatedAt) continue;
+
+    // updatedAt 文字列 → Date
+    const itemTime = new Date(item.updatedAt).getTime();
+
+    if (now - itemTime > oneMonth) {
+      // 1ヶ月以上古い → 削除
+      await deleteIDB("pushDuplication", "pushDuplicationID", item.pushDuplicationID);
+    }
   }
 }
 

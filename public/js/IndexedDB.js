@@ -3,7 +3,6 @@ const indexedDBStores = [
   ['alias', 'aliasID'],
   ['answer', 'answerID'],
   ['bookmark', 'messageID'],
-  ['bookPattern', 'bookPatternID'],
   ['calendar', 'calendarID'],
   ['channel', 'channelID'],
   ['chunk', 'chunkID'],
@@ -11,9 +10,7 @@ const indexedDBStores = [
   ['group', 'groupID'],
   ['log', 'logID'],
   ['pushDuplication', 'pushDuplicationID'],
-  ['reception', 'receptionID'],
   ['receptionOrder', 'receptionOrderID'],
-  ['shiftStaff', 'shiftStaffID'],
   ['thread', 'messageID'],
   ['threadHead', 'parentID'],
   ['timestamp', 'timestampID'],
@@ -24,7 +21,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 119);
+    const request = indexedDB.open('chat', 120);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
@@ -66,8 +63,6 @@ const setupDatabaseSchema = (db, transaction) => {
       chunk: [['chunkPassIndex', 'chunkPass']],
       group: [['channelIDIndex', 'channelID']],
       log: [['updatedAtIndex', 'updatedAt']],
-      // pushDuplication: [['channelIDIndex', 'channelID']],
-      shiftStaff: [['bookPatternIDIndex', 'bookPatternID']],
       thread: [
         ['parentIDIndex', 'parentID'],
         ['channelID_parentID', ['channelID', 'parentID']],
@@ -304,47 +299,6 @@ async function updIDBone(table, key, columnName, columnValue) {
     console.error(`Error getting data: ${event.target.error}`);
   };
 }
-
-const getObjectStoreNames = async () => {
-  const db = await openDatabase();
-  return Array.from(db.objectStoreNames); // ストア一覧を取得
-};
-
-const clearObjectStore = async (storeName) => {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    if (!db.objectStoreNames.contains(storeName)) {
-      return reject(`"${storeName}" は存在しません。`);
-    }
-    const transaction = db.transaction([storeName], 'readwrite');
-    const objectStore = transaction.objectStore(storeName);
-    const request = objectStore.clear(); // データ削除
-    request.onsuccess = () => resolve(`"${storeName}" のデータを削除しました！`);
-    request.onerror = (event) => reject(`エラー: ${event.target.error}`);
-  });
-};
-
-const deleteIndexedDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 101);
-    request.onerror = (event) => {
-      reject(`Error resetting database: ${event.target.error}`);
-    };
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      const transaction = event.target.transaction;
-      console.log('Resetting IndexedDB: Dropping and recreating all stores');
-      Array.from(db.objectStoreNames).forEach((storeName) => {
-        db.deleteObjectStore(storeName);
-      });
-    };
-    request.onsuccess = (event) => {
-      const db = event.target.result;
-      db.close();
-      resolve('Database has been reset successfully.');
-    };
-  });
-};
 
 async function queryIndexByValue({
     table,

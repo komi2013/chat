@@ -52,8 +52,8 @@ function newGroup() {
     groupName: '',
     groupImg: '',
     aliasNames: [channel.value.myname],
-    newOne: true ,
-    editable: today < groupLockUntilDate ? false : true
+    newOne: true, 
+    editable: true
   }
   groups.value.push(group);
 }

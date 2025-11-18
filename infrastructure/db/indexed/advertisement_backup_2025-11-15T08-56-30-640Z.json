@@ -1,0 +1,24 @@
+[
+  {
+    "advertisementID": "5",
+    "pathBanner": "",
+    "pathSquare": "",
+    "adText": "",
+    "adLink": "https://www.youtube.com/watch?v=z_Ac3x5MWAs",
+    "adYen": 57600,
+    "updatedAt": "2025-11-06T23:43:08.605Z",
+    "adStart": "2025-11-15T08:56:20.510Z",
+    "adEnd": "2025-11-15T14:56:20.510Z"
+  },
+  {
+    "advertisementID": "69076275099085df7d4e8576",
+    "pathBanner": "",
+    "pathSquare": "https://fabbie.sakura.ne.jp/gala/wp-content/uploads/2020/11/color01.png",
+    "adText": "",
+    "adLink": "https://fabbie.sakura.ne.jp/gala/wp-content/uploads/2020/11/color01.png",
+    "adYen": 90,
+    "updatedAt": "2025-11-02T04:40:13.062Z",
+    "adStart": "2025-11-15T08:56:20.510Z",
+    "adEnd": "2025-11-15T14:56:20.510Z"
+  }
+]

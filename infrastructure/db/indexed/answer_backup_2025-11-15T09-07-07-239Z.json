@@ -1,0 +1,129 @@
+[
+  {
+    "answerID": "51mik1A",
+    "channelID": "5",
+    "askType": 1,
+    "askID": "A",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "A",
+        "sequence": 1
+      },
+      {
+        "answer": [
+          "C",
+          "D"
+        ],
+        "sequence": 2
+      },
+      {
+        "answer": "AAA",
+        "sequence": 3
+      }
+    ]
+  },
+  {
+    "answerID": "51mik1X",
+    "channelID": "5",
+    "from": "1",
+    "askID": "X",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "2025-08-29T15:11",
+        "sequence": 1
+      },
+      {
+        "answer": "female",
+        "sequence": 2
+      }
+    ]
+  },
+  {
+    "answerID": "51mik1X2025-08-01",
+    "channelID": "5",
+    "from": "1",
+    "askID": "X",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "2025-08-01",
+        "sequence": 1
+      },
+      {
+        "answer": "male",
+        "sequence": 2
+      }
+    ]
+  },
+  {
+    "answerID": "51mik1X2025-08-28",
+    "channelID": "5",
+    "from": "1",
+    "askID": "X",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "2025-08-28",
+        "sequence": 1
+      },
+      {
+        "answer": "male",
+        "sequence": 2
+      }
+    ]
+  },
+  {
+    "answerID": "51mik1X2025-08-29",
+    "channelID": "5",
+    "from": "1",
+    "askID": "X",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "2025-08-29",
+        "sequence": 1
+      },
+      {
+        "answer": "male",
+        "sequence": 2
+      }
+    ]
+  },
+  {
+    "answerID": "51mik1b",
+    "channelID": "5",
+    "from": "1",
+    "askID": "b",
+    "answerBy": "mik1",
+    "answers": [
+      {
+        "answer": "5",
+        "sequence": 1
+      },
+      {
+        "answer": [
+          "りんご"
+        ],
+        "sequence": 2
+      },
+      {
+        "answer": "特になし",
+        "sequence": 3
+      },
+      {
+        "answer": "2025-08-29",
+        "sequence": 4
+      },
+      {
+        "answer": "杏奈",
+        "sequence": 5
+      },
+      {
+        "answer": "女",
+        "sequence": 6
+      }
+    ]
+  }
+]

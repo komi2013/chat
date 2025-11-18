@@ -30,24 +30,38 @@ dbNames.forEach(name => {
 
     const initialData = [
       {
+        _id: "adID",
+        lock: 0,
+        count: "5",
+        description: "adIDのシーケンス",
+        updatedAt: now,
+      },
+      {
         _id: "channelID",
         lock: 0,
-        count: "0",
+        count: "A",
         description: "channelIDのシーケンス",
         updatedAt: now,
       },
       {
-        _id: "userID",
+        _id: "fileID",
         lock: 0,
-        count: "0",
-        description: "userIDのシーケンス",
+        count: "D",
+        description: "fileIDのシーケンス",
         updatedAt: now,
       },
       {
         _id: "tweetID",
         lock: 0,
-        count: "0",
+        count: "Y",
         description: "tweetIDのシーケンス",
+        updatedAt: now,
+      },
+      {
+        _id: "userID",
+        lock: 0,
+        count: "2",
+        description: "userIDのシーケンス",
         updatedAt: now,
       },
     ];

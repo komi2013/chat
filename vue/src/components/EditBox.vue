@@ -250,7 +250,6 @@ const msgUpsert = async (messageID, delMessage) => {
   fd.set('pushNames', JSON.stringify(totalNames))
   let editThreadHead = props.threadHead
   editThreadHead.aliasNames = totalNames
-  console.log('editThreadHead.newReply', editThreadHead.newReply)
   if (mentionNames.length > 0 || editThreadHead.newReply) {
     if (editThreadHead.newReply) {
       delete editThreadHead.newReply

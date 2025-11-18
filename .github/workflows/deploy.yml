@@ -1,0 +1,65 @@
+name: Deploy Go + Vue
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------
+      # Build Vue (Vite)
+      # -----------------------------------------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vue dependencies
+        working-directory: ./vue
+        run: npm ci
+
+      - name: Build Vue app
+        working-directory: ./vue
+        run: npm run build
+      # Vue の成果物は vue/public/ 以下に生成されている想定
+      # outDir: '../public/vue'
+
+      # -----------------------------------------------------
+      # Build Go
+      # -----------------------------------------------------
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build Go binary
+        working-directory: ./go-app
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o app .
+
+      # -----------------------------------------------------
+      # Deploy to Server (via rsync over SSH)
+      # -----------------------------------------------------
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy static (Vue)
+        run: |
+          rsync -avz --delete vue/public/ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
+
+      - name: Deploy Go binary
+        run: |
+          rsync -avz go-app/app ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/app
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "sudo systemctl restart chat-app.service"
+

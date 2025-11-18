@@ -1,0 +1,128 @@
+[
+  {
+    "aliasID": "1bchild2",
+    "channelID": "1b",
+    "aliasName": "child2",
+    "aliasImg": ",☉,#7364f5",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": ""
+  },
+  {
+    "aliasID": "1biv1",
+    "channelID": "1b",
+    "aliasName": "iv1",
+    "aliasImg": ",♽,#9be160",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": ""
+  },
+  {
+    "aliasID": "1bmik1",
+    "channelID": "1b",
+    "aliasName": "mik1",
+    "aliasImg": ",➟,#011f10",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "5iv1",
+    "channelID": "5",
+    "aliasName": "iv1",
+    "aliasImg": ",⚎,#edd567",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "5mik1",
+    "channelID": "5",
+    "aliasName": "mik1",
+    "aliasImg": ",M,#dba54a",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": ""
+  },
+  {
+    "aliasID": "6mik1",
+    "channelID": "6",
+    "aliasName": "mik1",
+    "aliasImg": ",🪚,#aae14a",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "6伊v２",
+    "channelID": "6",
+    "aliasName": "伊v２",
+    "aliasImg": ",🏵,#0d8122",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": "guest"
+  },
+  {
+    "aliasID": "7undefined",
+    "channelID": "7",
+    "aliasName": "undefined",
+    "aliasImg": ",⚘,#582e23",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "8ミハイル３",
+    "channelID": "8",
+    "aliasName": "ミハイル３",
+    "aliasImg": ",👋,#363d18",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "9mik4",
+    "channelID": "9",
+    "aliasName": "mik4",
+    "aliasImg": ",👬,#1e8c45",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "9８８８",
+    "channelID": "9",
+    "aliasName": "８８８",
+    "aliasImg": ",❹,#73ef90",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": ""
+  },
+  {
+    "aliasID": "AguestIvan",
+    "channelID": "A",
+    "aliasName": "guestIvan",
+    "aliasImg": ",🦛,#ecd4e5",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": "guest"
+  },
+  {
+    "aliasID": "AivanA",
+    "channelID": "A",
+    "aliasName": "ivanA",
+    "aliasImg": ",⚨,#90d487",
+    "userID": "1",
+    "aliasBio": "",
+    "accessRight": "admin"
+  },
+  {
+    "aliasID": "Amik100",
+    "channelID": "A",
+    "aliasName": "mik100",
+    "aliasImg": ",🎄,#dbb5a1",
+    "userID": "2",
+    "aliasBio": "",
+    "accessRight": "admin"
+  }
+]

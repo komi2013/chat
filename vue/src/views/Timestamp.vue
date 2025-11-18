@@ -52,9 +52,9 @@ onMounted(async () => {
   // console.log(timestamps.value);
 });
 
-async function stamp(action) {
-  if (!confirm("実行▶️")) {
-    return;
+async function stamp(action, confirmMsg) {
+  if (!confirm(confirmMsg)) {
+    return
   }
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'));
@@ -89,13 +89,13 @@ async function stamp(action) {
 <h2 class="sp_head">タイムスタンプ</h2>
 <div style="width: 100%; text-align: center;"><Advertisement /></div>
 <br>
-<div class="button"><button @click="stamp('startWork')">▶️勤務スタート</button></div>
+<div class="button"><button @click="stamp('startWork', '勤務スタート')">▶️勤務スタート</button></div>
 <br>
-<div class="button"><button @click="stamp('endWork')">⏹️勤務終了</button></div>
+<div class="button"><button @click="stamp('endWork', '勤務終了')">⏹️勤務終了</button></div>
 <br>
-<div class="button"><button @click="stamp('startBreak')">☕▶️休憩スタート</button></div>
+<div class="button"><button @click="stamp('startBreak', '休憩スタート')">☕▶️休憩スタート</button></div>
 <br>
-<div class="button"><button @click="stamp('endBreak')">☕⏹️休憩終了</button></div>
+<div class="button"><button @click="stamp('endBreak', '休憩終了')">☕⏹️休憩終了</button></div>
 
   <div class="timestamp-container">
     <div v-if="latestTimestamp">
