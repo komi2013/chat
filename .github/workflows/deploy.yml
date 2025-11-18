@@ -1,20 +1,22 @@
-name: Deploy Go + Vue
+name: Deploy Chat App (Go + Vue)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # -----------------------------------------------------
+      # 1) Checkout repository
+      # -----------------------------------------------------
       - name: Checkout source
         uses: actions/checkout@v4
 
       # -----------------------------------------------------
-      # Build Vue (Vite)
+      # 2) Build Vue (Vite)
       # -----------------------------------------------------
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,41 +27,60 @@ jobs:
         working-directory: ./vue
         run: npm ci
 
-      - name: Build Vue app
+      - name: Build Vue
         working-directory: ./vue
         run: npm run build
-      # Vue の成果物は vue/public/ 以下に生成されている想定
-      # outDir: '../public/vue'
+        # → /public/vue に成果物生成される
 
       # -----------------------------------------------------
-      # Build Go
+      # 3) Build Go binary
       # -----------------------------------------------------
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.22"
 
-      - name: Build Go binary
-        working-directory: ./go-app
+      - name: Build Go app
         run: |
-          GOOS=linux GOARCH=amd64 go build -o app .
+          cd chat
+          GOOS=linux GOARCH=amd64 go build -o chat
 
       # -----------------------------------------------------
-      # Deploy to Server (via rsync over SSH)
+      # 4) Setup SSH
       # -----------------------------------------------------
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy static (Vue)
+      # -----------------------------------------------------
+      # 5) Deploy — BLUE/GREEN RELEASE
+      # -----------------------------------------------------
+      - name: Upload files to server
         run: |
-          rsync -avz --delete vue/public/ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
+          # Blue/Green deploy directory
+          RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
 
-      - name: Deploy Go binary
-        run: |
-          rsync -avz go-app/app ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/app
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "sudo systemctl restart chat-app.service"
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            mkdir -p /Work/chat/releases/$RELEASE_DIR
+          "
 
+          # 転送 (Go バイナリ)
+          rsync -avz chat/chat \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/chat
+
+          # 転送 (Vue 静的ファイル)
+          rsync -avz public/vue/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/public/vue/
+
+          # 本番の public/data やアップロードファイルは削除しない
+          # public/vue のみ更新する
+
+          # symlink 切り替え & systemctl 再起動
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/vue /Work/chat/public/vue &&
+            sudo systemctl restart chat.service
+          "
