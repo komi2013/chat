@@ -193,7 +193,7 @@ async function order() {
 </script>
 
 <template>
-<DrawerReception :id="id" :code="code" />
+<div id="drawer_column"><DrawerReception :id="id" :code="code" /></div>
   <div id="content">
     <h1 class="sp_head">メニュー一覧</h1>
     <div>{{seatName}}</div>

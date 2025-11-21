@@ -41,7 +41,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DrawerTweet />
+  <div id="drawer_column"><DrawerTweet /></div>
   <div id="content">
     <div v-if="!fetched">Loading…</div>
     <div v-if="errorMessage">{{ errorMessage }}</div>

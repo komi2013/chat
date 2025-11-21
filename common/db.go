@@ -29,58 +29,59 @@ var DB *DBs
 func InitMongo() {
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
+  cfg := LoadConfig()
 
-  adClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoAd))
+  adClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoAd))
   if err != nil {
     log.Fatalf("Mongo adClient connect error: %v", err)
   }
 
-  adPriceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoAdPrice))
+  adPriceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoAdPrice))
   if err != nil {
     log.Fatalf("Mongo adPriceClient connect error: %v", err)
   }
 
-  channelClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoChannel))
+  channelClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoChannel))
   if err != nil {
     log.Fatalf("Mongo channelClient connect error: %v", err)
   }
 
-  fileClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoFile))
+  fileClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoFile))
   if err != nil {
     log.Fatalf("Mongo fileClient connect error: %v", err)
   }
 
-  invoiceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoInvoice))
+  invoiceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoInvoice))
   if err != nil {
     log.Fatalf("Mongo invoiceClient connect error: %v", err)
   }
 
-  nicknameClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoNickname))
+  nicknameClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoNickname))
   if err != nil {
     log.Fatalf("Mongo nicknameClient connect error: %v", err)
   }
 
-  receptionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoReception))
+  receptionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoReception))
   if err != nil {
     log.Fatalf("Mongo receptionClient connect error: %v", err)
   }
 
-  sequenceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoSequence))
+  sequenceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoSequence))
   if err != nil {
     log.Fatalf("Mongo sequenceClient connect error: %v", err)
   }
 
-  sessionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoSession))
+  sessionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoSession))
   if err != nil {
     log.Fatalf("Mongo sessionClient connect error: %v", err)
   }
 
-  tweetClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoTweet))
+  tweetClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoTweet))
   if err != nil {
     log.Fatalf("Mongo sessionClient connect error: %v", err)
   }
 
-  userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(MongoUser))
+  userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoUser))
   if err != nil {
     log.Fatalf("Mongo userClient connect error: %v", err)
   }

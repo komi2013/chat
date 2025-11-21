@@ -19,7 +19,7 @@ onMounted(() => {
 </script>
 
 <template>
-<Drawer />
+<div id="drawer_column"><Drawer /></div>
 <div id="content">
   <h1 class="sp_head">チケット一覧</h1>
 

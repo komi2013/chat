@@ -122,7 +122,7 @@ async function editGroup(group) {
 </script>
 
 <template>
-<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
+<div id="drawer_column"><Drawer v-if="aliases" :aliases="aliases" :channel="channel" /></div>
 <div id="content" v-if="fetched">
   <div class="headTitle">
     <div>

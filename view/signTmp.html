@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>🚪🚶ログイン</title>
+  <link rel="shortcut icon" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, user-scalable=no" >
+  <style>
+    input {
+      padding: 5px;
+      font-size: 16px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      font-size: 16px;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/pushReceive-DICste5D.js"></script>
+  <script type="module" crossorigin src="/assets/Advertisement-D6c0ch6a.js"></script>
+  <script type="module" crossorigin src="/assets/Drawer-CybODX7N.js"></script>
+  <script type="module" crossorigin src="/assets/outsideApp-BP4OfLSC.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/pushReceive-D-fEpAbp.css">
+  <link rel="stylesheet" crossorigin href="/assets/outsideApp-CbdrjHvr.css">
+  <link rel="stylesheet" crossorigin href="/assets/Advertisement-DhaK2e1-.css">
+  <link rel="stylesheet" crossorigin href="/assets/Drawer-Cs8Ha4dd.css">
+</head>
+
+<body>
+  <div id="app"></div>
+<div class="menu pc_disp_none">≡</div>
+
+<div id="content">
+
+  <br><br>
+  <input id="userID" placeholder="seijiro" />
+  <br>
+  <button id="setCookieBtn">setCookie</button>
+
+<br><br>
+
+</div>
+
+<div id="ad_right"></div>
+
+<script type="text/javascript">
+  document.getElementById('setCookieBtn').addEventListener('click', function() {
+    const userIDValue = document.getElementById('userID').value;
+    const fd = new FormData();
+    fd.append('userID', userIDValue);
+
+    fetch('/SignInTmp/', {
+      method: 'POST',
+      body: fd,
+    })
+    .then((response) => {
+      console.log(response);
+      location.href = '/pushSubscription/'
+    })
+    .catch((reason) => {
+      console.log(reason);
+    });
+  });
+</script>
+
+</body>
+</html>

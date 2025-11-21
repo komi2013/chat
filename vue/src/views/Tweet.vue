@@ -133,7 +133,7 @@ function backTo() {
 </script>
 
 <template>
-  <DrawerTweet />
+  <div id="drawer_column"><DrawerTweet /></div>
   <div id="content">
     <div v-if="!fetched"><br><br>Loading…</div>
     <div v-if="fetched">

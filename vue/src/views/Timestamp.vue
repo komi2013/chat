@@ -82,7 +82,7 @@ async function stamp(action, confirmMsg) {
 
 
 <template>
-<DrawerTimestamp />
+<div id="drawer_column"><DrawerTimestamp /></div>
 
 <div id="content">
 

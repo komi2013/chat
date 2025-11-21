@@ -43,7 +43,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DrawerTweet />
+  <div id="drawer_column"><DrawerTweet /></div>
   <div id="content">
     <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="/tweet/">新規作成</a></div>
     <div v-if="!fetched"><br><br>Loading…</div>

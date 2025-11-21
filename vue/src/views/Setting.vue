@@ -239,7 +239,7 @@ async function startImport() {
 </script>
 
 <template>
-  <Drawer />
+  <div id="drawer_column"><Drawer /></div>
   <div class="content">
     <h2>IndexedDB ストア削除</h2>
     <label for="storeSelect">ストアを選択:</label>

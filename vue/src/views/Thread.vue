@@ -135,7 +135,7 @@ function backTo() {
 </script>
 
 <template>
-<DrawerThread/>
+<div id="drawer_column"><DrawerThread/></div>
 <div id="content">
   <div v-if="fetched">
     <div v-if="threadHead">

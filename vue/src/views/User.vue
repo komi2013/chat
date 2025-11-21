@@ -206,7 +206,7 @@ async function switchNickname(selectedName) {
 </script>
 
 <template>
-  <Drawer />
+  <div id="drawer_column"><Drawer /></div>
   <div id="content">
     <div>
       <form v-if="fetched">

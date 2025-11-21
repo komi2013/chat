@@ -1,7 +1,7 @@
 self.addEventListener('push', event => {
   console.log(`Push Received.....: "${event.data.text()}"`);
 
-  const title = 'Test Webpush';
+  // const title = 'Webpush';
   const options = {
     body: event.data.text(),
   };

@@ -266,7 +266,7 @@ function getAdminDiffData() {
 </script>
 
 <template>
-<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
+<div id="drawer_column"><Drawer v-if="aliases" :aliases="aliases" :channel="channel" /></div>
 <div id="content">
   <br><br>
   <div v-if="errorMessage"> 

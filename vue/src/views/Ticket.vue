@@ -214,7 +214,7 @@ async function saveChanges() {
 </script>
 
 <template>
-<TimestampDrawer />
+<div id="drawer_column"><TimestampDrawer /></div>
 <div id="content">
   <div v-if="fetched">
     <div class="sp_head"><a href="/tickets/">チケット一覧</a></div>

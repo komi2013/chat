@@ -2,7 +2,7 @@ package console
 
 import (
   "fmt"
-  "log"
+  // "log"
 
   "chat/common" // ← 実際のモジュール名に置き換えてね
 )
@@ -15,12 +15,17 @@ func TestCode() {
   // }
   // fmt.Printf("New Count for ID '%s': %s\n", id)
 
-	addr, err := common.GenerateInvoiceAddress("12345") // InvoiceID
-	if err != nil {
-		log.Fatal(err)
-	}
+	// addr, err := common.GenerateInvoiceAddress("12345") // InvoiceID
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	fmt.Println("Invoice Address =", addr)
+	// fmt.Println("Invoice Address =", addr)
+
+  cfg := common.LoadConfig()
+
+
+	fmt.Println("GoPort =", cfg.GoPort)
 
 
 }

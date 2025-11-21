@@ -411,7 +411,7 @@ function copyToClipboard() {
 
 
 <template>
-<DrawerTimestamp />
+<div id="drawer_column"><DrawerTimestamp /></div>
 
 <div id="content" v-if="fetched">
   <div>

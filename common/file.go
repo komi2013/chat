@@ -30,11 +30,11 @@ func EmojiImgValid (imgStr string) (bool) {
 	return pattern.MatchString(imgStr)
 	// if !pattern.MatchString(imgStr) {
 	// 	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "画像が不正", http.StatusOK)
-	// 	return
-	// }
 }
 
 func ImgSave(img string, userID string, name string, channelID string, fileIDLength int, usageType int) (string, error) {
+  cfg := LoadConfig()
+
 	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
@@ -53,13 +53,13 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
       channelID = "-no-channel-"
     }
     fileName := name + nameTail
-		dirPath := OSImgDir + "/img/" + channelID + "/"
+		dirPath := cfg.OSImgDir + "/img/" + channelID + "/"
 		err = os.MkdirAll("."+dirPath, 0755)
 		if err != nil {
 			LogError("failed to create directory", err)
 			return "", fmt.Errorf("failed to create directory: %w", err)
 		}
-		imgPath = PublicImgPath + "/img/" + channelID + "/" + fileName + ".png"
+		imgPath = cfg.PublicImgPath + "/img/" + channelID + "/" + fileName + ".png"
 		filePath := "." + dirPath + fileName + ".png"
 		err = ioutil.WriteFile(filePath, imageData, 0644)
 		if err != nil {
@@ -98,6 +98,7 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 }
 
 func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []string, usageType int) ([]string, error) {
+  cfg := LoadConfig()
 	const (
 		maxFileSize      = 100 << 20 // 100MB (1ファイルあたりの上限)
 		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
@@ -144,7 +145,7 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 			return nil, fmt.Errorf("fileID CountUpID: %w", err)
 		}
 		filePath := fmt.Sprintf("/upload/file/%s/%s/%s", channelID, fileID, fileHeader.Filename)
-		saveDir := fmt.Sprintf(UploadDir + "/upload_data/file/%s/%s/", channelID, fileID)
+		saveDir := fmt.Sprintf(cfg.UploadDir + "/upload_data/file/%s/%s/", channelID, fileID)
 
 		if err := os.MkdirAll(saveDir, 0755); err != nil {
 			log.Printf("Failed to create directory: %v", err)

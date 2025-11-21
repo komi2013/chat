@@ -6,7 +6,7 @@ import Drawer from '@/components/Drawer.vue'
 </script>
 
 <template>
-<Drawer />
+<div id="drawer_column"><Drawer /></div>
 <div id="content">
   <h1 class="sp_head">プライバシーポリシー</h1>
     <p>株式会社コマハナ（以下，「当社」といいます。）は，本ウェブサイト上で提供するサービス（以下,「本サービス」といいます。）における，ユーザーの個人情報の取扱いについて，以下のとおりプライバシーポリシー（以下，「本ポリシー」といいます。）を定めます。</p>

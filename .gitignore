@@ -1,12 +1,11 @@
-.bash_history
 .cache/
-chat
-
-common/config.go
+.config/
 log/
 upload_data/
-
 infrastructure/google*
+infrastructure/chat.env*
+.bash_history
+chat
 
 # upload/
 
@@ -15,4 +14,3 @@ infrastructure/google*
 
 public/
 
-.config/

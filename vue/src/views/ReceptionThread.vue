@@ -143,7 +143,7 @@ function backTo() {
 </script>
 
 <template>
-<DrawerReception/>
+<div id="drawer_column"><DrawerReception/></div>
 <div id="content">
   <div v-if="fetched">
     <div v-if="threadHead">

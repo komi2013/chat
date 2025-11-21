@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: DockerGo
     working_dir: '/root/'
+    env_file:
+      - ../infrastructure/chat.env
     ports:
       - "9080:9080"
       - "80:80"
@@ -14,10 +16,7 @@ services:
       - ../:/root/
     command: >
       bash -c "
-      go get github.com/catinello/base62 &&
       go get go.mongodb.org/mongo-driver/mongo &&
-      go get github.com/gorilla/websocket &&
-      go get github.com/mitchellh/mapstructure &&
       pwd &&
       bash
       "
@@ -38,11 +37,11 @@ services:
       - ./server.key:/etc/nginx/conf.d/server.key
 
   node:
-    image: node:lts-alpine3.18
+    image: node:lts
     volumes:
       - ../vue:/app/vue
-      - ../public:/app/public
-      # - ../public:/app/vue/dist
+      - ../public/assets:/app/public/assets
+      - ../view:/app/public/view
     tty: true
     ports:
       - 3000:3000

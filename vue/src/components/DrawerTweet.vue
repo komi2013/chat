@@ -47,27 +47,25 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="drawer_column">
-    <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
-    <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
-    <table id="drawer">
-      <tr><td><a href="/" > ホーム </a></td></tr>
-      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
-      <tr><td><a href="/tweets/" > ツイート </a></td></tr>
-      <tr v-for="head in tweetHeads" :key="head.parentID">
-        <td :class="getStatusClass(head.displayStatus)">
-          <a @click="goThread(head)">
-            {{ head.title || '(無題)' }}
-          </a>
-        </td>
-      </tr>
+  <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
+  <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
+  <table id="drawer">
+    <tr><td><a href="/" > ホーム </a></td></tr>
+    <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
+    <tr><td><a href="/tweets/" > ツイート </a></td></tr>
+    <tr v-for="head in tweetHeads" :key="head.parentID">
+      <td :class="getStatusClass(head.displayStatus)">
+        <a @click="goThread(head)">
+          {{ head.title || '(無題)' }}
+        </a>
+      </td>
+    </tr>
 
-      <tr v-if="tweetHeads.length === 0">
-        <td>スレッドがありません。</td>
-      </tr>
+    <tr v-if="tweetHeads.length === 0">
+      <td>スレッドがありません。</td>
+    </tr>
 
-    </table>
-  </div>
+  </table>
 </template>
 
 <style scoped>

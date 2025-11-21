@@ -7,6 +7,7 @@ import Advertisement from '@/components/Advertisement.vue'
 import { pushReceive } from '@/pushReceive/pushReceive.js'
 // import { sendRequest } from '@/my/api'
 
+
 document.title = '広告設定'
 
 const weekdays = ['', '日', '月', '火', '水', '木', '金', '土']
@@ -263,7 +264,7 @@ function handleTrim(event, adID, targetW, targetH, type) {
 </script>
 
 <template>
-  <Drawer />
+  <div id="drawer_column"><Drawer /></div>
   <div id="content">
     <br>
     <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>

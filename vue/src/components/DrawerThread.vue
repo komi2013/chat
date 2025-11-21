@@ -69,31 +69,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="drawer_column">
-    <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
-    <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
-    <table id="drawer">
-      <tr><td><a href="/" > ホーム </a></td></tr>
-      <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
-      <tr><td><a href="/channel/" > 組織・チャネル設定 </a></td></tr>
-      <tr><td>スレッド</td></tr>
-      <tr v-for="d in threadHeads">
-        <td :class="getStatusClass(d.displayStatus)">
-          <span v-if="d.backID">💬</span><span v-if="!d.backID">&nbsp;</span>
-          <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
-        </td>
-      </tr>
-    <template v-if="bookmarks.length > 0">
-      <tr><td> 🔖 ブックマーク </td></tr>
-      <tr v-for="d in bookmarks">
-        <td :class="getStatusClass(d.displayStatus)">
-          &nbsp;<a @click="goBookmarkThread(d)">
-            {{ d.title }}</a>
-        </td>
-      </tr>
-    </template>
-    </table>
-  </div>
+  <label for="drawer_check" class="pc_disp_none for_drawer">≡</label>
+  <input id="drawer_check" type="checkbox" class="pulling pc_disp_none">
+  <table id="drawer">
+    <tr><td><a href="/" > ホーム </a></td></tr>
+    <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
+    <tr><td><a href="/channel/" > 組織・チャネル設定 </a></td></tr>
+    <tr><td>スレッド</td></tr>
+    <tr v-for="d in threadHeads">
+      <td :class="getStatusClass(d.displayStatus)">
+        <span v-if="d.backID">💬</span><span v-if="!d.backID">&nbsp;</span>
+        <a :href="'/thread/' + d.channelID + '/' + d.parentID + '/'">{{ d.title }}</a>
+      </td>
+    </tr>
+  <template v-if="bookmarks.length > 0">
+    <tr><td> 🔖 ブックマーク </td></tr>
+    <tr v-for="d in bookmarks">
+      <td :class="getStatusClass(d.displayStatus)">
+        &nbsp;<a @click="goBookmarkThread(d)">
+          {{ d.title }}</a>
+      </td>
+    </tr>
+  </template>
+  </table>
+
 </template>
 
 <style scoped>

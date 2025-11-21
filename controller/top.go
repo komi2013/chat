@@ -19,6 +19,8 @@ import (
 )
 
 func Top(w http.ResponseWriter, r *http.Request) {
+  cfg := common.LoadConfig()
+
 	var session collection.SessionStruct
 	var err error
 	var tmplPath string
@@ -27,9 +29,9 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
 		// tmplPath = "view/signTmp.tmpl"
-		tmplPath = "view/signGoogle.tmpl"
-		domain = common.Domain
-		googleClientID = common.GoogleClientID
+		tmplPath = "view/signGoogle.html"
+		domain = cfg.Domain
+		googleClientID = cfg.GoogleClientID
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.tmpl"
 		session, err = common.SessionGet(w, r)
@@ -45,7 +47,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case r.URL.Path == "/setting/":
-		tmplPath = "public/index.html"
+		tmplPath = "view/index.html"
 		session, err = common.SessionGet(w, r)
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
@@ -55,7 +57,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 		}
 	default:
-		tmplPath = "public/index.html"
+		tmplPath = "view/index.html"
 	}
 	type View struct {
 		Session collection.SessionStruct
@@ -67,7 +69,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	view.Session = session
 	view.Domain = domain
 	view.GoogleClientID = googleClientID
-	view.CacheV = common.CacheV
+	view.CacheV = cfg.CacheV
 
 	tpl := template.Must(template.ParseFiles(tmplPath))
 	if err := tpl.Execute(w, view); err != nil {

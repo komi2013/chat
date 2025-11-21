@@ -52,12 +52,13 @@ func SendWebPushNotification(arr []interface{}, pushID string, session collectio
 }
 
 func PushNotification(data string, subscription string) (*http.Response, error) {
+  cfg := LoadConfig()
 	webpushSub := &webpush.Subscription{}
 	json.Unmarshal([]byte(subscription), webpushSub)
 	resp, err := webpush.SendNotification([]byte(data), webpushSub, &webpush.Options{
 		Subscriber:      "example@example.com",
-    VAPIDPublicKey:  VAPIDPublicKey,
-    VAPIDPrivateKey: VAPIDPrivateKey,
+    VAPIDPublicKey:  cfg.VAPIDPublicKey,
+    VAPIDPrivateKey: cfg.VAPIDPrivateKey,
 		TTL:             30,
 	})
   if err != nil {

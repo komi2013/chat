@@ -171,7 +171,7 @@ async function postData(stampCodes) {
 
 
 <template>
-<DrawerTimestamp />
+<div id="drawer_column"><DrawerTimestamp /></div>
 <div id="content">
   <h2 class="sp_head">タイムスタンプQR登録</h2>
   <div v-if="errorMessage"> 

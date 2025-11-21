@@ -186,7 +186,7 @@ async function queueRemove(queueName) {
 </script>
 
 <template>
-  <Drawer />
+  <div id="drawer_column"><Drawer /></div>
   <h2 class="sp_head">受付待ち時間</h2>
   <div v-if="errorMessage"> 
     <div class="errorMessage">{{ errorMessage }}</div>

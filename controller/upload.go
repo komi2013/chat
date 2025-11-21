@@ -22,6 +22,7 @@ import (
 )
 
 func Upload(w http.ResponseWriter, r *http.Request) {
+  cfg := common.LoadConfig()
 	u := strings.Split(r.URL.Path, "/")
 	if len(u) < 6 {
 		http.Error(w, "invalid URL path or File not found", http.StatusNotFound)
@@ -96,7 +97,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
   }
 
 	filePath := fmt.Sprintf("%s/%s/%s", channelID, fileID, aliasName)
-	file, err := http.Dir(common.UploadDir + "/upload_data/" + fileType).Open(filePath)
+	file, err := http.Dir(cfg.UploadDir + "/upload_data/" + fileType).Open(filePath)
 	if err != nil {
 		log.Printf("File not found: %v; Req: ", err, r.URL.Path, r.Form)
 		http.Error(w, "File not found", http.StatusNotFound)

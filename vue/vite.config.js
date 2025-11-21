@@ -3,27 +3,22 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  base: '/vue/',
+  // root: '.', 
+  // base: '/vue/',
   plugins: [
     vue(),
   ],
   build: {
-    outDir: '../public/vue',
-    emptyOutDir: true,
+    emptyOutDir: false,
+    outDir: '../public',       // <-- output to public/
+    assetsDir: 'assets',       // <-- output to public/assets
     rollupOptions: {
-      output: {
-        // JS の出力ファイル名を固定
-        entryFileNames: 'assets/index.js',
-        // 追加で分割されるチャンクの命名
-        chunkFileNames: 'assets/[name].[hash].js',
-        // CSS の出力も固定
-        // assetFileNames: 'assets/[name].[hash].[ext]',
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
-            return 'assets/index.css';
-          }
-          return 'assets/[name].[hash].[ext]';
-        }
+      input: {
+        // main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        index: fileURLToPath(new URL('./view/index.html', import.meta.url)),
+        pushSubscription: fileURLToPath(new URL('./view/pushSubscription.html', import.meta.url)),
+        signGoogle: fileURLToPath(new URL('./view/signGoogle.html', import.meta.url)),
+        signTmp: fileURLToPath(new URL('./view/signTmp.html', import.meta.url)),
       }
     }
   },

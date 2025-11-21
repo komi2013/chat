@@ -6,7 +6,7 @@ import Drawer from '@/components/Drawer.vue'
 </script>
 
 <template>
-<Drawer />
+<div id="drawer_column"><Drawer /></div>
 <div id="content">
   <h2 class="sp_head">規則・ルール</h2>
 

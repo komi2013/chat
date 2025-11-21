@@ -90,7 +90,7 @@ async function deleteOrder() {
 </script>
 
 <template>
-<DrawerReception :id="id" :code="code" />
+<div id="drawer_column"><DrawerReception :id="id" :code="code" /></div>
   <div id="content">
     <h1 class="sp_head">注文履歴</h1>
 

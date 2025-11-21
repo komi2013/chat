@@ -120,7 +120,7 @@ async function join () {
 </script>
 
 <template>
-<Drawer v-if="aliases" :aliases="aliases" :channel="channel" />
+<div id="drawer_column"><Drawer v-if="aliases" :aliases="aliases" :channel="channel" /></div>
 <div id="content">
   <div v-if="fetched">
     <div v-if="errorMessage"> <div class="errorMessage">{{errorMessage}}</div> </div>

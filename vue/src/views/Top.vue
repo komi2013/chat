@@ -34,7 +34,7 @@ const topLinks = ref(storedLinks || defaultLinks)
 </script>
 
 <template>
-<Drawer />
+<div id="drawer_column"><Drawer /></div>
 <div id="content">
   <h2 class="sp_head">ホーム</h2>
   <div v-for="(link, i) in topLinks" :key="i" class="block">
