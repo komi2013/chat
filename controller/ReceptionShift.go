@@ -37,8 +37,7 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
     return
   }
 

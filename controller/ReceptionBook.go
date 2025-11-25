@@ -49,8 +49,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		log.Printf("SessionCheckTake: %v; Req: ", err, r.URL.Path)
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
 		return
 	}
 

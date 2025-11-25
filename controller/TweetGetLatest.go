@@ -21,7 +21,7 @@ func TweetGetLatest(w http.ResponseWriter, r *http.Request) {
   // === セッション確認 ===
   session, err := common.SessionCheckTake(w, r, csrf)
   if err != nil {
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
     return
   }
 

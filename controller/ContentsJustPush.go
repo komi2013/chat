@@ -51,8 +51,7 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
 
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
     return
   }
 
@@ -63,7 +62,7 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
     }
   }
   if !trueAccess {
-    log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, "no true access right", http.StatusOK)
     return
   }
 

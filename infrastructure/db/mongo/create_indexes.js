@@ -5,7 +5,7 @@
 // ==========================================
 // 高優先度インデックス
 // ==========================================
-print("=== 高優先度インデックス作成開始 ===");
+print("=== 高優先度インデックス作成開始 (複合インデックスを単一に分割) ===");
 
 // 1. session.userID
 try {
@@ -59,20 +59,33 @@ try {
   }
 }
 
-// 5. file.updatedAt + usageType (複合インデックス)
+// 5. file.updatedAt (複合インデックスから分割)
 try {
   db = db.getSiblingDB("chatFile");
-  db.file.createIndex({ "updatedAt": 1, "usageType": 1 }, { name: "updatedAt_1_usageType_1" });
-  print("✓ 作成成功: file.updatedAt + usageType (複合)");
+  db.file.createIndex({ "updatedAt": 1 }, { name: "updatedAt_1" });
+  print("✓ 作成成功: file.updatedAt (単一)");
 } catch (e) {
   if (e.message.includes("already exists") || e.message.includes("duplicate")) {
-    print("✓ スキップ: file.updatedAt + usageType (既に存在)");
+    print("✓ スキップ: file.updatedAt (既に存在)");
   } else {
-    print("✗ 失敗: file.updatedAt + usageType - " + e.message);
+    print("✗ 失敗: file.updatedAt - " + e.message);
   }
 }
 
-// 6. tweet.updatedAt (降順)
+// 6. file.usageType (複合インデックスから分割)
+try {
+  db = db.getSiblingDB("chatFile");
+  db.file.createIndex({ "usageType": 1 }, { name: "usageType_1" });
+  print("✓ 作成成功: file.usageType (単一)");
+} catch (e) {
+  if (e.message.includes("already exists") || e.message.includes("duplicate")) {
+    print("✓ スキップ: file.usageType (既に存在)");
+  } else {
+    print("✗ 失敗: file.usageType - " + e.message);
+  }
+}
+
+// 7. tweet.updatedAt (降順)
 try {
   db = db.getSiblingDB("chatTweet");
   db.tweet.createIndex({ "updatedAt": -1 }, { name: "updatedAt_-1" });
@@ -85,25 +98,28 @@ try {
   }
 }
 
-// 7. ad.distance + adYen (複合インデックス) - AdPublicGetで使用
+// 8. ad.distance (複合インデックスから分割)
 try {
   db = db.getSiblingDB("chatAd");
-  db.ad.createIndex({ "distance": 1, "adYen": -1 }, { name: "distance_1_adYen_-1" });
-  print("✓ 作成成功: ad.distance + adYen (複合)");
+  db.ad.createIndex({ "distance": 1 }, { name: "distance_1" });
+  print("✓ 作成成功: ad.distance (単一)");
 } catch (e) {
   if (e.message.includes("already exists") || e.message.includes("duplicate")) {
-    print("✓ スキップ: ad.distance + adYen (既に存在)");
+    print("✓ スキップ: ad.distance (既に存在)");
   } else {
-    print("✗ 失敗: ad.distance + adYen - " + e.message);
+    print("✗ 失敗: ad.distance - " + e.message);
   }
 }
+
+// 9. ad.adYen (複合インデックスから分割 - 既に「adYen_-1」が存在するため、これは不要だが、ここでは「adYen」として昇順で追加)
+// ただし、adYenのインデックスは既に4番で降順で作成されているため、重複を避けるためにスキップします。
 
 // ==========================================
 // 中優先度インデックス
 // ==========================================
 print("\n=== 中優先度インデックス作成開始 ===");
 
-// 8. user.googleJWTSub
+// 10. user.googleJWTSub
 try {
   db = db.getSiblingDB("chatUser");
   db.user.createIndex({ "googleJWTSub": 1 }, { name: "googleJWTSub_1" });
@@ -116,7 +132,7 @@ try {
   }
 }
 
-// 9. invoice.userID
+// 11. invoice.userID
 try {
   db = db.getSiblingDB("chatInvoice");
   db.invoice.createIndex({ "userID": 1 }, { name: "userID_1" });
@@ -129,7 +145,7 @@ try {
   }
 }
 
-// 10. invoice.adID
+// 12. invoice.adID
 try {
   db = db.getSiblingDB("chatInvoice");
   db.invoice.createIndex({ "adID": 1 }, { name: "adID_1" });
@@ -142,7 +158,7 @@ try {
   }
 }
 
-// 11. invoice.invoiceStatus
+// 13. invoice.invoiceStatus
 try {
   db = db.getSiblingDB("chatInvoice");
   db.invoice.createIndex({ "invoiceStatus": 1 }, { name: "invoiceStatus_1" });
@@ -156,4 +172,3 @@ try {
 }
 
 print("\n=== インデックス作成完了 ===");
-
