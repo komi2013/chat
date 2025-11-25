@@ -87,7 +87,7 @@ function removeQuestion(array, index) {
 async function submit(event) {
   event.preventDefault()
   const fd = new FormData();
-  fd.append('userIDs', JSON.stringify(aliases.value.map(d => d.userID)));
+  fd.set('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)));
   fd.append('channelID', localStorage.getItem("channelID"));
   fd.append('updatedBy', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));

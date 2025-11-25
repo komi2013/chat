@@ -1,4 +1,4 @@
-import { userIDsByName } from '@/my/channelFunc.js';
+// import { userIDsByName } from '@/my/channelFunc.js';
 
 export async function storeSelect(pd) {  
 
@@ -15,7 +15,6 @@ export async function storeSelect(pd) {
   const param = pd[4][1];
   const channel = await getIDB('channel', channelID);
   const aliases = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
-  const userIDs = userIDsByName(aliases, [aliasName]);
   const calendar = await getAllIDBs('calendar');
   const startDate = new Date(param.date);
   const endDate = new Date(param.date);
@@ -52,7 +51,7 @@ export async function storeSelect(pd) {
 
   const fd = new FormData();
   // fd.append('pushID', pushID);
-  fd.append('userIDs', JSON.stringify(userIDs));
+  fd.set('pushNames', JSON.stringify([aliasName]));
   fd.append('channelID', channelID);
   fd.append('updatedBy', channel.myname);
   const contents = ['calendar', 0, calendarData];

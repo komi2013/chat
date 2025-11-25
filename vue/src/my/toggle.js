@@ -21,7 +21,7 @@ export const toggleBookmark = async (message, channel, aliases, threadHead) => {
   const fd = new FormData();
   fd.append('channelID', channel.channelID);
   fd.append('updatedBy', channel.myname);
-  fd.append('userIDs', JSON.stringify(userIDsByName(aliases, [channel.myname])));
+  fd.set('pushNames', JSON.stringify([channel.myname]));
   fd.append('pushTitle', 'bookmark');
   const contents = [message.messageID, backID, !message.bookmark];
   fd.append('contents', JSON.stringify(contents));

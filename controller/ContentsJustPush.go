@@ -5,7 +5,7 @@ import (
   "encoding/json"
   "log"
   "net/http"
-  // "time"
+  "time"
 
   // "go.mongodb.org/mongo-driver/mongo"
   "go.mongodb.org/mongo-driver/bson"
@@ -16,10 +16,10 @@ import (
 )
 
 func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
-  var userIDs []string
-  if err := json.Unmarshal([]byte(r.FormValue("userIDs")), &userIDs); err != nil {
-    log.Printf("userIDs: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, "Invalid JSON userIDs", http.StatusBadRequest)
+  var pushNames []string
+  if err := json.Unmarshal([]byte(r.FormValue("pushNames")), &pushNames); err != nil {
+    log.Printf("pushNames: %v; Req: ", err, r.URL.Path, r.Form)
+    http.Error(w, "Invalid JSON pushNames", http.StatusBadRequest)
     return
   }
 
@@ -66,6 +66,33 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
     log.Printf("ChannelAliases !trueAccess: %v; Req: ", session.ChannelAliases, updatedBy, channelID, r.URL.Path, r.Form)
     return
   }
+
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  var channel collection.ChannelStruct
+  collChannel := common.DB.ChannelDB.Collection("channel")
+  filterChannel := bson.M{"_id": channelID}
+  err = collChannel.FindOne(ctx, filterChannel).Decode(&channel)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+
+  uniqueIDs := make(map[string]struct{})
+  var userIDs []string
+  pushNameSet := make(map[string]struct{}, len(pushNames))
+  for _, name := range pushNames {
+    pushNameSet[name] = struct{}{}
+  }
+  for _, alias := range channel.Aliases {
+    if _, ok := pushNameSet[alias.AliasName]; ok {
+      if _, exists := uniqueIDs[alias.UserID]; !exists {
+        uniqueIDs[alias.UserID] = struct{}{}
+        userIDs = append(userIDs, alias.UserID)
+      }
+    }
+  }
+
   imgPath, err := common.ImgSave(r.FormValue("imgPath"), session.UserID, updatedBy, channelID, 3, 0)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)

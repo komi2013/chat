@@ -52,7 +52,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	threadHead.AliasNames = append(threadHead.AliasNames, reception.JoinNames...)
-	threadHead.AdminNames = reception.JoinNames
+	threadHead.AdminNames = reception.AdminNames
 	threadHead.AliasImg   = session.NickImg
 
 	threadHeadArray := []interface{}{
