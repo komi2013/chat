@@ -201,13 +201,17 @@ async function saveChanges() {
   fd.append('contents', JSON.stringify(ticket.value));
   fd.append('pushTitle', 'ticket');
   const res = await sendRequest('/ContentsPush/', fd);
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   location.href = '/ticket/' + ticket.value.ticketID + '/'
 }
 

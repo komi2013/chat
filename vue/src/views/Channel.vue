@@ -115,13 +115,13 @@ async function channelEdit () {
     errorMessage.value = res
     return
   }
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) errorMessage.value = res.error
 }
 
 async function channelAdd () {
@@ -137,14 +137,17 @@ async function channelAdd () {
   fd.append('myimg', myimg.value);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelAdd/', fd);
-  if (!res.csrf) errorMessage.value = res
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) errorMessage.value = res.error
   if (res.channelID) location.href = `/channel/${res.channelID}/`
 }
 
@@ -158,16 +161,20 @@ const invite = async () => {
   // fd.append('untilDate', untilDate)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ChannelEdit/', fd)
-  if (!res.csrf) errorMessage.value = res
-  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`
-  invitationQR.value = await QRCode.toDataURL(invitationCode.value)
-  // untilDays.value = res.untilDate
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) errorMessage.value = res.error
+  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`
+  invitationQR.value = await QRCode.toDataURL(invitationCode.value)
+  // untilDays.value = res.untilDate
 }
 
 async function removeChannel () {
@@ -182,13 +189,13 @@ async function removeChannel () {
     errorMessage.value = res
     return
   }
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) errorMessage.value = res.error
 }
 
 const removeName = (alias) => {
@@ -217,6 +224,7 @@ const removeNames = async () => {
       await pushReceive(content)
     }
   }
+  if (res.error) errorMessage.value = res.error
   location.href = '/channel/'
 }
 
@@ -242,13 +250,13 @@ async function adminEdit() {
       errorMessage.value = res
       return
     }
-    if (res.error) errorMessage.value = res.error
-    res.csrf && localStorage.setItem('csrf', res.csrf)
+    localStorage.setItem('csrf', res.csrf)
     if (Array.isArray(res.pushContents)) {
       for (const content of res.pushContents) {
         await pushReceive(content)
       }
     }
+    if (res.error) errorMessage.value = res.error
   }
   // location.href = ''
 }

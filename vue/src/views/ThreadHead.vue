@@ -65,11 +65,17 @@ const postThreadHead = async () => {
   editThreadHead.description = description;
   fd.append('contents', JSON.stringify(editThreadHead));
   const res = await sendRequest('/ContentsPush/', fd);
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf);
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 function backTo() {

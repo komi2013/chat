@@ -94,13 +94,17 @@ async function submit(event) {
   fd.append('contents', JSON.stringify(entryForm.value));
   fd.append('pushTitle', 'entryForm');
   const res = await sendRequest('/ContentsPush/', fd);
-  if (!res.csrf) errorMessage.value = res
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
   res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   // location.href = '/entryFormEdit/' + entryForm.value.entryFormID + '/'
 }
 </script>

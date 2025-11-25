@@ -29,13 +29,17 @@ async function findReception() {
   fd.append('code', props.code)
   fd.append('codeType', '3') // 1 = before enter, 2 = take QR code at table, 3 = ordering
   const res = await sendRequest('/ReceptionGet/', fd)
-  if (res.error) { errorMessage.value = res.error }
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
 
   reception.value = res.reception || null;
   seatName.value = res.facilityName || ''
@@ -77,13 +81,17 @@ async function deleteOrder() {
   fd.append('code', props.code)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ReceptionOrderDelete/', fd)
-  if (res.error) { errorMessage.value = res.error }
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   // location.href = ''
 }
 

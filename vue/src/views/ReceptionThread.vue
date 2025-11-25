@@ -35,16 +35,18 @@ async function findReception() {
   fd.append('aliasName', myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
-  if (!res.csrf) { errorMessage.value = res; return }
-  if (res.error) {
-    errorMessage.value = res.error
+  if (!res.csrf) {
+    errorMessage.value = res
     return 
   }
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  localStorage.setItem('csrf', res.csrf);
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
   }
   nickname = res.nickname
   return res.reception;
