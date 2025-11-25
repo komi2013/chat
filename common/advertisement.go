@@ -1,26 +1,15 @@
 package common
 
 import (
-	// "bytes"
 	"context"
-  // "encoding/base64"
-  // "errors"
-  // "image"
-  // "image/jpeg"
-  // "image/png"
 	"log"
-  // "math"
-  // "os"
-  // "path/filepath"
 	"sort"
-	// "strings"
-	// "time"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"chat/collection"
-
 )
 
 func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
@@ -35,16 +24,12 @@ func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPric
 
 	var matched []collection.AdPriceStruct
 
-	// --- 💰 adYen計算ロジック ---
-	startDay := ad.AdStart / 100
-	startHour := ad.AdStart % 100
-	endDay := ad.AdEnd / 100
-	endHour := ad.AdEnd % 100
+	startTime := ad.AdStart
+	endTime := ad.AdEnd
 
-	durationHours := (endDay*24 + endHour) - (startDay*24 + startHour)
-	if durationHours < 0 {
-		endDay += 7
-		durationHours = (endDay*24 + endHour) - (startDay*24 + startHour)
+	durationHours := int(endTime.Sub(startTime).Hours())
+	if durationHours < 1 {
+		durationHours = 1
 	}
 
 	for cursor.Next(ctx) {
@@ -63,7 +48,7 @@ func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPric
 			priceDoc.AdYen = int(float64(2*ad.Distance+1) *
 				float64(priceDoc.AdPriceYen) *
 				float64(durationHours))
-			// priceDoc.AdYen = basePrice + bonus
+
 			matched = append(matched, priceDoc)
 		}
 	}
@@ -72,17 +57,16 @@ func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPric
 		adPriceYen := 100
 		matched = append(matched, collection.AdPriceStruct{
 			AdPriceYen: adPriceYen,
-			AdYen: int(float64(2*ad.Distance+1) * float64(adPriceYen) * float64(durationHours)),
+			AdYen:      int(float64(2*ad.Distance+1) * float64(adPriceYen) * float64(durationHours)),
 		})
 	}
 
 	sort.Slice(matched, func(i, j int) bool {
 		return matched[i].AdPriceYen > matched[j].AdPriceYen
 	})
-	// log.Printf("matched: %v", ToJSON(matched), ToJSON(ad))
+
 	return matched, nil
 }
-
 
 func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
 	delta := 0.01 * float64(ad.Distance)
@@ -101,7 +85,7 @@ func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection
 			log.Printf("decode error: %v", err)
 			continue
 		}
-		// log.Printf("priceDoc: %v", priceDoc, ad.Latitude, ad.Longitude)
+
 		if priceDoc.LatitudeSouth <= ad.Latitude+delta &&
 			priceDoc.LatitudeNorth >= ad.Latitude-delta &&
 			priceDoc.LongitudeWest <= ad.Longitude+delta &&
@@ -115,7 +99,7 @@ func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection
 
 	if len(matched) == 0 {
 		matched = append(matched, collection.AdPriceStruct{
-			AdPriceYen:     10,
+			AdPriceYen: 10,
 		})
 	}
 
@@ -126,54 +110,36 @@ func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection
 	return matched, nil
 }
 
-func isTimeInRange(reqStart, reqEnd, priceStart, priceEnd int) bool {
-	return !(reqEnd < priceStart || reqStart > priceEnd)
+const weekMinutes = 7 * 24 * 60
+
+func priceIntToMinutes(priceInt int) int {
+	day := priceInt / 100
+	hour := priceInt % 100
+	return ((day - 1) * 24 * 60) + (hour * 60)
 }
 
-// func SaveBase64Image(base64Str, userID, suffix string) (string, error) {
-//   if idx := strings.Index(base64Str, "base64,"); idx != -1 {
-//     base64Str = base64Str[idx+7:]
-//   }
-//   data, err := base64.StdEncoding.DecodeString(base64Str)
-//   if err != nil {
-//     return "", err
-//   }
+func isTimeInRange(reqStart, reqEnd time.Time, priceStartInt, priceEndInt int) bool {
+	reqStartMin := (int(reqStart.Weekday()) * 24 * 60) + (reqStart.Hour() * 60) + reqStart.Minute()
+	reqEndMin := (int(reqEnd.Weekday()) * 24 * 60) + (reqEnd.Hour() * 60) + reqEnd.Minute()
 
-//   img, format, err := image.Decode(bytes.NewReader(data))
-//   if err != nil {
-//     return "", err
-//   }
+	if reqEndMin <= reqStartMin {
+		reqEndMin += weekMinutes
+	}
 
-//   filename := OSImgDir + "/ad/" + userID + "_" + suffix + "." + format
-//   log.Printf("filename error: %v", filename)
-//   outFile, err := createFileWithDirs(filename) // 自動ディレクトリ作成も
-//   if err != nil {
-//   	log.Printf("filename error: %v", err)
-//     return "", err
-//   }
-//   defer outFile.Close()
+	priceStartMin := priceIntToMinutes(priceStartInt)
+	priceEndMin := priceIntToMinutes(priceEndInt)
+	if priceEndMin <= priceStartMin {
+		priceEndMin += weekMinutes
+	}
 
-//   switch format {
-//   case "jpeg":
-//     err = jpeg.Encode(outFile, img, nil)
-//   case "png":
-//     err = png.Encode(outFile, img)
-//   default:
-//     return "", errors.New("対応していない画像形式")
-//   }
+	for shift := 0; shift <= 1; shift++ {
+		ps := priceStartMin + shift*weekMinutes
+		pe := priceEndMin + shift*weekMinutes
 
-//   if err != nil {
-//     return "", err
-//   }
+		if reqStartMin < pe && reqEndMin > ps {
+			return true
+		}
+	}
 
-//   return PublicImgPath + "/ad/" + userID + "_" + suffix + "." + format, nil
-// }
-
-// func createFileWithDirs(path string) (*os.File, error) {
-//   dir := filepath.Dir(path)
-//   if err := os.MkdirAll(dir, 0755); err != nil {
-//     return nil, err
-//   }
-//   return os.Create(path)
-// }
-
+	return false
+}

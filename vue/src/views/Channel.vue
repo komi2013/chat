@@ -48,7 +48,7 @@ const iamGuest = ref(false)
 const adminNames = ref([])
 let initAdminNames = []
 onMounted(async () => {
-  channels.value = await getAllIDBs('channel');
+  channels.value = await getAllIDBs('channel')
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
@@ -107,6 +107,7 @@ async function channelEdit () {
       .map(d => d.aliasName)
   fd.append('pushNames', JSON.stringify(pushNames))
   fd.append('channelName', channel.value.channelName)
+  fd.append('groups', JSON.stringify(groups.value))
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')))
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ChannelEdit/', fd)
@@ -206,14 +207,17 @@ const removeNames = async () => {
   fd.append('deleteAliases', JSON.stringify(deleteAliases));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelEdit/', fd);
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  // location.href = ''
+  location.href = '/channel/'
 }
 
 async function adminEdit() {
@@ -266,7 +270,13 @@ function getAdminDiffData() {
 </script>
 
 <template>
-<div id="drawer_column"><Drawer v-if="aliases" :aliases="aliases" :channel="channel" /></div>
+<div id="drawer_column">
+  <Drawer
+    v-if="aliases"
+    :aliases="aliases"
+    :channel="channel?.channelName ? channel : null"
+  />
+</div>
 <div id="content">
   <br><br>
   <div v-if="errorMessage"> 
@@ -291,7 +301,7 @@ function getAdminDiffData() {
     <PeopleImg v-model="myimg" />
   </template>
 
-  <button @click="channelAdd" class="postButton" >チャネル登録</button><br>
+  <button v-if="!channel.channelName" @click="channelAdd" class="postButton" >チャネル登録</button><br>
   <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname || iamGuest">設定変更</button><br>
 
   <div v-if="id && !iamGuest" class="invitation">

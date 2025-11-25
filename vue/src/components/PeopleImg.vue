@@ -51,6 +51,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 
+
 import { emojiRanges, isEmojiInRange, getRandomEmoji, getRandomColor } from '@/my/emoji';
 
 const props = defineProps({
@@ -58,8 +59,6 @@ const props = defineProps({
   modelValue: String,
   editable: Boolean
 });
-
-console.log('modelValue', props.modelValue)
 
 const emojiImg = ref(!props.modelValue || props.modelValue.charAt(0) == ',');
 
@@ -126,9 +125,9 @@ function getAliasImg() {
 const selectedEmoji = ref(getRandomEmoji());
 const selectedColor = ref(getRandomColor());
 const aliasImg = ref(getAliasImg());
-emit("update:modelValue", aliasImg.value);
 
-const emit = defineEmits(["update:modelValue"]);
+const emit = defineEmits(["update:modelValue"])
+emit("update:modelValue", aliasImg.value)
 const emojiValidErr = ref(false);
 const validateEmoji = () => {
   if ( !isEmojiInRange(selectedEmoji.value) && selectedEmoji.value.length > 1 ) {
@@ -140,10 +139,8 @@ const validateEmoji = () => {
   emit("update:modelValue", aliasImg.value);
 };
 
-watch(
-  () => props.modelValue,
+watch(() => props.modelValue,
   (newVal) => {
-    console.log('modelValue changed →', newVal)
     if (!newVal) return
     aliasImg.value = newVal
     if (newVal.charAt(0) === ',') {

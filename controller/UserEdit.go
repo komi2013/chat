@@ -43,13 +43,13 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error(), http.StatusOK)
 		return
 	}
 
 	nickname.NickImg, err = common.ImgSave(r.FormValue("nickImg"), session.UserID, nickname.Nickname, "", 0, 3)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
 		return
 	}
 

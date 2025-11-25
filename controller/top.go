@@ -33,7 +33,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		domain = cfg.Domain
 		googleClientID = cfg.GoogleClientID
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
-		tmplPath = "view/pushSubscription.tmpl"
+		tmplPath = "view/pushSubscription.html"
 		session, err = common.SessionGet(w, r)
 		if err != nil {
 			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)

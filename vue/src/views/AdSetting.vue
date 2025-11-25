@@ -5,12 +5,11 @@ import Drawer from '@/components/Drawer.vue'
 import Advertisement from '@/components/Advertisement.vue'
 
 import { pushReceive } from '@/pushReceive/pushReceive.js'
-// import { sendRequest } from '@/my/api'
 
 
 document.title = '広告設定'
 
-const weekdays = ['', '日', '月', '火', '水', '木', '金', '土']
+// const weekdays = ['', '日', '月', '火', '水', '木', '金', '土']
 
 // --- reactive 変数 ---
 const ads = ref([])
@@ -38,43 +37,64 @@ async function findAds() {
     return
   }
   localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => pushReceive(content))
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   ads.value = ((res.ads && res.ads.length) ? res.ads : [undefined])
     .map(apiAd => convertApiAdToUiAd(apiAd))
 
-  // 各広告ごとの初期画像をセット
   ads.value.forEach(ad => {
     if (ad.pathBanner) previewBanner.value[ad.adID] = ad.pathBanner
     if (ad.pathSquare) previewSquare.value[ad.adID] = ad.pathSquare
   })
-  ads.value.push(convertApiAdToUiAd({}))
+
   systemWalletAddress = res.systemWalletAddress
   jpycCheckURL = res.jpycCheckURL
 }
 
-// --- APIデータをUI形式に変換 ---
+const invoiceButton = ref(true)
 function convertApiAdToUiAd(apiAd) {
   apiAd = apiAd || {}
-  const { day: adStartDay, hour: adStartHour } = splitDayHourFromString(apiAd.adStart)
-  const { day: adEndDay, hour: adEndHour } = splitDayHourFromString(apiAd.adEnd)
 
-  const coordinateInput = apiAd.latitude ? `${apiAd.latitude}, ${apiAd.longitude}` : ''
+  // datetime-local 形式へ整形
+  const adStart = apiAd.adStart ? apiAd.adStart.slice(0, 16) : ''
+  const adEnd   = apiAd.adEnd ? apiAd.adEnd.slice(0, 16) : ''
+
+  // adEndDays 計算
+  let adEndDays = 0
+  if (adStart && adEnd) {
+    const start = new Date(adStart)
+    const end = new Date(adEnd)
+    adEndDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
+  }
+
+  const invoicedAt = apiAd.invoicedAt ? new Date(apiAd.invoicedAt) : null
+  const paidAt     = apiAd.paidAt ? new Date(apiAd.paidAt) : null
+  if (invoicedAt && !isNaN(invoicedAt.getTime())) {
+    if (!paidAt || paidAt < invoicedAt) {
+      invoiceButton.value = false
+    } else {
+      invoiceButton.value = true
+    }
+  }
+
   return {
     adID: apiAd.adID || '',
     pathBanner: apiAd.pathBanner || '',
     pathSquare: apiAd.pathSquare || '',
     adText: apiAd.adText || '',
     adLink: apiAd.adLink || '',
-    coordinateInput,
+    adStart,
+    adEnd,
+    adEndDays,
     latitude: apiAd.latitude || 0,
     longitude: apiAd.longitude || 0,
-    adStartDay,
-    adStartHour,
-    adEndDay,
-    adEndHour,
     distance: apiAd.distance || 0,
-    userID: apiAd.userID || '',
     adYen: apiAd.adYen || 0,
+    userID: apiAd.userID || '',
   }
 }
 
@@ -89,23 +109,29 @@ function splitDayHourFromString(input) {
 // --- 価格取得 ---
 async function findAdPrices(index) {
   const ad = ads.value[index]
+  const endDate = new Date(ad.adStart)
+  endDate.setDate(endDate.getDate() + Number(ad.adEndDays))
+  const adEndFormatted = endDate.toISOString().slice(0, 16)
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('pathSquare', ad.pathSquare)
   fd.append('latitude', ad.latitude)
   fd.append('longitude', ad.longitude)
-  fd.append('adStart', `${ad.adStartDay}${String(ad.adStartHour).padStart(2, '0')}`)
-  fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`)
+  fd.append('adStart', ad.adStart)
+  fd.append('adEnd', adEndFormatted)
   fd.append('distance', ad.distance)
   const res = await sendRequest('/AdPriceGet/', fd)
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => pushReceive(content))
-
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   if (Array.isArray(res.adPrices) && res.adPrices.length > 0) {
     const sorted = res.adPrices.sort((a, b) => b.adPriceYen - a.adPriceYen)
     ad.adYen = sorted[0].adYen || 0
@@ -139,6 +165,11 @@ async function submitAd(index) {
 
   const bannerBase64 = await toBase64IfNeeded(previewBanner.value[ad.adID])
   const squareBase64 = await toBase64IfNeeded(previewSquare.value[ad.adID])
+
+  const endDate = new Date(ad.adStart)
+  endDate.setDate(endDate.getDate() + Number(ad.adEndDays))
+  const adEndFormatted = endDate.toISOString().slice(0, 16)  // 2025-11-23T16:02
+
   fd.append('adID', ad.adID ?? '')
   fd.append('previewBanner', bannerBase64)
   fd.append('previewSquare', squareBase64)
@@ -146,36 +177,43 @@ async function submitAd(index) {
   fd.append('adLink', ad.adLink)
   fd.append('latitude', ad.latitude)
   fd.append('longitude', ad.longitude)
-  fd.append('adStart', `${ad.adStartDay}${String(ad.adStartHour).padStart(2, '0')}`)
-  fd.append('adEnd', `${ad.adEndDay}${String(ad.adEndHour).padStart(2, '0')}`)
+  fd.append('adStart', ad.adStart)
+  fd.append('adEnd', adEndFormatted)
   fd.append('distance', ad.distance)
   fd.append('payment', payment.value ? 'true' : '')
-
   const res = await sendRequest('/AdEdit/', fd)
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => pushReceive(content))
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 async function invoiceAd(index) {
+  if (!confirm('請求書を発行します。JPYCのアドレスを登録してから請求書発行お願いします')) return
   const ad = ads.value[index]
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('adID', ad.adID)
   fd.append('nextPayment', '1')
-
-  const res = await sendRequest('/AdEdit/', fd)
+  const res = await sendRequest('/AdInvoice/', fd)
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => pushReceive(content))
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 
@@ -186,22 +224,22 @@ async function deleteAd(index) {
     errorMessage.value = '削除する広告が特定できません。'
     return
   }
-
   if (!confirm('この広告を削除しますか？')) return
-
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('adID', ad.adID)
-
   const res = await sendRequest('/AdDelete/', fd)
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-  if (res.pushContents) res.pushContents.forEach(content => pushReceive(content))
-
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   ads.value.splice(index, 1)
 }
 
@@ -283,7 +321,7 @@ function handleTrim(event, adID, targetW, targetH, type) {
 
         <br /><br />
 
-        <label>経緯度:<br />
+        <label>経緯度:設定なしの場合は場所関係なしに広告表示されるので金額は高めになる<br />
           <input v-model="ad.coordinateInput" pattern="^-?\\d+(\\.\\d+)?,\\s*-?\\d+(\\.\\d+)?$"
                  title="緯度と経度は「35.77, 139.57」の形式で入力してください"
                  @input="parseCoordinates(ad)" class="wide-text" />
@@ -300,23 +338,19 @@ function handleTrim(event, adID, targetW, targetH, type) {
 
         <br /><br />
 
-        <label>開始曜日:
-          <select v-model="ad.adStartDay">
-            <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
-          </select>
+        <label>開始日時:
+          <input type="datetime-local" v-model="ad.adStart" />
         </label>
-
-        <label>終了曜日:
-          <select v-model="ad.adEndDay">
-            <option v-for="(name, i) in weekdays" :key="i" :value="i">{{ name }}</option>
-          </select>
+        <span> ~ </span>
+        <label>終了日数:
+          <input type="number" min="0" v-model="ad.adEndDays" class="input-number" /> 日後
         </label>
 
         <div>見積り価格: ¥{{ ad.adYen?.toLocaleString() || 0 }}</div>
 
         <div class="centralize"><button type="button" @click="findAdPrices(index)">確認</button></div>
         <div class="centralize"><button type="submit">登録・更新</button></div>
-        <div class="centralize"><button type="button" @click="invoiceAd(index)">請求書発行</button></div>
+        <div v-if="invoiceButton" class="centralize"><button type="button" @click="invoiceAd(index)">請求書発行</button></div>
         <div class="centralize"><button type="button" @click="deleteAd(index)">削除</button></div>
       </form>
     </div>
@@ -347,7 +381,9 @@ function handleTrim(event, adID, targetW, targetH, type) {
   margin: 12px;
   padding: 4px;
 }
-
+.input-number {
+  width: 40px;
+}
 /*.centralize div {
   margin-top: -10px
 }

@@ -3,10 +3,10 @@ package collection
 import "time"
 
 type FileStruct struct {
-  FileID       string    `bson:"_id"`
+  FilePath       string    `bson:"_id"`
   ChannelID    string    `bson:"channelID,omitempty"`
   UploadedBy   string    `bson:"uploadedBy,omitempty"`
-  FilePath      string    `bson:"filePath,omitempty"`
+  // FilePath      string    `bson:"filePath,omitempty"`
   PublicPath   string    `bson:"publicPath,omitempty"`
   FileSize     float64   `bson:"fileSize,omitempty"`
   UpdatedAt    time.Time `bson:"updatedAt,omitempty"`

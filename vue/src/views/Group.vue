@@ -33,10 +33,14 @@ onMounted(async () => {
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   // groupLockUntilDate = new Date(channel.value.groupLockUntilDate);
   groups.value.forEach(group => {
-    if (group.aliasNames.includes(channel.value.myname)) {
-      group.editable = true;
+    const aliasNames = aliases.value.map(a => a.aliasName)
+    const hasAlias = group.aliasNames.some(name => aliasNames.includes(name))
+    if (!hasAlias) {
+      group.editable = true
+    } else if (group.aliasNames.includes(channel.value.myname)) {
+      group.editable = true
     } else {
-      group.editable = false;
+      group.editable = false
     }
   });
 
@@ -73,11 +77,17 @@ async function removeGroup(group) {
   fd.append('contents', JSON.stringify(contents))
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ContentsPush/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  location.href = '/group/' + channel.value.channelID + '/'
 }
 
 async function editGroup(group) {

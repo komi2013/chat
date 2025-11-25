@@ -119,40 +119,52 @@ async function getIDB(table, id) {
 }
 
 // getIDBs('thread', 'parentIDIndex', props.message_id)
-async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc') {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([table], 'readonly');
-    const objectStore = transaction.objectStore(table);
+// async function getIDBs(table, key, id, limit = 5, offset = 0, sortOrder = 'desc') {
+//   const db = await openDatabase();
+//   return new Promise((resolve, reject) => {
+//     const transaction = db.transaction([table], 'readonly');
+//     const objectStore = transaction.objectStore(table);
 
-    if (!objectStore.indexNames.contains(key)) {
-      console.log(`Index "${key}" not found in table "${table}". Returning empty array.`);
-      return resolve([]);
-    }
-    const index = objectStore.index(key);
-    const range = IDBKeyRange.only(id);
-    const direction = sortOrder === 'asc' ? 'next' : 'prev';
-    const request = index.openCursor(range, direction);
-    const result = [];
-    let i = 0;
-    request.onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        if (i >= offset && result.length < limit) {
-          result.push(cursor.value);
-        }
-        i++;
-        cursor.continue();
-      } else {
-        resolve(result);
-      }
-    };
-    request.onerror = (event) => {
-      console.error('getIDBs Request:', event.target.error, table, id);
-      resolve([]);
-    };
+//     if (!objectStore.indexNames.contains(key)) {
+//       console.log(`Index "${key}" not found in table "${table}". Returning empty array.`);
+//       return resolve([]);
+//     }
+//     const index = objectStore.index(key);
+//     const range = IDBKeyRange.only(id);
+//     const direction = sortOrder === 'asc' ? 'next' : 'prev';
+//     const request = index.openCursor(range, direction);
+//     const result = [];
+//     let i = 0;
+//     request.onsuccess = (event) => {
+//       const cursor = event.target.result;
+//       if (cursor) {
+//         if (i >= offset && result.length < limit) {
+//           result.push(cursor.value);
+//         }
+//         i++;
+//         cursor.continue();
+//       } else {
+//         resolve(result);
+//       }
+//     };
+//     request.onerror = (event) => {
+//       console.error('getIDBs Request:', event.target.error, table, id);
+//       resolve([]);
+//     };
+//   });
+// }
+
+function getIDBs(table, index, id, limit = 5, offset = 0, sort = 'desc') {
+  return queryIDB({
+    table,
+    indexKey: index,
+    match: id ?? null,
+    reverse: sort === 'desc',
+    limit,
+    offset,
   });
 }
+
 
 async function getIDBbyMulti(table, keys, values, limit = 5, offset = 0, sortOrder = 'desc') {
   try {
@@ -397,115 +409,97 @@ async function getSortedIDBs(table, sortKey = 'updatedAt', limit = 10, offset = 
   });
 }
 
-// async function countIDBs(table, key, id) {
-//   const db = await openDatabase();
+async function queryIDB({
+  table,
+  indexKey,
+  match = null,              // IDBKeyRange.only()
+  gte = null,                // >=
+  lte = null,                // <=
+  reverse = false,           // desc=true
+  limit = Infinity,
+  offset = 0,
+  filterIndex = null,        // ['parentIDIndex', '0Lf']
+  filterCompare = null       // { field: 'updatedAt', op: '>=', value: 123 }
+}) {
+  const db = await openDatabase();
 
-//   return new Promise((resolve, reject) => {
-//     const transaction = db.transaction([table], 'readonly');
-//     const objectStore = transaction.objectStore(table);
+  return new Promise(resolve => {
+    const tx = db.transaction([table], 'readonly');
+    const store = tx.objectStore(table);
 
-//     if (!objectStore.indexNames.contains(key)) {
-//       console.log(`Index "${key}" not found in table "${table}". Returning count 0.`);
-//       return resolve(0);
-//     }
+    if (!store.indexNames.contains(indexKey)) {
+      console.warn(`Index "${indexKey}" missing in "${table}".`);
+      return resolve([]);
+    }
 
-//     const index = objectStore.index(key);
-//     const range = IDBKeyRange.only(id);
+    // Secondary filter index
+    let idx = store.index(indexKey);
 
-//     const countRequest = index.count(range);
+    // 1️⃣ Determine range safely
+    let range = null;
+    try {
+      if (match !== null) {
+        range = IDBKeyRange.only(match);
+      } else if (gte !== null && lte !== null) {
+        range = IDBKeyRange.bound(gte, lte);
+      } else if (gte !== null) {
+        range = IDBKeyRange.lowerBound(gte);
+      } else if (lte !== null) {
+        range = IDBKeyRange.upperBound(lte);
+      }
+    } catch (e) {
+      console.warn(`queryIDB: Invalid key/range`, e);
+      return resolve([]);
+    }
 
-//     countRequest.onsuccess = () => {
-//       resolve(countRequest.result);
-//     };
+    const direction = reverse ? 'prev' : 'next';
+    const req = idx.openCursor(range, direction);
 
-//     countRequest.onerror = (event) => {
-//       console.error('countIDBs Request Error:', event.target.error, table, id);
-//       resolve(0);
-//     };
-//   });
-// }
+    const results = [];
+    let skipped = 0;
 
+    req.onsuccess = e => {
+      const cursor = e.target.result;
+      if (!cursor) return resolve(results);
 
-// const reception = 
+      const record = cursor.value;
 
-//     {
-//       "receptionID": "123456",
-//       "adminNames": [
-//         "mik2"
-//       ],
-//       "joinNames": [
-//         "ivan1",
-//         "mik2"
-//       ],
-//       "receptionTitle": "サロンの公開用予約リンク",
-//       "facilities": [
-//         {
-//           "facilityCount": 4,
-//           "facilityName": "perm"
-//         }
-//       ],
-//       "shifts": [
-//         {
-//           "aliasNames": [
-//             "mik2",
-//             "ivan1"
-//           ],
-//           "shiftStart": "2025-04-15T10:00",
-//           "shiftEnd": "2025-04-15T23:00",
-//           "open": 1,
-//           "role": "stylist",
-//           "fix": true
-//         },
-//         {
-//           "aliasNames": [
-//             "ivan1",
-//             "mik2"
-//           ],
-//           "shiftStart": "2025-04-17T15:00",
-//           "shiftEnd": "2025-04-17T20:00",
-//           "open": 1,
-//           "role": "helper"
-//         }
-//       ],
-//       "skills": [
-//         "cut",
-//         "perm"
-//       ],
-//       "staffSkills": [
-//         {
-//           "aliasName": "ivan1",
-//           "skills": [
-//             "perm",
-//             "cut"
-//           ]
-//         },
-//         {
-//           "aliasName": "mik2",
-//           "skills": [
-//             "perm"
-//           ]
-//         }
-//       ],
-//       "workStaffNeed": true,
-//       "workStaffs": [
-//         {
-//           "aliasName": "mik3",
-//           "workStart": "2025-04-05T10:00",
-//           "workEnd": "2025-04-05T23:00",
-//           "seq": 2
-//         },
-//         {
-//           "aliasName": "ivan1",
-//           "workStart": "2025-04-05T15:00",
-//           "workEnd": "2025-04-05T20:00",
-//           "seq": 2
-//         },
-//         {
-//           "aliasName": "mik2",
-//           "workStart": "2025-04-05T15:00",
-//           "workEnd": "2025-04-05T20:00",
-//           "seq": 3
-//         }
-//       ]
-//     }
-// upsertIDB(reception, 'reception', 'receptionID', reception.receptionID);
+      // 2️⃣ Apply secondary filter via another index
+      if (filterIndex) {
+        const [fk, fv] = filterIndex;
+
+        if (record[fk.replace('Index', '')] !== fv) {
+          return cursor.continue();
+        }
+      }
+
+      // 3️⃣ Apply custom comparison filters
+      if (filterCompare) {
+        const { field, op, value } = filterCompare;
+        const v = record[field];
+
+        if (op === '>=' && v < value) return cursor.continue();
+        if (op === '<=' && v > value) return cursor.continue();
+        if (op === '>'  && v <= value) return cursor.continue();
+        if (op === '<'  && v >= value) return cursor.continue();
+      }
+
+      // 4️⃣ Offset
+      if (skipped < offset) {
+        skipped++;
+        return cursor.continue();
+      }
+
+      // 5️⃣ Save
+      results.push(record);
+      if (results.length >= limit) return resolve(results);
+
+      cursor.continue();
+    };
+
+    req.onerror = e => {
+      console.error(`queryIDB Error:`, e.target.error);
+      resolve([]);
+    };
+  });
+}

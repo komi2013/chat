@@ -10,7 +10,7 @@ import Advertisement from '@/components/Advertisement.vue';
 import Drawer from '@/components/Drawer.vue'
 
 
-import SignComponent from './components/SignComponent.vue'
+// import SignComponent from './components/SignComponent.vue'
 
 import { pushReceive } from '@/pushReceive/pushReceive.js'
 
@@ -29,5 +29,5 @@ createApp(Advertisement).mount('#ad-right1')
 createApp(Advertisement).mount('#ad-right2')
 createApp(Advertisement).mount('#ad-right3')
 
-createApp(SignComponent).mount('#sign-app')
-console.log('SignComponent_Test')
+// createApp(SignComponent).mount('#sign-app')
+// console.log('SignComponent_Test')

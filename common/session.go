@@ -59,8 +59,8 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
     return session, err
   }
 	if session.Csrf != token {
+		LogError("session.Csrf != token:" + session.Csrf + "!=" + token, nil)
 		return session, errors.New("SessionCheckTake token error")
-		// LogError("SessionCheck:", nil, session.Csrf, token)
 	}
 
 	if time.Since(session.UpdatedAt) > 20*24*time.Hour {

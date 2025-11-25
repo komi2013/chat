@@ -57,11 +57,25 @@ func AdInvoice(w http.ResponseWriter, r *http.Request) {
 		nextPayment = true
 	}
 
-	// --- 配信期間（曜日時刻 -> 実日時刻）計算 ---
-	startDay := ad.AdStart / 100
-	startHour := ad.AdStart % 100
-	endDay := ad.AdEnd / 100
-	endHour := ad.AdEnd % 100
+	// --- 配信期間（ISO日時 -> 実日時刻）計算 ---
+	// startTimeReq, err := time.Parse("2006-01-02T15:04", ad.AdStart)
+	// if err != nil {
+	//     common.WriteResponseWithSession(w, session, "AdStart の形式が不正です: "+err.Error(), http.StatusOK)
+	//     return
+	// }
+	// endTimeReq, err := time.Parse("2006-01-02T15:04", ad.AdEnd)
+	// if err != nil {
+	//     common.WriteResponseWithSession(w, session, "AdEnd の形式が不正です: "+err.Error(), http.StatusOK)
+	//     return
+	// }
+	startTimeReq := ad.AdStart
+	endTimeReq := ad.AdEnd
+
+	// Go: Sunday=0 ... Saturday=6 → 1..7に調整
+	startDay := int(startTimeReq.Weekday()) + 1
+	endDay := int(endTimeReq.Weekday()) + 1
+	startHour := startTimeReq.Hour()
+	endHour := endTimeReq.Hour()
 
 	// durationHours (曜日ベース、週またぎ対応)
 	durationHours := (endDay*24 + endHour) - (startDay*24 + startHour)
@@ -133,6 +147,11 @@ func AdInvoice(w http.ResponseWriter, r *http.Request) {
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
   if err != nil {
 		common.WriteResponseWithSession(w, session, "user FindOne:"+err.Error(), http.StatusOK)
+		return
+  }
+
+  if user.WalletAddress == "" {
+		common.WriteResponseWithSession(w, session, "JPYC アドレスをユーザーページで入力してください", http.StatusOK)
 		return
   }
 

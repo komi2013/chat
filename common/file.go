@@ -45,22 +45,22 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			return "", fmt.Errorf("failed to decode base64: %w", err)
 		}
 		nameTail := StringRand(fileIDLength)
-		fileID, err := CountUpID("fileID")
-		if err != nil {
-			return "", fmt.Errorf("fileID CountUpID: %w", err)
-		}
+		// fileID, err := CountUpID("fileID")
+		// if err != nil {
+		// 	return "", fmt.Errorf("fileID CountUpID: %w", err)
+		// }
     if channelID == "" {
-      channelID = "-no-channel-"
+      channelID = "-"
     }
     fileName := name + nameTail
 		dirPath := cfg.OSImgDir + "/img/" + channelID + "/"
-		err = os.MkdirAll("."+dirPath, 0755)
+		err = os.MkdirAll(dirPath, 0755)
 		if err != nil {
 			LogError("failed to create directory", err)
 			return "", fmt.Errorf("failed to create directory: %w", err)
 		}
 		imgPath = cfg.PublicImgPath + "/img/" + channelID + "/" + fileName + ".png"
-		filePath := "." + dirPath + fileName + ".png"
+		filePath := dirPath + fileName + ".png"
 		err = ioutil.WriteFile(filePath, imageData, 0644)
 		if err != nil {
 			LogError("failed to write file", err)
@@ -76,16 +76,16 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 		fileSizeMB = math.Floor(fileSizeMB*100) / 100
 		coll := DB.FileDB.Collection("file")
 		fileDocument := collection.FileStruct{
-			FileID:     fileID,
+			FilePath:     filePath,
 			ChannelID:  channelID,
 			UploadedBy: userID,
-			FilePath:   filePath,
-			PublicPath:  imgPath,
+			// FilePath:   filePath,
+			PublicPath:  imgPath + "?" + time.Now().Format("0102150405"),
 			FileSize:   fileSizeMB,
 			UpdatedAt:  time.Now(),
 			UsageType: usageType,
 		}
-		filter := bson.M{"_id": fileID}
+		filter := bson.M{"_id": filePath}
 		update := bson.M{"$set": fileDocument}
 		opts := options.Update().SetUpsert(true)
 		_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
@@ -93,6 +93,8 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 	    LogError("upsert file", err)
 	    return "", fmt.Errorf("upsert file: %w", err)
 		}
+	} else if !EmojiImgValid(img) && img != "" {
+		return "", fmt.Errorf("Emoji invalid:")
 	}
 	return imgPath, nil
 }
@@ -134,34 +136,34 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 
 		file, err := fileHeader.Open()
 		if err != nil {
-			log.Printf("Failed to open file: %v", err)
+			LogError("failed to open file", err)
 			return nil, fmt.Errorf("failed to open file: %w", err)
 		}
 		defer file.Close()
 
 		// fileID := StringRand(4)
-		fileID, err := CountUpID("fileID")
-		if err != nil {
-			return nil, fmt.Errorf("fileID CountUpID: %w", err)
-		}
-		filePath := fmt.Sprintf("/upload/file/%s/%s/%s", channelID, fileID, fileHeader.Filename)
-		saveDir := fmt.Sprintf(cfg.UploadDir + "/upload_data/file/%s/%s/", channelID, fileID)
+		// fileID, err := CountUpID("fileID")
+		// if err != nil {
+		// 	return nil, fmt.Errorf("fileID CountUpID: %w", err)
+		// }
+		filePath := fmt.Sprintf("/upload/file/%s/%s", channelID, fileHeader.Filename)
+		saveDir := fmt.Sprintf(cfg.UploadDir + "/upload_data/file/%s/", channelID)
 
 		if err := os.MkdirAll(saveDir, 0755); err != nil {
-			log.Printf("Failed to create directory: %v", err)
+			LogError("Failed to create directory", err)
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
 
 		dst, err := os.Create(filepath.Join(saveDir, fileHeader.Filename))
 		if err != nil {
-			log.Printf("Failed to create file: %v", err)
+			LogError("Failed to create file", err)
 			return nil, fmt.Errorf("failed to create file: %w", err)
 		}
 		defer dst.Close()
 
 		_, err = io.Copy(dst, file)
 		if err != nil {
-			log.Printf("Failed to copy file: %v", err)
+			LogError("Failed to copy file", err)
 			return nil, fmt.Errorf("failed to copy file: %w", err)
 		}
 
@@ -170,10 +172,10 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 		fileLinks = append(fileLinks, filePath)
 
 		fileDoc := collection.FileStruct{
-			FileID:      fileID,
+			FilePath:      saveDir + fileHeader.Filename,
 			ChannelID:   channelID,
 			UploadedBy:  uploadedBy,
-			FilePath:     saveDir + fileHeader.Filename,
+			// FilePath:     saveDir + fileHeader.Filename,
 			PublicPath:  filePath,
 			FileSize:    fileSizeMB,
 			UpdatedAt:   time.Now(),
@@ -184,6 +186,7 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 		_, err = coll.InsertOne(context.TODO(), fileDoc)
 		if err != nil {
 			log.Printf("Failed to insert document into MongoDB: %v", err)
+			LogError("Failed to insert document into MongoDB:", err)
 			return nil, fmt.Errorf("failed to insert document into MongoDB: %w", err)
 		}
 	}

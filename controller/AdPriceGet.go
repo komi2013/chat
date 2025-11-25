@@ -19,8 +19,6 @@ func AdPriceGet(w http.ResponseWriter, r *http.Request) {
 	var ad collection.AdStruct
 	latStr := r.FormValue("latitude")
 	lngStr := r.FormValue("longitude")
-	adStartStr := r.FormValue("adStart")
-	adEndStr := r.FormValue("adEnd")
 	distanceStr := r.FormValue("distance")
 
 	lat, err := strconv.ParseFloat(latStr, 64)
@@ -38,27 +36,32 @@ func AdPriceGet(w http.ResponseWriter, r *http.Request) {
 	ad.Latitude = lat
 	ad.Longitude = lng
 
-	if len(adStartStr) != 3 || len(adEndStr) != 3 {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adStart および adEnd は3桁の文字列である必要があります", http.StatusOK)
+
+	// === 時刻パース (ISO形式 2025-11-23T16:02) ===
+	adStartStr := r.FormValue("adStart")
+	adEndStr := r.FormValue("adEnd")
+
+	const layout = "2006-01-02T15:04"
+
+	reqStart, err := time.Parse(layout, adStartStr)
+	if err != nil {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "開始時刻の形式が不正です:"+err.Error(), http.StatusOK)
 		return
 	}
 
-	startDay, err := strconv.Atoi(adStartStr[:1])
-	startHour, err2 := strconv.Atoi(adStartStr[1:])
-	if err != nil || err2 != nil || startDay < 1 || startDay > 7 || startHour < 0 || startHour > 24 {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adStart の形式が不正です（曜日:1-7, 時:00-24）: "+adStartStr, http.StatusOK)
+	reqEnd, err := time.Parse(layout, adEndStr)
+	if err != nil {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "終了時刻の形式が不正です:"+err.Error(), http.StatusOK)
 		return
 	}
 
-	endDay, err := strconv.Atoi(adEndStr[:1])
-	endHour, err2 := strconv.Atoi(adEndStr[1:])
-	if err != nil || err2 != nil || endDay < 1 || endDay > 7 || endHour < 0 || endHour > 24 {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "adEnd の形式が不正です（曜日:1-7, 時:00-24）: "+adEndStr, http.StatusOK)
+	if reqEnd.Before(reqStart) {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "終了時刻は開始より後である必要があります", http.StatusOK)
 		return
 	}
 
-	ad.AdStart = startDay*100 + startHour // 例: 0*100 + 0 = 000
-	ad.AdEnd   = endDay*100 + endHour     // 例: 0*100 + 1 = 001
+	ad.AdStart = reqStart
+	ad.AdEnd = reqEnd
 
 	// 距離チェック
 	distance := 0

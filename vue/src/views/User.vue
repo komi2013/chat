@@ -30,11 +30,17 @@ async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/UserGet/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   user.value = res.user
   const fetchedNicks = res.nicknames || []
   fetchedNicks.forEach((n, i) => {
@@ -172,24 +178,34 @@ async function submitUser(index) {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('latitude', user.value.latitude)
   fd.append('longitude', user.value.longitude)
-  fd.append('mail', user.value.mail)
-  fd.append('telephone', user.value.telephone)
-  fd.append('walletAddress', user.value.walletAddress)
+  fd.append('mail', user.value.mail ?? '')
+  fd.append('telephone', user.value.telephone ?? '')
+  fd.append('walletAddress', user.value.walletAddress ?? '')
   fd.append('nickImg', nickImg.value)
   fd.append('nickBio', nickBio.value)
-
+  if (nicknameFormVisible.value && !editableNickname.value) {
+    alert('ニックネームの入力してください')
+    return
+  }
   if (editingMode.value === 'new') {
     fd.append('nickname', editableNickname.value)
   } else {
-    fd.append('nickname', nickname.value)
+    fd.append('nickname', nickname.value ?? '')
   }
 
   const res = await sendRequest('/UserEdit/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => pushReceive(content))
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   localStorage.setItem('nickname', res.nickname)
-
   nicknameFormVisible.value = false
   noticesStore.setNotice(res.message)
 }
@@ -201,6 +217,7 @@ async function switchNickname(selectedName) {
   nickImg.value = selected.nickImg
   nickBio.value = selected.nickBio
   if (quillBio) quillBio.root.innerHTML = markdownToHtml(selected.nickBio || '')
+  nicknameFormVisible.value = false
 }
 
 </script>
@@ -244,8 +261,8 @@ async function switchNickname(selectedName) {
           <input type="text" v-model="user.telephone" placeholder="電話番号" class="wide-text">
         </div>
         <div v-if="!nicknameFormVisible" class="centralize">
-          <button type="button" class="wide-text" @click="openNicknameForm('edit')">
-            このニックネームを変更
+          <button v-if="nicknames.length > 0" type="button" class="wide-text" @click="openNicknameForm('edit')">
+            ニックネームの絵文字、画像を変更
           </button>
           <button type="button" class="wide-text" @click="openNicknameForm('new')">
             新しいニックネームを作成
@@ -255,6 +272,7 @@ async function switchNickname(selectedName) {
         <div v-if="nicknameFormVisible" class="nickname-editor">
           <h3 v-if="editingMode === 'edit'">ニックネームの編集</h3>
           <h3 v-if="editingMode === 'new'">新しいニックネームを作成</h3>
+          <div>ニックネームは登録後は変更できません<br>３つまで登録できます</div>
           <input
             type="text"
             v-model="editableNickname"
@@ -294,7 +312,7 @@ async function switchNickname(selectedName) {
               class="min-icon">
           <span>{{ nick.nickImg.split(',')[1] }}</span>
         </span>
-        <span>{{ nick.nickname }}</span>
+        <span>&nbsp;{{ nick.nickname }}</span>
       </div>
     </div>
   </div>
@@ -324,11 +342,9 @@ async function switchNickname(selectedName) {
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  vertical-align: middle;
 }
-/*.divText {
-  margin: 4px;
-  padding: 4px;
-}*/
+
 .nickname-tabs {
   display: flex;
   justify-content: center;

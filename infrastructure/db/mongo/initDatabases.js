@@ -6,6 +6,7 @@ const dbNames = [
   "chatAdPrice",
   "chatChannel",
   "chatFile",
+  "chatInvoice",
   "chatNickname",
   "chatReception",
   "chatSequence",
@@ -18,17 +19,12 @@ const dbNames = [
 dbNames.forEach(name => {
   const targetDB = db.getSiblingDB(name);
   print(`✅ Initialized database: ${name}`);
-
-  // chatSequenceのみ初期データを投入
+  const now = new Date();
+  let initialData;
   if (name === "chatSequence") {
     const sequenceCol = targetDB.getCollection("sequence");
-
-    // 既存データをクリア（再初期化時を考慮）
     sequenceCol.deleteMany({});
-
-    const now = new Date();
-
-    const initialData = [
+    initialData = [
       {
         _id: "adID",
         lock: 0,
@@ -44,10 +40,10 @@ dbNames.forEach(name => {
         updatedAt: now,
       },
       {
-        _id: "fileID",
+        _id: "invoiceID",
         lock: 0,
-        count: "D",
-        description: "fileIDのシーケンス",
+        count: "0",
+        description: "invoiceIDのシーケンス",
         updatedAt: now,
       },
       {
@@ -65,8 +61,24 @@ dbNames.forEach(name => {
         updatedAt: now,
       },
     ];
-
     sequenceCol.insertMany(initialData);
     print("🚀 Inserted initial sequence data into chatSequence.sequence");
+  }
+  if (name === "chatAdPrice") {
+    const adPriceCol = targetDB.getCollection("adPrice");
+    adPriceCol.deleteMany({});
+    initialData = [
+      {
+          _id: '0',
+          latitudeNorth: 0,
+          latitudeSouth: 0,
+          longitudeEast: 0,
+          longitudeWest: 0,
+          adStart: 100,
+          adEnd: 724,
+          adPriceYen: 800,
+          updatedAt: now,
+      },
+    ]
   }
 });

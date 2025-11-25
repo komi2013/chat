@@ -162,6 +162,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		common.ChunkPush(mySessions, []interface{}{"alias", channelID, myname, aliasData, d.AliasImg})
 	}
 
+	for _, d := range invitation.Groups {
+		gData := []interface{}{d.GroupName, d.AliasNames}
+		common.ChunkPush(mySessions, []interface{}{"group", channelID, myname, gData, d.GroupImg})
+	}
+
 	// 他ユーザーへ通知
 	contents = []string{session.UserID, myname, "", accessRight}
 	common.ChunkPush(otherSessions, []interface{}{"alias", channelID, myname, contents, aliasImg})

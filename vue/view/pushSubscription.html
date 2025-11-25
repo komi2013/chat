@@ -3,28 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Webpush register</title>
+  <title>Webpush Register</title>
     <script src="/js/myGlobal.js?0625_7"></script>
     <script src="/js/IndexedDB.js?0625_7"></script>
 </head>
 <body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.js"></script>
-<div id="content">
-  <div><a href="/user/" > ユーザー設定 </a>してください</div>
+
+<div id="app">
+  <script type="module" src="/src/outsideApp.js"></script>
+  <div id="drawer_column"></div>
+  <div id="content">
+    <br><br>
+    <div><a href="/user/" > ユーザー設定 </a>してください</div>
+  </div>
+  <div id="ad_right">
+    <div id="ad-right1"></div>
+    <div id="ad-right2"></div>
+    <div id="ad-right3"></div>
+  </div>
 </div>
 
 <script>
-/*
-  window.addEventListener('load', () => {
-    // ✅ main.js 読み込み完了後に実行される
-    if (typeof window.pushReceive === 'function') {
-      pushReceive(null)
-    } else {
-      console.error("❌ pushReceive is not loaded yet.");
-    }
-  });
-*/
+  /*
+    window.addEventListener('load', () => {
+      // ✅ main.js 読み込み完了後に実行される
+      if (typeof window.pushReceive === 'function') {
+        pushReceive(null)
+      } else {
+        console.error("❌ pushReceive is not loaded yet.");
+      }
+    });
+  */
   {{if .Session.Csrf}}
     localStorage.setItem("csrf", "{{.Session.Csrf}}");
   {{end}}

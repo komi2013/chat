@@ -7,13 +7,12 @@ const initialized = ref(false)
 
 onMounted(async () => {
   await loadAdvertisements()
-  console.log('in onMounted')
+  // console.log('in onMounted')
   initialized.value = true // ✅ 完了後に RouterView を描画
 })
 
-console.log('out onMounted')
 </script>
 
-<template>
+<template v-if="initialized">
   <RouterView />
 </template>

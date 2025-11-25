@@ -10,8 +10,8 @@ type AdStruct struct {
 	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
 	AdText     string  `bson:"adText" json:"adText"`
 	AdLink     string  `bson:"adLink" json:"adLink"`
-	AdStart    int     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
-	AdEnd      int     `bson:"adEnd" json:"adEnd"`        // 例: 223（月曜23時）
+	AdStart    time.Time     `bson:"adStart" json:"adStart"`    // 2025-11-23T20:23
+	AdEnd      time.Time     `bson:"adEnd" json:"adEnd"`        // 2025-11-23T20:23
 	UserID     string  `bson:"userID" json:"userID"`
 	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
@@ -30,8 +30,8 @@ type AdPriceStruct struct {
 	LatitudeSouth  float64 `bson:"latitudeSouth" json:"latitudeSouth"`   // 例: 35.72
 	LongitudeEast  float64 `bson:"longitudeEast" json:"longitudeEast"`   // 例: 139.54
 	LongitudeWest  float64 `bson:"longitudeWest" json:"longitudeWest"`   // 例: 139.52
-	AdStart        int     `bson:"adStart" json:"adStart"`               // 例: 000
-	AdEnd          int     `bson:"adEnd" json:"adEnd"`                   // 例: 059
+	AdStart        int     `bson:"adStart" json:"adStart"`               // 例: 100
+	AdEnd          int     `bson:"adEnd" json:"adEnd"`                   // 例: 723
 	AdPriceYen     int     `bson:"adPriceYen" json:"adPriceYen"`
 	UpdatedAt      time.Time   `bson:"updatedAt" json:"updatedAt"`
 	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`

@@ -40,6 +40,13 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var groups []collection.Group
+	if err := json.Unmarshal([]byte(r.FormValue("groups")), &groups); r.FormValue("groups") != "" && err != nil {
+    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "groups JSON Unmarshal Error", http.StatusOK)
+    return
+	}
+
+
 	channelID := r.FormValue("channelID")
 	channelName := r.FormValue("channelName")
 	channelDescription := r.FormValue("channelDescription")
@@ -135,6 +142,9 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 		updateFields["invitedAt"] = time.Now()
 	}
+	if len(groups) > 0 {
+    updateFields["groups"] = groups
+	}
 
 	// ======== Step 7: deleteAliases処理（別UserIDリストを使う） ========
 	if len(deleteAliases) > 0 {
@@ -156,6 +166,34 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		updateFields["aliases"] = newAliases
+
+		// ======== NEW: remove empty groups after alias deletion ========
+		if len(channel.Groups) > 0 {
+		    updatedGroups := make([]collection.Group, 0, len(channel.Groups))
+		    for _, g := range channel.Groups {
+		        // remove deleted aliases from each group
+		        filteredMembers := []string{}
+		        for _, aliasName := range g.AliasNames {
+		            remove := false
+		            for _, del := range deleteAliases {
+		                if aliasName == del {
+		                    remove = true
+		                    break
+		                }
+		            }
+		            if !remove {
+		                filteredMembers = append(filteredMembers, aliasName)
+		            }
+		        }
+		        // if group has no members left, skip (delete group)
+		        if len(filteredMembers) == 0 {
+		            continue
+		        }
+		        g.AliasNames = filteredMembers
+		        updatedGroups = append(updatedGroups, g)
+		    }
+		    updateFields["groups"] = updatedGroups
+		}
 
 		// ======== ★ 変更点: すでに取得したallSessionsから対象ユーザーを抽出 ========
 		deleteSessions := make([]collection.SessionStruct, 0)

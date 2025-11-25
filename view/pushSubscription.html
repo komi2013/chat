@@ -3,30 +3,43 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Webpush register</title>
+  <title>Webpush Register</title>
     <script src="/js/myGlobal.js?0625_7"></script>
     <script src="/js/IndexedDB.js?0625_7"></script>
-  <script type="module" crossorigin src="/assets/pushReceive-DICste5D.js"></script>
-  <script type="module" crossorigin src="/assets/main-QTATjPxa.js"></script>
+  <script type="module" crossorigin src="/assets/pushReceive-FSw6VMt8.js"></script>
+  <script type="module" crossorigin src="/assets/Advertisement-CGwqBjDe.js"></script>
+  <script type="module" crossorigin src="/assets/Drawer-kFWF1Hkk.js"></script>
+  <script type="module" crossorigin src="/assets/outsideApp-C3jeGpwm.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/pushReceive-D-fEpAbp.css">
+  <link rel="stylesheet" crossorigin href="/assets/Advertisement-DhaK2e1-.css">
+  <link rel="stylesheet" crossorigin href="/assets/Drawer-Cm666asy.css">
 </head>
 <body>
-  <div id="app"></div>
-<div id="content">
-  <div><a href="/user/" > ユーザー設定 </a>してください</div>
+
+<div id="app">
+  <div id="drawer_column"></div>
+  <div id="content">
+    <br><br>
+    <div><a href="/user/" > ユーザー設定 </a>してください</div>
+  </div>
+  <div id="ad_right">
+    <div id="ad-right1"></div>
+    <div id="ad-right2"></div>
+    <div id="ad-right3"></div>
+  </div>
 </div>
 
 <script>
-/*
-  window.addEventListener('load', () => {
-    // ✅ main.js 読み込み完了後に実行される
-    if (typeof window.pushReceive === 'function') {
-      pushReceive(null)
-    } else {
-      console.error("❌ pushReceive is not loaded yet.");
-    }
-  });
-*/
+  /*
+    window.addEventListener('load', () => {
+      // ✅ main.js 読み込み完了後に実行される
+      if (typeof window.pushReceive === 'function') {
+        pushReceive(null)
+      } else {
+        console.error("❌ pushReceive is not loaded yet.");
+      }
+    });
+  */
   {{if .Session.Csrf}}
     localStorage.setItem("csrf", "{{.Session.Csrf}}");
   {{end}}

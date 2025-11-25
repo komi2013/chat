@@ -5,7 +5,7 @@ import (
   "chat/common"
   "context"
   "encoding/json"
-  "log"
+  // "log"
   // "math"
   "net/http"
   // "time"
@@ -16,41 +16,31 @@ import (
 )
 
 func UserGet(w http.ResponseWriter, r *http.Request) {
-
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req: ", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
   session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
   if err != nil {
-    log.Printf("SessionCheck: %v; Req: ", err, r.URL.Path, r.Form)
-    http.Error(w, err.Error(), http.StatusServiceUnavailable)
+  	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";Session Check", http.StatusOK)
     return
   }
 
-  // collUser := db1.Collection("user")
   collUser := common.DB.UserDB.Collection("user")
   filterUser := bson.M{"_id": session.UserID}
   var user collection.UserResponse
   err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
   if err != nil {
-    log.Printf("user FindOne: %v; Req:", err, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, err.Error()+";collUser.Find", http.StatusOK)
+    return
   }
-
   collNickname := common.DB.NicknameDB.Collection("nickname")
   filterNickname := bson.M{"userID": session.UserID}
   cursor, err := collNickname.Find(context.TODO(), filterNickname)
   if err != nil {
-    log.Printf("coll.Find: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, err.Error()+";collNickname.Find", http.StatusOK)
+    return
   }
   var nicknames []collection.NicknameResponse
   if err = cursor.All(context.TODO(), &nicknames); err != nil {
-    log.Printf("cursor.All: %v; Req: ", err, session.UserID, r.URL.Path, r.Form)
+    common.WriteResponseWithSession(w, session, err.Error()+";cursor.All", http.StatusOK)
+    return
   }
 
   responseData := struct {

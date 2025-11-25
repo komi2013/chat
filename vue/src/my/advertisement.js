@@ -33,17 +33,17 @@ async function AdPublicGetAndMerge() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/AdPublicGet/', fd)
-  if (res.error) {
-    errorMessage.value = res.error
-    console.error('AdPublicGet エラー:', res.error)
+  if (!res.csrf) {
+    console.error('AdPublicGet エラー:', res)
     return
   }
-  if (res.csrf) localStorage.setItem('csrf', res.csrf)
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { console.error('AdPublicGet エラー:', res.error) }
   const serverAds = (res.ads || []).map(ad => normalizeAd(ad))
   const existing = await getAllIDBs('advertisement')
   const merged = mergeAds(existing, serverAds)

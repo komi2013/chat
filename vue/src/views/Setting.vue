@@ -14,9 +14,7 @@ document.title = '設定'
 
 const loadStores = async () => {
   try {
-    console.log('dd')
     storeNames.value = await getObjectStoreNames()
-    console.log(storeNames.value)
   } catch (error) {
     message.value = `データベースエラー: ${error}`;
   }
@@ -94,26 +92,37 @@ const clearObjectStore = async (storeName) => {
   });
 };
 
-const deleteIndexedDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 101);
-    request.onerror = (event) => {
-      reject(`Error resetting database: ${event.target.error}`);
-    };
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      const transaction = event.target.transaction;
-      console.log('Resetting IndexedDB: Dropping and recreating all stores');
-      Array.from(db.objectStoreNames).forEach((storeName) => {
-        db.deleteObjectStore(storeName);
-      });
-    };
-    request.onsuccess = (event) => {
-      const db = event.target.result;
+const deleteIndexedDB = async () => {
+  try {
+    const db = await openDatabase(); // use existing helper
+    return new Promise((resolve, reject) => {
+      const newVersion = db.version + 1;
       db.close();
-      resolve('Database has been reset successfully.');
-    };
-  });
+      const request = indexedDB.open('chat', newVersion);
+      request.onerror = (event) => {
+        reject(`Error resetting database: ${event.target.error}`);
+      };
+      request.onupgradeneeded = (event) => {
+        const upgradedDB = event.target.result;
+        console.log('Resetting IndexedDB: Dropping and recreating all stores');
+        Array.from(upgradedDB.objectStoreNames).forEach(storeName => {
+          upgradedDB.deleteObjectStore(storeName);
+        });
+
+        // Rebuild schema again if needed
+        // If you want a fresh empty DB, do nothing here.
+        // If you want to recreate schema:
+        // setupDatabaseSchema(upgradedDB, event.target.transaction);
+      };
+      request.onsuccess = (event) => {
+        const finalDB = event.target.result;
+        finalDB.close();
+        resolve('Database has been reset successfully.');
+      };
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
 };
 
 
