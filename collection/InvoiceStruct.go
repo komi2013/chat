@@ -11,7 +11,7 @@ type InvoiceStruct struct {
   AmountJPYC   int       `bson:"amountJPYC" json:"amountJPYC"`   // 金額（JPYC）
   FromAddress      string    `bson:"fromAddress" json:"fromAddress"`
   InvoiceAddress      string    `bson:"invoiceAddress" json:"invoiceAddress"`         // 受取用ウォレットアドレス（invoice用）
-  InvoiceStatus       int    `bson:"invoiceStatus" json:"invoiceStatus"`           // 1=pending, 2=paid, 3=expired
+  InvoiceStatus       int    `bson:"invoiceStatus" json:"invoiceStatus"`           // 1=pending, 2=paid
   PaidTxHash   string    `bson:"paidTxHash,omitempty" json:"paidTxHash,omitempty"` // 入金されたTX
   CreatedAt    time.Time `bson:"createdAt" json:"createdAt"`
   PaidAt       time.Time `bson:"paidAt,omitempty" json:"paidAt,omitempty"`

@@ -18,11 +18,11 @@ type AdStruct struct {
 	Distance   int     `bson:"distance" json:"distance"`   // 半径のスケール
 	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
 	UpdatedAt  time.Time  `bson:"updatedAt,omitempty" json:"updatedAt,omitempty"`
-	PaidAt time.Time  `bson:"paidAt,omitempty" json:"paidAt,omitempty"`
+	PaidAt     time.Time  `bson:"paidAt,omitempty" json:"paidAt,omitempty"`
 	InvoicedAt time.Time  `bson:"invoicedAt,omitempty" json:"invoicedAt,omitempty"`
 	PublishedAt time.Time    `bson:"published,omitempty" json:"published,omitempty"`
-	NextInvoicedFlag bool    `bson:"nextInvoicedFlag,omitempty" json:"nextInvoicedFlag,omitempty"` // when no geo ad, running current ad and want ad next week
-  CurrentRunFlag bool    `bson:"currentRunFlag,omitempty" json:"currentRunFlag,omitempty"`
+	// NextInvoicedFlag bool    `bson:"nextInvoicedFlag,omitempty" json:"nextInvoicedFlag,omitempty"` // when no geo ad, running current ad and want ad next week
+ //  CurrentRunFlag bool    `bson:"currentRunFlag,omitempty" json:"currentRunFlag,omitempty"`
 }
 
 type AdPriceStruct struct {
@@ -38,15 +38,16 @@ type AdPriceStruct struct {
 }
 
 type AdResponse struct {
-	// AdStart    int     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
-	// AdEnd      int     `bson:"adEnd" json:"adEnd"`        // 例: 223（月曜23時）
 	AdID string  `bson:"_id" json:"advertisementID"`
+	AdStart    time.Time     `bson:"adStart" json:"adStart"`    // 例: 100（日曜0時）
+	AdEnd      time.Time     `bson:"adEnd" json:"adEnd"`        // 2025-11-23T20:23
 	PathBanner string  `bson:"pathBanner" json:"pathBanner"`
 	PathSquare string  `bson:"pathSquare" json:"pathSquare"`
 	AdText     string  `bson:"adText" json:"adText"`
 	AdLink     string  `bson:"adLink" json:"adLink"`
 	AdYen      int     `bson:"adYen,omitempty" json:"adYen,omitempty"`
 	UpdatedAt  time.Time    `bson:"updatedAt" json:"updatedAt,omitempty"`
+	PaidAt time.Time  `bson:"paidAt,omitempty" json:"paidAt,omitempty"`
 }
 
 // 近畿の範囲

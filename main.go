@@ -20,7 +20,7 @@ func main() {
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)
 		http.HandleFunc("/AdInvoice/", controller.AdInvoice)
-		http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
+		// http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
 		http.HandleFunc("/AdPublicGet/", controller.AdPublicGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)

@@ -5,6 +5,7 @@ import (
 	"chat/common"
 	"context"
 	"encoding/json"
+	// "log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -60,13 +61,17 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 
 	const layout = "2006-01-02T15:04"
 
-	reqStart, err := time.Parse(layout, adStartStr)
+	// 1. 日本時間 (JST) の定義を作成
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+
+	// 2. ParseInLocation を使って、「入力文字列はJSTである」としてパースする
+	reqStart, err := time.ParseInLocation(layout, adStartStr, jst)
 	if err != nil {
 		common.WriteResponseWithoutSession(w, csrf, "開始時刻の形式が不正です:"+err.Error(), http.StatusOK)
 		return
 	}
 
-	reqEnd, err := time.Parse(layout, adEndStr)
+	reqEnd, err := time.ParseInLocation(layout, adEndStr, jst)
 	if err != nil {
 		common.WriteResponseWithoutSession(w, csrf, "終了時刻の形式が不正です:"+err.Error(), http.StatusOK)
 		return
@@ -82,10 +87,13 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 
 	// === 距離 ===
 	distanceStr := r.FormValue("distance")
-	distance := 0
+	distance := -1
 	if distanceStr != "" {
-		if d, err := strconv.Atoi(distanceStr); err == nil && d >= 1 && d <= 999 {
+		if d, err := strconv.Atoi(distanceStr); err == nil && d >= 0 && d <= 999 {
 			distance = d
+		}
+		if lat == 0 || lng == 0 {
+			distance = -1
 		}
 	}
 	ad.Distance = distance
@@ -163,7 +171,6 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 
 	ad.UserID = session.UserID
 	ad.UpdatedAt = time.Now()
-
 	// === adID生成 ===
 	if adID == "" {
 		newID, err := common.CountUpID("adID")
@@ -175,14 +182,17 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 	} else {
 		ad.AdID = adID
 	}
-
 	// === Upsert ===
 	filter := bson.M{
-		"adID":   ad.AdID,
-		"userID": ad.UserID,
+		"_id":   ad.AdID,
+		"userID": session.UserID,
 	}
-
-	update := bson.M{"$set": ad}
+	update := bson.M{
+		"$set": ad,
+		"$unset": bson.M{
+    	"paidAt": "", // 値は何でもよいが、空文字を慣習的に使う
+		},
+	}
 	opts := options.Update().SetUpsert(true)
 
 	_, err = adCollection.UpdateOne(ctx, filter, update, opts)
@@ -190,7 +200,6 @@ func AdEdit(w http.ResponseWriter, r *http.Request) {
 		common.WriteResponseWithSession(w, session, "保存失敗:"+err.Error(), http.StatusOK)
 		return
 	}
-
 	// === 正常レスポンス ===
 	resp := struct {
 		Csrf         string                `json:"csrf"`

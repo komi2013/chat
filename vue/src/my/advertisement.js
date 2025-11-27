@@ -9,8 +9,13 @@ export async function loadAdvertisements() {
   let allAds = await getAllIDBs('advertisement')
   allAds = await removeExpiredAds(allAds)
   window.advertisements = allAds
-  if (!window.advertisements || window.advertisements.length < 5) {
+
+  const lastUpdate = localStorage.getItem('adPublicGotAt')
+  const now = Date.now()
+  const interval = 10 * 60 * 1000 // 10分をミリ秒で定義
+  if (!lastUpdate || (now - parseInt(lastUpdate, 10)) > interval) {
     await AdPublicGetAndMerge()
+    localStorage.setItem('adPublicGotAt', now.toString())
   }
 }
 
@@ -56,53 +61,17 @@ async function AdPublicGetAndMerge() {
 }
 
 function normalizeAd(ad) {
+  if (!ad.adStart || !ad.adEnd || !ad.advertisementID) {
+    console.error("normalizeAd error: adStart または adEnd, ID が不足しています", {
+      adStart: ad.adStart,
+      adEnd: ad.adEnd
+    });
+    return ad
+  }
   const normalized = { ...ad }
-  const now = new Date()
-  const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000)
-  if (typeof ad.adStart === 'number') {
-    normalized.adStart = convertTimeCodeToDate(ad.adStart)
-  } else if (!ad.adStart) {
-    normalized.adStart = now.toISOString()
-  } else if (ad.adStart instanceof Date) {
-    normalized.adStart = ad.adStart.toISOString()
-  } else if (typeof ad.adStart === 'string' && !isNaN(Date.parse(ad.adStart))) {
-    normalized.adStart = new Date(ad.adStart).toISOString()
-  } else {
-    normalized.adStart = now.toISOString()
-  }
-
-  if (typeof ad.adEnd === 'number') {
-    normalized.adEnd = convertTimeCodeToDate(ad.adEnd)
-  } else if (!ad.adEnd) {
-    normalized.adEnd = sixHoursLater.toISOString()
-  } else if (ad.adEnd instanceof Date) {
-    normalized.adEnd = ad.adEnd.toISOString()
-  } else if (typeof ad.adEnd === 'string' && !isNaN(Date.parse(ad.adEnd))) {
-    normalized.adEnd = new Date(ad.adEnd).toISOString()
-  } else {
-    normalized.adEnd = sixHoursLater.toISOString()
-  }
-
-  if (!normalized.advertisementID) {
-    normalized.advertisementID = `${ad.adLink || 'no-link'}-${Date.now()}`
-  }
-
+  normalized.adStart = timeFormat('YYYY-MM-DDThh:mm:ss', ad.adStart)
+  normalized.adEnd = timeFormat('YYYY-MM-DDThh:mm:ss', ad.adEnd)
   return normalized
-}
-
-function convertTimeCodeToDate(timeCode) {
-  const rawDayOfWeek = Math.floor(timeCode / 100)
-  const hour = timeCode % 100
-  const targetDayOfWeek = (rawDayOfWeek - 1 + 7) % 7
-  const now = new Date()
-  const targetDate = new Date(now)
-  const diff = targetDayOfWeek - now.getDay()
-  targetDate.setDate(targetDate.getDate() + diff)
-  targetDate.setHours(hour, 0, 0, 0)
-  if (targetDate < now) {
-    targetDate.setDate(targetDate.getDate() + 7)
-  }
-  return targetDate.toISOString()
 }
 
 function mergeAds(existing, newAds) {

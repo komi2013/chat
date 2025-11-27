@@ -31,6 +31,7 @@ type Config struct {
     UploadDir        string
     Domain           string
     GoogleClientID   string
+    EtherscanApiKey  string
 }
 
 // -----------------------------------------------------------
@@ -63,6 +64,7 @@ func LoadConfig() *Config {
         UploadDir:       os.Getenv("UPLOAD_DIR"),
         Domain:          os.Getenv("DOMAIN"),
         GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
+        EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
     }
 
     return cfg

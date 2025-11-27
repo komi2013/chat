@@ -41,6 +41,22 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
     return
 	}
 
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	for i := range ads {
+		// AdStart, AdEnd を JST に変換
+		ads[i].AdStart = ads[i].AdStart.In(jst)
+		ads[i].AdEnd = ads[i].AdEnd.In(jst)
+		// UpdatedAt や CreatedAt など他の時刻フィールドがある場合も同様に変換します
+		ads[i].UpdatedAt = ads[i].UpdatedAt.In(jst)
+		// 請求・支払い関連の日付も念のため変換 (ゼロ値でない場合)
+		if !ads[i].InvoicedAt.IsZero() {
+			ads[i].InvoicedAt = ads[i].InvoicedAt.In(jst)
+		}
+		if !ads[i].PaidAt.IsZero() {
+			ads[i].PaidAt = ads[i].PaidAt.In(jst)
+		}
+	}
+
   url := fmt.Sprintf(
     "%s/api?module=account&action=tokentx&address=%s&contractaddress=%s&sort=desc",
     common.PolygonAPI,

@@ -38,6 +38,7 @@ type Tx struct {
 }
 
 func CheckJpycDeposit() {
+		cfg := common.LoadConfig()
     now := time.Now()
 
     // ログ準備
@@ -67,7 +68,6 @@ func CheckJpycDeposit() {
         return
     }
 
-    // ✅ InvoiceAddress をユニーク化
     addrMap := map[string]bool{}
     var uniqueAddrs []string
 
@@ -80,18 +80,21 @@ func CheckJpycDeposit() {
 
     checkJpycLog.Printf("Unique invoice addresses: %v\n", uniqueAddrs)
 
-    // ✅ 全アドレスの result をマージ
-
     var mergedTx []Tx
 
     for _, walletAddr := range uniqueAddrs {
-        url := fmt.Sprintf(
-            "https://api.polygonscan.com/api?module=account&action=tokentx&address=%s&contractaddress=%s&page=1&offset=50&sort=desc",
-            walletAddr,
-            common.JpycContract,
-        )
 
-        resp, err := http.Get(url)
+				url := fmt.Sprintf(
+				    "https://api.etherscan.io/v2/api?chain=polygon&module=account&action=tokentx&address=%s&contractaddresstoken=%s&page=1&offset=50&sort=desc",
+				    walletAddr,
+				    common.JpycContract,
+				)
+
+				req, _ := http.NewRequest("GET", url, nil)
+				req.Header.Set("x-api-key", cfg.EtherscanApiKey)
+
+				resp, err := http.DefaultClient.Do(req)
+
         if err != nil {
             checkJpycErr.Printf("HTTP error:", err)
             continue
@@ -146,6 +149,15 @@ func CheckJpycDeposit() {
 
             // ✅ Fromアドレス一致チェック
             if strings.ToLower(tx.From) == strings.ToLower(inv.FromAddress) {
+								if tx.Value != fmt.Sprintf("%d000000000000000000", inv.AmountJPYC) {
+								    continue
+								}
+								if inv.PaidTxHash == tx.Hash {
+								    continue
+								}
+								if strings.ToLower(tx.To) != strings.ToLower(inv.InvoiceAddress) {
+								    continue
+								}
 
                 checkJpycLog.Printf("MATCH: invoiceID=%s txHash=%s\n", inv.InvoiceID, tx.Hash)
 
@@ -157,6 +169,7 @@ func CheckJpycDeposit() {
                         "$set": bson.M{
                             "invoiceStatus": 2,
                             "paidAt":        now,
+                            "paidTxHash":    tx.Hash,
                         },
                     },
                 )

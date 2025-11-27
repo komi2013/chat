@@ -28,6 +28,8 @@ onMounted(async () => {
 
 let systemWalletAddress
 let jpycCheckURL
+const errors = ref([]);
+// const selectedFiles = ref({});
 async function findAds() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -47,8 +49,20 @@ async function findAds() {
     .map(apiAd => convertApiAdToUiAd(apiAd))
 
   ads.value.forEach(ad => {
-    if (ad.pathBanner) previewBanner.value[ad.adID] = ad.pathBanner
+    // if (ad.pathBanner) previewBanner.value[ad.adID] = ad.pathBanner
     if (ad.pathSquare) previewSquare.value[ad.adID] = ad.pathSquare
+
+    const adID = ad.adID || ''  // ← adID 無い場合は仮ID
+    // ad.tempID = adID                             // ← UI管理用IDとして保持
+
+    if (!errors.value[adID]) {
+      errors.value[adID] = {
+        square: null,
+        banner: null,
+        // ↑画像種類増えてもここで増やせる
+      }
+    }
+
   })
 
   systemWalletAddress = res.systemWalletAddress
@@ -58,19 +72,14 @@ async function findAds() {
 const invoiceButton = ref(true)
 function convertApiAdToUiAd(apiAd) {
   apiAd = apiAd || {}
-
-  // datetime-local 形式へ整形
   const adStart = apiAd.adStart ? apiAd.adStart.slice(0, 16) : ''
   const adEnd   = apiAd.adEnd ? apiAd.adEnd.slice(0, 16) : ''
-
-  // adEndDays 計算
-  let adEndDays = 0
+  let adEndDays = 1
   if (adStart && adEnd) {
     const start = new Date(adStart)
     const end = new Date(adEnd)
     adEndDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24))
   }
-
   const invoicedAt = apiAd.invoicedAt ? new Date(apiAd.invoicedAt) : null
   const paidAt     = apiAd.paidAt ? new Date(apiAd.paidAt) : null
   if (invoicedAt && !isNaN(invoicedAt.getTime())) {
@@ -80,7 +89,6 @@ function convertApiAdToUiAd(apiAd) {
       invoiceButton.value = true
     }
   }
-
   return {
     adID: apiAd.adID || '',
     pathBanner: apiAd.pathBanner || '',
@@ -92,7 +100,7 @@ function convertApiAdToUiAd(apiAd) {
     adEndDays,
     latitude: apiAd.latitude || 0,
     longitude: apiAd.longitude || 0,
-    distance: apiAd.distance || 0,
+    distance: apiAd.distance > -1 ? apiAd.distance : -1,
     adYen: apiAd.adYen || 0,
     userID: apiAd.userID || '',
   }
@@ -107,39 +115,39 @@ function splitDayHourFromString(input) {
 }
 
 // --- 価格取得 ---
-async function findAdPrices(index) {
-  const ad = ads.value[index]
-  const endDate = new Date(ad.adStart)
-  endDate.setDate(endDate.getDate() + Number(ad.adEndDays))
-  const adEndFormatted = endDate.toISOString().slice(0, 16)
-  const fd = new FormData()
-  fd.append('csrf', localStorage.getItem('csrf'))
-  fd.append('pathSquare', ad.pathSquare)
-  fd.append('latitude', ad.latitude)
-  fd.append('longitude', ad.longitude)
-  fd.append('adStart', ad.adStart)
-  fd.append('adEnd', adEndFormatted)
-  fd.append('distance', ad.distance)
-  const res = await sendRequest('/AdPriceGet/', fd)
-  if (!res.csrf) {
-    errorMessage.value = res
-    return
-  }
-  localStorage.setItem('csrf', res.csrf)
-  if (Array.isArray(res.pushContents)) {
-    for (const content of res.pushContents) {
-      await pushReceive(content)
-    }
-  }
-  if (res.error) { errorMessage.value = res.error }
-  if (Array.isArray(res.adPrices) && res.adPrices.length > 0) {
-    const sorted = res.adPrices.sort((a, b) => b.adPriceYen - a.adPriceYen)
-    ad.adYen = sorted[0].adYen || 0
-  } else {
-    ad.adYen = 0
-  }
-  // adPrices.value = res.adPrices
-}
+// async function findAdPrices(index) {
+//   const ad = ads.value[index]
+//   const endDate = new Date(ad.adStart)
+//   endDate.setDate(endDate.getDate() + Number(ad.adEndDays))
+//   const adEndFormatted = endDate.toISOString().slice(0, 16)
+//   const fd = new FormData()
+//   fd.append('csrf', localStorage.getItem('csrf'))
+//   fd.append('pathSquare', ad.pathSquare)
+//   fd.append('latitude', ad.latitude)
+//   fd.append('longitude', ad.longitude)
+//   fd.append('adStart', ad.adStart)
+//   fd.append('adEnd', adEndFormatted)
+//   fd.append('distance', ad.distance)
+//   const res = await sendRequest('/AdPriceGet/', fd)
+//   if (!res.csrf) {
+//     errorMessage.value = res
+//     return
+//   }
+//   localStorage.setItem('csrf', res.csrf)
+//   if (Array.isArray(res.pushContents)) {
+//     for (const content of res.pushContents) {
+//       await pushReceive(content)
+//     }
+//   }
+//   if (res.error) { errorMessage.value = res.error }
+//   if (Array.isArray(res.adPrices) && res.adPrices.length > 0) {
+//     const sorted = res.adPrices.sort((a, b) => b.adPriceYen - a.adPriceYen)
+//     ad.adYen = sorted[0].adYen || 0
+//   } else {
+//     ad.adYen = 0
+//   }
+//   // adPrices.value = res.adPrices
+// }
 
 // --- 経緯度処理 ---
 function parseCoordinates(ad) {
@@ -154,31 +162,42 @@ function parseCoordinates(ad) {
   } else {
     ad.latitude = ad.longitude = 0
   }
+  ad.distance = 0
 }
 
 // --- 登録 ---
 const payment = ref(false)
 async function submitAd(index) {
+  if (!confirm('広告設定の登録・更新')) return
   const ad = ads.value[index]
+  const adID = ad.adID ?? ''
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
 
-  const bannerBase64 = await toBase64IfNeeded(previewBanner.value[ad.adID])
-  const squareBase64 = await toBase64IfNeeded(previewSquare.value[ad.adID])
+  // const bannerBase64 = await toBase64IfNeeded(previewBanner.value[ad.adID])
+  const squareBase64 = await toBase64IfNeeded(previewSquare.value[adID])
 
-  const endDate = new Date(ad.adStart)
-  endDate.setDate(endDate.getDate() + Number(ad.adEndDays))
-  const adEndFormatted = endDate.toISOString().slice(0, 16)  // 2025-11-23T16:02
+  if (!squareBase64) {
+    // if (!errors.value[adID]) errors.value[adID] = {}
+    errors.value[adID].square = "画像を選択してください。"
+    return
+  }
 
-  fd.append('adID', ad.adID ?? '')
-  fd.append('previewBanner', bannerBase64)
+  const startLocal = new Date(ad.adStart)     // ローカルとして扱われる
+  const endLocal = new Date(startLocal)
+  endLocal.setDate(endLocal.getDate() + Number(ad.adEndDays))
+  const adEnd = endLocal.toISOString()
+  const adEndLocalText = timeFormat('YYYY-MM-DDThh:mm', endLocal)
+
+  fd.append('adID', adID)
+  // fd.append('previewBanner', bannerBase64)
+  // fd.append('adText', ad.adText)
   fd.append('previewSquare', squareBase64)
-  fd.append('adText', ad.adText)
   fd.append('adLink', ad.adLink)
   fd.append('latitude', ad.latitude)
   fd.append('longitude', ad.longitude)
   fd.append('adStart', ad.adStart)
-  fd.append('adEnd', adEndFormatted)
+  fd.append('adEnd', adEndLocalText)
   fd.append('distance', ad.distance)
   fd.append('payment', payment.value ? 'true' : '')
   const res = await sendRequest('/AdEdit/', fd)
@@ -193,6 +212,9 @@ async function submitAd(index) {
     }
   }
   if (res.error) { errorMessage.value = res.error }
+  // console.log(res.ad.adYen)
+  ad.adID = res.ad.adID
+  ad.adYen = res.ad.adYen
 }
 
 async function invoiceAd(index) {
@@ -201,7 +223,6 @@ async function invoiceAd(index) {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('adID', ad.adID)
-  fd.append('nextPayment', '1')
   const res = await sendRequest('/AdInvoice/', fd)
   if (!res.csrf) {
     errorMessage.value = res
@@ -274,6 +295,9 @@ function imageUrlToBase64(imageUrl) {
 function handleTrim(event, adID, targetW, targetH, type) {
   const file = event.target.files[0]
   if (!file) return
+  // selectedFiles.value[adID] = file
+  // if (!errors.value[adID]) errors.value[adID] = {}
+  // errors.value[adID].square = null
 
   const reader = new FileReader()
   reader.onload = () => {
@@ -310,20 +334,25 @@ function handleTrim(event, adID, targetW, targetH, type) {
       <form @submit.prevent="submitAd(index)">
         <label>正方形画像（250x250）:<br />
           <input type="file" accept="image/*" @change="e => handleTrim(e, ad.adID, 250, 250, 'square')" />
+          <br>
         </label>
-        <br />
+        <div v-if="errors[ad.adID]?.square" class="errorMessage">
+          {{ errors[ad.adID].square }}
+        </div>
         <img v-if="previewSquare[ad.adID]" :src="previewSquare[ad.adID]" style="border:1px solid #ccc; width:250px; height:250px;" />
         <br /><br />
 
         <label>広告リンク<br />
-          <input v-model="ad.adLink" placeholder="https://sample.com/item?af=1" required pattern="https://.*" class="wide-text" />
+          <input v-model="ad.adLink" placeholder="https://sample.com/item?af=1" required pattern="https://.*" 
+            title="https:// で始まる URL を入力してください" class="wide-text" />
         </label>
 
         <br /><br />
 
-        <label>経緯度:設定なしの場合は場所関係なしに広告表示されるので金額は高めになる<br />
-          <input v-model="ad.coordinateInput" pattern="^-?\\d+(\\.\\d+)?,\\s*-?\\d+(\\.\\d+)?$"
-                 title="緯度と経度は「35.77, 139.57」の形式で入力してください"
+        <label>経緯度:<a href="https://maps.google.com/" target="_blank">Googleマップ</a><br>
+          設定なしの場合は場所関係なしに広告表示されるので金額は高めになります<br />
+          <input v-model="ad.coordinateInput" pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
+                 title="緯度と経度は「35.77111, 139.57111」の形式で入力してください"
                  @input="parseCoordinates(ad)" class="wide-text" />
         </label>
 
@@ -332,24 +361,23 @@ function handleTrim(event, adID, targetW, targetH, type) {
           ➤ 経度: <strong>{{ ad.longitude }}</strong>
         </div>
 
-        <br />
-
-        <label>半径約: <input type="number" v-model="ad.distance" /> km</label>
+        <div v-if="ad.latitude && ad.longitude">
+          <label>半径約: <input type="number" v-model="ad.distance" min="0" /> km</label>
+        </div>
 
         <br /><br />
 
         <label>開始日時:
-          <input type="datetime-local" v-model="ad.adStart" />
+          <input type="datetime-local" v-model="ad.adStart" required />
         </label>
         <span> ~ </span>
         <label>終了日数:
-          <input type="number" min="0" v-model="ad.adEndDays" class="input-number" /> 日後
+          <input type="number" v-model="ad.adEndDays" class="input-number" required min="1" /> 日後
         </label>
 
         <div>見積り価格: ¥{{ ad.adYen?.toLocaleString() || 0 }}</div>
 
-        <div class="centralize"><button type="button" @click="findAdPrices(index)">確認</button></div>
-        <div class="centralize"><button type="submit">登録・更新</button></div>
+        <div class="centralize"><button type="submit">仮登録・仮更新</button></div>
         <div v-if="invoiceButton" class="centralize"><button type="button" @click="invoiceAd(index)">請求書発行</button></div>
         <div class="centralize"><button type="button" @click="deleteAd(index)">削除</button></div>
       </form>

@@ -2,7 +2,7 @@ package common
 
 import (
 	"context"
-	"log"
+	// "log"
 	"sort"
 	"time"
 
@@ -13,6 +13,10 @@ import (
 )
 
 func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPriceStruct, error) {
+	if ad.Distance < 0 {
+		ad.Distance = 0
+	}
+
 	delta := 0.01 * float64(ad.Distance)
 
 	coll := DB.AdPriceDB.Collection("adPrice")
@@ -35,7 +39,7 @@ func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPric
 	for cursor.Next(ctx) {
 		var priceDoc collection.AdPriceStruct
 		if err := cursor.Decode(&priceDoc); err != nil {
-			log.Printf("decode error: %v", err)
+			LogError("decode error:", err)
 			continue
 		}
 
@@ -52,7 +56,6 @@ func GetPrices(ctx context.Context, ad collection.AdStruct) ([]collection.AdPric
 			matched = append(matched, priceDoc)
 		}
 	}
-
 	if len(matched) == 0 {
 		adPriceYen := 100
 		matched = append(matched, collection.AdPriceStruct{
@@ -82,7 +85,7 @@ func GetMatchedPrices(ctx context.Context, coll *mongo.Collection, ad collection
 	for cursor.Next(ctx) {
 		var priceDoc collection.AdPriceStruct
 		if err := cursor.Decode(&priceDoc); err != nil {
-			log.Printf("decode error: %v", err)
+			LogError("decode error:", err)
 			continue
 		}
 
