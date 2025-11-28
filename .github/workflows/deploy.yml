@@ -33,7 +33,30 @@ jobs:
       - name: Build Vue
         working-directory: ./vue
         run: npm run build
-        # → /public/vue に成果物生成される
+        # → ./vue/dist に成果物生成される
+
+      # 【追加】デプロイ用にファイルを整理するステップ
+      - name: Prepare Deployment Files
+        run: |
+          # 1. public/assets の準備
+          mkdir -p public/assets
+          # vue/dist/assets があれば、public/assets にコピー
+          if [ -d "vue/dist/assets" ]; then
+            cp -r vue/dist/assets/* public/assets/
+          fi
+
+          # 2. view の準備
+          mkdir -p view
+          # vue/dist/view があれば、view にコピー
+          if [ -d "vue/dist/view" ]; then
+            cp -r vue/dist/view/* view/
+          fi
+          
+          # 確認用：ファイル構成を表示
+          echo "=== Public Directory ==="
+          ls -R public
+          echo "=== View Directory ==="
+          ls -R view
 
       # -----------------------------------------------------
       # 3) Build Go binary
@@ -55,6 +78,7 @@ jobs:
           echo "-----BEGIN-----"
           echo "$SSH_PRIVATE_KEY"
           echo "------END------"
+
       # -----------------------------------------------------
       # 4) Setup SSH
       # -----------------------------------------------------
@@ -74,32 +98,36 @@ jobs:
         run: |
           RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
           
-          # SSH接続オプションを定義 (ポート指定)
-          # SSH_OPTIONS="-p $SERVER_PORT"
-          
           echo "Deploying to quigen.info:29870/$RELEASE_DIR"
 
-          # 1. リリースディレクトリとVueアセット用のパスを作成
-          # 【修正点】 public/assets のディレクトリも作成
+          # 1. リリースディレクトリを作成 (view用も作成)
           ssh -p 29870 deploy@quigen.info "
-            mkdir -p /Work/chat/releases/$RELEASE_DIR/public/assets
+            mkdir -p /Work/chat/releases/$RELEASE_DIR/public
+            mkdir -p /Work/chat/releases/$RELEASE_DIR/view
           "
 
           # 2. Go binaryをアップロード
-          # 【修正点】 rsyncで -e "ssh $SSH_OPTIONS" を使用してポートを指定
           rsync -avz -e "ssh -p 29870" chat \
             deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/chat
 
-          # 3. Vue outputsをアップロード
-          # 【修正点】 デプロイ先を public/vue/ から public/assets/ に変更
-          # 【修正点】 rsyncで -e "ssh $SSH_OPTIONS" を使用してポートを指定
-          rsync -avz -e "ssh -p 29870" public/vue/ \
-            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/public/assets/
+          # 3. Publicフォルダ全体をアップロード (assets含む)
+          rsync -avz -e "ssh -p 29870" public/ \
+            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/public/
 
-          # 4. シンボリックリンクの切り替えとサービス再起動
+          # 4. Viewフォルダ全体をアップロード (Vueのview含む)
+          rsync -avz -e "ssh -p 29870" view/ \
+            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/view/
+
+          # 5. シンボリックリンクの切り替えとサービス再起動
           ssh -p 29870 deploy@quigen.info "
+            # Goバイナリ
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
-            # 【修正点】 Vueのシンボリックリンクのターゲットを /public/assets に変更
+            
+            # Publicディレクトリ
             ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
+            
+            # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&
+            
             sudo systemctl restart chat.service
           "
