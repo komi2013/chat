@@ -65,7 +65,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p 29870 -H $SERVER_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -p 29870 -H quigen.info >> ~/.ssh/known_hosts
 
       # -----------------------------------------------------
       # 5) Deploy — BLUE/GREEN RELEASE
@@ -73,21 +73,33 @@ jobs:
       - name: Upload files to server
         run: |
           RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
+          
+          # SSH接続オプションを定義 (ポート指定)
+          # SSH_OPTIONS="-p $SERVER_PORT"
+          
+          echo "Deploying to quigen.info:29870/$RELEASE_DIR"
 
-          ssh deploy@${{ secrets.SERVER_HOST }} "
-            mkdir -p /Work/chat/releases/$RELEASE_DIR
+          # 1. リリースディレクトリとVueアセット用のパスを作成
+          # 【修正点】 public/assets のディレクトリも作成
+          ssh -p 29870 deploy@quigen.info "
+            mkdir -p /Work/chat/releases/$RELEASE_DIR/public/assets
           "
 
-          # Go binary
-          rsync -avz chat \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/chat
+          # 2. Go binaryをアップロード
+          # 【修正点】 rsyncで -e "ssh $SSH_OPTIONS" を使用してポートを指定
+          rsync -avz -e "ssh -p 29870" chat \
+            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/chat
 
-          # Vue outputs
-          rsync -avz public/vue/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/Work/chat/releases/$RELEASE_DIR/public/vue/
+          # 3. Vue outputsをアップロード
+          # 【修正点】 デプロイ先を public/vue/ から public/assets/ に変更
+          # 【修正点】 rsyncで -e "ssh $SSH_OPTIONS" を使用してポートを指定
+          rsync -avz -e "ssh -p 29870" public/vue/ \
+            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/public/assets/
 
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+          # 4. シンボリックリンクの切り替えとサービス再起動
+          ssh -p 29870 deploy@quigen.info "
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/vue /Work/chat/public/vue &&
+            # 【修正点】 Vueのシンボリックリンクのターゲットを /public/assets に変更
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
             sudo systemctl restart chat.service
           "
