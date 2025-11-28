@@ -68,7 +68,8 @@ jobs:
 
       - name: Build Go app
         run: |
-          GOOS=linux GOARCH=amd64 go build -o chat
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o chat
+          # GOOS=linux GOARCH=amd64 go build -o chat
 
       - name: Debug check secret length
         env:
@@ -124,7 +125,7 @@ jobs:
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
             
             # Publicディレクトリ
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/public /Work/chat/public &&
             
             # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
             ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&
