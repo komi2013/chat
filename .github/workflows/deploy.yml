@@ -45,10 +45,10 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o chat
 
       - name: Debug check secret length
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           echo "Length: ${#SSH_PRIVATE_KEY}"
-        env:
-          SSH_PRIVATE_KEY_B64: ${{ secrets.SSH_PRIVATE_KEY }}
       # -----------------------------------------------------
       # 4) Setup SSH
       # -----------------------------------------------------
