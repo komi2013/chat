@@ -97,7 +97,7 @@ jobs:
       # -----------------------------------------------------
       - name: Upload files to server
         run: |
-          RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
+          RELEASE_DIR="r-$(date +%Y%m%d%H%M)"
           
           echo "Deploying to quigen.info:29870/$RELEASE_DIR"
 
@@ -125,7 +125,7 @@ jobs:
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
             
             # Publicディレクトリ
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/public /Work/chat/public &&
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
             
             # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
             ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&
