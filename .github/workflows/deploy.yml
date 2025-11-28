@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  SERVER_HOST: quigen.info
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -58,7 +61,6 @@ jobs:
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
@@ -72,7 +74,7 @@ jobs:
         run: |
           RELEASE_DIR="release-$(date +%Y%m%d%H%M%S)"
 
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "
+          ssh deploy@${{ secrets.SERVER_HOST }} "
             mkdir -p /Work/chat/releases/$RELEASE_DIR
           "
 
