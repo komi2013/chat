@@ -137,3 +137,10 @@ jobs:
             
             sudo systemctl restart chat.service
           "
+
+      - name: Cleanup old releases (keep last 2)
+        run: |
+          ssh -p 29870 deploy@quigen.info "
+            cd /Work/chat/releases &&
+            ls -1t | tail -n +3 | xargs -I{} rm -rf {}
+          "
