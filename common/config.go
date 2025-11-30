@@ -113,6 +113,10 @@ func loadFromEnv() *Config {
 }
 
 func fixCache() string {
+	err := godotenv.Load("infrastructure/cache_v.env")
+	if err != nil {
+		log.Fatalf("FATAL: Console Config loading failed! Required path not found: %s. Error: %v", pathRelative, err)
+	}
 	cacheStr := os.Getenv("CACHE_V")
 	if os.Getenv("ENV") == "dev" {
 		cacheStr = time.Now().Format("20060102T1504")

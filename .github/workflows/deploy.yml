@@ -13,13 +13,13 @@ jobs:
 
     steps:
       # -----------------------------------------------------
-      # 1) Checkout repository
+      # Checkout repository
       # -----------------------------------------------------
       - name: Checkout source
         uses: actions/checkout@v4
 
       # -----------------------------------------------------
-      # 2) Build Vue (Vite)
+      # Build Vue (Vite)
       # -----------------------------------------------------
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,9 +58,6 @@ jobs:
           echo "=== View Directory ==="
           ls -R view
 
-      # -----------------------------------------------------
-      # 3) Build Go binary
-      # -----------------------------------------------------
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -70,6 +67,12 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o chat
           # GOOS=linux GOARCH=amd64 go build -o chat
+
+      - name: Generate cache_v.env
+        run: |
+          CACHEV=$(date +%Y%m%d%H%M%S)
+          echo "CACHE_V=$CACHEV" > infrastructure/cache_v.env
+          echo "Generated CACHE_V: $CACHEV"
 
       - name: Debug check secret length
         env:
@@ -81,7 +84,7 @@ jobs:
           echo "------END------"
 
       # -----------------------------------------------------
-      # 4) Setup SSH
+      # Setup SSH
       # -----------------------------------------------------
       - name: Setup SSH
         env:
@@ -92,8 +95,13 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 29870 -H quigen.info >> ~/.ssh/known_hosts
 
+      - name: Upload cache_v.env
+        run: |
+          rsync -avz -e "ssh -p 29870" infrastructure/cache_v.env \
+            deploy@quigen.info:/Work/chat/infrastructure/cache_v.env
+
       # -----------------------------------------------------
-      # 5) Deploy — BLUE/GREEN RELEASE
+      # Deploy — BLUE/GREEN RELEASE
       # -----------------------------------------------------
       - name: Upload files to server
         run: |
