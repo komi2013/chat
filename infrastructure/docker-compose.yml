@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: DockerGo
     working_dir: '/root/'
-    env_file:
-      - ../infrastructure/chat.env
     ports:
       - "9080:9080"
       - "80:80"

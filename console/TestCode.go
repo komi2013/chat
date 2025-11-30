@@ -22,8 +22,7 @@ func TestCode() {
 
 	// fmt.Println("Invoice Address =", addr)
 
-  cfg := common.LoadConfig()
-
+  cfg := common.LoadConsoleConfig()
 
 	fmt.Println("GoPort =", cfg.GoPort)
 

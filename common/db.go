@@ -26,11 +26,11 @@ type DBs struct {
 
 var DB *DBs
 
-func InitMongo() {
+func InitMongo(cfg *Config) {
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
-  cfg := LoadConfig()
-  log.Println("cfg.MongoAd:", cfg.MongoAd)
+  // cfg := LoadConfig()
+
   adClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoAd))
   if err != nil {
     log.Fatalf("Mongo adClient connect error: %v", err)

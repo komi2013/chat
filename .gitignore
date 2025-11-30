@@ -3,7 +3,7 @@
 log/
 upload_data/
 infrastructure/google*
-infrastructure/chat.env*
+infrastructure/.env*
 .bash_history
 chat
 

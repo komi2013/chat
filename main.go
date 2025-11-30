@@ -12,10 +12,9 @@ import (
 )
 
 func main() {
-  common.InitMongo()
-  cfg := common.LoadConfig()
-
 	if len(os.Args) == 1 {
+	  cfg := common.LoadConfig()
+	  common.InitMongo(cfg)
 		http.HandleFunc("/AdDelete/", controller.AdDelete)
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)
@@ -60,6 +59,8 @@ func main() {
 		log.Fatal(http.ListenAndServe(cfg.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
+	  cfg := common.LoadConsoleConfig()
+	  common.InitMongo(cfg)
 		switch os.Args[1] {
 			case "AdPublish":	console.AdPublish()
 			case "FileClean":	console.FileClean()
