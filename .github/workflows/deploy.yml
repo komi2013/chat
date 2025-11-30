@@ -68,12 +68,6 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o chat
           # GOOS=linux GOARCH=amd64 go build -o chat
 
-      - name: Generate cache_v.env
-        run: |
-          CACHEV=$(date +%Y%m%d%H%M%S)
-          echo "CACHE_V=$CACHEV" > infrastructure/cache_v.env
-          echo "Generated CACHE_V: $CACHEV"
-
       - name: Debug check secret length
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -83,9 +77,6 @@ jobs:
           echo "$SSH_PRIVATE_KEY"
           echo "------END------"
 
-      # -----------------------------------------------------
-      # Setup SSH
-      # -----------------------------------------------------
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -94,6 +85,12 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 29870 -H quigen.info >> ~/.ssh/known_hosts
+
+      - name: Generate cache_v.env
+        run: |
+          CACHEV=$(date +%Y%m%d%H%M)
+          echo "CACHE_V=$CACHEV" > infrastructure/cache_v.env
+          echo "Generated CACHE_V: $CACHEV"
 
       - name: Upload cache_v.env
         run: |
