@@ -3,7 +3,7 @@ package controller
 import (
   "context"
   "encoding/json"
-  "log"
+  // "log"
   "net/http"
   "time"
 
@@ -17,24 +17,10 @@ import (
 // TweetGetLatest : UpdatedAt順で最新100件のTweetStructを取得
 func TweetGetLatest(w http.ResponseWriter, r *http.Request) {
   csrf := r.FormValue("csrf")
-
-  // === セッション確認 ===
-  session, err := common.SessionCheckTake(w, r, csrf)
-  if err != nil {
-    common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
-    return
-  }
-
   ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
   defer cancel()
 
   coll := common.DB.TweetDB.Collection("tweet")
-
-  // === MongoDBクエリ ===
-  // findOpts := options.Find().
-  //   SetSort(bson.M{"updatedAt": -1}). // UpdatedAt降順（新しい順）
-  //   SetLimit(100)
-
 	findOpts := options.Find().
 		SetProjection(bson.M{"tweetHead": 1, "_id": 1}). // ← tweetHeadだけ
 		SetSort(bson.D{{"updatedAt", -1}}).              // 更新日時の降順
@@ -42,30 +28,23 @@ func TweetGetLatest(w http.ResponseWriter, r *http.Request) {
 
   cursor, err := coll.Find(ctx, bson.M{}, findOpts)
   if err != nil {
-    common.WriteResponseWithSession(w, session, "DB検索エラー:"+err.Error(), http.StatusInternalServerError)
+    common.WriteResponseWithoutSession(w, csrf, "DB検索エラー:"+err.Error(), http.StatusOK) 
     return
   }
   defer cursor.Close(ctx)
-
   var tweets []collection.TweetStruct
   if err := cursor.All(ctx, &tweets); err != nil {
-    common.WriteResponseWithSession(w, session, "デコードエラー:"+err.Error(), http.StatusInternalServerError)
+    common.WriteResponseWithoutSession(w, csrf, "cursor.All:"+err.Error(), http.StatusOK) 
     return
   }
-
-  log.Printf("✅ 最新Tweet %d件取得", len(tweets))
-
-  // === レスポンス構築 ===
   responseData := struct {
     Csrf         string                   `json:"csrf"`
     PushContents []string                 `json:"pushContents"`
     Tweets       []collection.TweetStruct `json:"tweets"`
-    Nickname     string                   `json:"nickname"`
   }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
+    Csrf:         csrf,
+    PushContents: []string{},
     Tweets:       tweets,
-    Nickname:     session.Nickname,
   }
 
   w.Header().Set("Content-Type", "application/json")

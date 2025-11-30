@@ -39,7 +39,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";session check error", http.StatusOK)
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "サインインしてください。"+err.Error(), http.StatusOK)
 		return
 	}
 	if session.Nickname == "" {

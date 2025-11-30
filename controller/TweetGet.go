@@ -32,20 +32,20 @@ func TweetGet(w http.ResponseWriter, r *http.Request) {
 	const limit = 10
 
 	// === セッションチェック ===
-	session, err := common.SessionCheckTake(w, r, csrf)
-	if err != nil {
-		common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
-		return
-	}
+	session, _ := common.SessionCheckTake(w, r, csrf)
+	// if err != nil {
+	// 	// common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
+	// 	// return
+	// }
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	coll := common.DB.TweetDB.Collection("tweet")
 	var tweetDoc collection.TweetStruct
-	err = coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
+	err := coll.FindOne(ctx, bson.M{"_id": parentID}).Decode(&tweetDoc)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+";tweet not found", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, err.Error()+";tweet not found", http.StatusOK)
 		return
 	}
 	nickname := session.Nickname

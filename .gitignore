@@ -1,16 +1,16 @@
+.bash_history
 .cache/
 .config/
-log/
-upload_data/
+chat
 infrastructure/google*
 infrastructure/.env*
-.bash_history
-chat
-
+log/
+public/
+upload_data/
+view/
 # upload/
 
 # infrastructure/fullchain.pem
 # infrastructure/privkey.pem
 
-public/
 

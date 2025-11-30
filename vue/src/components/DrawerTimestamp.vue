@@ -12,7 +12,6 @@ import Advertisement from '@/components/Advertisement.vue';
     <tr><td style="text-align: center;"> <Advertisement /> </td></tr>
     <tr><td><a href="/timestampCode/" > 🖨️ QR発行 </a></td></tr>
     <tr><td><a href="/timestampReport/_/" > 📋 勤務表 </a></td></tr>
-    <tr><td><a href="/sign/" > サインイン </a></td></tr>
   </table>
 </template>
 
