@@ -133,7 +133,7 @@ jobs:
             #ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
             
             # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/view /Work/chat/view &&
             
             sudo systemctl restart chat.service
           "
