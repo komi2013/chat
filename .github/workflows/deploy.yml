@@ -38,11 +38,11 @@ jobs:
       # 【追加】デプロイ用にファイルを整理するステップ
       - name: Prepare Deployment Files
         run: |
-          # 1. public/assets の準備
-          mkdir -p public/assets
-          # vue/dist/assets があれば、public/assets にコピー
+          # 1. assets の準備
+          mkdir -p assets
+          # vue/dist/assets があれば、assets にコピー
           if [ -d "vue/dist/assets" ]; then
-            cp -r vue/dist/assets/* public/assets/
+            cp -r vue/dist/assets/* assets/
           fi
 
           # 2. view の準備
@@ -53,8 +53,8 @@ jobs:
           fi
           
           # 確認用：ファイル構成を表示
-          echo "=== Public Directory ==="
-          ls -R public
+          echo "=== Assets Directory ==="
+          ls -R assets
           echo "=== View Directory ==="
           ls -R view
 
@@ -108,7 +108,7 @@ jobs:
 
           # 1. リリースディレクトリを作成 (view用も作成)
           ssh -p 29870 deploy@quigen.info "
-            mkdir -p /Work/chat/releases/$RELEASE_DIR/public
+            mkdir -p /Work/chat/releases/$RELEASE_DIR/assets
             mkdir -p /Work/chat/releases/$RELEASE_DIR/view
           "
 
@@ -120,7 +120,10 @@ jobs:
           rsync -avz -e "ssh -p 29870" public/ \
             deploy@quigen.info:/Work/chat/public/
 
-          # 4. Viewフォルダ全体をアップロード (Vueのview含む)
+          # 4. Assets, Viewフォルダ全体をアップロード (Vueのview含む)
+          rsync -avz -e "ssh -p 29870" assets/ \
+            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/assets/
+
           rsync -avz -e "ssh -p 29870" view/ \
             deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/view/
 
@@ -129,11 +132,11 @@ jobs:
             # Goバイナリ
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
             
-            # Publicディレクトリ
-            #ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
-            
+            # Assetsディレクトリ
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/assets /Work/chat/public/assets &&
+
             # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/public/view /Work/chat/view &&
+            ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&
             
             sudo systemctl restart chat.service
           "
