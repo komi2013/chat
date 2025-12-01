@@ -9,9 +9,9 @@ export default defineConfig({
     vue(),
   ],
   build: {
-    emptyOutDir: true,
-    outDir: '../public',       // <-- output to public/
-    assetsDir: 'assets',       // <-- output to public/assets
+    // emptyOutDir: true,
+    // outDir: '../public',       // <-- output to public/
+    // assetsDir: 'assets',       // <-- output to public/assets
     rollupOptions: {
       input: {
         // main: fileURLToPath(new URL('./index.html', import.meta.url)),
