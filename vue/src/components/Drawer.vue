@@ -23,7 +23,6 @@ onMounted(async () => {
     )
   }
   if (localStorage.getItem('csrf')) singIn.vale = true
-  console.log('miiii')
 })
 
 </script>
@@ -39,11 +38,11 @@ onMounted(async () => {
     <tr v-if="channel && !iamGuest"><td><a href="/timestampCode/"> タイムスタンプ設定 </a></td></tr>
     <tr v-if="channel && !iamGuest"><td><a href="/reception/" > 受付・予約機能 </a></td></tr>
     <tr v-if="channel"><td><a href="/tickets/" > チケット承認機能 </a></td></tr>
-    <tr ><td><a href="/user/" > ユーザー設定 </a></td></tr>
+    <tr v-if="singIn"><td><a href="/user/" > ユーザー設定 </a></td></tr>
     <tr v-if="channel && !iamGuest"><td><a href="/entryFormEdit/" > フォーム編集 </a></td></tr>
     <tr v-if="channel && !iamGuest"><td><a href="/topEdit/" > ホームページ編集 </a></td></tr>
     <tr><td><a href="/tweets/" > ツイート </a></td></tr>
-    <tr><td><a href="/adSetting/" > 広告設定 </a></td></tr>
+    <tr v-if="singIn"><td><a href="/adSetting/" > 広告設定 </a></td></tr>
     <tr><td><a href="/setting/" > 設定 </a></td></tr>
     <tr v-if="!singIn"><td><a href="/sign/" > サインイン </a></td></tr>
     <tr v-if="!singIn"><td><a href="/html/rule/" > 規則 </a></td></tr>
