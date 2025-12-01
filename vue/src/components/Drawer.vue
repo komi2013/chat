@@ -23,6 +23,7 @@ onMounted(async () => {
     )
   }
   if (localStorage.getItem('csrf')) singIn.vale = true
+  console.log('miiii')
 })
 
 </script>
