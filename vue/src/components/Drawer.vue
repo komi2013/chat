@@ -22,7 +22,7 @@ onMounted(async () => {
       alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
     )
   }
-  if (localStorage.get('csrf')) singIn.vale = true
+  if (localStorage.getItem('csrf')) singIn.vale = true
 })
 
 </script>
