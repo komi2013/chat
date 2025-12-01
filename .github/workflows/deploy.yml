@@ -118,7 +118,7 @@ jobs:
 
           # 3. Publicフォルダ全体をアップロード (assets含む)
           rsync -avz -e "ssh -p 29870" public/ \
-            deploy@quigen.info:/Work/chat/releases/$RELEASE_DIR/public/
+            deploy@quigen.info:/Work/chat/public/
 
           # 4. Viewフォルダ全体をアップロード (Vueのview含む)
           rsync -avz -e "ssh -p 29870" view/ \
@@ -130,7 +130,7 @@ jobs:
             ln -sfn /Work/chat/releases/$RELEASE_DIR/chat /Work/chat/chat &&
             
             # Publicディレクトリ
-            ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
+            #ln -sfn /Work/chat/releases/$RELEASE_DIR/public /Work/chat/public &&
             
             # Viewディレクトリ (これも切り替えないと古いhtmlが参照されます)
             ln -sfn /Work/chat/releases/$RELEASE_DIR/view /Work/chat/view &&

@@ -5,7 +5,8 @@ chat
 infrastructure/google*
 infrastructure/.env*
 log/
-public/
+public/assets/
+public/data/
 upload_data/
 view/
 # upload/
