@@ -6,7 +6,6 @@
     "dev": "vite",
     "build": "vite build",
     "build:debug": "vite build --debug",
-    // "build:copy": "npm run build && node buildScripts/copy-after-build.js",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
