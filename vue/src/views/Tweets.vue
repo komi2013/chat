@@ -15,13 +15,9 @@ const fetched = ref(false)
 
 async function fetchLatestTweets() {
   const fd = new FormData();
-  fd.append('csrf', localStorage.getItem('csrf'))
+  fd.append('csrf', localStorage.getItem('csrf') ?? '')
   const res = await sendRequest('/TweetGetLatest/', fd)
-  if (!res.csrf) {
-    errorMessage.value = res
-    return
-  }
-  localStorage.setItem('csrf', res.csrf)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)

@@ -9,7 +9,7 @@ export default defineConfig({
     vue(),
   ],
   build: {
-    // emptyOutDir: true,
+    emptyOutDir: false,
     // outDir: '../public',       // <-- output to public/
     // assetsDir: 'assets',       // <-- output to public/assets
     rollupOptions: {

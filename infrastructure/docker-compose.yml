@@ -38,8 +38,9 @@ services:
     image: node:lts
     volumes:
       - ../vue:/app/vue
-      - ../public/assets:/app/public/assets
-      - ../view:/app/public/view
+      - ../public/assets:/app/vue/dist/assets
+      - ../view:/app/vue/dist/view
+    working_dir: /app/vue
     tty: true
     ports:
       - 3000:3000
