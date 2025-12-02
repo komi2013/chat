@@ -8,14 +8,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// const (
-// 	EnvFilePathRelative = "infrastructure/.env"
-// 	EnvFilePathProdAbsolute = "/Work/chat/infrastructure/.env"
-// 	EnvFilePathDevAbsolute = "/chat/infrastructure/.env"
-// )
-
-// const 
-
 type Config struct {
 	GoPort          string
 	CacheV          string
@@ -43,7 +35,6 @@ type Config struct {
 	GoogleClientID  string
 	EtherscanApiKey string
 }
-
 
 func LoadConfig() *Config {
 	const pathRelative = "infrastructure/.env"
@@ -86,9 +77,6 @@ func loadFromEnv() *Config {
 	return &Config{
 		GoPort:          os.Getenv("GO_PORT"),
 		CacheV:          fixCache(),
-		SsKey:           os.Getenv("SS_KEY"),
-		T1Key:           os.Getenv("T1_KEY"),
-		CsrfKey:         os.Getenv("CSRF_KEY"),
 		MongoAd:         os.Getenv("MONGO_AD"),
 		MongoAdPrice:    os.Getenv("MONGO_AD_PRICE"),
 		MongoChannel:    os.Getenv("MONGO_CHANNEL"),
@@ -100,9 +88,8 @@ func loadFromEnv() *Config {
 		MongoSession:    os.Getenv("MONGO_SESSION"),
 		MongoTweet:      os.Getenv("MONGO_TWEET"),
 		MongoUser:       os.Getenv("MONGO_USER"),
-		DateLanguage:    os.Getenv("DATE_LANGUAGE"),
-		VAPIDPublicKey:  os.Getenv("VAPID_PUBLIC_KEY"),
-		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
+		VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
 		OSImgDir:        os.Getenv("OS_IMG_DIR"),
 		PublicImgPath:   os.Getenv("PUBLIC_IMG_PATH"),
 		UploadDir:       os.Getenv("UPLOAD_DIR"),
