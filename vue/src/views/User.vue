@@ -115,7 +115,7 @@ onMounted(async () => {
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
   } else {
-    await getGeolocation()
+    // await getGeolocation()
   }
   if (localStorage.getItem('TO')) {
     isTO.value = true
