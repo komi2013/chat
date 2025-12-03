@@ -114,6 +114,8 @@ onMounted(async () => {
   await findUser()
   if (user.value && user.value.latitude) {
     coordinateInput.value = `${user.value.latitude}, ${user.value.longitude}`
+  } else {
+    await getGeolocation()
   }
   if (localStorage.getItem('TO')) {
     isTO.value = true
@@ -124,6 +126,31 @@ onMounted(async () => {
   }
   if (user.value) fetched.value = true
 })
+
+async function getGeolocation() {
+  if (!navigator.geolocation) {
+    console.warn("Geolocation is not supported");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6)
+      const lng = pos.coords.longitude.toFixed(6)
+      coordinateInput.value = `${lat}, ${lng}`
+      parseCoordinates()  // ← user.latitude / longitude に反映
+    },
+    (err) => {
+      console.warn("Geolocation error:", err.message)
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 0
+    }
+  )
+}
+
 
 function parseCoordinates() {
   if (!coordinateInput.value) return
@@ -237,7 +264,7 @@ async function switchNickname(selectedName) {
           <div class="errorMessage">{{ errorMessage }}</div> 
         </div>
 
-        <label>経緯度: <a href="https://maps.google.com/" target="_blank">Googleマップ</a>の右クリックで取得できます<br />
+        <label>経緯度: <input type="button" value="GEOデータ再取得" @click="getGeolocation"><br />
           <input v-model="coordinateInput"
                  required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
                  title="緯度と経度は「35.77, 139.57」の形式で入力してください"

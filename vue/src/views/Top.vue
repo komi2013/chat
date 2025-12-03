@@ -26,6 +26,7 @@ const signedInLinks = [
 
 const guestLinks = [
   { topText: 'サインイン', topLink: '/sign/' },
+  { topText: 'ツイート一覧', topLink: '/tweets/' },
   { topText: '規則', topLink: '/html/rule/' },
   { topText: '個人情報遵守', topLink: '/html/privacy/' }
 ]

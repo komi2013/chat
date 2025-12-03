@@ -33,6 +33,7 @@ const messagesStore = useMessagesStore()
 const postable = ref(true)
 const messagesCount = ref(0)
 const alreadyJoinFlag = ref(false)
+console.log('ffsdojf')
 async function fetchThreadHead() {
   if (!parentID) {
     threadHead.value = { parentID: '', title: '新規スレッド', nicknames: [] }
@@ -43,13 +44,9 @@ async function fetchThreadHead() {
   fd.append('backID', props.backID ?? '')
   fd.append('messageID', props.messageID ?? '')
   // fd.append('skip', -1)
-  fd.append('csrf', localStorage.getItem('csrf'))
+  fd.append('csrf', localStorage.getItem('csrf') ?? '')
   const res = await sendRequest('/TweetGet/', fd)
-  if (!res.csrf) {
-    errorMessage.value = res
-    return
-  }
-  localStorage.setItem('csrf', res.csrf)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
