@@ -36,7 +36,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
   cfg := LoadConfig()
 
 	imgPath := img
-	log.Printf("img1: %v", img)
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
 		base64Data := strings.Split(img, ",")[1]
@@ -45,7 +44,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			LogError("failed to decode base64", err)
 			return "", fmt.Errorf("failed to decode base64: %w", err)
 		}
-		log.Printf("img2: %v", img)
 		nameTail := StringRand(fileIDLength)
 		// fileID, err := CountUpID("fileID")
 		// if err != nil {
@@ -54,7 +52,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
     if channelID == "" {
       channelID = "-"
     }
-    log.Printf("img3: %v", img)
     fileName := name + nameTail
 		dirPath := cfg.OSImgDir + "/img/" + channelID + "/"
 		err = os.MkdirAll(dirPath, 0755)
@@ -69,7 +66,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			LogError("failed to write file", err)
 			return "", fmt.Errorf("failed to write file: %w", err)
 		}
-		log.Printf("img4: %v", img)
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
 			LogError("failed to get file info", err)
@@ -89,7 +85,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 			UpdatedAt:  time.Now(),
 			UsageType: usageType,
 		}
-		log.Printf("img5: %v", img)
 		filter := bson.M{"_id": filePath}
 		update := bson.M{"$set": fileDocument}
 		opts := options.Update().SetUpsert(true)
@@ -98,7 +93,6 @@ func ImgSave(img string, userID string, name string, channelID string, fileIDLen
 	    LogError("upsert file", err)
 	    return "", fmt.Errorf("upsert file: %w", err)
 		}
-		log.Printf("img6: %v", img)
 	} else if !EmojiImgValid(img) && img != "" {
 		return "", fmt.Errorf("Emoji invalid:")
 	}
