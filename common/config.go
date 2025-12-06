@@ -11,9 +11,6 @@ import (
 type Config struct {
 	GoPort          string
 	CacheV          string
-	SsKey           string
-	T1Key           string
-	CsrfKey         string
 	MongoAd         string
 	MongoAdPrice    string
 	MongoChannel    string
@@ -25,7 +22,6 @@ type Config struct {
 	MongoSession    string
 	MongoTweet      string
 	MongoUser       string
-	DateLanguage    string
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
 	OSImgDir        string
