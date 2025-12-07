@@ -11,11 +11,6 @@ export async function thread(pushData) {
   const directPush = pushData.directPush
   const unixtime = base62Decode(messageID.slice(0, -1));
 	let filelinks = "";
-	// if (Array.isArray(pushData[5])) {
- //    pushData[5].forEach(filelink => {
- //      filelinks += `＊f＊${filelink}・＊f＊ `;
- //    });
-	// }
   if (Array.isArray(pushData[5])) {
     pushData[5].forEach(filelink => {
       const lower = filelink.toLowerCase();

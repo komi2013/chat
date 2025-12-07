@@ -112,20 +112,20 @@ async function channelEdit () {
 const errorMyname = ref('')
 const errorChannelName = ref('')
 async function channelAdd () {
-  let hasError = false
-  if (!myname.value) {
-    errorMyname.value = 'チャネルの名前を入力してください'
-    hasError = true
-  } else {
-    errorMyname.value = ''
-  }
-  if (!channel.value.channelName) {
-    errorChannelName.value = 'チャネル名を入力してください'
-    hasError = true
-  } else {
-    errorChannelName.value = ''
-  }
-  if (hasError) return
+  // let hasError = false
+  // if (!myname.value) {
+  //   errorMyname.value = 'チャネルの名前を入力してください'
+  //   hasError = true
+  // } else {
+  //   errorMyname.value = ''
+  // }
+  // if (!channel.value.channelName) {
+  //   errorChannelName.value = 'チャネル名を入力してください'
+  //   hasError = true
+  // } else {
+  //   errorChannelName.value = ''
+  // }
+  // if (hasError) return
   if (!confirm("チャンネル登録")) { return }
   const fd = new FormData()
   fd.append('channelName', channel.value.channelName)
@@ -288,7 +288,7 @@ function getAdminDiffData() {
     <div class="errorMessage">{{errorMessage}}</div>
   </div>
   <input type="text" v-model="channel.channelName" placeholder="組織・チャネル名" class="inputText">
-  <div v-if="errorChannelName" class="errorMessage">{{ errorChannelName }}</div>
+  <!-- <div v-if="errorChannelName" class="errorMessage">{{ errorChannelName }}</div> -->
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
     <button class="ql-strike"></button>
@@ -304,7 +304,7 @@ function getAdminDiffData() {
   <div v-if="id"> このチャネルのニックネーム: {{channel.myname}} </div><br>
   <template v-if="!id">
     <input type="text" v-model="myname" placeholder="このチャネルのニックネーム" class="inputText">
-    <div v-if="errorMyname" class="errorMessage">{{ errorMyname }}</div>
+    <!-- <div v-if="errorMyname" class="errorMessage">{{ errorMyname }}</div> -->
     <PeopleImg v-model="myimg" />
   </template>
 
