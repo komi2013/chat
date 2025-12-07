@@ -354,6 +354,11 @@ code {
   color: #06c;
 }
 
+.ql-snow .ql-editor img {
+    max-width: 250px;
+    max-height: 250px;
+}
+
 .mentioned {
   background-color: #a7cad63d;
   color: blue;

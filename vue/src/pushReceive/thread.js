@@ -11,11 +11,21 @@ export async function thread(pushData) {
   const directPush = pushData.directPush
   const unixtime = base62Decode(messageID.slice(0, -1));
 	let filelinks = "";
-	if (Array.isArray(pushData[5])) {
+	// if (Array.isArray(pushData[5])) {
+ //    pushData[5].forEach(filelink => {
+ //      filelinks += `＊f＊${filelink}・＊f＊ `;
+ //    });
+	// }
+  if (Array.isArray(pushData[5])) {
     pushData[5].forEach(filelink => {
-      filelinks += `＊f＊${filelink}・＊f＊ `;
+      const lower = filelink.toLowerCase();
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png')) {
+        filelinks += `＊img＊${filelink}・＊img＊ `;
+      } else {
+        filelinks += `＊f＊${filelink}・＊f＊ `;
+      }
     });
-	}
+  }
   const thread = await getIDB('thread', messageID)
   if (thread) return
   const pushThread = {
