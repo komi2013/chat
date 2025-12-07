@@ -48,10 +48,14 @@ onMounted(async () => {
     isEditable.value = true;
   }
   if (localStorage.getItem('csrf')) {
-    localStorage.setItem('TO', window.location.pathname + window.location.search)
+    if (localStorage.getItem('TO')) {
+      localStorage.removeItem("TO")
+    }
     fetched.value = true
+  } else {
+    localStorage.setItem('TO', window.location.pathname + window.location.search)
   }
-});
+})
 
 async function aliasEdit() {
   if (!confirm("実行▶️")) {
@@ -100,10 +104,6 @@ async function join () {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
-  }
-  if (res.error) {
-    errorMessage.value = res.error
-    return
   }
   location.href = '/profile/' + props.id + '/'
 }
@@ -194,9 +194,7 @@ async function join () {
        -->
   </div>
   <div v-if="!fetched"> 
-    <div class="errorMessage">データ取得に失敗しました。</div>
-    <a href="/setting/"> データ設定ページ </a><br>
-    <a href="/sign/"> サインインページ </a>
+    <a href="/sign/"> サインインページ </a>でサインインしてください
   </div>
 </div>
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>

@@ -26,6 +26,7 @@ const errorMessage = ref('')
 const noticesStore = useNoticesStore()
 const nicknameForm = ref(true)
 
+
 async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -121,7 +122,7 @@ onMounted(async () => {
     isTO.value = true
     if (user.value && user.value.latitude) {
       toLink.value = localStorage.getItem('TO')
-      localStorage.removeItem("TO")      
+      // localStorage.removeItem("TO")
     }
   }
   if (user.value) fetched.value = true
@@ -264,7 +265,10 @@ async function switchNickname(selectedName) {
           <div class="errorMessage">{{ errorMessage }}</div> 
         </div>
 
-        <label>経緯度: <input type="button" value="GEOデータ再取得" @click="getGeolocation"><br />
+        <label>経緯度: 
+          <input type="button" value="GEOデータ再取得" @click="getGeolocation">&nbsp;
+          <a href="https://maps.google.com/" target="_blank">Googleマップ</a>の右クリックで取得できます
+          <br />
           <input v-model="coordinateInput"
                  required pattern="^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$"
                  title="緯度と経度は「35.77, 139.57」の形式で入力してください"

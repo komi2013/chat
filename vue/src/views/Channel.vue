@@ -53,7 +53,6 @@ onMounted(async () => {
   aliases.value = await getIDBs('alias', 'channelIDIndex', props.id, 10000);
   const threadHeadsAll = await getIDBs('threadHead', 'channelIDIndex', props.id, 1000);
   threadHeads.value = threadHeadsAll.filter(d => !d.backID);
-
   if (props.id) {
     channel.value = channels.value.find(d => d.channelID === props.id);
     document.title = channel.value.channelName
@@ -63,9 +62,7 @@ onMounted(async () => {
     document.title = '組織・チャネル設定'
   }
   myname.value = channel.value.myname
-  // console.log('myname', myname.value)
   userID = aliases.value.find((d) => d.aliasName === myname.value)?.userID
-  // console.log('userID', userID)
   adminNames.value = aliases.value
     .filter(alias => alias.accessRight === "admin")
     .map(alias => alias.aliasName)
@@ -75,30 +72,18 @@ onMounted(async () => {
     ...alias,
     removable: alias.userID === userID || iamAdmin.value,
   }))
-  // console.log('aliases', aliases.value)
   iamGuest.value = aliases.value.some(
     alias => alias.accessRight === "guest" && alias.aliasName === channel.value.myname
   )
   await initQuill()
 })
 
-const channelPost = async () => {
-  if (!confirm("実行▶️")) {
-    return;
-  }
-  if (props.id) { // edit
-    channelEdit();
-  } else {
-    channelAdd();
-  }
-}
-
-const invitationCode = ref('');
-const invitationQR = ref('');
+const invitationCode = ref('')
+const invitationQR = ref('')
 const guest = ref(false)
-// const untilDays = ref(1);
 const generateInvitation = ref('')
 async function channelEdit () {
+  if (!confirm("チャンネル設定・変更")) { return }
   const fd = new FormData()
   fd.append('channelID', props.id)
   fd.append('updatedBy', channel.value.myname)
@@ -124,12 +109,24 @@ async function channelEdit () {
   if (res.error) errorMessage.value = res.error
 }
 
+const errorMyname = ref('')
+const errorChannelName = ref('')
 async function channelAdd () {
-  if (!myname.value || !channel.value.channelName) {
-    alert("入力してください")
-    return
+  let hasError = false
+  if (!myname.value) {
+    errorMyname.value = 'チャネルの名前を入力してください'
+    hasError = true
+  } else {
+    errorMyname.value = ''
   }
-  if (!confirm("実行▶️")) return
+  if (!channel.value.channelName) {
+    errorChannelName.value = 'チャネル名を入力してください'
+    hasError = true
+  } else {
+    errorChannelName.value = ''
+  }
+  if (hasError) return
+  if (!confirm("チャンネル登録")) { return }
   const fd = new FormData()
   fd.append('channelName', channel.value.channelName)
   fd.append('channelDescription', htmlToMarkdown(quill.value.root.innerHTML.replace(/\uFEFF/g, '')))
@@ -290,7 +287,8 @@ function getAdminDiffData() {
   <div v-if="errorMessage"> 
     <div class="errorMessage">{{errorMessage}}</div>
   </div>
-  <input type="text" v-model="channel.channelName" placeholder="グループ名" class="inputText">
+  <input type="text" v-model="channel.channelName" placeholder="組織・チャネル名" class="inputText">
+  <div v-if="errorChannelName" class="errorMessage">{{ errorChannelName }}</div>
   <div class="editLeft" id="toolbar">
     <button class="ql-bold"></button>
     <button class="ql-strike"></button>
@@ -306,11 +304,12 @@ function getAdminDiffData() {
   <div v-if="id"> このチャネルのニックネーム: {{channel.myname}} </div><br>
   <template v-if="!id">
     <input type="text" v-model="myname" placeholder="このチャネルのニックネーム" class="inputText">
+    <div v-if="errorMyname" class="errorMessage">{{ errorMyname }}</div>
     <PeopleImg v-model="myimg" />
   </template>
 
-  <button v-if="!channel.channelName" @click="channelAdd" class="postButton" >チャネル登録</button><br>
-  <button @click="channelPost" class="postButton" :disabled="!channel.channelName || !myname || iamGuest">設定変更</button><br>
+  <button v-if="!id" @click="channelAdd" class="postButton" :disabled="!channel.channelName || !myname" >チャネル登録</button><br>
+  <button v-if="id" @click="channelEdit" class="postButton" :disabled="!channel.channelName || iamGuest">設定変更</button><br>
 
   <div v-if="id && !iamGuest" class="invitation">
     <button @click="invite" class="postButton"> <span>招待URL</span> </button>

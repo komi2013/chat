@@ -7,7 +7,7 @@ import (
   "fmt"
   "io"
   "io/ioutil"
-  "log"
+  // "log"
   "math"
   "net/http"
   "os"
@@ -183,11 +183,14 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 			UsageType: usageType,
 		}
 
-		_, err = coll.InsertOne(context.TODO(), fileDoc)
+		opts := options.Update().SetUpsert(true)
+		filter := bson.M{"_id": fileDoc.FilePath}
+		update := bson.M{
+		    "$set": fileDoc,
+		}
+		_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 		if err != nil {
-			log.Printf("Failed to insert document into MongoDB: %v", err)
-			LogError("Failed to insert document into MongoDB:", err)
-			return nil, fmt.Errorf("failed to insert document into MongoDB: %w", err)
+		    return nil, fmt.Errorf("failed to upsert document into MongoDB: %w", err)
 		}
 	}
 

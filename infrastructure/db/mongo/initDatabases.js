@@ -1,6 +1,10 @@
 // === MongoDB 初期構築スクリプト ===
 // bashで
-// mongosh < initDatabases.js
+// mongosh \
+//   -u root \
+//   -p 12345678 \
+//   --authenticationDatabase admin \
+//   < initDatabases.js
 
 const dbNames = [
   "chatAd",
