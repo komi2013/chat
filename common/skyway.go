@@ -1,95 +1,100 @@
 package common
 
 import (
-    "time"
+	"encoding/json"
+	"time"
 
-    "github.com/golang-jwt/jwt/v5"
-    "github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type SkyWayToken struct {
-    JTI   string      `json:"jti"`
-    IAT   int64       `json:"iat"`
-    EXP   int64       `json:"exp"`
-    Scope SkyWayScope `json:"scope"`
+	JTI   string      `json:"jti"`
+	IAT   int64       `json:"iat"`
+	EXP   int64       `json:"exp"`
+	Scope SkyWayScope `json:"scope"`
 }
 
 type SkyWayScope struct {
-    App SkyWayApp `json:"app"`
+	App SkyWayApp `json:"app"`
 }
 
 type SkyWayApp struct {
-    ID       string           `json:"id"`
-    Turn     bool             `json:"turn"`
-    Actions  []string         `json:"actions"`  // read + write 必須！
-    Channels []SkyWayChannel  `json:"channels"`
+	ID       string          `json:"id"`
+	Turn     bool            `json:"turn"`
+	Actions  []string        `json:"actions"`
+	Channels []SkyWayChannel `json:"channels"`
 }
 
 type SkyWayChannel struct {
-    ID      string              `json:"id"`
-    Name    string              `json:"name"`
-    Actions []string            `json:"actions"`
-    Members []SkyWayChannelUser `json:"members"`
-    SfuBots []SkyWaySfuBot      `json:"sfuBots"`
+	ID      string              `json:"id"`
+	Name    string              `json:"name"`
+	Actions []string            `json:"actions"`
+	Members []SkyWayChannelUser `json:"members"`
+	SfuBots []SkyWaySfuBot      `json:"sfuBots"`
 }
 
 type SkyWayChannelUser struct {
-    ID           string              `json:"id"`
-    Name         string              `json:"name"`
-    Actions      []string            `json:"actions"`
-    Publication  SkyWayActionHolder  `json:"publication"`
-    Subscription SkyWayActionHolder  `json:"subscription"`
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	Actions      []string           `json:"actions"`
+	Publication  SkyWayActionHolder `json:"publication"`
+	Subscription SkyWayActionHolder `json:"subscription"`
 }
 
 type SkyWaySfuBot struct {
-    Actions     []string             `json:"actions"`
-    Forwardings []SkyWayActionHolder `json:"forwardings"`
+	Actions     []string           `json:"actions"`
+	Forwardings []SkyWayActionHolder `json:"forwardings"`
 }
 
 type SkyWayActionHolder struct {
-    Actions []string `json:"actions"`
+	Actions []string `json:"actions"`
+}
+
+// struct → map に変換（JWT 署名用）
+func structToMap(obj interface{}) map[string]interface{} {
+	b, _ := json.Marshal(obj)
+	var result map[string]interface{}
+	json.Unmarshal(b, &result)
+	return result
 }
 
 func GenerateSkyWayToken(appId, secret string) (string, error) {
-	now := time.Now().Unix()
 
-	claims := jwt.MapClaims{
-		"jti": uuid.New().String(),
-		"iat": now,
-		"exp": now + 60*60*24*365,
-		"scope": map[string]interface{}{
-			"app": map[string]interface{}{
-				"id":   appId,
-				"turn": true,
-				"actions": []string{
-					"read",
-					"write",
-				},
-				"channels": []interface{}{
-					map[string]interface{}{
-						"id":      "*",
-						"name":    "*",
-						"actions": []string{"write"},
-						"members": []interface{}{
-							map[string]interface{}{
-								"id":      "*",
-								"name":    "*",
-								"actions": []string{"write"},
-								"publication": map[string]interface{}{
-									"actions": []string{"write"},
+	now := time.Now().Unix() // JSTで問題なし（Unix時刻は同じ）
+
+	tokenObj := SkyWayToken{
+		JTI: uuid.New().String(),
+		IAT: now,
+		EXP: now + 60*60*24*365, // 1年
+		Scope: SkyWayScope{
+			App: SkyWayApp{
+				ID:      appId,
+				Turn:    true,
+				Actions: []string{"read"},
+				Channels: []SkyWayChannel{
+					{
+						ID:      "*",
+						Name:    "*",
+						Actions: []string{"write"},
+						Members: []SkyWayChannelUser{
+							{
+								ID:      "*",
+								Name:    "*",
+								Actions: []string{"write"},
+								Publication: SkyWayActionHolder{
+									Actions: []string{"write"},
 								},
-								"subscription": map[string]interface{}{
-									"actions": []string{"write"},
+								Subscription: SkyWayActionHolder{
+									Actions: []string{"write"},
 								},
 							},
 						},
-						"sfuBots": []interface{}{
-							map[string]interface{}{
-								"actions": []string{"write"},
-								"forwardings": []interface{}{
-									map[string]interface{}{
-										"actions": []string{"write"},
-									},
+						SfuBots: []SkyWaySfuBot{
+							{
+								Actions: []string{"write"},
+								Forwardings: []SkyWayActionHolder{
+									{Actions: []string{"write"}},
 								},
 							},
 						},
@@ -99,58 +104,9 @@ func GenerateSkyWayToken(appId, secret string) (string, error) {
 		},
 	}
 
+	claims := jwt.MapClaims(structToMap(tokenObj))
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	return token.SignedString([]byte(secret))
 }
-
-// func GenerateSkyWayToken(appId, secret string) (string, error) {
-// 	now := time.Now().Unix()
-
-// 	scope := map[string]interface{}{
-// 		"app": map[string]interface{}{
-// 			"id":   appId,
-// 			"turn": true,
-// 			"actions": []string{"read", "write"},
-// 			"channels": []interface{}{
-// 				map[string]interface{}{
-// 					"id":      "*",
-// 					"name":    "*",
-// 					"actions": []string{"write"},
-// 					"members": []interface{}{
-// 						map[string]interface{}{
-// 							"id":      "*",
-// 							"name":    "*",
-// 							"actions": []string{"write"},
-// 							"publication": map[string]interface{}{
-// 								"actions": []string{"write"},
-// 							},
-// 							"subscription": map[string]interface{}{
-// 								"actions": []string{"write"},
-// 							},
-// 						},
-// 					},
-// 					"sfuBots": []interface{}{
-// 						map[string]interface{}{
-// 							"actions": []string{"write"},
-// 							"forwardings": []interface{}{
-// 								map[string]interface{}{
-// 									"actions": []string{"write"},
-// 								},
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	claims := jwt.MapClaims{
-// 		"jti":   uuid.New().String(),
-// 		"iat":   now,
-// 		"exp":   now + 60*60*24*365,
-// 		"scope": scope,
-// 	}
-
-// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-// 	return token.SignedString([]byte(secret))
-// }

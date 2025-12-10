@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyWay Tutorial (Local)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .controls { margin-bottom: 20px; }
+        video { background: #000; width: 300px; height: 225px; margin: 5px; }
+        #js-local-stream { border: 2px solid #0056b3; } /* 自分の映像 */
+        #js-messages {
+            width: 100%; height: 150px; background: #eee;
+            border: 1px solid #ccc; overflow-y: scroll; white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+<h2>SkyWay Room SDK (SFU/Simulcast)</h2>
+
+<div class="controls">
+    <label>Channel Name: <input type="text" id="js-channel-name" value="my-room"></label>
+    <button id="js-join-trigger">Join</button>
+    <button id="js-leave-trigger">Leave</button>
+</div>
+
+<div class="container">
+    <div>
+        <h3>Local Stream</h3>
+        <video id="js-local-stream" muted playsinline></video>
+    </div>
+    <div>
+        <h3>Remote Streams</h3>
+        <div id="js-remote-streams"></div>
+    </div>
+</div>
+
+<h3>Logs</h3>
+<pre id="js-messages"></pre>
+
+<script type="importmap">
+{
+    "imports": {
+        "@skyway-sdk/room": "https://cdn.jsdelivr.net/npm/@skyway-sdk/room@latest/+esm"
+    }
+}
+</script>
+
+<script type="module">
+    // CDNからSDKの必要なモジュールのみをインポート
+    import {
+  nowInSec,
+
+  SkyWayAuthToken,
+  SkyWayContext,
+  SkyWayRoom,
+  SkyWayStreamFactory,
+  uuidV4 
+    } from '@skyway-sdk/room';
+
+const appId = 'c0b2a419-9c3c-408f-ab32-671407d6e3ad'
+const secret = 'E3bVL++TkEprPjK5+DNYdwxuw7yawPv8o1OsBl4pPTU='
+let token = new SkyWayAuthToken({
+  jti: uuidV4(),
+  iat: nowInSec(),
+  exp: nowInSec() + 60 * 60 * 24,
+  scope: {
+    app: {
+      id: appId,
+      turn: true,
+      actions: ['read'],
+      channels: [
+      {
+        id: '*',
+        name: '*',
+        actions: ['write'],
+        members: [
+        {
+          id: '*',
+          name: '*',
+          actions: ['write'],
+          publication: {
+            actions: ['write']
+          },
+          subscription: {
+            actions: ['write']
+          }
+        }],
+
+        sfuBots: [
+        {
+          actions: ['write'],
+          forwardings: [{ actions: ['write'] }]
+        }]
+
+      }]
+
+    }
+  }
+}).encode(secret);
+console.log('ok', token);
+// token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTY5MDAwOTQsImlhdCI6MTc2NTM2NDA5NCwianRpIjoiNWVmM2ZlMzQtZTYwYy00MDNkLWI3YzktNDNjYzljMTAyOWRjIiwic2NvcGUiOnsiYXBwIjp7ImFjdGlvbnMiOlsicmVhZCJdLCJjaGFubmVscyI6W3siYWN0aW9ucyI6WyJ3cml0ZSJdLCJpZCI6IioiLCJtZW1iZXJzIjpbeyJhY3Rpb25zIjpbIndyaXRlIl0sImlkIjoiKiIsIm5hbWUiOiIqIiwicHVibGljYXRpb24iOnsiYWN0aW9ucyI6WyJ3cml0ZSJdfSwic3Vic2NyaXB0aW9uIjp7ImFjdGlvbnMiOlsid3JpdGUiXX19XSwibmFtZSI6IioiLCJzZnVCb3RzIjpbeyJhY3Rpb25zIjpbIndyaXRlIl0sImZvcndhcmRpbmdzIjpbeyJhY3Rpb25zIjpbIndyaXRlIl19XX1dfV0sImlkIjoiYzBiMmE0MTktOWMzYy00MDhmLWFiMzItNjcxNDA3ZDZlM2FkIiwidHVybiI6dHJ1ZX19fQ.QSnjK8xLCxKVFT3Rxsm5ZZsRiwCrhgreD0CYFKoFaA0';
+
+console.log(token);
+    (async () => {
+        const localVideo = document.getElementById('js-local-stream');
+        const joinTrigger = document.getElementById('js-join-trigger');
+        const leaveTrigger = document.getElementById('js-leave-trigger');
+        const remoteVideos = document.getElementById('js-remote-streams');
+        const channelName = document.getElementById('js-channel-name');
+        const messages = document.getElementById('js-messages');
+
+        // カメラ・マイクの取得
+        const { audio, video } = await SkyWayStreamFactory.createMicrophoneAudioAndCameraStream();
+
+        // ローカル映像の表示
+        localVideo.muted = true;
+        localVideo.playsInline = true;
+        video.attach(localVideo);
+        await localVideo.play();
+
+        // Contextの作成
+        const context = await SkyWayContext.Create(token, {
+            log: { level: 'warn', format: 'object' }
+        });
+
+        let room;
+
+        // Joinボタンのイベントハンドラ
+        joinTrigger.addEventListener('click', async () => {
+            if (room) return;
+
+            // Roomの検索または作成
+            room = await SkyWayRoom.FindOrCreate(context, {
+                name: channelName.value,
+                type: 'sfu' // SFUルームとして明示的に指定する場合が多いですが、トークン権限やDefaultsに依存します
+            });
+
+            const member = await room.join();
+            messages.textContent += '=== You joined ===\n';
+
+            // 他のメンバーが参加した時のイベント
+            room.onMemberJoined.add((e) => {
+                messages.textContent += `=== ${e.member.id.slice(0, 5)} joined ===\n`;
+            });
+
+            const userVideo = {};
+
+            // パブリケーション（ストリーム）がサブスクライブされた時の処理
+            member.onPublicationSubscribed.add(async ({ stream, subscription }) => {
+                if (stream.contentType === 'data') return;
+
+                const publisherId = subscription.publication.publisher.id;
+                if (!userVideo[publisherId]) {
+                    const newVideo = document.createElement('video');
+                    newVideo.playsInline = true;
+                    newVideo.autoplay = true;
+                    newVideo.setAttribute('data-member-id', publisherId);
+                    
+                    // クリックイベントの設定（画質切り替え）
+                    newVideo.onclick = () => {
+                         if (subscription.contentType === 'video' && subscription.publication.type === 'sfu') {
+                            if (subscription.preferredEncoding === 'low') {
+                                subscription.changePreferredEncoding('high');
+                                console.log('Switched to High Quality');
+                            } else {
+                                subscription.changePreferredEncoding('low');
+                                console.log('Switched to Low Quality');
+                            }
+                        }
+                    };
+
+                    remoteVideos.append(newVideo);
+                    userVideo[publisherId] = newVideo;
+                }
+                const newVideo = userVideo[publisherId];
+                stream.attach(newVideo);
+            });
+
+            // ストリームをサブスクライブする関数
+            const subscribe = async (publication) => {
+                if (publication.publisher.id === member.id) return;
+                await member.subscribe(publication.id);
+            };
+
+            // ストリームが公開された時のイベント
+            room.onStreamPublished.add((e) => subscribe(e.publication));
+            // 既にあるストリームをサブスクライブ
+            room.publications.forEach(subscribe);
+
+            // 自分のストリームを公開 (SFUモード)
+            await member.publish(audio, { type: 'sfu' });
+            await member.publish(video, {
+                encodings: [
+                    { maxBitrate: 10_000, id: 'low' },
+                    { maxBitrate: 800_000, id: 'high' }
+                ],
+                type: 'sfu'
+            });
+
+            const disposeVideoElement = (remoteVideo) => {
+                const stream = remoteVideo.srcObject;
+                if(stream) {
+                    stream.getTracks().forEach((track) => track.stop());
+                }
+                remoteVideo.srcObject = null;
+                remoteVideo.remove();
+            };
+
+            // メンバーが退出した時のイベント
+            room.onMemberLeft.add((e) => {
+                if (e.member.id === member.id) return;
+
+                const remoteVideo = remoteVideos.querySelector(
+                    `[data-member-id="${e.member.id}"]`
+                );
+                if (remoteVideo) {
+                    disposeVideoElement(remoteVideo);
+                    delete userVideo[e.member.id]; // 参照も削除
+                }
+
+                messages.textContent += `=== ${e.member.id.slice(0, 5)} left ===\n`;
+            });
+
+            // 自分が退出した時の処理
+            member.onLeft.once(() => {
+                Array.from(remoteVideos.children).forEach((element) => {
+                    disposeVideoElement(element);
+                });
+                messages.textContent += '== You left ===\n';
+                room.dispose();
+                room = undefined;
+            });
+
+            // Leaveボタンのイベントハンドラ
+            leaveTrigger.addEventListener('click', () => member.leave(), {
+                once: true
+            });
+        });
+    })();
+</script>
+
+</body>
+</html>
