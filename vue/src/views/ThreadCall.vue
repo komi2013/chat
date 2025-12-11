@@ -81,9 +81,24 @@ async function startCall(token) {
   });
 
   // Remote video
+  // member.onPublicationSubscribed.add(async ({ stream }) => {
+  //   if (stream.contentType !== "video") return;
+  //   stream.attach(remoteVideo.value);
+  // });
+
   member.onPublicationSubscribed.add(async ({ stream }) => {
-    if (stream.contentType !== "video") return;
+    // attach audio + video both to remoteVideo
     stream.attach(remoteVideo.value);
+
+    // make sure audio plays
+    remoteVideo.value.muted = false;
+    remoteVideo.value.volume = 1.0;
+
+    try {
+      await remoteVideo.value.play();
+    } catch (e) {
+      console.warn("Autoplay blocked:", e);
+    }
   });
 
   const subscribe = async (pub) => {
