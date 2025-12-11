@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@skyway-sdk/room": "^2.2.0",
-    "crypto": "^1.0.1",
-    "jsonwebtoken": "^9.0.3",
     "pinia": "^2.1.6",
     "quill": "^2.0.0",
     "quill-mention": "^5.0.0",

@@ -59,14 +59,19 @@ func structToMap(obj interface{}) map[string]interface{} {
 	return result
 }
 
-func GenerateSkyWayToken(appId, secret string) (string, error) {
+func GenerateSkyWayToken() (string, error) {
+
+  cfg := LoadConsoleConfig()
+
+	appId := "c0b2a419-9c3c-408f-ab32-671407d6e3ad"
+	secret := cfg.WebRTC
 
 	now := time.Now().Unix() // JSTで問題なし（Unix時刻は同じ）
 
 	tokenObj := SkyWayToken{
 		JTI: uuid.New().String(),
 		IAT: now,
-		EXP: now + 60*60*24*365, // 1年
+		EXP: now + 60*60*24, // 1日
 		Scope: SkyWayScope{
 			App: SkyWayApp{
 				ID:      appId,

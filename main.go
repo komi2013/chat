@@ -51,6 +51,7 @@ func main() {
 		http.HandleFunc("/upload/", controller.Upload)
 		http.HandleFunc("/UserEdit/", controller.UserEdit)
 		http.HandleFunc("/UserGet/", controller.UserGet)
+		http.HandleFunc("/WebRTCTokenGet/", controller.WebRTCTokenGet)
 
 		// default
 		http.HandleFunc("/", controller.Top)

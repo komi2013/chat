@@ -14,7 +14,7 @@
       <button class="emoji" v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
       <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
       <button class="emoji" @click="asGroup = true" :class="{ 'selected': selectedGroup.groupID }">👥</button>
-      <button class="emoji" v-if="showPhone" @click="callVisible = true"> ☎️ </button>
+      <button class="emoji" v-if="dm" @click="calling">☎️</button>
       <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
     <div :id="'edit_' + messageID"
@@ -24,18 +24,6 @@
   </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
-
-  <!-- Call Modal -->
-  <div v-if="callVisible" class="call-modal">
-    <div class="call-dialog">
-      <h3>SkyWay ビデオ通話</h3>
-      <video ref="localVideo" autoplay playsinline muted></video>
-      <video ref="remoteVideo" autoplay playsinline></video>
-      <button @click="startSkyway">通話開始</button>
-      <button @click="endSkyway">終了</button>
-      状態: {{ callState }}
-    </div>
-  </div>
 
   <EditOptionModal :show="asGroup" @close="asGroup = false">
     <SelectGroup
@@ -58,7 +46,6 @@ import EditOptionModal from '@/components/EditOptionModal.vue';
 import SelectGroup from '@/components/SelectGroup.vue';
 
 import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
-import { startSkywayCall } from '@/my/skyway.js';
 import { pushReceive } from '@/pushReceive/pushReceive.js';
 
 const props = defineProps({
@@ -70,6 +57,7 @@ const props = defineProps({
 });
 
 const message = props.message;
+const dm = props.threadHead.parentID.includes('@')
 // console.log('message', message)
 let task = ref(false);
 const messageID = props.message.messageID;
@@ -203,7 +191,6 @@ const msgUpsert = async (messageID, delMessage) => {
   const thisMsgID = messageID ? messageID : base62Encode(Math.floor(Date.now())) + generateRandomCode(1);
   const myAlias = props.aliases.find(alias => alias.aliasName === localStorage.getItem('myname'));
   let alreadyNames = props.threadHead.newThread ? [] : props.threadHead.aliasNames
-  const dm = props.threadHead.parentID.includes('@')
   let toInquiryUser = false
   if (dm) {
     const splitNames = props.threadHead.parentID.split('@')
@@ -321,63 +308,8 @@ const msgUpsert = async (messageID, delMessage) => {
   if (props.threadHead.newThread) { location.href = '' }
 }
 
-const SKYWAY_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhOWVkMGMxZi0xMzFmLTQzNGEtYjgzOS04ZmE0ZmE0ZmMyMGMiLCJpYXQiOjE3NjUzNDkxODAsImV4cCI6MTc5Njg4NTE4MCwic2NvcGUiOnsiYXBwIjp7ImlkIjoiYzBiMmE0MTktOWMzYy00MDhmLWFiMzItNjcxNDA3ZDZlM2FkIiwidHVybiI6dHJ1ZSwiYWN0aW9ucyI6WyJyZWFkIl0sImNoYW5uZWxzIjpbeyJpZCI6IioiLCJuYW1lIjoiKiIsImFjdGlvbnMiOlsid3JpdGUiXSwibWVtYmVycyI6W3siaWQiOiIqIiwibmFtZSI6IioiLCJhY3Rpb25zIjpbIndyaXRlIl0sInB1YmxpY2F0aW9uIjp7ImFjdGlvbnMiOlsid3JpdGUiXX0sInN1YnNjcmlwdGlvbiI6eyJhY3Rpb25zIjpbIndyaXRlIl19fV0sInNmdUJvdHMiOlt7ImFjdGlvbnMiOlsid3JpdGUiXSwiZm9yd2FyZGluZ3MiOlt7ImFjdGlvbnMiOlsid3JpdGUiXX1dfV19XX19fQ.J_zpQtJuKsvRtz8ss0xh8J6cma651jFV-Yiqpou_CjI';
-
-console.log("STEP1 token(raw) =", SKYWAY_API_KEY);
-
-const callVisible = ref(false);
-const callState = ref('idle');
-
-const localVideo = ref(null);
-const remoteVideo = ref(null);
-
-let session = null;
-const showPhone = ref(true)
-// showPhone.value = true
-
-const startSkyway = async () => {
-  callState.value = 'connecting';
-
-  const token = SKYWAY_API_KEY; // ← token に名前変更したほうが良い
-console.log("STEP2 token(before startSkywayCall) =", token);
-
-  session = await startSkywayCall({
-    token,                                // ← 修正
-    roomName: generateRoomName(),
-    localVideoEl: localVideo.value,
-    remoteVideoEl: remoteVideo.value,
-    onStatus: (status) => callState.value = status
-  });
-};
-
-const endSkyway = () => {
-  if (session) {
-    session.end();
-    session = null;
-  }
-  callState.value = 'ended';
-  callVisible.value = false;
-};
-
-function generateRoomName() {
-  // DM の相手と自分の名前からルーム名生成（順番固定）
-  const me = localStorage.getItem('myname');
-  const peer = determineRemoteName();
-  return ['dm', me, peer].sort().join('_');
-}
-
-function determineRemoteName(){
-  // threadHead.parentID の構成から相手の名前を取り出す（あなたのアプリの命名規則に合わせて調整してください）
-  // current user:
-  const me = localStorage.getItem('myname');
-  const splitNames = props.threadHead.parentID.split('@').filter(Boolean);
-  const groupNames = (Array.isArray(props.groups) ? props.groups.map(g => g.groupName) : []);
-  const nonGroup = splitNames.filter(n => !groupNames.includes(n));
-  // 非自分の名前を返す
-  if (nonGroup.length === 2) {
-    return nonGroup.find(n => n !== me);
-  }
-  return nonGroup.length === 1 ? nonGroup[0] : '';
+function calling () {
+  location.href = '/threadCall/' + generateRandomCode(8) + '/'
 }
 
 </script>

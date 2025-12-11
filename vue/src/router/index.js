@@ -154,14 +154,6 @@ const router = createRouter({
     //   component: () => import('../views/SignView.vue')
     // },
     {
-      path: '/threadHead/:parent_id/',
-      name: 'threadHead',
-      component: () => import('../views/ThreadHead.vue'),
-      props: route => ({
-        parent_id: route.params.parent_id
-      })
-    },
-    {
       path: '/thread/:channel_id/:parentID/',
       component: () => import('../views/Thread.vue'),
       props: route => ({
@@ -169,6 +161,21 @@ const router = createRouter({
         parentID: route.params.parentID,
         backID: route.query.backID,
         messageID: route.query.messageID
+      })
+    },
+    {
+      path: '/threadCall/:channelName/',
+      component: () => import('../views/ThreadCall.vue'),
+      props: route => ({
+        channelName: route.params.channelName
+      })
+    },
+    {
+      path: '/threadHead/:parent_id/',
+      name: 'threadHead',
+      component: () => import('../views/ThreadHead.vue'),
+      props: route => ({
+        parent_id: route.params.parent_id
       })
     },
     {

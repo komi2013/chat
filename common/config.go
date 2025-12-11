@@ -30,6 +30,7 @@ type Config struct {
 	Domain          string
 	GoogleClientID  string
 	EtherscanApiKey string
+	WebRTC          string
 }
 
 func LoadConfig() *Config {
@@ -92,6 +93,7 @@ func loadFromEnv() *Config {
 		Domain:          os.Getenv("DOMAIN"),
 		GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
 		EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
+		WebRTC:          os.Getenv("WEB_RTC"),
 	}
 }
 
