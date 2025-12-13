@@ -86,7 +86,7 @@ func loadFromEnv() *Config {
 		MongoTweet:      os.Getenv("MONGO_TWEET"),
 		MongoUser:       os.Getenv("MONGO_USER"),
 		VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
-		VAPIDPrivateKey: "bdSiNzUhUP6piAxLH-tW88zfBlWWveIx0dAsDO66aVU",
+		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
 		OSImgDir:        os.Getenv("OS_IMG_DIR"),
 		PublicImgPath:   os.Getenv("PUBLIC_IMG_PATH"),
 		UploadDir:       os.Getenv("UPLOAD_DIR"),

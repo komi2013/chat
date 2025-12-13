@@ -114,6 +114,7 @@ async function leaveCall() {
   if (member) await member.leave()
   if (room) await room.dispose()
   // router.push("/");
+  window.close()
   location.href = '/'
 }
 

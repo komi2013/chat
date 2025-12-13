@@ -1,20 +1,55 @@
+self.addEventListener('install', event => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', event => {
-  console.log(`Push Received.....: "${event.data.text()}"`);
+  const raw = event.data?.text() || "";
+  console.log("SW push:", raw);
 
-  // const title = 'Webpush';
-  const options = {
-    body: event.data.text(),
-  };
+  event.waitUntil((async () => {
+    const clientsArr = await self.clients.matchAll({ type: "window" });
 
-  // Send a message to the client (main page)
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'push',
-        notificationData: event.data.text(),
+    // 1️⃣ Always forward to pages (keep old system working)
+    clientsArr.forEach(c => {
+      c.postMessage({
+        type: "push",
+        notificationData: raw
       });
     });
-  });
 
-  // event.waitUntil(self.registration.showNotification(title, options));
+    // 2️⃣ Try parse push JSON
+    let arr;
+    try { arr = JSON.parse(raw); } catch { return; }
+
+    const sw = arr[arr.length - 1];
+    if (!sw || typeof sw !== "object" || !sw.url) return;
+
+    // 3️⃣ Check if any visible tab exists
+    const hasVisible = clientsArr.some(c => c.visibilityState === "visible");
+
+    if (hasVisible) {
+      console.log("SW: visible tab → no system notification");
+      return;
+    }
+
+    // 4️⃣ Show system notification
+    console.log("SW: no visible tab → show system notification");
+    await self.registration.showNotification("Notification", {
+      body: sw.message,
+      icon: sw.icon,
+      data: { url: sw.url },
+      requireInteraction: true
+    });
+  })());
+});
+
+self.addEventListener("notificationclick", event => {
+  const url = event.notification.data?.url;
+  event.notification.close();
+  if (!url) return;
+  event.waitUntil(clients.openWindow(url));
 });

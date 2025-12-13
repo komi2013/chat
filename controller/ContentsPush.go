@@ -27,6 +27,9 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   updatedBy := r.FormValue("updatedBy")
   channelID := r.FormValue("channelID")
   pushTitle := r.FormValue("pushTitle")
+  notifyUrl := r.FormValue("notifyUrl")
+  notifyMessage := r.FormValue("notifyMessage")
+  notifyIcon := r.FormValue("notifyIcon")
 
   var contents interface{}
   if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); err != nil {
@@ -115,7 +118,14 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
   } else {
   	arr = append(arr, fileLinks)
   }
-  
+	sw := map[string]interface{}{
+	    "url": notifyUrl,
+	    "message": notifyMessage,
+	    "icon": notifyIcon,
+	}
+	if notifyUrl != "" && notifyMessage != "" {
+		arr = append(arr, sw)
+	}
 	common.ChunkPush(filteredSessions, arr)
 
 	responseData := struct {

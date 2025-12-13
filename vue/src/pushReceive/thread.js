@@ -77,10 +77,30 @@ export async function thread(pushData) {
   }
   updIDBone('threadHead', pushThread.parentID, 'displayStatus', displayStatus)
   if (notify && directPush) {
-    new Notification(pushTitle, {
-      body: getSubstring(removeMark(pushThread.messageTxt), 0, 30), icon: pushThread.aliasImg
-    })
-    addFaviconBadge()
+    const url = `${location.origin}/thread/${channelID}/${pushThread.parentID}/`;
+    try {
+      const audio = new Audio('/img/ring.mp3');
+      audio.volume = 1.0;
+      audio.play().catch(err => {
+        console.log("Sound play blocked:", err);
+      });
+    } catch (e) {
+      console.log("Audio error:", e);
+    }
+    const notification = new Notification(pushTitle, {
+      body: getSubstring(removeMark(pushThread.messageTxt), 0, 30),
+      icon: pushThread.aliasImg,
+      badge: pushThread.aliasImg,
+      vibrate: [200, 100, 200],
+      silent: false,
+      data: { url }
+    });
+    notification.onclick = (event) => {
+      event.preventDefault();
+      window.open(url, "_blank")
+      notification.close();
+    };
+    addFaviconBadge();
   }
   if (messagesStore.currentDisplay(pushThread.parentID)) {
     messagesStore.insert(pushThread);

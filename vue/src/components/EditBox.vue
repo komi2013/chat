@@ -308,9 +308,99 @@ const msgUpsert = async (messageID, delMessage) => {
   if (props.threadHead.newThread) { location.href = '' }
 }
 
-function calling () {
-  location.href = '/threadCall/' + generateRandomCode(8) + '/'
+async function calling () {
+  const myname = localStorage.getItem('myname')
+  const channelID = localStorage.getItem('channelID')
+  // opponent name from parentID
+  const splitNames = props.threadHead.parentID.split('@')
+  const opponent = (splitNames[0] === myname) ? splitNames[1] : splitNames[0]
+
+  // react message text
+  // const code = generateRandomCode(8)
+  const callUrl = '/threadCall/' + generateRandomCode(8) + '/'
+
+  const messageData = `＠＠${opponent}・＠＠ 「calling」（${callUrl}）`
+
+  const pushNames = [myname, opponent]     // 🔥 only me + opponent
+  const pushTitle = "thread"               // 🔥 force thread
+
+  const thisMsgID = base62Encode(Date.now()) + generateRandomCode(1)
+
+  const myAlias = props.aliases.find(a => a.aliasName === myname)
+
+  const contents = [
+    props.message.parentID,            // parentID
+    thisMsgID,                         // new msg id
+    messageData,                       // msg text
+    myAlias.aliasImg,                  // sender icon
+    pushNames,                         // only 2 users
+    props.threadHead.backID ?? '',     // backID
+    [],                                // yets
+    '',                                // groupName
+    Math.floor(Date.now() / 1000)      // timestamp
+  ]
+
+  const fd = new FormData()
+  fd.set('channelID', channelID)
+  fd.set('updatedBy', myname)
+  fd.set('csrf', localStorage.getItem('csrf'))
+  fd.set('pushTitle', pushTitle)
+  fd.set('pushNames', JSON.stringify(pushNames))
+  fd.set('contents', JSON.stringify(contents))
+
+  fd.set('notifyUrl', callUrl)
+  fd.set('notifyMessage', `${opponent} is calling`)
+  fd.set('notifyIcon', myAlias.aliasImg)
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
+
+  // location.href = '/threadCall/' + generateRandomCode(8) + '/'
+  window.open(callUrl, '_blank')
+
 }
+
+async function showCustomNotification() {
+  // 1. Check for permission
+  if (Notification.permission !== "granted") {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+  }
+
+  // 2. Play the sound (Notification API doesn't do this natively)
+  const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+  notificationSound.play().catch(e => console.log("Sound play failed:", e));
+
+  // 3. Create the notification with an Icon
+  const options = {
+    body: "You have a new message! Click to view.",
+    icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png", // Your Icon URL
+    badge: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png", // Small icon for mobile status bars
+    vibrate: [200, 100, 200], // Vibration pattern for mobile
+    silent: false // Ensures system settings are respected
+  };
+
+  const notification = new Notification("Update Alert", options);
+
+  // 4. Handle the "Link" behavior (Click action)
+  notification.onclick = function(event) {
+    event.preventDefault(); // Prevent browser from focusing the notification tab
+    window.open("https://google.com", "_blank");
+    notification.close();
+  };
+}
+
+// Trigger this with a button click (browsers block auto-playing sounds/notifs)
+// <button onclick="showCustomNotification()">Show Notification</button>
 
 </script>
 

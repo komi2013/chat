@@ -131,7 +131,7 @@ async function directMessage() {
         </a>
       </div>
     </div>
-    <div class="dmMessage">
+    <div v-if="channel && channel.myname !== props.name" class="dmMessage">
       <button @click="directMessage"> DMメッセージ送信 </button>
     </div>
   </div>
