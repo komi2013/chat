@@ -45,6 +45,7 @@
       <button @click="$emit('close')">閉じる</button>
     </div>
   </div>
+  <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>
   <NoticePopup />
 </template>
 
@@ -69,8 +70,7 @@ const localEvent = ref({
   serviceID: props.menuID   // 選択されたmenuのIDを格納
 });
 
-// console.log('reception', props.menuID)
-
+const errorMessage = ref('')
 const reception = props.reception;
 
 async function submit() {
@@ -83,17 +83,22 @@ async function submit() {
   fd.append('bookEnd', localEvent.value.timeEnd);
   fd.append('answers', JSON.stringify(localEvent.value.answers));
   fd.append('menuID', localEvent.value.menuID);
-
-  const res = await sendRequest('/ReceptionBook/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
+  const res = await sendRequest('/ReceptionBook/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
   if (res.error) {
     const noticesStore = useNoticesStore()
     noticesStore.setNotice(res.error)
     return 
   }
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
   emit('close');
 };
 </script>
