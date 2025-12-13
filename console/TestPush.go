@@ -18,10 +18,10 @@ func TestPush() {
 
 	s := &webpush.Subscription{}
 	// json.Unmarshal([]byte(``), s)
-	json.Unmarshal([]byte(`{"endpoint":"https://fcm.googleapis.com/fcm/send/cumMdnjqD_E:APA91bHrwoLX4bgTmOnvcTynsUoXjA7zblLpa2_ipgjZIjaa0GAL6f0IFPlVEsJPuqe7WTIkT7eQVqtJS6JTZG7SrII1FDyn-q7ymnm86HAcXTxvfMZOVUbDzwBFlblMNzyUox5S0MRD","expirationTime":null,"keys":{"p256dh":"BCp-qkjjCDHOjbT8LAEikyyA2enOKC7LexAiFYgiS23LYnzg9itzgCc9iOoVSafV_6Rzc3km8qKKLwDyQZ8B53U","auth":"QXPZ65HXSkXAmwh3SWNj7Q"}}`), s)
+	json.Unmarshal([]byte(`{"endpoint":"https://fcm.googleapis.com/fcm/send/dXJER6yxO4Q:APA91bGNiRcLoBe1GDw2BeZZaXshjJe2tUtonWxpsIt2P7eJcfp46UwWynqlbKH269n29bqbIaXGIUNnXll6guCh0MSAUaV-i0-FQIhXUg6vk8bgy6SZT2QsQeoGgTGXv6sUeL98an9_","expirationTime":null,"keys":{"p256dh":"BHGyoJX53YYhlwDjb6GhnU7-2mv1ndZo9eQ21nvRhMyKXDCCxKjHOupCeGPUQ-D_rmrNMnfJyfYgfQo8jCclE7I","auth":"covFZxc0wZPifKFFFPIG7w"}}`), s)
 	payload := map[string]interface{}{
 	    "type":   "thread",
-	    "channel": "663019ee703f7d8a80884514",
+	    "channel": "C",
 	    "parent":  "65acf63d8309d8da55154dea",
 	    "message": "＊p＊苔こけ・＊p＊",
 	    "icon":    "/ivan.png",

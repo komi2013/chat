@@ -105,6 +105,11 @@ async function join () {
       await pushReceive(content)
     }
   }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
+
   location.href = '/profile/' + props.id + '/'
 }
 

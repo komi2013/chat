@@ -14,13 +14,10 @@
       <button class="emoji" v-if="messageID" @click="msgUpsert(messageID, true)">🗑</button>
       <button class="emoji" @click="tasking" :class="{ 'selected': task }">🔖</button>
       <button class="emoji" @click="asGroup = true" :class="{ 'selected': selectedGroup.groupID }">👥</button>
-      <button class="emoji" v-if="dm" @click="calling">☎️</button>
+      <button class="emoji" v-if="dm && !threadHead.newThread" @click="calling">☎️</button>
       <button class="emoji" @click="msgUpsert(messageID, false)">▶️</button>
     </div>
-    <div :id="'edit_' + messageID"
-      v-html="editTxt[messageID]"
-      >
-    </div>
+    <div :id="'edit_' + messageID" v-html="editTxt[messageID]" ></div>
   </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
@@ -115,12 +112,9 @@ async function initQuill() {
           }
           return mentionWithImage;
         },
-        onOpen: function() {
-          const quillMentionList = document.getElementById('quill-mention-list');
-          const rect = quillMentionList.getBoundingClientRect();
-          if (rect.left > 150 && rect.left < 300) {
-            quillMentionList.style.left = (- 1 * rect.left) + 'px';
-          }
+        onOpen: function () {
+          const list = document.getElementById('quill-mention-list')
+          list.style.left = `-50px`
         }
       }
     },
@@ -305,7 +299,9 @@ const msgUpsert = async (messageID, delMessage) => {
   task.value = false;
   asGroup.value = false;
   clicked = false;
-  if (props.threadHead.newThread) { location.href = '' }
+  if (props.threadHead.newThread) {
+    location.href = `/thread/${localStorage.getItem('channelID')}/${props.message.parentID}/`
+  }
 }
 
 async function calling () {
@@ -349,7 +345,7 @@ async function calling () {
   fd.set('contents', JSON.stringify(contents))
 
   fd.set('notifyUrl', callUrl)
-  fd.set('notifyMessage', `${opponent} is calling`)
+  fd.set('notifyMessage', `${myname} is calling`)
   fd.set('notifyIcon', myAlias.aliasImg)
   const res = await sendRequest('/ContentsPush/', fd)
   if (!res.csrf) {
@@ -368,39 +364,6 @@ async function calling () {
   window.open(callUrl, '_blank')
 
 }
-
-async function showCustomNotification() {
-  // 1. Check for permission
-  if (Notification.permission !== "granted") {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-  }
-
-  // 2. Play the sound (Notification API doesn't do this natively)
-  const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-  notificationSound.play().catch(e => console.log("Sound play failed:", e));
-
-  // 3. Create the notification with an Icon
-  const options = {
-    body: "You have a new message! Click to view.",
-    icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png", // Your Icon URL
-    badge: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png", // Small icon for mobile status bars
-    vibrate: [200, 100, 200], // Vibration pattern for mobile
-    silent: false // Ensures system settings are respected
-  };
-
-  const notification = new Notification("Update Alert", options);
-
-  // 4. Handle the "Link" behavior (Click action)
-  notification.onclick = function(event) {
-    event.preventDefault(); // Prevent browser from focusing the notification tab
-    window.open("https://google.com", "_blank");
-    notification.close();
-  };
-}
-
-// Trigger this with a button click (browsers block auto-playing sounds/notifs)
-// <button onclick="showCustomNotification()">Show Notification</button>
 
 </script>
 
@@ -440,10 +403,6 @@ async function showCustomNotification() {
 .ql-snow.ql-toolbar .selected {
   background-color: #92a7b54a;
   border-radius: 5px;
-}
-.ql-mention-list-container {
-  background-color: white;
-  bottom: 0px;
 }
 
 .ql-mention-list {
