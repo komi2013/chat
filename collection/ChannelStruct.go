@@ -10,12 +10,13 @@ type ChannelStruct struct {
 	ChannelDescription  string    `bson:"channelDescription" json:"channelDescription,omitempty"`
 	CreatedAt           time.Time `bson:"createdAt" json:"createdAt,omitempty"`
 	UpdatedAt           time.Time `bson:"updatedAt" json:"updatedAt,omitempty"`
-	InvitedAt           time.Time `bson:"invitedAt" json:"invitedAt,omitempty"`
 	UpdatedBy           string    `bson:"createdBy" json:"createdBy,omitempty"`
 	Aliases             []Alias   `bson:"aliases" json:"aliases,omitempty"`
 	Groups              []Group   `bson:"groups" json:"groups,omitempty"`
+	// Invitations         []Invitation   `bson:"invitations,omitempty" json:"invitations,omitempty"`
 	InvitationCode      string    `bson:"invitationCode" json:"invitationCode,omitempty"`
 	InvitationGuestCode string    `bson:"invitationGuestCode,omitempty" json:"invitationGuestCode,omitempty"`
+	InvitedAt time.Time `bson:"invitedAt" json:"invitedAt,omitempty"`
 }
 
 type Alias struct {
@@ -31,4 +32,10 @@ type Group struct {
 	GroupImg   string   `bson:"groupImg" json:"groupImg,omitempty"`
 	AliasNames []string `bson:"aliasNames" json:"aliasNames,omitempty"`
 	GroupBio   string   `bson:"groupBio,omitempty" json:"groupBio,omitempty"`
+}
+
+type Invitation struct {
+	Code      string    `bson:"code" json:"code,omitempty"`
+	GuestCode string    `bson:"guestCode,omitempty" json:"guestCode,omitempty"`
+	InvitedAt time.Time `bson:"invitedAt" json:"invitedAt,omitempty"`
 }

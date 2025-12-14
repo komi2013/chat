@@ -206,20 +206,40 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 該当セッションをDB更新
 		collSession := common.DB.SessionDB.Collection("session")
 		for _, s := range deleteSessions {
-			filteredAliases := make([]collection.ChannelAlias, 0)
-			for _, alias := range s.ChannelAliases {
-				if alias.ChannelID != channelID {
-					filteredAliases = append(filteredAliases, alias)
+			newChannelAliases := make([]collection.ChannelAlias, 0)
+			channelAliasCount := 0
+			for _, ca := range s.ChannelAliases {
+				if ca.ChannelID == channelID {
+					channelAliasCount++
 				}
 			}
+
+			for _, ca := range s.ChannelAliases {
+				if ca.ChannelID != channelID {
+					newChannelAliases = append(newChannelAliases, ca)
+					continue
+				}
+				if channelAliasCount > 1 {
+					shouldDelete := false
+					for _, del := range deleteAliases {
+						if ca.Alias == del {
+							shouldDelete = true
+							break
+						}
+					}
+					if !shouldDelete {
+						newChannelAliases = append(newChannelAliases, ca)
+					}
+				}
+			}
+
 			_, err := collSession.UpdateOne(
 				ctx,
 				bson.M{"_id": s.SessionID},
 				bson.M{"$set": bson.M{
-					"channelAliases": filteredAliases,
+					"channelAliases": newChannelAliases,
 					"updatedAt":      time.Now(),
 				}},
 			)
@@ -299,34 +319,25 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		aliasData := []interface{}{"", aliasName, "", "delete"}
 		aliasPushArray := []interface{}{"alias", channelID, updatedBy, aliasData, ""}
 		common.ChunkPush(allSessions, aliasPushArray)
-
 		for _, s := range allSessions {
-			// log.Printf("[DEBUG] Checking session: ChannelAliasCount=%d",s.ChannelAliases)
-
+			aliasCount := 0
+			hasDeletingAlias := false
 			for _, chAlias := range s.ChannelAliases {
-				// log.Printf("[DEBUG]   ChannelAlias: ChannelID=%s, Alias=%s, GuestFlag=%v",
-				// 	chAlias.ChannelID, chAlias.Alias, chAlias.GuestFlag)
-
-				// 一致チェック
-				if chAlias.ChannelID == channelID && chAlias.Alias == aliasName {
-					// log.Printf("[MATCH] Found matching alias! aliasName=%s, channelID=%s, updatedBy=%s, sessionUserID=%s",
-					// 	aliasName, channelID, updatedBy, s.UserID)
-
-					// push データ内容を出力
-					channelPushArray := []interface{}{
-						"channelEdit", // pushTitle
-						channelID,     // channelID
-						updatedBy,     // updatedBy
-						"delete",      // contents
+				if chAlias.ChannelID == channelID {
+					aliasCount++
+					if chAlias.Alias == aliasName {
+						hasDeletingAlias = true
 					}
-					// log.Printf("[PUSH DATA] %+v", channelPushArray)
-
-					// push 実行
-					common.ChunkPush([]collection.SessionStruct{s}, channelPushArray)
-					// log.Printf("[PUSH SENT] To session: %s (UserID=%s)", s.SessionID, s.UserID)
-
-					break
 				}
+			}
+			if aliasCount == 1 && hasDeletingAlias {
+				channelPushArray := []interface{}{
+					"channelEdit", // pushTitle
+					channelID,     // channelID
+					updatedBy,     // updatedBy
+					"delete",      // contents
+				}
+				common.ChunkPush([]collection.SessionStruct{s}, channelPushArray)
 			}
 		}
 	}
