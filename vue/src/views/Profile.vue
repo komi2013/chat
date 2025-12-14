@@ -113,13 +113,13 @@ async function join () {
   location.href = '/profile/' + props.id + '/'
 }
 
-// async function switchAlias (aliasName) {
-//   const newChannel = JSON.parse(JSON.stringify(channel.value));
-//   newChannel.myname = aliasName;
-//   console.log(newChannel);
-//   upsertIDB(newChannel, 'channel', 'channelID', props.id);
-//   location.href = '/profile/' + props.id + '/';
-// }
+async function switchAlias (aliasName) {
+  const newChannel = JSON.parse(JSON.stringify(channel.value));
+  newChannel.myname = aliasName;
+  console.log(newChannel);
+  upsertIDB(newChannel, 'channel', 'channelID', props.id);
+  location.href = '/profile/' + props.id + '/';
+}
 
 
 </script>
@@ -180,23 +180,22 @@ async function join () {
         </a>
       </div>
     </div>
-      <!--     <h3>マイニックネーム一覧</h3>
-          <div v-for="(d) in sameUserAliases" >
-            <div class="people-list">
-              <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
-                <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
-                  :src="d.aliasImg" class="people-img">
-                <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
-                  class="people-img" 
-                  :style="'background-color:' + d.aliasImg.split(',')[2] ">
-                    <span>{{d.aliasImg.split(',')[1]}}</span>
-                </span>
-                <span> {{d.aliasName}} </span>
-              </a>
-            </div>
-            <div v-if="isEditable" @click="switchAlias(d.aliasName)" class="switch-alias">🔀</div>
-          </div>
-       -->
+    <h3>マイニックネーム一覧</h3>
+    <div v-for="(d) in sameUserAliases" >
+      <div class="people-list">
+        <a :href="'/people/' + id + '/' + d.aliasName + '/' ">
+          <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
+            :src="d.aliasImg" class="people-img">
+          <span v-if="d.aliasImg && d.aliasImg.charAt(0) == ','"
+            class="people-img" 
+            :style="'background-color:' + d.aliasImg.split(',')[2] ">
+              <span>{{d.aliasImg.split(',')[1]}}</span>
+          </span>
+          <span> {{d.aliasName}} </span>
+        </a>
+      </div>
+      <div v-if="isEditable" @click="switchAlias(d.aliasName)" class="switch-alias">🔀</div>
+    </div>
   </div>
   <div v-if="!fetched"> 
     <a href="/sign/"> サインインページ </a>でサインインしてください
