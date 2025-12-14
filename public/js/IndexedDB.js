@@ -21,7 +21,7 @@ const indexedDBStores = [
 
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 120);
+    const request = indexedDB.open('chat', 123);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
