@@ -2,7 +2,6 @@ import { advertisement } from './advertisement.js';
 import { alias } from './alias.js';
 import { answer } from './answer.js';
 import { bookmark } from './bookmark.js';
-import { bookPattern } from './bookPattern.js';
 import { calendar } from './calendar.js';
 import { channelEdit } from './channelEdit.js';
 // import { channelJoin } from './channelJoin.js';
@@ -10,7 +9,7 @@ import { chunk } from './chunk.js';
 import { emoji } from './emoji.js';
 import { entryForm } from './entryForm.js';
 import { group } from './group.js';
-import { reception } from './reception.js';
+// import { reception } from './reception.js';
 import { receptionOrder } from './receptionOrder.js';
 import { shiftStaffEdit } from './shiftStaffEdit.js';
 import { storeSelect } from './storeSelect.js';
@@ -27,11 +26,9 @@ import { topEdit } from './topEdit.js';
 import { tweetHead } from './tweetHead.js';
 
 export async function pushReceive(notificationData, direct = false) {
-  // return
-  // console.log('after data', notificationData)
+  // direct true means true system push data not from response
   const pd = JSON.parse(notificationData)
   pd.directPush = direct
-  console.log('push data', pd)
   const dupli = {
     pushDuplicationID: pd[1] + pd[2] + pd[3] + pd[0],
     pushID: pd[0],
@@ -46,7 +43,6 @@ export async function pushReceive(notificationData, direct = false) {
     deleteIDB('pushDuplication', 'pushDuplicationID', pre.pushDuplicationID)
     return
   }
-  // ★ ここで古いデータ削除
   await cleanOldPushDuplication()
   upsertIDB(dupli, 'pushDuplication', 'pushDuplicationID', dupli.pushDuplicationID)
   const actions = {
@@ -54,16 +50,13 @@ export async function pushReceive(notificationData, direct = false) {
     alias: alias,
     answer: answer,
     bookmark: bookmark,
-    bookPattern: bookPattern,
     calendar: calendar,
-    // channelAdd: channelAdd,
     channelEdit: channelEdit,
-    // channelJoin: channelJoin,
     chunk: chunk,
     emoji: emoji,
     entryForm: entryForm,
     group: group,
-    reception: reception,
+    // reception: reception,
     receptionOrder: receptionOrder,
     shiftStaffEdit: shiftStaffEdit,
     storeSelect: storeSelect,
@@ -82,9 +75,10 @@ export async function pushReceive(notificationData, direct = false) {
   };
 
   const action = actions[pd[1]];
-  
   if (action) {
     action(pd)  // 対応する関数を呼び出す
+  } else if (pd[1] == 'pushCheck') {
+    alert(pd[2])
   } else {
     console.log('Unknown action.')
   }
@@ -98,8 +92,6 @@ async function cleanOldPushDuplication() {
 
   for (const item of all) {
     if (!item.updatedAt) continue;
-
-    // updatedAt 文字列 → Date
     const itemTime = new Date(item.updatedAt).getTime();
 
     if (now - itemTime > oneMonth) {

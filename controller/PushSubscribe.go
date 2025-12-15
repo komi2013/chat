@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	 "chat/common"
+	 "chat/collection"
 )
 
 func PushSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -22,22 +23,12 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-  // ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  // defer cancel()
-  // c, err := mongo.Connect(ctx, options.Client().ApplyURI(common.Mongo1))
-  // if err != nil {
-  //   log.Printf("mongo.Connect: %v; Req:", err, r.URL.Path, r.Form)
-  // }
-  // defer c.Disconnect(ctx)
-  // db1 := c.Database(common.MongoDb1)
-
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
 		return
 	}
 
-	// coll := db1.Collection("session")
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{{"$set", bson.D{
@@ -45,6 +36,14 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 		{"updatedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
+
+	session.Subscription = r.FormValue("subscription")
+  var arr []interface{}
+  arr = append(arr, "pushCheck")
+  arr = append(arr, "push登録完了")
+  var sessions []collection.SessionStruct
+  sessions = append(sessions, session)
+	common.ChunkPush(sessions, arr)
 
   responseData := struct {
     Csrf         string        `json:"csrf"`

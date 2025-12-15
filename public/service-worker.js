@@ -13,7 +13,7 @@ self.addEventListener('push', event => {
   event.waitUntil((async () => {
     const clientsArr = await self.clients.matchAll({ type: "window" });
 
-    // 1️⃣ Always forward to pages (keep old system working)
+    // Always forward to pages (keep old system working)
     clientsArr.forEach(c => {
       c.postMessage({
         type: "push",
@@ -21,23 +21,20 @@ self.addEventListener('push', event => {
       });
     });
 
-    // 2️⃣ Try parse push JSON
+    // Try parse push JSON
     let arr;
     try { arr = JSON.parse(raw); } catch { return; }
 
     const sw = arr[arr.length - 1];
     if (!sw || typeof sw !== "object" || !sw.url) return;
 
-    // 3️⃣ Check if any visible tab exists
+    // Check if any visible tab exists
     const hasVisible = clientsArr.some(c => c.visibilityState === "visible");
 
     if (hasVisible) {
-      console.log("SW: visible tab → no system notification");
       return;
     }
 
-    // 4️⃣ Show system notification
-    console.log("SW: no visible tab → show system notification");
     await self.registration.showNotification("Notification", {
       body: sw.message,
       icon: sw.icon,
