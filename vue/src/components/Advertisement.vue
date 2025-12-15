@@ -13,14 +13,14 @@ function selectValidAd() {
     const end = new Date(ad.adEnd);
     return start <= now && now <= end;
   });
-  
+  console.log('validAds', validAds)
   if (validAds.length > 0) {
     const randomIndex = Math.floor(Math.random() * validAds.length);
     currentAd.value = validAds[randomIndex];
   } else {
     currentAd.value = null;
   }
-  // console.log(currentAd.value)
+  console.log('currentAd', currentAd.value)
 }
 
 let intervalId = null;

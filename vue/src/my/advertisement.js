@@ -9,7 +9,7 @@ export async function loadAdvertisements() {
   let allAds = await getAllIDBs('advertisement')
   allAds = await removeExpiredAds(allAds)
   window.advertisements = allAds
-
+  console.log('window.advertisements', window.advertisements)
   const lastUpdate = localStorage.getItem('adPublicGotAt')
   const now = Date.now()
   const interval = 10 * 60 * 1000 // 10分をミリ秒で定義

@@ -38,10 +38,6 @@ func getGooglePublicKey(kid string) (*rsa.PublicKey, error) {
 }
 
 func SignInGoogle(w http.ResponseWriter, r *http.Request) {
-
-	// =====================================================================
-	// CSRF チェック
-	// =====================================================================
 	cookie, err := r.Cookie("g_csrf_token")
 	if err != nil {
 		http.Error(w, "missing csrf cookie", http.StatusServiceUnavailable)
@@ -51,10 +47,6 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "csrf mismatch", http.StatusServiceUnavailable)
 		return
 	}
-
-	// =====================================================================
-	// Google JWT パース
-	// =====================================================================
 	token, err := jwt.Parse(r.FormValue("credential"), func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -70,13 +62,9 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	claims, _ := token.Claims.(jwt.MapClaims)
 	googleSub := claims["sub"]
 
-	// =====================================================================
-	// Mongo 参照
-	// =====================================================================
 	collUser := common.DB.UserDB.Collection("user")
 	collSession := common.DB.SessionDB.Collection("session")
 
-	// userID を取得
 	var user collection.UserStruct
 	err = collUser.FindOne(context.TODO(), bson.M{"googleJWTSub": googleSub}).Decode(&user)
 	if err != nil && err != mongo.ErrNoDocuments {
@@ -87,7 +75,6 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	userID := user.UserID
 	isMobile := common.IsMobile(r.Header.Get("User-Agent"))
 
-	// user が存在しなければ新規作成
 	if userID == "" {
 		userID, err = common.CountUpID("userID")
 		if err != nil {
@@ -96,7 +83,6 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// user 更新 or 挿入
 	_, err = collUser.UpdateOne(
 		context.TODO(),
 		bson.M{"googleJWTSub": googleSub},
@@ -114,18 +100,12 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// =====================================================================
-	// GET CURRENT BROWSER SESSION ID (if exists)
-	// =====================================================================
 	var currentSessionID string
 	cookieSS, cookieErr := r.Cookie("ss")
 	if cookieErr == nil {
 		currentSessionID = cookieSS.Value
 	}
 
-	// =====================================================================
-	// 既存セッションすべて取得
-	// =====================================================================
 	cursor, err := collSession.Find(context.TODO(), bson.M{"userID": userID})
 	if err != nil {
 		http.Error(w, "session lookup fail", http.StatusInternalServerError)
@@ -138,34 +118,36 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 古い順にソート（UpdatedAt）
 	sort.Slice(sessions, func(i, j int) bool {
 		return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
 	})
 
-	// =====================================================================
-	// 判定：同じブラウザからのサインインか？
-	// =====================================================================
 	sameBrowser := false
+	var previousSession collection.SessionStruct
+	var tweetPosts []collection.TweetPost
 	for _, s := range sessions {
 		if s.SessionID == currentSessionID && currentSessionID != "" {
+			previousSession = s
 			sameBrowser = true
 			break
 		}
+		tweetPosts = append(tweetPosts, s.TweetPosts...)  // prevent bad user post unlimited
 	}
 
-	// =====================================================================
-	// 新しいセッションを作成
-	// =====================================================================
 	newSession := collection.SessionStruct{
 		SessionID:      common.StringRand(16),
 		Csrf:           common.StringRand(16),
 		UserID:         userID,
 		IsMobile:       isMobile,
-		ChannelAliases: user.ChannelAliases,
-		PushContents:   []string{},
+		PushContents:   previousSession.PushContents,
+		Nickname:       previousSession.Nickname,
+		NickImg:        previousSession.NickImg,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
+		ChannelAliases: user.ChannelAliases,
+		Mail: user.Mail,
+		Telephone: user.Telephone,
+		TweetPosts: tweetPosts,
 	}
 
 	// Cookie 更新（ブラウザ側に新しい ss をセット）
