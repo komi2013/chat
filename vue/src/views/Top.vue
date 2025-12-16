@@ -15,11 +15,8 @@ const signIn = !!localStorage.getItem('csrf')
 // -------------------------
 const signedInLinks = [
   { topText: '組織・チャネル設定', topLink: '/channel/' },
-  { topText: 'カレンダー', topLink: '/calendar/' },
-  { topText: 'タイムスタンプ設定', topLink: '/timestampCode/' },
-  { topText: '受付・予約機能', topLink: '/reception/' },
-  { topText: 'チケット承認機能', topLink: '/tickets/' },
   { topText: 'ユーザー設定', topLink: '/user/' },
+  { topText: 'ツイート一覧', topLink: '/tweets/' },
   { topText: '広告設定', topLink: '/adSetting/' },
   { topText: '設定', topLink: '/setting/' },
 ]
@@ -27,6 +24,7 @@ const signedInLinks = [
 const guestLinks = [
   { topText: 'サインイン', topLink: '/sign/' },
   { topText: 'ツイート一覧', topLink: '/tweets/' },
+  { topText: '設定', topLink: '/setting/' },
   { topText: '規則', topLink: '/html/rule/' },
   { topText: '個人情報遵守', topLink: '/html/privacy/' }
 ]

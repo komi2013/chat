@@ -153,7 +153,8 @@ const invite = async () => {
   let fd = new FormData();
   fd.append('channelID', props.id);
   fd.append('updatedBy', channel.value.myname);
-  if (generateInvitation.value) fd.append('generateInvitation', 1)
+  // if (generateInvitation.value) fd.append('generateInvitation', 1)
+  fd.append('generateInvitation', 1)
   if (guest.value) fd.append('guest', 1)
   // fd.append('untilDate', untilDate)
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -169,7 +170,9 @@ const invite = async () => {
     }
   }
   if (res.error) errorMessage.value = res.error
-  invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`
+  if (res.invitationCode) {
+    invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`
+  }
   invitationQR.value = await QRCode.toDataURL(invitationCode.value)
   // untilDays.value = res.untilDate
 }
@@ -314,13 +317,15 @@ function getAdminDiffData() {
   <div v-if="id && !iamGuest" class="invitation">
     <button @click="invite" class="postButton"> <span>招待URL</span> </button>
     <div>
-      <label>
-        <input type="radio" value="" v-model="generateInvitation" />参照
-      </label>
-      <label>
-        <input type="radio" value="generate" v-model="generateInvitation" />生成
-      </label>
-      <span>&nbsp;&nbsp;</span>
+      <!--  
+        <label>
+          <input type="radio" value="" v-model="generateInvitation" />参照
+        </label>
+        <label>
+          <input type="radio" value="generate" v-model="generateInvitation" />URL生成
+        </label>
+        <span>&nbsp;&nbsp;</span>
+      -->
       <input type="checkbox" id="guest" v-model="guest" />
       <label for="guest">ゲスト</label>
     </div>
@@ -328,8 +333,13 @@ function getAdminDiffData() {
       <input type="number" id="until" v-model="untilDays" />
       <label for="until">日まで有効</label>      
     </div> -->
-    <div> <a :href="invitationCode"> {{invitationCode}} </a> </div>
-    <div> <img :src="invitationQR"></div>    
+    <template v-if="errorMessage"> 
+      <div class="errorMessage">{{errorMessage}}</div>
+    </template>
+    <template v-if="!errorMessage">
+      <div> <a :href="invitationCode"> {{invitationCode}} </a> </div>
+      <div> <img :src="invitationQR"></div>
+    </template>
   </div>
   <div v-if="id"> <a :href="'/group/' + id + '/'">
     👪 グループアカウント作成・編集 
