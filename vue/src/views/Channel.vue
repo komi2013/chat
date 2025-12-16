@@ -224,8 +224,12 @@ const removeNames = async () => {
       await pushReceive(content)
     }
   }
-  if (res.error) errorMessage.value = res.error
-  location.href = '/channel/'
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
+  errorMessage.value = '更新しました。リフレッシュしてください'
+  // location.href = '/channel/' + props.id + '/'
 }
 
 async function adminEdit() {
@@ -256,8 +260,12 @@ async function adminEdit() {
         await pushReceive(content)
       }
     }
-    if (res.error) errorMessage.value = res.error
+    if (res.error) {
+      errorMessage.value = res.error
+      return
+    }
   }
+  errorMessage.value = '更新しました。リフレッシュしてください'
   // location.href = ''
 }
 
