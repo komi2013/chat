@@ -22,7 +22,7 @@ onMounted(async () => {
       alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
     )
   }
-  if (localStorage.getItem('csrf')) singIn.vale = true
+  if (localStorage.getItem('csrf')) singIn.value = true
 })
 
 </script>
@@ -44,7 +44,7 @@ onMounted(async () => {
     <tr><td><a href="/tweets/" > ツイート一覧 </a></td></tr>
     <tr v-if="singIn"><td><a href="/adSetting/" > 広告設定 </a></td></tr>
     <tr><td><a href="/setting/" > 設定 </a></td></tr>
-    <tr v-if="!singIn"><td><a href="/sign/" > サインイン </a></td></tr>
+    <tr><td><a href="/sign/" > サインイン </a></td></tr>
     <tr v-if="!singIn"><td><a href="/html/rule/" > 規則 </a></td></tr>
     <tr v-if="!singIn" ><td><a href="/html/privacy/" > 個人情報遵守 </a></td></tr>
   </table>

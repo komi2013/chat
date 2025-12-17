@@ -94,34 +94,30 @@ const clearObjectStore = async (storeName) => {
 
 const deleteIndexedDB = async () => {
   try {
-    const db = await openDatabase(); // use existing helper
-    return new Promise((resolve, reject) => {
-      const newVersion = db.version + 1;
-      db.close();
-      const request = indexedDB.open('chat', newVersion);
-      request.onerror = (event) => {
-        reject(`Error resetting database: ${event.target.error}`);
-      };
-      request.onupgradeneeded = (event) => {
-        const upgradedDB = event.target.result;
-        console.log('Resetting IndexedDB: Dropping and recreating all stores');
-        Array.from(upgradedDB.objectStoreNames).forEach(storeName => {
-          upgradedDB.deleteObjectStore(storeName);
-        });
+    const db = await openDatabase();
 
-        // Rebuild schema again if needed
-        // If you want a fresh empty DB, do nothing here.
-        // If you want to recreate schema:
-        // setupDatabaseSchema(upgradedDB, event.target.transaction);
-      };
-      request.onsuccess = (event) => {
-        const finalDB = event.target.result;
-        finalDB.close();
-        resolve('Database has been reset successfully.');
-      };
-    });
+    const storeNames = Array.from(db.objectStoreNames);
+
+    await Promise.all(
+      storeNames.map(storeName => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+
+          const req = store.clear();
+
+          req.onsuccess = () => resolve();
+          req.onerror = e => reject(e.target.error);
+        });
+      })
+    );
+
+    db.close();
+    return 'All IndexedDB data cleared ✔️';
+
   } catch (error) {
-    return Promise.reject(error);
+    console.error('deleteIndexedDB error:', error);
+    throw error;
   }
 };
 

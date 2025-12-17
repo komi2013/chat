@@ -21,7 +21,7 @@ const signedInLinks = [
   { topText: '設定', topLink: '/setting/' },
 ]
 
-const guestLinks = [
+const nonSignLinks = [
   { topText: 'サインイン', topLink: '/sign/' },
   { topText: 'ツイート一覧', topLink: '/tweets/' },
   { topText: '設定', topLink: '/setting/' },
@@ -50,7 +50,7 @@ if (channelID) {
 const topLinks = ref(
   storedLinks
     ? storedLinks // ユーザー編集版
-    : (signIn ? signedInLinks : guestLinks)
+    : (signIn ? signedInLinks : nonSignLinks)
 )
 </script>
 

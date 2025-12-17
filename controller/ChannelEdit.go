@@ -85,12 +85,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseCode := channel.InvitationCode
-	if guest {
-		responseCode = channel.InvitationGuestCode
-	}
-
-	// ======== Step 6: PushNamesからPush対象ユーザーを抽出 ========
+	// ======== PushNamesからPush対象ユーザーを抽出 ========
 	uniqueIDs := make(map[string]struct{})
 	var pushUserIDs []string
 	pushNameSet := make(map[string]struct{}, len(pushNames))
@@ -106,7 +101,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// ======== ★ 変更点: collSession.Find() はここで1回のみ実行 ========
+	// ======== collSession.Find() はここで1回のみ実行 ========
 	var allSessions []collection.SessionStruct
 	if len(pushUserIDs) > 0 {
 		collSession := common.DB.SessionDB.Collection("session")
@@ -130,15 +125,14 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	if channelDescription != "" {
 		updateFields["channelDescription"] = channelDescription
 	}
+
 	if generateInvitation {
 		if guest {
-			invitationGuestCode := common.StringRand(20)
-			updateFields["invitationGuestCode"] = invitationGuestCode
-			responseCode = invitationGuestCode
+			channel.InvitationGuestCode = common.StringRand(20)
+			updateFields["invitationGuestCode"] = channel.InvitationGuestCode
 		} else {
-			invitationCode := common.StringRand(16)
-			updateFields["invitationCode"] = invitationCode
-			responseCode = invitationCode
+			channel.InvitationCode = common.StringRand(16)
+			updateFields["invitationCode"] = channel.InvitationCode
 		}
 		updateFields["invitedAt"] = time.Now()
 	}
@@ -146,7 +140,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
     updateFields["groups"] = groups
 	}
 
-	// ======== Step 7: deleteAliases処理（別UserIDリストを使う） ========
+	// ======== deleteAliases処理（別UserIDリストを使う） ========
 	if len(deleteAliases) > 0 {
 		newAliases := make([]collection.Alias, 0, len(channel.Aliases))
 		deleteUserIDs := make([]string, 0)
@@ -167,7 +161,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 		updateFields["aliases"] = newAliases
 
-		// ======== NEW: remove empty groups after alias deletion ========
+		// ======== remove empty groups after alias deletion ========
 		if len(channel.Groups) > 0 {
 		    updatedGroups := make([]collection.Group, 0, len(channel.Groups))
 		    for _, g := range channel.Groups {
@@ -195,7 +189,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		    updateFields["groups"] = updatedGroups
 		}
 
-		// ======== ★ 変更点: すでに取得したallSessionsから対象ユーザーを抽出 ========
+		// ======== すでに取得したallSessionsから対象ユーザーを抽出 ========
 		deleteSessions := make([]collection.SessionStruct, 0)
 		for _, s := range allSessions {
 			for _, id := range deleteUserIDs {
@@ -359,17 +353,29 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		common.ChunkPush(allSessions, aliasPushArray)
 	}
 
-	// ======== Response ========
+	safeChannel := sanitizeChannel(channel)
+
 	responseData := struct {
-		InvitationCode string   `json:"invitationCode"`
-		Csrf           string   `json:"csrf"`
-		PushContents   []string `json:"pushContents"`
+		Csrf         string                    `json:"csrf"`
+		Channel      collection.ChannelStruct `json:"channel"`
+		PushContents []string                  `json:"pushContents"`
 	}{
-		InvitationCode: responseCode,
-		Csrf:           session.Csrf,
-		PushContents:   session.PushContents,
+		Csrf:         session.Csrf,
+		Channel:      safeChannel,
+		PushContents: session.PushContents,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(responseData)
+}
+
+func sanitizeChannel(channel collection.ChannelStruct) collection.ChannelStruct {
+	safe := channel
+	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
+	for _, a := range channel.Aliases {
+		a.UserID = "" // ★ UserIDはレスポンスでは返さない
+		safeAliases = append(safeAliases, a)
+	}
+	safe.Aliases = safeAliases
+	return safe
 }

@@ -112,20 +112,6 @@ async function channelEdit () {
 const errorMyname = ref('')
 const errorChannelName = ref('')
 async function channelAdd () {
-  // let hasError = false
-  // if (!myname.value) {
-  //   errorMyname.value = 'チャネルの名前を入力してください'
-  //   hasError = true
-  // } else {
-  //   errorMyname.value = ''
-  // }
-  // if (!channel.value.channelName) {
-  //   errorChannelName.value = 'チャネル名を入力してください'
-  //   hasError = true
-  // } else {
-  //   errorChannelName.value = ''
-  // }
-  // if (hasError) return
   if (!confirm("チャンネル登録")) { return }
   const fd = new FormData()
   fd.append('channelName', channel.value.channelName)
@@ -170,11 +156,14 @@ const invite = async () => {
     }
   }
   if (res.error) errorMessage.value = res.error
-  if (res.invitationCode) {
-    invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${res.invitationCode}`
+
+  const ch = res.channel
+  if (ch && ch.invitationCode && !guest.value) {
+    invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${ch.invitationCode}`
+  } else if (ch && ch.invitationGuestCode && guest.value) {
+    invitationCode.value = `${window.location.origin}/profile/${props.id}/?code=${ch.invitationGuestCode}`
   }
   invitationQR.value = await QRCode.toDataURL(invitationCode.value)
-  // untilDays.value = res.untilDate
 }
 
 async function removeChannel () {
@@ -355,7 +344,7 @@ function getAdminDiffData() {
 
   <h3>ユーザー一覧</h3>
   <div v-for="d in aliases" class="aliases" :class="{ 'deleted': d.deleteFlag }">
-      <a :href="d.aliasName === channel.myname
+    <a :href="d.aliasName === channel.myname
           ? `/profile/${id}/`
           : `/people/${id}/${d.aliasName}/`">
       <img v-if="d.aliasImg && d.aliasImg.charAt(0) != ','" 
@@ -370,7 +359,7 @@ function getAdminDiffData() {
     <button v-if="d.removable" @click="removeName(d)" >x</button>
   </div>
   <button @click="removeNames" class="postButton">ユーザー削除</button>
-  <button @click="removeChannel" class="postButton">このチャネルの削除</button>
+  <button v-if="iamAdmin" @click="removeChannel" class="postButton">このチャネルの削除</button>
 
   <template v-if="id">
     <h3>スレッド一覧</h3>

@@ -19,16 +19,41 @@ const indexedDBStores = [
   ['tweetHead', 'parentID'],
 ];
 
+// インデックスの作成
+const indexedDBIndexConfigs = {
+  alias: [['channelIDIndex', 'channelID']],
+  answer: [['askIDIndex', 'askID']],
+  channel: [['displayStatusIndex', 'displayStatus']],
+  chunk: [['chunkPassIndex', 'chunkPass']],
+  group: [['channelIDIndex', 'channelID']],
+  log: [['updatedAtIndex', 'updatedAt']],
+  thread: [
+    ['parentIDIndex', 'parentID'],
+    ['channelID_parentID', ['channelID', 'parentID']],
+    ],
+  threadHead: [
+    ['parentIDIndex', 'parentID'],
+    ['channelIDIndex', 'channelID']
+  ],
+  timestampCode: [['channelIDIndex', 'channelID']],
+  timestamp: [
+    ['channelIDIndex', 'channelID'],
+    ['channelID_aliasName', ['channelID', 'aliasName']],
+  ],
+  ticket: [['statusIndex', 'status']],
+};
+
 const openDatabase = () => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('chat', 123);
+    const request = indexedDB.open('chat', 125);
 
     request.onerror = (event) => {
       reject(`Error opening database: ${event.target.error}`);
     };
 
     request.onupgradeneeded = (event) => {
-      setupDatabaseSchema(event.target.result, event.target.transaction);
+      // setupDatabaseSchema(event.target.result, event.target.transaction);
+      setupDatabaseSchema(event.target.result, event)
     };
 
     request.onsuccess = (event) => {
@@ -37,61 +62,40 @@ const openDatabase = () => {
   });
 };
 
-const setupDatabaseSchema = (db, transaction) => {
+const setupDatabaseSchema = (db, event) => {
   console.log('Database upgrade triggered');
+  const oldVersion = event.oldVersion;
+  if (oldVersion < 125) {
+    if (db.objectStoreNames.contains('alias')) {
+      db.deleteObjectStore('alias');
+    }
+    const aliasStore = db.createObjectStore('alias', {
+      keyPath: 'aliasID',
+      autoIncrement: false,
+    });
 
-  // もし `schedule` ストアがあれば削除
-  if (db.objectStoreNames.contains('schedule')) {
-    db.deleteObjectStore('schedule');
+    aliasStore.createIndex('channelIDIndex', 'channelID', { unique: false });
+    if (db.objectStoreNames.contains('schedule')) {
+      db.deleteObjectStore('schedule');
+    }
   }
-
-  // 各テーブルの作成・インデックス作成
   indexedDBStores.forEach(([tableName, keyPath]) => {
-    let objectStore;
-
-    if (db.objectStoreNames.contains(tableName)) {
-      objectStore = transaction.objectStore(tableName);
-    } else {
-      objectStore = db.createObjectStore(tableName, { keyPath, autoIncrement: false });
-    }
-
-    // インデックスの作成
-    const indexConfigs = {
-      alias: [['channelIDIndex', 'channelID']],
-      answer: [['askIDIndex', 'askID']],
-      channel: [['displayStatusIndex', 'displayStatus']],
-      chunk: [['chunkPassIndex', 'chunkPass']],
-      group: [['channelIDIndex', 'channelID']],
-      log: [['updatedAtIndex', 'updatedAt']],
-      thread: [
-        ['parentIDIndex', 'parentID'],
-        ['channelID_parentID', ['channelID', 'parentID']],
-        ],
-      threadHead: [
-        ['parentIDIndex', 'parentID'],
-        ['channelIDIndex', 'channelID']
-      ],
-      timestampCode: [['channelIDIndex', 'channelID']],
-      timestamp: [
-        ['channelIDIndex', 'channelID'],
-        ['channelID_aliasName', ['channelID', 'aliasName']],
-      ],
-      ticket: [['statusIndex', 'status']],
-    };
-    if (indexConfigs[tableName]) {
-      indexConfigs[tableName].forEach(([indexName, keyPath]) => {
-        if (!objectStore.indexNames.contains(indexName)) {
-          objectStore.createIndex(indexName, keyPath, { unique: false });
-        }
-      });
-    }
+    if (db.objectStoreNames.contains(tableName)) return
+    const store = db.createObjectStore(tableName, {
+      keyPath,
+      autoIncrement: false,
+    });
+    const indexes = indexedDBIndexConfigs[tableName];
+    if (!indexes) return;
+    indexes.forEach(([idx, key]) => {
+      store.createIndex(idx, key, { unique: false });
+    });
   });
-
-  transaction.onerror = (event) => {
-    console.error('Error in upgrade transaction:', event.target.error);
+  const tx = event.target.transaction;
+  tx.onerror = (e) => {
+    console.error('Error in upgrade transaction:', e.target.error);
   };
-
-  transaction.oncomplete = () => {
+  tx.oncomplete = () => {
     console.log('Database upgrade completed');
   };
 };
