@@ -26,7 +26,6 @@ const errorMessage = ref('')
 const noticesStore = useNoticesStore()
 const nicknameForm = ref(true)
 
-
 async function findUser() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -62,6 +61,7 @@ async function findUser() {
     nickname.value = nicknames.value[0].nickname
     nickImg.value = nicknames.value[0].nickImg
     nickBio.value = nicknames.value[0].nickBio || ''
+    localStorage.setItem('nickname', nickname.value)
   }
 }
 
@@ -151,7 +151,6 @@ async function getGeolocation() {
     }
   )
 }
-
 
 function parseCoordinates() {
   if (!coordinateInput.value) return
@@ -254,6 +253,9 @@ async function switchNickname(selectedName) {
   <div id="drawer_column"><Drawer /></div>
   <div id="content">
     <div>
+      <div v-if="errorMessage"> <br><br><br>
+        <div class="errorMessage">{{ errorMessage }}</div> 
+      </div>
       <form v-if="fetched">
         <h2 class="sp_head">ユーザーページ</h2>
         <div v-if="isTO">

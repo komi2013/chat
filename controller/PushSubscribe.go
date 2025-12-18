@@ -12,8 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	 "chat/common"
-	 "chat/collection"
+	"chat/common"
+	"chat/collection"
 )
 
 func PushSubscribe(w http.ResponseWriter, r *http.Request) {
@@ -29,10 +29,25 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+  var nickname collection.NicknameStruct
+  if session.Nickname == "" {
+    err = common.DB.NicknameDB.Collection("nickname").
+        FindOne(ctx, bson.M{"userID": session.UserID}).Decode(&nickname)
+    if err != nil {
+      log.Printf("Nickname not found for userID=%s: %v", session.UserID, err)
+    }
+    session.Nickname = nickname.Nickname
+    session.NickImg = nickname.NickImg
+  }
+
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{{"$set", bson.D{
 		{"subscription", r.FormValue("subscription")},
+		{"nickname", session.Nickname},
+		{"nickImg", session.NickImg},
 		{"updatedAt", time.Now()}}}}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)

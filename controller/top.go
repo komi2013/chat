@@ -32,6 +32,12 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		tmplPath = "view/signGoogle.html"
 		domain = cfg.Domain
 		googleClientID = cfg.GoogleClientID
+
+		session, _ = common.SessionGet(w, r)
+		session, err = common.PushReGenerate(session)
+		if err != nil {
+			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+		}
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.html"
 		session, err = common.SessionGet(w, r)
@@ -46,16 +52,16 @@ func Top(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
 			return
 		}
-	case r.URL.Path == "/setting/":
-		tmplPath = "view/index.html"
-		session, err = common.SessionGet(w, r)
-		if err != nil {
-			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
-		}
-		session, err = common.PushReGenerate(session)
-		if err != nil {
-			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
-		}
+	// case r.URL.Path == "/setting/":
+	// 	tmplPath = "view/index.html"
+	// 	session, err = common.SessionGet(w, r)
+	// 	if err != nil {
+	// 		log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
+	// 	}
+	// 	session, err = common.PushReGenerate(session)
+	// 	if err != nil {
+	// 		log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+	// 	}
 	default:
 		tmplPath = "view/index.html"
 	}
