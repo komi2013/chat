@@ -40,8 +40,8 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var groups []collection.Group
-	if err := json.Unmarshal([]byte(r.FormValue("groups")), &groups); r.FormValue("groups") != "" && err != nil {
+	var diffGroups []collection.Group
+	if err := json.Unmarshal([]byte(r.FormValue("groups")), &diffGroups); r.FormValue("groups") != "" && err != nil {
     common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "groups JSON Unmarshal Error", http.StatusOK)
     return
 	}
@@ -136,9 +136,31 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		}
 		updateFields["invitedAt"] = time.Now()
 	}
-	if len(groups) > 0 {
-    updateFields["groups"] = groups
+
+	// existing := channel.Groups
+	groupMap := make(map[string]collection.Group)
+	for _, g := range channel.Groups {
+		groupMap[g.GroupName] = g
 	}
+
+	for _, g := range diffGroups {
+		if g.AliasNames == nil {
+			delete(groupMap, g.GroupName)
+			continue
+		}
+		groupMap[g.GroupName] = g
+	}
+
+	newGroups := make([]collection.Group, 0, len(groupMap))
+	for _, g := range groupMap {
+		newGroups = append(newGroups, g)
+	}
+
+	updateFields["groups"] = newGroups
+
+	// if len(groups) > 0 {
+ //    updateFields["groups"] = groups
+	// }
 
 	// ======== deleteAliases処理（別UserIDリストを使う） ========
 	if len(deleteAliases) > 0 {
@@ -351,6 +373,22 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 			admin.AliasImg,
 		}
 		common.ChunkPush(allSessions, aliasPushArray)
+	}
+
+	if r.FormValue("groups") != "" {
+		for _, g := range diffGroups {
+			groupPushArray := []interface{}{
+				"group",
+				channelID,
+				updatedBy,
+				[]interface{}{
+					g.GroupName,
+					g.AliasNames,
+				},
+				g.GroupImg,
+			}
+			common.ChunkPush(allSessions, groupPushArray)
+		}
 	}
 
 	safeChannel := sanitizeChannel(channel)

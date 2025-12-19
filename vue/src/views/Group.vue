@@ -27,6 +27,7 @@ const fetched = ref(false)
 // let groupLockUntilDate
 const today = new Date()
 const errorMessage = ref('')
+const originalGroups = ref([])
 onMounted(async () => {
   channel.value = await getIDB('channel', props.id);
   groups.value = await getIDBs('group', 'channelIDIndex', props.id, 10000);
@@ -43,7 +44,7 @@ onMounted(async () => {
       group.editable = false
     }
   });
-
+  originalGroups.value = JSON.parse(JSON.stringify(groups.value))
   fetched.value = true;
 });
 
@@ -63,78 +64,120 @@ function newGroup() {
 }
 
 async function removeGroup(group) {
-  if (!confirm("▶️実行")) {
-    return
-  }
+  const diffGroups = getDiffGroups()
+  if (diffGroups.length === 0) return
+  if (!confirm("▶️実行")) return
+
+  groups.value = groups.value.filter(g => g !== group)
+
   const fd = new FormData()
   fd.append('channelID', channel.value.channelID)
-  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
   fd.append('updatedBy', channel.value.myname)
-  fd.append('pushTitle', 'group')
-  const contents = [
-    group.groupName, ''
-  ]
-  fd.append('contents', JSON.stringify(contents))
+
+  const pushNames = aliases.value
+    .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+    .map(d => d.aliasName)
+
+  fd.append('pushNames', JSON.stringify(pushNames))
+  fd.append('groups', JSON.stringify(diffGroups))
   fd.append('csrf', localStorage.getItem('csrf'))
-  const res = await sendRequest('/ContentsPush/', fd)
+
+  const res = await sendRequest('/ChannelEdit/', fd)
+
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
+
   localStorage.setItem('csrf', res.csrf)
+
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
-  location.href = '/group/' + channel.value.channelID + '/'
+
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
 }
 
 async function editGroup(group) {
-  if (!confirm("▶️実行")) {
-    return;
-  }
-  const fd = new FormData();
-  fd.append('channelID', channel.value.channelID);
-  fd.append('pushNames', JSON.stringify(aliases.value.map(d => d.aliasName)))
-  fd.append('updatedBy', channel.value.myname);
-  fd.append('pushTitle', 'group');
-  const contents = [
-    group.groupName, group.aliasNames
-  ]
-  fd.append('contents', JSON.stringify(contents));
-  fd.append('imgPath', group.groupImg);
-  fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
+  const diffGroups = getDiffGroups()
+  if (diffGroups.length === 0) return
+  if (!confirm("▶️実行")) return
+
+  const fd = new FormData()
+  fd.append('channelID', channel.value.channelID)
+  fd.append('updatedBy', channel.value.myname)
+
+  const pushNames = aliases.value
+    .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+    .map(d => d.aliasName)
+
+  fd.append('pushNames', JSON.stringify(pushNames))
+  fd.append('groups', JSON.stringify(diffGroups))
+  fd.append('csrf', localStorage.getItem('csrf'))
+
+  const res = await sendRequest('/ChannelEdit/', fd)
+
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-  localStorage.setItem('csrf', res.csrf);
+
+  localStorage.setItem('csrf', res.csrf)
+
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+
+  if (res.error) {
+    errorMessage.value = res.error
+  }
 }
 
-// function getAliasesByNames(aliasNames) {
-//   return aliasNames
-//     .map((name) => {
-//       const match = aliases.value.find((entry) => entry.aliasName === name);
-//       if (match) {
-//         return {
-//           id: match.aliasID,
-//           name: match.aliasName,
-//           image: match.aliasImg,
-//         };
-//       }
-//       return null;
-//     })
-//     .filter(Boolean); // null 値を除外
-// }
+function isGroupChanged(a, b) {
+  return (
+    a.groupName !== b.groupName ||
+    a.groupImg !== b.groupImg ||
+    JSON.stringify(a.aliasNames) !== JSON.stringify(b.aliasNames) ||
+    a.groupBio !== b.groupBio
+  )
+}
+
+function getDiffGroups() {
+  const diffs = []
+
+  // 更新・追加
+  for (const g of groups.value) {
+    const pre = originalGroups.value.find(p => p.groupName === g.groupName)
+    if (!pre || isGroupChanged(pre, g)) {
+      diffs.push({
+        groupName: g.groupName,
+        groupImg: g.groupImg,
+        aliasNames: g.aliasNames,
+        groupBio: g.groupBio
+      })
+    }
+  }
+
+  // 削除
+  for (const pre of originalGroups.value) {
+    const exists = groups.value.find(g => g.groupName === pre.groupName)
+    if (!exists) {
+      diffs.push({
+        groupName: pre.groupName,
+        aliasNames: null // ← 削除定義
+      })
+    }
+  }
+
+  return diffs
+}
 
 </script>
 

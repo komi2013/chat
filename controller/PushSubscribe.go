@@ -42,6 +42,38 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
     session.NickImg = nickname.NickImg
   }
 
+	// channelIDs 取得
+	channelIDSet := make(map[string]struct{})
+	var channelIDs []string
+	for _, ca := range session.ChannelAliases {
+		if _, ok := channelIDSet[ca.ChannelID]; !ok {
+			channelIDSet[ca.ChannelID] = struct{}{}
+			channelIDs = append(channelIDs, ca.ChannelID)
+		}
+	}
+
+	// channel 取得
+	collChannel := common.DB.ChannelDB.Collection("channel")
+	var channels []collection.ChannelStruct
+	if len(channelIDs) > 0 {
+		cursor, err := collChannel.Find(ctx, bson.M{"_id": bson.M{"$in": channelIDs}})
+		if err != nil {
+			common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+			return
+		}
+		if err := cursor.All(ctx, &channels); err != nil {
+			common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+			return
+		}
+	}
+
+	// sanitize
+	safeChannels := make([]collection.ChannelStruct, 0, len(channels))
+	for _, ch := range channels {
+		safeChannels = append(safeChannels, sanitizeChannel(ch))
+	}
+
+
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{{"$set", bson.D{
@@ -60,14 +92,29 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
   sessions = append(sessions, session)
 	common.ChunkPush(sessions, arr)
 
-  responseData := struct {
-    Csrf         string        `json:"csrf"`
-    PushContents []string `json:"pushContents"`
-  }{
-    Csrf:         session.Csrf,
-    PushContents: session.PushContents,
-  }
+	// response
+	responseData := struct {
+		Csrf         string                     `json:"csrf"`
+		PushContents []string                   `json:"pushContents"`
+		Channels     []collection.ChannelStruct `json:"channels"`
+	}{
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
+		Channels:     safeChannels,
+	}
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(responseData)
 
 }
+
+// func sanitizeChannel(channel collection.ChannelStruct) collection.ChannelStruct {
+// 	safe := channel
+// 	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
+// 	for _, a := range channel.Aliases {
+// 		a.UserID = "" // ★ UserIDはレスポンスでは返さない
+// 		safeAliases = append(safeAliases, a)
+// 	}
+// 	safe.Aliases = safeAliases
+// 	return safe
+// }
+
