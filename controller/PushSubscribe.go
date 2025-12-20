@@ -67,10 +67,25 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// sanitize
+	// // sanitize
+	// safeChannels := make([]collection.ChannelStruct, 0, len(channels))
+	// for _, ch := range channels {
+	// 	safeChannels = append(safeChannels, sanitizeChannel(ch))
+	// }
+
+	// build ChannelAlias map (ChannelID -> Alias)
+	channelAliasMap := make(map[string]collection.ChannelAlias, len(session.ChannelAliases))
+	for _, ca := range session.ChannelAliases {
+		channelAliasMap[ca.ChannelID] = ca
+	}
+
+	// sanitize + register myname
 	safeChannels := make([]collection.ChannelStruct, 0, len(channels))
 	for _, ch := range channels {
-		safeChannels = append(safeChannels, sanitizeChannel(ch))
+		safeChannels = append(
+			safeChannels,
+			sanitizeMyChannel(ch, channelAliasMap),
+		)
 	}
 
 
@@ -107,14 +122,26 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// func sanitizeChannel(channel collection.ChannelStruct) collection.ChannelStruct {
-// 	safe := channel
-// 	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
-// 	for _, a := range channel.Aliases {
-// 		a.UserID = "" // ★ UserIDはレスポンスでは返さない
-// 		safeAliases = append(safeAliases, a)
-// 	}
-// 	safe.Aliases = safeAliases
-// 	return safe
-// }
+func sanitizeMyChannel(
+	channel collection.ChannelStruct,
+	channelAliasMap map[string]collection.ChannelAlias,
+) collection.ChannelStruct {
+
+	safe := channel
+
+	// ✅ register myname from ChannelAliases
+	if ca, ok := channelAliasMap[channel.ChannelID]; ok {
+		safe.Myname = ca.Alias
+	}
+
+	// 🔒 sanitize aliases (remove UserID)
+	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
+	for _, a := range channel.Aliases {
+		a.UserID = "" // ★ UserIDはレスポンスでは返さない
+		safeAliases = append(safeAliases, a)
+	}
+	safe.Aliases = safeAliases
+
+	return safe
+}
 

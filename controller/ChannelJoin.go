@@ -102,6 +102,8 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newAlias := collection.Alias{
+		AliasID:     channelID + myname,
+		ChannelID:   channelID,
 		AliasName:   myname,
 		AliasImg:    aliasImg,
 		UserID:      session.UserID,

@@ -64,11 +64,10 @@ function newGroup() {
 }
 
 async function removeGroup(group) {
+  if (!confirm("▶️実行")) return
+  groups.value = groups.value.filter(g => g !== group)
   const diffGroups = getDiffGroups()
   if (diffGroups.length === 0) return
-  if (!confirm("▶️実行")) return
-
-  groups.value = groups.value.filter(g => g !== group)
 
   const fd = new FormData()
   fd.append('channelID', channel.value.channelID)
@@ -157,6 +156,8 @@ function getDiffGroups() {
     const pre = originalGroups.value.find(p => p.groupName === g.groupName)
     if (!pre || isGroupChanged(pre, g)) {
       diffs.push({
+        groupID: props.id + g.groupName,
+        channelID: props.id,
         groupName: g.groupName,
         groupImg: g.groupImg,
         aliasNames: g.aliasNames,
@@ -210,9 +211,9 @@ function getDiffGroups() {
             </span>
           </a>
         </template>
-        <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
+<!--         <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
           <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
-        </a>
+        </a> -->
       </td></tr>
       <tr>
         <td colspan="3" class="height">

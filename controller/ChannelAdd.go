@@ -95,6 +95,8 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		UpdatedBy:          session.UserID,
 		Aliases: []collection.Alias{
 			{
+				AliasID:   channelID + myname,
+				ChannelID:   channelID,
 				UserID:   session.UserID,
 				AliasName:    myname,
 				AliasImg: aliasImg,
