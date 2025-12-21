@@ -4,7 +4,11 @@ import { ref, onMounted, computed, watch } from 'vue';
 import Advertisement from '@/components/Advertisement.vue';
 import NoticePopup from '@/components/NoticePopup.vue';
 import SelectPeople from '@/components/SelectPeople.vue';
+
+import { pushReceive } from '@/pushReceive/pushReceive.js'
 import { useCalendarsStore } from '@/stores/calendars.js';
+import { useNoticesStore } from '@/stores/notices.js';
+
 // import { useNoticesStore } from '@/stores/notices.js';
 
 const props = defineProps({
@@ -15,7 +19,9 @@ const channelID = localStorage.getItem("channelID");
 function tF(a, b = null){ return timeFormat(a, b) }
 const hours = ref(Array.from({ length: 24 }, (_, i) => i));
 
-const calendarsStore = useCalendarsStore();
+const calendarsStore = useCalendarsStore()
+const noticesStore = useNoticesStore()
+
 const schedules = computed(() => calendarsStore.calendars);
 
 const today = props.date || timeFormat('YYYY-MM-DD');
@@ -121,17 +127,29 @@ watch(searchUsers, async (newNames, oldNames) => {
     fd.append('pushTitle', 'storeSelect')
     fd.append('csrf', localStorage.getItem("csrf"))
     const res = await sendRequest('/ContentsJustPush/', fd)
-    if (!res.csrf) errorMessage.value = res
-    res.csrf && localStorage.setItem('csrf', res.csrf)
-    res.pushContents.forEach(content => {
-      pushReceive(content)
-    });
+    if (!res.csrf) {
+      errorMessage.value = res
+      noticesStore.setNotice(res)
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+    if (res.error) {
+      errorMessage.value = res.error
+      noticesStore.setNotice(res.error)
+      return      
+    }
   } else if (subName) {
     const delSchedules = schedules.value.filter(schedule => schedule.aliasName === subName);
     delSchedules.forEach((d) => {
       calendarsStore.delete(d.channelID)
     })
   }
+  noticesStore.setNotice('検索ユーザーが変更されました')
 })
 
 function jump(days) {

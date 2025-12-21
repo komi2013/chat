@@ -51,21 +51,21 @@ const googleURL = computed(() => {
   return `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}`;
 });
 
-const channel = ref(null);
-const groups = ref([]);
-const aliases = ref([]);
-const fetched = ref(false);
+const channel = ref(null)
+const groups = ref([])
+const aliases = ref([])
+const fetched = ref(false)
 onMounted(async () => {
-  channel.value = await getIDB('channel', channelID);
-  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000);
-  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000);
+  channel.value = await getIDB('channel', channelID)
+  groups.value = await getIDBs('group', 'channelIDIndex', channelID, 10000)
+  aliases.value = await getIDBs('alias', 'channelIDIndex', channelID, 10000)
+  calendar.value.aliasNames = [localStorage.getItem('myname')]
   if (props.id) {
-    calendar.value = await getIDB('calendar', props.id);
-    currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart);
+    calendar.value = await getIDB('calendar', props.id)
+    currentDate.value = timeFormat('YYYY-MM-DD', calendar.value.timeStart)
   }
-  calendar.value.aliasNames = [localStorage.getItem('myname')];
-  fetched.value = true;
-});
+  fetched.value = true
+})
 
 const errorMessage = ref('')
 const submit = async () => {
@@ -86,12 +86,19 @@ const submit = async () => {
     fd.append('pushTitle', 'calendar')
     fd.append('csrf', localStorage.getItem('csrf'))
     const res = await sendRequest('/ContentsPush/', fd)
-    if (!res.csrf) errorMessage.value = res
-    res.csrf && localStorage.setItem('csrf', res.csrf)
+    if (!res.csrf) {
+      errorMessage.value = res
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
     if (Array.isArray(res.pushContents)) {
       for (const content of res.pushContents) {
         await pushReceive(content)
       }
+    }
+    if (res.error) {
+      errorMessage.value = res.error
+      return      
     }
   }
   window.close()
@@ -110,12 +117,19 @@ const delCalendar = async () => {
   fd.append('pushTitle', 'calendar')
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ContentsPush/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return      
   }
   window.close()
 };
@@ -162,6 +176,7 @@ const generateRepeatedEvents = (calendar) => {
     <a href="/setting/"> データ設定ページ </a><br>
     <a href="/sign/"> サインインページ </a>
   </div>
+  <br>
   <div class="modal-content">
     <input type="datetime-local" v-model="calendar.timeStart" />
     <span> ~ </span>
@@ -177,6 +192,7 @@ const generateRepeatedEvents = (calendar) => {
       v-model="calendar.aliasNames"
       />
     <div>
+      {{calendar}}
       <label>繰り返しオプション:</label>
       <select v-model="calendar.repeatOption">
         <option value="none">繰り返しなし</option>
