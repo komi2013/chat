@@ -192,7 +192,6 @@ const generateRepeatedEvents = (calendar) => {
       v-model="calendar.aliasNames"
       />
     <div>
-      {{calendar}}
       <label>繰り返しオプション:</label>
       <select v-model="calendar.repeatOption">
         <option value="none">繰り返しなし</option>
