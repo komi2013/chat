@@ -15,6 +15,12 @@ import (
 )
 
 func AdPublicGet(w http.ResponseWriter, r *http.Request) {
+	session, _ := common.SessionGet(w, r)
+	session, err := common.PushReGenerate(session)
+	if err != nil {
+		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";ReGenerateCSRF", http.StatusOK)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -73,8 +79,8 @@ func AdPublicGet(w http.ResponseWriter, r *http.Request) {
 		PushContents []string              `json:"pushContents"`
 		Ads          []collection.AdResponse `json:"ads"`
 	}{
-		Csrf:         r.FormValue("csrf"),
-		PushContents: []string{},
+		Csrf:         session.Csrf,
+		PushContents: session.PushContents,
 		Ads:          activeAds,
 	}
 

@@ -79,16 +79,29 @@ func CSRFcheckMake(session collection.SessionStruct, token string) (collection.S
 	if session.Csrf != token {
 		return session, errors.New("CSRFcheckMake token error")
 	}
+	session = CSRFReGenerate(session)
+  // if err != nil {
+		// LogError("CSRFReGenerate:", err)
+  //   return session, err
+  // }
 	session, err := PushReGenerate(session)
 	return session, err
 }
 
-func PushReGenerate(session collection.SessionStruct) (collection.SessionStruct, error) {
-	coll := DB.SessionDB.Collection("session")
+func CSRFReGenerate(session collection.SessionStruct) (collection.SessionStruct) {
 	randomPart := StringRand(16)
 	timestamp := time.Now().Unix()
 	timePart := Base62Encode(timestamp)
 	session.Csrf = randomPart + timePart
+	return session
+}
+
+func PushReGenerate(session collection.SessionStruct) (collection.SessionStruct, error) {
+	coll := DB.SessionDB.Collection("session")
+	// randomPart := StringRand(16)
+	// timestamp := time.Now().Unix()
+	// timePart := Base62Encode(timestamp)
+	// session.Csrf = randomPart + timePart
 
 	var returnContents []string
 	if len(session.PushContents) > 100 {

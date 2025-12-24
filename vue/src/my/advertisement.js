@@ -38,11 +38,7 @@ async function AdPublicGetAndMerge() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/AdPublicGet/', fd)
-  if (!res.csrf) {
-    console.error('AdPublicGet エラー:', res)
-    return
-  }
-  localStorage.setItem('csrf', res.csrf)
+  res.csrf && localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)

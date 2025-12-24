@@ -51,6 +51,24 @@
   {{if .Session.Csrf}}
     localStorage.setItem("csrf", "{{.Session.Csrf}}");
   {{end}}
+
+  const sessionJS = {{ .SessionJS }}
+  function waitForPushReceive(cb) {
+    if (typeof window.pushReceive === 'function') {
+      cb()
+    } else {
+      setTimeout(() => waitForPushReceive(cb), 10)
+    }
+  }
+  waitForPushReceive(() => {
+    const pushContents = sessionJS.PushContents
+    if (Array.isArray(pushContents)) {
+      for (const content of pushContents) {
+        window.pushReceive(content)
+      }
+    }
+  })
+
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());

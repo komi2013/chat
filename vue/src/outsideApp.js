@@ -1,33 +1,27 @@
 import './assets/main.css'
-
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
-// import App from './App.vue'
-// import router from './router'
-
-import Advertisement from '@/components/Advertisement.vue';
+import Advertisement from '@/components/Advertisement.vue'
 import Drawer from '@/components/Drawer.vue'
-
-
-// import SignComponent from './components/SignComponent.vue'
-
 import { pushReceive } from '@/pushReceive/pushReceive.js'
 
-// const app = createApp(App)
+// 🔥 Pinia を1つ作る
+const pinia = createPinia()
 
-// app.use(createPinia())
-// app.use(router)
+// Drawer
+const drawerApp = createApp(Drawer)
+drawerApp.use(pinia)
+drawerApp.mount('#drawer_column')
 
-// app.mount('#app')
+// Advertisement（同じ Pinia を使う）
+createApp(Advertisement).use(pinia).mount('#ad-right1')
+createApp(Advertisement).use(pinia).mount('#ad-right2')
+createApp(Advertisement).use(pinia).mount('#ad-right3')
 
-window.pushReceive = pushReceive
-
-createApp(Drawer).mount('#drawer_column')
-
-createApp(Advertisement).mount('#ad-right1')
-createApp(Advertisement).mount('#ad-right2')
-createApp(Advertisement).mount('#ad-right3')
-
-// createApp(SignComponent).mount('#sign-app')
-// console.log('SignComponent_Test')
+// 🔥 Vue外から使う入口
+import { setActivePinia } from 'pinia'
+window.pushReceive = (data, fromPush = false) => {
+  setActivePinia(pinia)
+  return pushReceive(data, fromPush)
+}

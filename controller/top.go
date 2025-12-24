@@ -3,6 +3,7 @@ package controller
 import (
 	// "context"
 	// "errors"
+	"encoding/json"
 	"html/template"
   "log"
   "net/http"
@@ -26,6 +27,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	var tmplPath string
 	var domain string
 	var googleClientID string
+	var sessionJSON template.JS
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
 		// tmplPath = "view/signTmp.tmpl"
@@ -38,6 +40,11 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
 		}
+		b, err := json.Marshal(session)
+		if err != nil {
+			log.Printf("sessionJSON: %v; Req: ", err, r.URL.Path, r.Form)
+		}
+		sessionJSON = template.JS(b)
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.html"
 		session, err = common.SessionGet(w, r)
@@ -46,22 +53,12 @@ func Top(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
 			return
 		}
-		session, err = common.PushReGenerate(session)
-		if err != nil {
-			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
-			http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
-			return
-		}
-	// case r.URL.Path == "/setting/":
-	// 	tmplPath = "view/index.html"
-	// 	session, err = common.SessionGet(w, r)
-	// 	if err != nil {
-	// 		log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
-	// 	}
-	// 	session, err = common.PushReGenerate(session)
-	// 	if err != nil {
-	// 		log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
-	// 	}
+		// session, err = common.PushReGenerate(session)
+		// if err != nil {
+		// 	log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+		// 	http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
+		// 	return
+		// }
 	default:
 		tmplPath = "view/index.html"
 	}
@@ -70,12 +67,14 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		Domain string
 		GoogleClientID string
 		CacheV string
+		SessionJS template.JS
 	}
 	var view View
 	view.Session = session
 	view.Domain = domain
 	view.GoogleClientID = googleClientID
 	view.CacheV = cfg.CacheV
+	view.SessionJS = sessionJSON
 
 	tpl := template.Must(template.ParseFiles(tmplPath))
 	if err := tpl.Execute(w, view); err != nil {

@@ -25,10 +25,9 @@ import { timestampRevert } from './timestampRevert.js';
 import { topEdit } from './topEdit.js';
 import { tweetHead } from './tweetHead.js';
 
-export async function pushReceive(notificationData, direct = false) {
-  // direct true means true system push data not from response
+export async function pushReceive(notificationData, fromPush = false) {
   const pd = JSON.parse(notificationData)
-  pd.directPush = direct
+  pd.directPush = fromPush
   const dupli = {
     pushDuplicationID: pd[1] + pd[2] + pd[3] + pd[0],
     pushID: pd[0],
