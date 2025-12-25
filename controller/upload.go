@@ -64,7 +64,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
         var fileData collection.FileStruct
         coll := common.DB.FileDB.Collection("file")
 
-        dbID := fmt.Sprintf("./upload_data/%s/%s/%s", fileType, channelID, fileID)
+        dbID := fmt.Sprintf("%s/upload_data/%s/%s/%s", cfg.UploadDir, fileType, channelID, fileID)
 
         err = coll.FindOne(ctx, bson.M{"_id": dbID}).Decode(&fileData)
         if err != nil {
