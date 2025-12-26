@@ -21,7 +21,7 @@
   </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
-
+  <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>
   <EditOptionModal :show="asGroup" @close="asGroup = false">
     <SelectGroup
       :groups="myGroups"
@@ -254,12 +254,17 @@ const msgUpsert = async (messageID, delMessage) => {
     fd.set('pushTitle', 'threadHead');
     fd.set('csrf', localStorage.getItem("csrf"));
     const res = await sendRequest('/ContentsPush/', fd);
-    res.csrf && localStorage.setItem('csrf', res.csrf);
+    if (!res.csrf) {
+      errorMessage.value = res
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
     if (Array.isArray(res.pushContents)) {
       for (const content of res.pushContents) {
         await pushReceive(content)
       }
     }
+    if (res.error) { errorMessage.value = res.error }
   }
   // console.log('props.threadHead.newThread, userIDs, totalNames', props.threadHead.newThread, userIDs, totalNames)
   if (editThreadHead.newThread) {
@@ -287,13 +292,18 @@ const msgUpsert = async (messageID, delMessage) => {
   }
   fd.set('csrf', localStorage.getItem("csrf"));
   const uri = toInquiryUser ? '/ReceptionThreadCustomer/' : '/ContentsPush/'
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   quill.root.innerHTML = '';
   fileInfo.value = [];
   task.value = false;

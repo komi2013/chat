@@ -199,6 +199,7 @@ function getDiffGroups() {
     <template v-for="(groupAlias, i) in groups">
       <tr><td colspan="3">
         <input v-if="groupAlias.newOne" type="text" v-model="groupAlias.groupName" placeholder="グループ名" class="group-name">
+        <span v-if="!groupAlias.newOne">{{groupAlias.groupName}}</span>
         <PeopleImg v-if="groupAlias.editable" v-model="groupAlias.groupImg" />
         <template v-if="!groupAlias.editable">
           <a :href="'/people/' + props.id + '/' + groupAlias.groupName + '/' ">
@@ -227,10 +228,10 @@ function getDiffGroups() {
         </td>
 
         <td v-if="groupAlias.editable" class="center">
-          <button @click="removeGroup(groupAlias)"> 🗑 </button>
+          <button @click="removeGroup(groupAlias)"> 削除 </button>
         </td>
         <td v-if="groupAlias.editable" class="center">
-          <button @click="editGroup(groupAlias)">▶️</button>
+          <button @click="editGroup(groupAlias)"> 変更 </button>
         </td>
       </tr>
       <div >

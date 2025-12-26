@@ -143,12 +143,19 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 		groupMap[g.GroupName] = g
 	}
 
-	for _, g := range diffGroups {
-		if g.AliasNames == nil {
-			delete(groupMap, g.GroupName)
-			continue
-		}
-		groupMap[g.GroupName] = g
+	for i := range diffGroups {
+    g := &diffGroups[i]
+    if g.AliasNames == nil {
+      delete(groupMap, g.GroupName)
+      continue
+    }
+    imgPath, err := common.ImgSave(g.GroupImg, session.UserID, updatedBy, channelID, 4, 2)
+    if err != nil {
+      common.WriteResponseWithSession(w, session, err.Error()+";imgPath", http.StatusOK)
+      return
+    }
+    g.GroupImg = imgPath
+    groupMap[g.GroupName] = *g
 	}
 
 	newGroups := make([]collection.Group, 0, len(groupMap))
