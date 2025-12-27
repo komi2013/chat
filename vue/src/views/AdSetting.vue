@@ -22,14 +22,12 @@ const fetched = ref(false)
 // --- 初期データ取得 ---
 onMounted(async () => {
   await findAds()
-  // if (ads.value.length > 0) await findAdPrices(0)
   fetched.value = true
 })
 
 let systemWalletAddress
 let jpycCheckURL
 const errors = ref([]);
-// const selectedFiles = ref({});
 async function findAds() {
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -49,22 +47,16 @@ async function findAds() {
     .map(apiAd => convertApiAdToUiAd(apiAd))
 
   ads.value.forEach(ad => {
-    // if (ad.pathBanner) previewBanner.value[ad.adID] = ad.pathBanner
     if (ad.pathSquare) previewSquare.value[ad.adID] = ad.pathSquare
 
     const adID = ad.adID || ''  // ← adID 無い場合は仮ID
-    // ad.tempID = adID                             // ← UI管理用IDとして保持
-
     if (!errors.value[adID]) {
       errors.value[adID] = {
         square: null,
         banner: null,
-        // ↑画像種類増えてもここで増やせる
       }
     }
-
   })
-
   systemWalletAddress = res.systemWalletAddress
   jpycCheckURL = res.jpycCheckURL
 }
@@ -295,9 +287,6 @@ function imageUrlToBase64(imageUrl) {
 function handleTrim(event, adID, targetW, targetH, type) {
   const file = event.target.files[0]
   if (!file) return
-  // selectedFiles.value[adID] = file
-  // if (!errors.value[adID]) errors.value[adID] = {}
-  // errors.value[adID].square = null
 
   const reader = new FileReader()
   reader.onload = () => {

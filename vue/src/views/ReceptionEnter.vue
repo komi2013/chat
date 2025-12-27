@@ -30,15 +30,17 @@ async function findReception() {
   fd.append('code', props.passkey)
   fd.append('codeType', '1')
   const res = await sendRequest('/ReceptionGet/', fd)
-  if (!res.csrf) errorMessage.value = res
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-
+  if (res.error) { errorMessage.value = res.error }
   reception.value = res.reception
   calculateWaitMinutes()
 }
@@ -150,13 +152,19 @@ async function queueUp() {
   fd.append('guestCount', inputGuests.value)
   fd.append('editType', 1)
   const res = await sendRequest('/ReceptionQueueEdit/', fd)
-  if (!res.csrf) errorMessage.value = res
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
   }
   location.href = ''
 }
@@ -171,13 +179,19 @@ async function queueRemove(queueName) {
   fd.append('queueName', queueName)
   fd.append('editType', 2)
   const res = await sendRequest('/ReceptionQueueEdit/', fd)
-  if (!res.csrf) errorMessage.value = res
-  if (res.error) errorMessage.value = res.error
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
   }
   location.href = ''
 }

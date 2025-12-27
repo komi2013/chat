@@ -95,12 +95,20 @@ async function findReception() {
   fd.append('csrf', localStorage.getItem('csrf'))
   fd.append('code', props.code)
   const res = await sendRequest('/ReceptionGet/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
-  console.log('res.reception', res.reception.receptionID)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return defaultReception
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return defaultReception
+  }
   if (!res.reception) { return defaultReception }
   res.reception.menus = res.menu.menus || []
   res.reception.itemDetails = res.menu.itemDetails || []
@@ -171,11 +179,17 @@ async function submit() {
   fd.append('aliasName', channel.value.myname)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ReceptionEdit/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 // 再帰的に空データを削除する関数

@@ -57,17 +57,23 @@ const selectEmoji = async (emoji) => {
   fd.append('emoji', emoji);
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/TweetEmoji/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  rotateEmoji(emoji)
-  if ( res.error ) {
-    errorMessage.value = res.error
-  } else {
-    messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
-    emit('closeEmoji')
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
   }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
+  rotateEmoji(emoji)
+  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+  emit('closeEmoji')
 };
 
 const selectedEmoji = ref('');
@@ -83,18 +89,23 @@ const inputEmoji = async () => {
   fd.append('emoji', emoji);
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/TweetEmoji/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  })
-
-  rotateEmoji(selectedEmoji.value)
-  if ( res.error ) {
-    errorMessage.value = res.error
-  } else {
-    messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
-    emit('closeEmoji')
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
   }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
+  rotateEmoji(selectedEmoji.value)
+  messagesStore.upOne(res.message.messageID, 'emojis', res.message.emojis)
+  emit('closeEmoji')
 }
 
 const closeModal = () => {

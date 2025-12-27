@@ -237,7 +237,10 @@ async function approve() {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   location.href = ''
 }
 
@@ -260,7 +263,10 @@ async function deleteReport() {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   location.href = ''
 }
 
@@ -289,7 +295,10 @@ async function submitReport() {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   location.href = ''
 }
 
@@ -402,7 +411,10 @@ async function manualPost(changedRecords) {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   location.href = ''
 }
 

@@ -18,14 +18,17 @@ async function fetchLatestTweets() {
   fd.append('csrf', localStorage.getItem('csrf') ?? '')
   const res = await sendRequest('/TweetGetLatest/', fd)
   res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-  if (res.error) {
-    errorMessage.value = res.error
-  }
+  if (res.error) { errorMessage.value = res.error }
   if (Array.isArray(res.tweets)) tweets.value = res.tweets
   fetched.value = true
 }

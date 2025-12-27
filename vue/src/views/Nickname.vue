@@ -19,15 +19,19 @@ async function fetchNickData() {
   fd.append('csrf', localStorage.getItem('csrf') || '')
 
   const res = await sendRequest('/NicknameGet/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  if (res.error) {
-    errorMessage.value = res.error
+  if (!res.csrf) {
+    errorMessage.value = res
     return
   }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
   }
   nickData.value = res.nickData
   document.title = nickData.value.nickname

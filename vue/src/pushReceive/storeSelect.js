@@ -33,24 +33,7 @@ export async function storeSelect(pd) {
       };
     });
 
-
-  // const fd = new FormData();
-  // fd.append('userIDs', JSON.stringify(userIDsByName(aliases.value, [addName])));
-  // fd.append('channelID', channelID);
-  // fd.append('updatedBy', channel.value.myname);
-  // const param = { date: today };
-  // const contents = ['calendar', calendarData];
-  // fd.append('contents', JSON.stringify(contents));
-  // fd.append('pushTitle', 'storeSelect');
-  // fd.append('csrf', localStorage.getItem("csrf"));
-  // const res = await sendRequest('/ContentsJustPush/', fd);
-  // res.csrf && localStorage.setItem('csrf', res.csrf);
-  // res.pushContents.forEach(content => {
-  //   pushReceive(content);
-  // });
-
   const fd = new FormData();
-  // fd.append('pushID', pushID);
   fd.set('pushNames', JSON.stringify([aliasName]));
   fd.append('channelID', channelID);
   fd.append('updatedBy', channel.myname);

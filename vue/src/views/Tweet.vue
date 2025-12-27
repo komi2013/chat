@@ -46,7 +46,11 @@ async function fetchThreadHead() {
   // fd.append('skip', -1)
   fd.append('csrf', localStorage.getItem('csrf') ?? '')
   const res = await sendRequest('/TweetGet/', fd)
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)

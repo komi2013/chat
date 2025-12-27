@@ -139,11 +139,11 @@ const router = createRouter({
         // messageID: route.query.messageID
       })
     },
-    {
-      path: '/redirect/',
-      name: 'redirect',
-      component: () => import('../views/Redirect.vue')
-    },
+    // {
+    //   path: '/redirect/',
+    //   name: 'redirect',
+    //   component: () => import('../views/Redirect.vue')
+    // },
     {
       path: '/setting/',
       component: () => import('../views/Setting.vue')

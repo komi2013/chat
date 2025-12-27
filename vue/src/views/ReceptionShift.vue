@@ -36,11 +36,17 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname)
   fd.append('csrf', localStorage.getItem('csrf'))
   const res = await sendRequest('/ReceptionGet/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
-  res.pushContents.forEach(content => {
-    pushReceive(content)
-  })
+  if (!res.csrf) {
+    errorMessage.value = res
+    return null
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
   return res.reception
 }
 
@@ -202,11 +208,17 @@ const submitShift = async () => {
       // fd.append('confirmed', confirmed);
       // fd.append('availableSkills', JSON.stringify(availableSkills.value));
       const res = await sendRequest('/ReceptionShift/', fd);
-      if (!res.csrf) errorMessage.value = res
-      res.csrf && localStorage.setItem('csrf', res.csrf);
-      res.pushContents.forEach(content => {
-        pushReceive(content);
-      })
+      if (!res.csrf) {
+        errorMessage.value = res
+        return
+      }
+      localStorage.setItem('csrf', res.csrf)
+      if (Array.isArray(res.pushContents)) {
+        for (const content of res.pushContents) {
+          await pushReceive(content)
+        }
+      }
+      if (res.error) { errorMessage.value = res.error }
     }
   }
 };

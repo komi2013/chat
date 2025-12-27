@@ -30,6 +30,7 @@ const monthDates = getNext30Days();
 
 let mail
 let telephone
+const noticesStore = useNoticesStore()
 async function findReception() {
   const fd = new FormData();
   fd.append('receptionID', props.id);
@@ -37,17 +38,22 @@ async function findReception() {
   fd.append('aliasName', channel.value.myname);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ReceptionGet/', fd);
-  if (!res.csrf) { errorMessage.value = res; return }
+  if (!res.csrf) {
+    errorMessage.value = res
+    noticesStore.setNotice(res)
+    return null
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
   if (res.error) {
     errorMessage.value = res.error
-    const noticesStore = useNoticesStore()
     noticesStore.setNotice(res.error)
-    return 
+    return null
   }
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  })
   res.reception.menus = res.menu.menus || []
   res.reception.itemDetails = res.menu.itemDetails || []
   mail = res.mail

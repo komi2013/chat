@@ -82,20 +82,16 @@ async function removeGroup(group) {
   fd.append('csrf', localStorage.getItem('csrf'))
 
   const res = await sendRequest('/ChannelEdit/', fd)
-
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-
   if (res.error) {
     errorMessage.value = res.error
     return
@@ -120,20 +116,16 @@ async function editGroup(group) {
   fd.append('csrf', localStorage.getItem('csrf'))
 
   const res = await sendRequest('/ChannelEdit/', fd)
-
   if (!res.csrf) {
     errorMessage.value = res
     return
   }
-
   localStorage.setItem('csrf', res.csrf)
-
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
-
   if (res.error) {
     errorMessage.value = res.error
   }

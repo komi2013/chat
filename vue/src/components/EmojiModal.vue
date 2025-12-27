@@ -22,7 +22,7 @@
  
       <button @click="closeModal"> x </button>
       <br>
-      <span v-if="emojiValidErr" class="emoji-valid-err">絵文字か1文字にしてください</span>
+      <span v-if="errorMessage" class="emoji-valid-err">{{errorMessage}}</span>
     </div>
   </div>
 </template>
@@ -43,7 +43,7 @@ const props = defineProps([
   'threadHead'
 ]);
 
-const emit = defineEmits();
+const emit = defineEmits()
 
 const selectEmoji = async (emoji) => {
   const fd = new FormData();
@@ -55,21 +55,30 @@ const selectEmoji = async (emoji) => {
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   rotateEmoji(emoji);
   emit('closeEmoji');
 };
 
 const selectedEmoji = ref('');
-const emojiValidErr = ref(false);
+const errorMessage = ref('')
 const inputEmoji = async () => {
   if (!validateEmoji(selectedEmoji.value)) {
-    emojiValidErr.value = true;
-    return;
+    errorMessage.value = '絵文字か1文字にしてください'
+    return
   }
   const fd = new FormData();
   fd.append('channelID', localStorage.getItem('channelID'));
@@ -80,10 +89,20 @@ const inputEmoji = async () => {
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   rotateEmoji(selectedEmoji.value);
   emit('closeEmoji');
 };

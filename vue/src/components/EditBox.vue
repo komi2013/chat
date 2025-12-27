@@ -53,6 +53,7 @@ const props = defineProps({
   threadHead: Object,
 });
 
+const errorMessage = ref('')
 const message = props.message;
 const dm = props.threadHead.parentID.includes('@')
 // console.log('message', message)

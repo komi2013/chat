@@ -80,11 +80,17 @@ async function editAlias() {
   fd.append('imgPath', aliasImg.value);
   fd.append('csrf', localStorage.getItem('csrf'));
   const res = await sendRequest('/ChannelEdit/', fd);
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 async function join () {

@@ -211,7 +211,10 @@ async function saveChanges() {
       await pushReceive(content)
     }
   }
-  if (res.error) { errorMessage.value = res.error }
+  if (res.error) {
+    errorMessage.value = res.error
+    return
+  }
   location.href = '/ticket/' + ticket.value.ticketID + '/'
 }
 

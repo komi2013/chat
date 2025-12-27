@@ -26,13 +26,17 @@ async function findReception() {
   fd.append('code', props.code)
   fd.append('codeType', props.codeType) // 1 = before enter, 2 = take QR code, 3 = ordering
   const res = await sendRequest('/ReceptionGet/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   if (props.codeType == '2') location.href = `/ReceptionMenu/${props.id}/${props.code}/3/`
   res.reception.menus = res.menu.menus || []
   res.reception.itemDetails = res.menu.itemDetails || []
@@ -179,15 +183,18 @@ async function order() {
   fd.append('receptionOrders', JSON.stringify(receptionOrders.value))
   fd.append('code', props.code)
   // fd.append('codeType', 3) // 1 = before enter, 2 = at seat
-
   const res = await sendRequest('/ReceptionOrder/', fd)
-  if (!res.csrf) errorMessage.value = res
-  res.csrf && localStorage.setItem('csrf', res.csrf)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
 }
 
 </script>

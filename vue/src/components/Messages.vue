@@ -19,7 +19,7 @@ const props = defineProps({
   copyable: Boolean,
   messageID: String
 });
-
+const errorMessage = ref('')
 const myname = localStorage.getItem('myname') || ''
 function tF(a, b = null){ return timeFormat(a, b) }
 
@@ -126,12 +126,19 @@ const clickEmoji = async (message, emoji) => {
   const contents = [message.messageID, emoji.emoji, message.parentID, del]
   fd.append('contents', JSON.stringify(contents));
   fd.append('csrf', localStorage.getItem('csrf'));
-  const res = await sendRequest('/ContentsPush/', fd);
-  res.csrf && localStorage.setItem('csrf', res.csrf);
-  res.pushContents.forEach(content => {
-    pushReceive(content);
-  });
-  rotateEmoji(emoji.emoji);
+  const res = await sendRequest('/ContentsPush/', fd)
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
+    }
+  }
+  if (res.error) { errorMessage.value = res.error }
+  rotateEmoji(emoji.emoji)
 };
 
 </script>
@@ -233,6 +240,7 @@ const clickEmoji = async (message, emoji) => {
     </template>
   </div>
   <div v-if="moreNew" @click="moreMessages(true)" class="more"> - - more - - </div>
+  <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>
 </template>
 
 <style>

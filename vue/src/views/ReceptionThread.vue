@@ -39,7 +39,7 @@ async function findReception() {
     errorMessage.value = res
     return 
   }
-  localStorage.setItem('csrf', res.csrf);
+  localStorage.setItem('csrf', res.csrf)
   if (Array.isArray(res.pushContents)) {
     for (const content of res.pushContents) {
       await pushReceive(content)

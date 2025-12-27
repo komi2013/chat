@@ -20,6 +20,7 @@
   </div>
   <div class="files" v-html="fileInfo[messageID]"></div>
   <input type="file" style="position: fixed; left: -300px;" multiple :id="'fileInput_' + messageID">
+  <div v-if="errorMessage" class="errorMessage">{{ errorMessage }}</div>
 </template>
 
 <script setup>
@@ -59,8 +60,7 @@ const props = defineProps({
   }
 })
 
-console.log('sssfd f ')
-
+const errorMessage = ref('')
 const messagesStore = useMessagesStore();
 const messageID = props.message.messageID
 const editTxt = ref({});
@@ -68,7 +68,6 @@ const fileInfo = ref({});
 const quill = ref({});
 const editable = ref(true);
 
-console.log('messageID a', messageID, props.message.messageID)
 onMounted(async () => {
   if (messageID) {
     const message = messagesStore.messages.find(m => m.messageID === messageID);
@@ -125,7 +124,6 @@ async function uploadFile(file, messageID) {
 
 let clicked = false
 async function msgUpsert(messageID) {
-  console.log('quill.value.root.innerHTML', quill.value[messageID].root.innerHTML)
   if (quill.value[messageID].root.innerHTML == '<p><br></p>') return
   if (clicked) return
   clicked = true
@@ -147,14 +145,17 @@ async function msgUpsert(messageID) {
     fd.set('threadHead', JSON.stringify(editThreadHead))
   }
   const res = await sendRequest('/ReceptionThreadCustomer/', fd);
-  if (res && res.csrf) {
-    localStorage.setItem('csrf', res.csrf);
-    if (Array.isArray(res.pushContents)) {
-      for (const content of res.pushContents) {
-        await pushReceive(content);
-      }
+  if (!res.csrf) {
+    errorMessage.value = res
+    return
+  }
+  localStorage.setItem('csrf', res.csrf)
+  if (Array.isArray(res.pushContents)) {
+    for (const content of res.pushContents) {
+      await pushReceive(content)
     }
   }
+  if (res.error) { errorMessage.value = res.error }
   quill.value[messageID].root.innerHTML = ''
   fileInfo.value = []
   clicked = false
