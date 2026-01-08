@@ -1,32 +1,37 @@
 export async function advertisement(pd) {
-  // pd index mapping (based on your Go append order):
+  // pd index mapping:
   // pd[0] = "advertisement"
   // pd[1] = adStart (ISO string)
   // pd[2] = adEnd   (ISO string)
   // pd[3] = adLink
   // pd[4] = pathSquare
 
-  // const adStart = new Date(pd[1]);
-  // const adEnd   = new Date(pd[2]);
+  if (!Array.isArray(pd) || pd.length < 3) return
+  if (pd[0] !== 'advertisement') return
 
-  const key =
-    adStart.toISOString() +
-    timeFormat(':mm_') +
-    generateRandomCode(5)
+  const adStart = new Date(pd[1])
+  const adEnd   = new Date(pd[2])
+
+  if (isNaN(adStart.getTime()) || isNaN(adEnd.getTime())) return
+
+  // 同一広告を上書きできる deterministic key
+  const advertisementID =
+    adStart.toISOString() + '_' +
+    adEnd.toISOString()
 
   const adData = {
-    advertisementID: key,
-    adStart: new Date(pd[1]),              // direct Date
-    adEnd: new Date(pd[2]),                // direct Date
+    advertisementID,
+    adStart,
+    adEnd,
     adLink: pd[3] || '',
     pathSquare: pd[4] || '',
     updatedAt: new Date()
-  };
+  }
 
-  upsertIDB(
+  await upsertIDB(
     adData,
     'advertisement',
     'advertisementID',
-    adData.advertisementID
+    advertisementID
   )
 }

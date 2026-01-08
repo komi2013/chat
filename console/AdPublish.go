@@ -2,8 +2,8 @@ package console
 
 import (
 	"context"
-	"fmt"
-	"log"
+	// "fmt"
+	// "log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,17 +19,17 @@ func AdPublish() {
 	adPublishLog := common.NewDailyLogger("ad_publish_")
 	adPublishErrLog := common.NewDailyLogger("ad_publish_err_")
 
-	now := time.Now()
+	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	nowJST := time.Now().In(jst)
 
-	adPublishLog.Printf("AdPublish start at: %v", now)
+	adPublishLog.Printf("AdPublish start at: %v", nowJST)
 
 	adColl := common.DB.AdDB.Collection("ad")
 
-	// ✅ Simple & correct filter using time.Time
+	// ✅ Public取得条件と完全一致させる
 	filter := bson.M{
-		"adStart":    bson.M{"$lte": now},
-		"adEnd":      bson.M{"$gt": now},
-		"activeFlag": true,
+		"distance": -1,
+		"paidAt":   bson.M{"$ne": time.Time{}},
 	}
 
 	cursor, err := adColl.Find(ctx, filter)
@@ -40,7 +40,8 @@ func AdPublish() {
 
 	var ads []collection.AdStruct
 	if err := cursor.All(ctx, &ads); err != nil {
-		log.Fatalf("Decode error: %v", err)
+		adPublishErrLog.Printf("Decode error: %v", err)
+		return
 	}
 
 	userColl := common.DB.UserDB.Collection("user")
@@ -48,45 +49,42 @@ func AdPublish() {
 
 	for _, ad := range ads {
 
-		// ---- 地理範囲計算 ----
-		delta := float64(ad.Distance) / 100.0
-		minLat := ad.Latitude - delta
-		maxLat := ad.Latitude + delta
-		minLng := ad.Longitude - delta
-		maxLng := ad.Longitude + delta
+		adStartJST := ad.AdStart.In(jst)
+		adEndJST := ad.AdEnd.In(jst)
 
-		fmt.Printf(
-			"Ad [%s] active [%v ~ %v], range Lat %.2f~%.2f Lng %.2f~%.2f\n",
-			ad.UserID, ad.AdStart, ad.AdEnd,
-			minLat, maxLat, minLng, maxLng,
-		)
+		// 期間外はスキップ（削除・更新しない）
+		if nowJST.Before(adStartJST) || nowJST.After(adEndJST.Add(1*time.Second)) {
+			continue
+		}
 
-		// ---- ユーザー検索 ----
-		twoWeeksAgo := now.AddDate(0, 0, -14)
+		paidAtJST := ad.PaidAt.In(jst)
+		if paidAtJST.After(adEndJST.Add(1 * time.Second)) {
+			continue
+		}
+
+		// ---- ユーザー検索（位置条件なし広告なので全体対象）----
+		twoWeeksAgo := nowJST.AddDate(0, 0, -14)
 
 		userFilter := bson.M{
-			"latitude":  bson.M{"$gte": minLat, "$lte": maxLat},
-			"longitude": bson.M{"$gte": minLng, "$lte": maxLng},
-			"signedAt":  bson.M{"$gte": twoWeeksAgo},
+			"signedAt": bson.M{"$gte": twoWeeksAgo},
 		}
 
 		var users []collection.UserStruct
 		cursor, err := userColl.Find(ctx, userFilter)
 		if err != nil {
-			log.Printf("User find error: %v", err)
+			adPublishErrLog.Printf("User find error: %v", err)
 			continue
 		}
 		if err := cursor.All(ctx, &users); err != nil {
-			log.Printf("User decode error: %v", err)
+			adPublishErrLog.Printf("User decode error: %v", err)
 			continue
 		}
 
 		if len(users) == 0 {
-			fmt.Println("  → No users found, skip")
 			continue
 		}
 
-		var userIDs []string
+		userIDs := make([]string, 0, len(users))
 		for _, u := range users {
 			userIDs = append(userIDs, u.UserID)
 		}
@@ -99,15 +97,17 @@ func AdPublish() {
 		var sessions []collection.SessionStruct
 		cursor, err = sessionColl.Find(ctx, sessionFilter)
 		if err != nil {
-			log.Printf("Session find error: %v", err)
+			adPublishErrLog.Printf("Session find error: %v", err)
 			continue
 		}
 		if err := cursor.All(ctx, &sessions); err != nil {
-			log.Printf("Session decode error: %v", err)
+			adPublishErrLog.Printf("Session decode error: %v", err)
 			continue
 		}
 
-		fmt.Printf("  → Target sessions: %d\n", len(sessions))
+		if len(sessions) == 0 {
+			continue
+		}
 
 		// ---- Push ----
 		arr := []interface{}{
@@ -116,32 +116,12 @@ func AdPublish() {
 			ad.AdEnd,       // time.Time
 			ad.AdLink,
 			ad.PathSquare,
-		}
-
+ 		}
 		common.ChunkPush(sessions, arr)
 
-		// ---- Deactivate ad ----
-		update := bson.M{
-			"$set": bson.M{
-				"activeFlag": false,
-				"updatedAt":  now,
-			},
-		}
-
-		res, err := adColl.UpdateOne(
-			ctx,
-			bson.M{"userID": ad.UserID},
-			update,
-		)
-
-		if err != nil {
-			log.Printf("Deactivate ad [%s] failed: %v", ad.UserID, err)
-			continue
-		}
-
-		fmt.Printf(
-			"Ad [%s] deactivated (matched: %d, modified: %d)\n",
-			ad.UserID, res.MatchedCount, res.ModifiedCount,
+		adPublishLog.Printf(
+			"Ad pushed: adID=%s users=%d",
+			ad.AdID, len(sessions),
 		)
 	}
 }

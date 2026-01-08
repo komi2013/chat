@@ -18,74 +18,119 @@ document.title = '受付設定'
 const channelID = localStorage.getItem("channelID")
 
 const reception = ref(null)
-const defaultReception = {
+
+const createPasscode = () => ({
+  passkey: '',
+  usageLimit: 1,
+  passStart: '',
+  passEnd: ''
+})
+
+const createAsk = (seq = 0) => ({
+  question: '',
+  sequence: seq
+})
+
+const createAskChoice = (seq = 0) => ({
+  question: '',
+  choices: [],
+  sequence: seq
+})
+
+const createFacility = () => ({
+  facilityName: '',
+  capacity: 0,
+  bookable: false
+})
+
+const createOpenTime = () => ({
+  limitStart: '',
+  limitEnd: ''
+})
+
+const createShift = () => ({
+  aliasNames: [''],
+  shiftStart: '',
+  shiftEnd: '',
+  open: 1,
+  skill: '',
+  fix: false
+})
+
+const createMenuPaidOption = () => ({
+  itemID: 1,
+  price: 0
+})
+
+const createMenu = (id = 1) => ({
+  menuID: id,
+  menuName: '',
+  price: 0,
+  prepaidPrice: 0,
+  needSkill: '',
+  needFacility: '',
+  specifyNameFlag: false,
+  spendMinute: 0,
+  items: [],
+  paidOptions: [createMenuPaidOption()],
+  freeOptions: [],
+  freeMultiOptions: [],
+  forBookType: ''
+})
+
+const createStaffSkill = () => ({
+  aliasName: '',
+  skills: ['']
+})
+
+const createItemDetail = (id = 1) => ({
+  itemID: id,
+  itemName: '',
+  imgPath: '',
+  choices: []
+})
+
+const createWaitConfig = () => ({
+  guestRange: [1, 5],
+  waitRatio: 0
+})
+
+// =======================
+// defaultReception
+// =======================
+const createDefaultReception = () => ({
   receptionID: channelID,
-  channelID: channelID,
+  channelID,
+
   receptionTitle: '',
+
   adminNames: [''],
   joinNames: [''],
-  passcodes: [{passkey: '', usageLimit: 1, passStart: '', passEnd: '' }],
-  askChoices: [{
-    question: '',
-    choices: [],
-    sequence: 0
-  }],
-  askMultiChoices: [{
-    question: '',
-    choices: [],
-    sequence: 0
-  }],
-  asks: [{
-    question: '',
-    sequence: 0
-  }],
-  facilities: [{ 
-    facilityName: '',
-    capacity: 0,
-    bookable: false
-  }],
-  openTimes: [{ limitStart: '', limitEnd: '' }],
-  shifts: [{
-    aliasNames: [''],
-    shiftStart: '',
-    shiftEnd: '',
-    open: 1,
-    skill: '',
-    fix: false
-  }],
-  menus: [{
-    menuID: 1,
-    menuName: '',
-    price: 0,
-    prepaidPrice: 0,
-    needSkill: '',
-    needFacility: '',
-    specifyNameFlag: false,
-    spendMinute: 0,
-    items: [],
-    paidOptions: [{
-      itemID: 1,
-      price: 0
-    }],
-    freeOptions: [[]], // itemID　[オレンジジュース、メロンソーダ], [パン, ご飯]
-    freeMultiOptions: [],
-    forBookType: ''  // 1 = book only, 2 = book & at shop
-  }],
+
+  passcodes: [createPasscode()],
+
+  asks: [createAsk(0)],
+  askChoices: [createAskChoice(0)],
+  askMultiChoices: [createAskChoice(0)],
+
+  facilities: [createFacility()],
+  openTimes: [createOpenTime()],
+  shifts: [createShift()],
+
+  menus: [createMenu(1)],
+
   skills: [''],
-  staffSkills: [{ aliasName: '', skills: [''] }],
+  staffSkills: [createStaffSkill()],
+
   workStaffNeed: false,
-  itemDetails: [{
-    itemID: 1,
-    itemName: '',
-    imgPath: '',
-    choices: [[]] // choices: [['硬い','普通','柔らかい'],['油多め','普通','油少なめ']]
-  }],
-  waitConfigs: [{
-    guestRange: [1, 5],
-    waitRatio: 0
-  }]
-}
-reception.value = defaultReception
+
+  itemDetails: [createItemDetail(1)],
+
+  waitConfigs: [createWaitConfig()]
+})
+
+reception.value = createDefaultReception()
+
 
 async function findReception() {
   const fd = new FormData()
@@ -151,8 +196,8 @@ onMounted(async () => {
 function addArrayItem(field) {
   reception.value[field].push('')
 }
-function addObjectItem(field, item) {
-  reception.value[field].push(item)
+function addObjectItem(field, factory) {
+  reception.value[field].push(factory())
 }
 function removeItem(field, index) {
   reception.value[field].splice(index, 1)
@@ -439,21 +484,12 @@ function removeEmpty(obj) {
 
         <button @click.prevent="reception.menus.splice(i, 1)" v-if="reception.menus.length > 1">−</button>
       </div>
+      <button
+        @click.prevent="addObjectItem('menus', () => createMenu(reception.menus.length + 1))"
+      >
+        ＋メニュー
+      </button>
 
-      <button @click.prevent="addObjectItem('menus', {
-        menuID: reception.menus.length,
-        menuName: '',
-        price: 0,
-        prepaidPrice: 0,
-        needSkill: '',
-        needFacility: '',
-        specifyNameFlag: false,
-        spendMinute: 0,
-        items: [],
-        paidOptions: [],
-        freeOptions: [],
-        freeMultiOptions: []
-      })">＋メニュー</button>
     </div>
 
     <!-- Asks (自由回答) -->
@@ -539,7 +575,9 @@ function removeEmpty(obj) {
         <label><input type="checkbox" v-model="f.bookable" true-value="1" false-value="0" /> 予約可能</label>
         <button @click.prevent="reception.facilities.splice(i, 1)" v-if="reception.facilities.length > 1">−</button>
       </div>
-      <button @click.prevent="addObjectItem('facilities', { facilityName: '', capacity: 1 })">＋施設</button>
+      <button @click.prevent="addObjectItem('facilities', createFacility)" >
+        ＋施設
+      </button>
     </div>
 
     <!-- OpenTimes -->
@@ -549,7 +587,12 @@ function removeEmpty(obj) {
         開始：<input type="datetime-local" v-model="t.limitStart" /> 〜 終了：<input type="datetime-local" v-model="t.limitEnd" />
         <button @click.prevent="reception.openTimes.splice(i, 1)" v-if="reception.openTimes.length > 1">−</button>
       </div>
-      <button @click.prevent="addObjectItem('openTimes', { limitStart: '', limitEnd: '' })">＋時間帯</button>
+      <button
+        @click.prevent="addObjectItem('openTimes', createOpenTime)"
+      >
+        ＋時間帯
+      </button>
+
     </div>
 
     <!-- Shifts -->
@@ -573,9 +616,11 @@ function removeEmpty(obj) {
         <label><input type="checkbox" v-model="s.fix" /> 固定</label>
         <button @click.prevent="reception.shifts.splice(i, 1)" v-if="reception.shifts.length > 1">−</button>
       </div>
-      <button @click.prevent="addObjectItem('shifts', {
-        aliasNames: [''], shiftStart: '', shiftEnd: '', open: 1, skill: '', fix: false
-      })">＋シフト</button>
+      <button
+        @click.prevent="addObjectItem('shifts', createShift)"
+      >
+        ＋シフト
+      </button>
     </div>
 
     <!-- WaitConfigs -->

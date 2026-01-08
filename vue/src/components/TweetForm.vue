@@ -38,8 +38,6 @@ import Quill from 'quill';
 import "quill-mention";
 import "quill/dist/quill.snow.css";
 
-import EditOptionModal from '@/components/EditOptionModal.vue';
-
 import { emojiRanges, isEmojiInRange, getRandomEmoji, getRandomColor } from '@/my/emoji';
 import { htmlToMarkdown, markdownToHtml, removeMark } from '@/my/markdown.js';
 import { pushReceive } from '@/pushReceive/pushReceive.js';

@@ -1,0 +1,13 @@
+{
+  "_id": "O",
+  "channelID": "O",
+  "receptionTitle": "イタリアンレストラン",
+  "adminNames": ["店長A"],
+  "joinNames": ["スタッフA", "スタッフB"],
+  "skills": ["調理", "配膳"],
+  "staffSkills": [
+    { "aliasName": "スタッフA", "skills": ["調理"] },
+    { "aliasName": "スタッフB", "skills": ["配膳"] }
+  ],
+  "openTimes": [{ "limitStart": "2026-01-03T11:00", "limitEnd": "2026-01-03T22:00" }]
+}
