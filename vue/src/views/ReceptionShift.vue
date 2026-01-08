@@ -199,27 +199,29 @@ const submitShift = async () => {
 
   if (updatedShifts.length > 0) {
     const fd = new FormData();
-    if (props.id && props.id.length > 3) {
-      fd.append('receptionID', props.id);
-      fd.append('channelID', localStorage.getItem('channelID'));
-      fd.append('aliasName', channel.value.myname);
-      fd.append('csrf', localStorage.getItem('csrf'));
-      fd.append('updatedShifts', JSON.stringify(updatedShifts));
-      // fd.append('confirmed', confirmed);
-      // fd.append('availableSkills', JSON.stringify(availableSkills.value));
-      const res = await sendRequest('/ReceptionShift/', fd);
-      if (!res.csrf) {
-        errorMessage.value = res
-        return
-      }
-      localStorage.setItem('csrf', res.csrf)
-      if (Array.isArray(res.pushContents)) {
-        for (const content of res.pushContents) {
-          await pushReceive(content)
-        }
-      }
-      if (res.error) { errorMessage.value = res.error }
+    fd.append('receptionID', props.id);
+    fd.append('channelID', localStorage.getItem('channelID'));
+    fd.append('aliasName', channel.value.myname);
+    fd.append('csrf', localStorage.getItem('csrf'));
+    fd.append('updatedShifts', JSON.stringify(updatedShifts));
+    // fd.append('confirmed', confirmed);
+    // fd.append('availableSkills', JSON.stringify(availableSkills.value));
+    const res = await sendRequest('/ReceptionShift/', fd);
+    if (!res.csrf) {
+      errorMessage.value = res
+      return
     }
+    localStorage.setItem('csrf', res.csrf)
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+    if (res.error) {
+      errorMessage.value = res.error
+      return
+    }
+    location.href = ''
   }
 };
 
