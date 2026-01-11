@@ -19,6 +19,9 @@ func main() {
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)
 		http.HandleFunc("/AdInvoice/", controller.AdInvoice)
+		http.HandleFunc("/PaymentExecute/", controller.PaymentExecute)
+		http.HandleFunc("/SolanaWalletCreate/", controller.SolanaWalletCreate)
+		http.HandleFunc("/SolanaJpycBalance/", controller.SolanaJpycBalance)
 		// http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
 		http.HandleFunc("/AdPublicGet/", controller.AdPublicGet)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
@@ -67,6 +70,7 @@ func main() {
 			case "FileClean":	console.FileClean()
 			case "TestPush": console.TestPush()
 			case "TestCode": console.TestCode()
+			case "CheckSolanaDeposit": console.CheckSolanaDeposit()
 		}
 	}
 }

@@ -17,6 +17,8 @@ type UserStruct struct {
 	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
 	WalletAddress string `bson:"walletAddress" json:"walletAddress"`
+	SolanaPrivateKey string `bson:"solanaPrivateKey,omitempty" json:"-"` // 秘密鍵はJSONレスポンスに含めない
+	SolanaWalletAddress string `bson:"solanaWalletAddress,omitempty" json:"solanaWalletAddress,omitempty"`
 	// Nickname     
 }
 
@@ -24,6 +26,7 @@ type UserResponse struct {
   Mail         string    `bson:"mail,omitempty" json:"mail,omitempty"`
   Telephone    string    `bson:"telephone,omitempty" json:"telephone,omitempty"`
 	WalletAddress string `bson:"walletAddress" json:"walletAddress"`
+	SolanaWalletAddress string `bson:"solanaWalletAddress,omitempty" json:"solanaWalletAddress,omitempty"`
 	Latitude   float64 `bson:"latitude" json:"latitude"`   // 例: 35.73
 	Longitude  float64 `bson:"longitude" json:"longitude"` // 例: 139.53
 }

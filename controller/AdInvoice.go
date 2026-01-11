@@ -74,13 +74,27 @@ func AdInvoice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Solanaシステムウォレットアドレスを取得（Fee Payerの公開鍵から）
+	cfg := common.LoadConfig()
+	var systemSolanaWalletAddress string
+	if cfg.SolanaFeePayerPrivateKey != "" {
+		pubkey, err := common.GetSystemFeePayerPublicKey(cfg.SolanaFeePayerPrivateKey)
+		if err == nil {
+			systemSolanaWalletAddress = pubkey.String()
+		}
+	}
+	if systemSolanaWalletAddress == "" {
+		common.WriteResponseWithSession(w, session, "システムウォレットアドレスが設定されていません", http.StatusOK)
+		return
+	}
+
 	invoice := collection.InvoiceStruct{
 		InvoiceID:      newID,
 		UserID:         session.UserID,
 		AdID:           ad.AdID,
 		AmountJPYC:     ad.AdYen,
 		FromAddress:    user.WalletAddress,
-		InvoiceAddress: common.SystemWalletAddress,
+		InvoiceAddress: systemSolanaWalletAddress, // Solanaアドレスを使用
 		InvoiceStatus:  1, // pending
 		CreatedAt:      now,
 		ExpiresAt:      now.Add(24 * time.Hour),

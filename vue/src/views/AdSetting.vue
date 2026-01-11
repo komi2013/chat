@@ -6,6 +6,8 @@ import Advertisement from '@/components/Advertisement.vue'
 
 import { pushReceive } from '@/pushReceive/pushReceive.js'
 
+// Solana送金用のインポート（サーバーサイドで処理するため、フロントエンドでは不要）
+
 
 document.title = '広告設定'
 
@@ -18,6 +20,9 @@ const previewBanner = ref({})  // 各広告ごとに画像を保持 { adID: base
 const previewSquare = ref({})
 const errorMessage = ref('')
 const fetched = ref(false)
+const jpycBalance = ref(null) // JPYC残高
+const userWalletAddress = ref('') // ユーザーのウォレットアドレス
+const loadingBalance = ref(false) // 残高取得中フラグ
 
 // --- 初期データ取得 ---
 onMounted(async () => {
@@ -26,7 +31,10 @@ onMounted(async () => {
 })
 
 let systemWalletAddress
+let systemFeeWalletAddress // システム利用料を受け取るウォレットアドレス
+let systemFeePayerPublicKey // Fee Payerの公開鍵（バックエンドから取得）
 let jpycCheckURL
+let jpycMintAddress // JPYC SPL Token Mint Address
 const errors = ref([]);
 async function findAds() {
   const fd = new FormData()
@@ -58,8 +66,20 @@ async function findAds() {
     }
   })
   systemWalletAddress = res.systemWalletAddress
+  systemFeeWalletAddress = res.systemFeeWalletAddress || res.systemWalletAddress // デフォルトはシステムウォレット
+  systemFeePayerPublicKey = res.systemFeePayerPublicKey // バックエンドから取得
   jpycCheckURL = res.jpycCheckURL
+  jpycMintAddress = res.jpycMintAddress || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" // デフォルト値（実際のJPYC Mintアドレスに置き換え）
+  
+  // AdGetから返される残高とウォレットアドレスを使用
+  if (res.jpycBalance !== undefined) {
+    jpycBalance.value = res.jpycBalance
+  }
+  if (res.solanaWalletAddress) {
+    userWalletAddress.value = res.solanaWalletAddress
+  }
 }
+
 
 const invoiceButton = ref(true)
 function convertApiAdToUiAd(apiAd) {
@@ -210,7 +230,7 @@ async function submitAd(index) {
 }
 
 async function invoiceAd(index) {
-  if (!confirm('請求書を発行します。JPYCのアドレスを登録してから請求書発行お願いします')) return
+  if (!confirm('請求書を発行します。Solanaのアドレスを登録してから請求書発行お願いします')) return
   const ad = ads.value[index]
   const fd = new FormData()
   fd.append('csrf', localStorage.getItem('csrf'))
@@ -227,6 +247,149 @@ async function invoiceAd(index) {
     }
   }
   if (res.error) { errorMessage.value = res.error }
+}
+
+// --- JPYC残高取得 ---
+async function loadJpycBalance() {
+  try {
+    loadingBalance.value = true
+    const fd = new FormData()
+    fd.append('csrf', localStorage.getItem('csrf'))
+    const res = await sendRequest('/SolanaJpycBalance/', fd)
+    
+    if (!res.csrf) {
+      errorMessage.value = res
+      jpycBalance.value = null
+      userWalletAddress.value = ''
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
+    
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+    
+    if (res.error) {
+      // ウォレットが作成されていない場合
+      jpycBalance.value = null
+      userWalletAddress.value = ''
+    } else {
+      jpycBalance.value = res.balance || 0
+      userWalletAddress.value = res.walletAddress || ''
+    }
+  } catch (error) {
+    console.error('JPYC残高取得エラー:', error)
+    jpycBalance.value = null
+    userWalletAddress.value = ''
+  } finally {
+    loadingBalance.value = false
+  }
+}
+
+// --- ウォレット作成 ---
+async function createWallet() {
+  if (!confirm('Solanaウォレットを作成しますか？')) return
+  
+  try {
+    const fd = new FormData()
+    fd.append('csrf', localStorage.getItem('csrf'))
+    const res = await sendRequest('/SolanaWalletCreate/', fd)
+    
+    if (!res.csrf) {
+      errorMessage.value = res
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
+    
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+    
+    if (res.error) {
+      errorMessage.value = res.error
+    } else {
+      alert(res.message || 'ウォレットが作成されました')
+      userWalletAddress.value = res.solanaWalletAddress
+      // 残高を再取得
+      await loadJpycBalance()
+    }
+  } catch (error) {
+    console.error('ウォレット作成エラー:', error)
+    errorMessage.value = 'ウォレット作成に失敗しました'
+  }
+}
+
+// --- ガスレス決済（Fee Relayer）によるSolana送金処理 ---
+async function payForAd(index) {
+  const ad = ads.value[index]
+  if (!ad || !ad.adID) {
+    errorMessage.value = '広告が特定できません。'
+    return
+  }
+  
+  if (!userWalletAddress.value) {
+    errorMessage.value = 'ウォレットが作成されていません。先にウォレットを作成してください。'
+    return
+  }
+
+  // 広告料金をJPYCに変換（1円 = 1 JPYC）
+  const jpycAmount = ad.adYen // 円単位
+  const jpycAmountLamports = Math.floor(jpycAmount * 1_000_000) // JPYCは通常decimals=6
+
+  if (jpycAmountLamports <= 0) {
+    errorMessage.value = '送金金額が0以下です。'
+    return
+  }
+
+  // システム利用料（1 JPYC）
+  const systemFeeAmount = 1_000_000 // 1 JPYC = 1,000,000 lamports (decimals=6)
+
+  if (!confirm(`¥${ad.adYen?.toLocaleString() || 0} (${(jpycAmountLamports / 1_000_000).toFixed(6)} JPYC) + システム利用料 1 JPYC を送金しますか？`)) {
+    return
+  }
+
+  try {
+    // バックエンドへ送信（サーバーサイドでトランザクションを作成・署名・送信）
+    const fd = new FormData()
+    fd.append('csrf', localStorage.getItem('csrf'))
+    fd.append('adID', ad.adID)
+    
+    const res = await sendRequest('/PaymentExecute/', fd)
+    if (!res.csrf) {
+      errorMessage.value = res
+      return
+    }
+    localStorage.setItem('csrf', res.csrf)
+    
+    if (Array.isArray(res.pushContents)) {
+      for (const content of res.pushContents) {
+        await pushReceive(content)
+      }
+    }
+    
+    if (res.error) {
+      errorMessage.value = res.error
+    } else if (res.signature) {
+      alert(`支払いが完了しました。\nトランザクション: ${res.signature}`)
+      // 広告情報を再取得
+      await findAds()
+      // JPYC残高を再取得
+      await loadJpycBalance()
+    } else {
+      errorMessage.value = '支払い処理が完了しましたが、トランザクション署名が取得できませんでした。'
+    }
+  } catch (error) {
+    console.error('Solana送金エラー:', error)
+    if (error.message) {
+      errorMessage.value = `送金エラー: ${error.message}`
+    } else {
+      errorMessage.value = '送金処理中にエラーが発生しました。'
+    }
+  }
 }
 
 
@@ -364,16 +527,48 @@ function handleTrim(event, adID, targetW, targetH, type) {
           <input type="number" v-model="ad.adEndDays" class="input-number" required min="1" /> 日後
         </label>
 
-        <div>見積り価格: ¥{{ ad.adYen?.toLocaleString() || 0 }}</div>
+        <div>
+          見積り価格: ¥{{ ad.adYen?.toLocaleString() || 0 }}
+        </div>
 
         <div class="centralize"><button type="submit">仮登録・仮更新</button></div>
         <div v-if="invoiceButton" class="centralize"><button type="button" @click="invoiceAd(index)">請求書発行</button></div>
+        <div class="centralize"><button type="button" @click="payForAd(index)">Solanaで支払う</button></div>
         <div class="centralize"><button type="button" @click="deleteAd(index)">削除</button></div>
       </form>
     </div>
-    <div class="ads"><span>システムJPYCアドレス口座: </span>{{systemWalletAddress}}</div>
+    <div class="ads"><span>システムSolanaアドレス口座: </span>{{systemWalletAddress}}</div>
+    <div class="ads" v-if="jpycCheckURL">
+      <a :href="jpycCheckURL" target="_blank">システムSolanaアドレス口座履歴URL</a>
+    </div>
     <div class="ads">
-      <a :href="jpycCheckURL" target="_blank">システムJPYCアドレス口座履歴URL</a>
+      <div v-if="userWalletAddress">
+        <div>
+          <span>あなたのウォレットアドレス: </span>{{userWalletAddress}}
+        </div>
+        <div style="margin-top: 8px;">
+          <span>手持ちのJPYC残高: </span>
+          <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }} JPYC</strong>
+          <span v-else>取得中...</span>
+          <button 
+            type="button" 
+            @click="loadJpycBalance()" 
+            :disabled="loadingBalance"
+            style="margin-left: 8px; padding: 4px 8px;"
+          >
+            {{ loadingBalance ? '取得中...' : '更新' }}
+          </button>
+        </div>
+      </div>
+      <div v-else style="margin-top: 8px;">
+        <button 
+          type="button" 
+          @click="createWallet()"
+          style="padding: 8px 16px;"
+        >
+          Solanaウォレットを作成
+        </button>
+      </div>
     </div>
   </div>
   <div id="ad_right"><Advertisement /><Advertisement /><Advertisement /></div>

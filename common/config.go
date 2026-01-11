@@ -31,6 +31,7 @@ type Config struct {
 	GoogleClientID  string
 	EtherscanApiKey string
 	WebRTC          string
+	SolanaFeePayerPrivateKey string // Solana Fee Payer用の秘密鍵（base58形式）
 }
 
 func LoadConfig() *Config {
@@ -94,6 +95,7 @@ func loadFromEnv() *Config {
 		GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
 		EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
 		WebRTC:          os.Getenv("WEB_RTC"),
+		SolanaFeePayerPrivateKey: os.Getenv("SOLANA_FEE_PAYER_PRIVATE_KEY"),
 	}
 }
 

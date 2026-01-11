@@ -25,6 +25,8 @@ const fetched = ref(false)
 const errorMessage = ref('')
 const noticesStore = useNoticesStore()
 const nicknameForm = ref(true)
+const jpycBalance = ref(null)
+const userSolanaWalletAddress = ref('')
 
 async function findUser() {
   const fd = new FormData()
@@ -42,6 +44,8 @@ async function findUser() {
   }
   if (res.error) { errorMessage.value = res.error }
   user.value = res.user
+  jpycBalance.value = res.jpycBalance !== undefined ? res.jpycBalance : null
+  userSolanaWalletAddress.value = res.solanaWalletAddress || ''
   const fetchedNicks = res.nicknames || []
   fetchedNicks.forEach((n, i) => {
     nicknames.value.push({
@@ -326,6 +330,17 @@ async function switchNickname(selectedName) {
 
         <div>
           <input type="text" v-model="user.walletAddress" placeholder="JPYCアドレス" class="wide-text">
+        </div>
+
+        <div v-if="userSolanaWalletAddress" style="margin-top: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <div>
+            <span>Solanaウォレットアドレス: </span>{{userSolanaWalletAddress}}
+          </div>
+          <div style="margin-top: 8px;">
+            <span>手持ちのJPYC残高: </span>
+            <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }} JPYC</strong>
+            <span v-else>取得中...</span>
+          </div>
         </div>
 
         <div class="centralize">

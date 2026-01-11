@@ -9,8 +9,11 @@ import (
   // "log"
   // "math"
   "net/http"
+  "strconv"
   "time"
 
+  "github.com/gagliardetto/solana-go"
+  "github.com/gagliardetto/solana-go/rpc"
   "go.mongodb.org/mongo-driver/bson"
 )
 
@@ -57,31 +60,109 @@ func AdGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-  url := fmt.Sprintf(
-    "%s/api?module=account&action=tokentx&address=%s&contractaddress=%s&sort=desc",
-    common.PolygonAPI,
-    common.SystemWalletAddress,
-    common.JpycContract,
-  )
+  // システムFee Payerの公開鍵を取得
+  cfg := common.LoadConfig()
+  var systemFeePayerPublicKey string
+  if cfg.SolanaFeePayerPrivateKey != "" {
+    pubkey, err := common.GetSystemFeePayerPublicKey(cfg.SolanaFeePayerPrivateKey)
+    if err == nil {
+      systemFeePayerPublicKey = pubkey.String()
+    } else {
+      // 仮の値（コンパイルエラー回避）
+      systemFeePayerPublicKey = ""
+    }
+  }
 
-  // resp, err := http.Get(url)
-  // if err != nil {
-  //   common.WriteResponseWitSession(w, csrf, err.Error()+";http.Get", http.StatusOK)
-  //   return
-  // }
+  // Solanaシステムウォレットアドレスを取得（Fee Payerの公開鍵を使用）
+  var systemSolanaWalletAddress string
+  if cfg.SolanaFeePayerPrivateKey != "" {
+    pubkey, err := common.GetSystemFeePayerPublicKey(cfg.SolanaFeePayerPrivateKey)
+    if err == nil {
+      systemSolanaWalletAddress = pubkey.String()
+    }
+  }
+
+  // Solanaアドレス履歴確認URLを生成（Solscanを使用）
+  var jpycCheckURL string
+  if systemSolanaWalletAddress != "" {
+    jpycCheckURL = fmt.Sprintf("https://solscan.io/account/%s", systemSolanaWalletAddress)
+  }
+
+  // ユーザー情報を取得してJPYC残高を取得
+  var jpycBalance *float64
+  var userSolanaWalletAddress string
+  collUser := common.DB.UserDB.Collection("user")
+  filterUser := bson.M{"_id": session.UserID}
+  var user collection.UserStruct
+  err = collUser.FindOne(ctx, filterUser).Decode(&user)
+  if err == nil && user.SolanaWalletAddress != "" {
+    userSolanaWalletAddress = user.SolanaWalletAddress
+    
+    // Solana RPC接続
+    client := rpc.New(rpc.MainNetBeta_RPC)
+    
+    // ウォレットアドレスをパース
+    walletPubkey, err := solana.PublicKeyFromBase58(user.SolanaWalletAddress)
+    if err == nil {
+      // JPYC Mintアドレス
+      jpycMint, err := solana.PublicKeyFromBase58(common.JpycSolanaMint)
+      if err == nil {
+        // トークンアカウントアドレスを取得
+        tokenAccount, err := common.FindAssociatedTokenAddress(
+          walletPubkey,
+          jpycMint,
+        )
+        if err == nil {
+          // 残高を取得
+          balance, err := client.GetTokenAccountBalance(ctx, tokenAccount, rpc.CommitmentConfirmed)
+          if err == nil && balance.Value != nil {
+            // 残高をJPYC単位に変換
+            decimals := balance.Value.Decimals
+            if decimals == 0 {
+              decimals = 6 // デフォルト値
+            }
+            amountStr := balance.Value.Amount
+            amount, err := strconv.ParseUint(amountStr, 10, 64)
+            if err == nil {
+              balanceValue := float64(amount) / float64(1e6) // decimals=6を想定
+              jpycBalance = &balanceValue
+            } else {
+              // パースエラーの場合（残高0）
+              zeroBalance := 0.0
+              jpycBalance = &zeroBalance
+            }
+          } else {
+            // トークンアカウントが存在しない場合（残高0）
+            zeroBalance := 0.0
+            jpycBalance = &zeroBalance
+          }
+        }
+      }
+    }
+  }
 
   responseData := struct {
     Csrf         string       `json:"csrf"`
     PushContents []string     `json:"pushContents"`
     Ads       []collection.AdStruct  `json:"ads"`
     SystemWalletAddress   string       `json:"systemWalletAddress"`
-    JpycCheckURL   string       `json:"jpycCheckURL"`
+    SystemFeeWalletAddress string      `json:"systemFeeWalletAddress,omitempty"`
+    SystemFeePayerPublicKey string     `json:"systemFeePayerPublicKey,omitempty"`
+    JpycMintAddress        string     `json:"jpycMintAddress,omitempty"`
+    JpycCheckURL           string     `json:"jpycCheckURL,omitempty"`
+    JpycBalance            *float64   `json:"jpycBalance,omitempty"`
+    SolanaWalletAddress    string     `json:"solanaWalletAddress,omitempty"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,
     Ads:          ads,
-    SystemWalletAddress: common.SystemWalletAddress,
-    JpycCheckURL: url,
+    SystemWalletAddress: systemSolanaWalletAddress, // Solanaアドレスを使用
+    SystemFeeWalletAddress: systemSolanaWalletAddress, // デフォルトはシステムウォレット
+    SystemFeePayerPublicKey: systemFeePayerPublicKey,
+    JpycMintAddress: common.JpycSolanaMint,
+    JpycCheckURL: jpycCheckURL,
+    JpycBalance: jpycBalance,
+    SolanaWalletAddress: userSolanaWalletAddress,
   }
 
   w.Header().Set("Content-Type", "application/json")

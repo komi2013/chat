@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@skyway-sdk/room": "^2.2.0",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
     "pinia": "^2.1.6",
     "quill": "^2.0.0",
     "quill-mention": "^5.0.0",
@@ -19,10 +21,13 @@
     "vue-router": "^4.2.4"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.4",
+    "@vitejs/plugin-vue": "^6.0.0",
     "eslint": "^8.49.0",
     "eslint-plugin-vue": "^9.17.0",
-    "vite": "^5.2.0"
+    "vite": "^7.3.1"
+  },
+  "overrides": {
+    "bigint-buffer": "npm:bigint-buffer-fixed@1.1.6"
   },
   "msw": {
     "workerDirectory": "public"
