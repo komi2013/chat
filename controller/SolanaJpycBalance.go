@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"chat/common"
@@ -14,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// SolanaJpycBalance ユーザーのJPYC残高を取得
+// SolanaJpycBalance ユーザーのSOL残高を取得
 func SolanaJpycBalance(w http.ResponseWriter, r *http.Request) {
 	csrf := r.FormValue("csrf")
 
@@ -64,27 +63,10 @@ func SolanaJpycBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JPYC Mintアドレス
-	jpycMint, err := solana.PublicKeyFromBase58(common.JpycSolanaMint)
+	// SOL残高を取得
+	balance, err := client.GetBalance(ctx, walletPubkey, rpc.CommitmentConfirmed)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, "無効なJPYC Mintアドレス: "+err.Error(), http.StatusOK)
-		return
-	}
-
-	// トークンアカウントアドレスを取得
-	tokenAccount, err := common.FindAssociatedTokenAddress(
-		walletPubkey,
-		jpycMint,
-	)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, "トークンアカウント取得エラー: "+err.Error(), http.StatusOK)
-		return
-	}
-
-	// 残高を取得
-	balance, err := client.GetTokenAccountBalance(ctx, tokenAccount, rpc.CommitmentConfirmed)
-	if err != nil {
-		// トークンアカウントが存在しない場合（残高0）もエラーになる可能性がある
+		// エラーの場合（残高0）
 		var balanceValue *float64
 		zeroBalance := 0.0
 		balanceValue = &zeroBalance
@@ -105,19 +87,9 @@ func SolanaJpycBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 残高をJPYC単位に変換
-	var jpycBalance float64
-	if balance.Value != nil {
-		decimals := balance.Value.Decimals
-		if decimals == 0 {
-			decimals = 6 // デフォルト値
-		}
-		amountStr := balance.Value.Amount
-		amount, err := strconv.ParseUint(amountStr, 10, 64)
-		if err == nil {
-			jpycBalance = float64(amount) / float64(1e6) // decimals=6を想定
-		}
-	}
+	// 残高をSOL単位に変換（1 SOL = 1,000,000,000 lamports）
+	var solBalance float64
+	solBalance = float64(balance) / float64(1_000_000_000)
 
 	responseData := struct {
 		Csrf         string   `json:"csrf"`
@@ -127,7 +99,7 @@ func SolanaJpycBalance(w http.ResponseWriter, r *http.Request) {
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
-		Balance:      jpycBalance,
+		Balance:      solBalance,
 		WalletAddress: user.SolanaWalletAddress,
 	}
 

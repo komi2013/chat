@@ -8,7 +8,6 @@ import (
   // "log"
   // "math"
   "net/http"
-  "strconv"
   // "time"
 
   "github.com/gagliardetto/solana-go"
@@ -47,8 +46,8 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  // JPYC残高を取得
-  var jpycBalance *float64
+  // SOL残高を取得
+  var solBalance *float64
   var userSolanaWalletAddress string
   if user.SolanaWalletAddress != "" {
     userSolanaWalletAddress = user.SolanaWalletAddress
@@ -59,39 +58,16 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
     // ウォレットアドレスをパース
     walletPubkey, err := solana.PublicKeyFromBase58(user.SolanaWalletAddress)
     if err == nil {
-      // JPYC Mintアドレス
-      jpycMint, err := solana.PublicKeyFromBase58(common.JpycSolanaMint)
+      // SOL残高を取得
+      balance, err := client.GetBalance(ctx, walletPubkey, rpc.CommitmentConfirmed)
       if err == nil {
-        // トークンアカウントアドレスを取得
-        tokenAccount, err := common.FindAssociatedTokenAddress(
-          walletPubkey,
-          jpycMint,
-        )
-        if err == nil {
-          // 残高を取得
-          balance, err := client.GetTokenAccountBalance(ctx, tokenAccount, rpc.CommitmentConfirmed)
-          if err == nil && balance.Value != nil {
-            // 残高をJPYC単位に変換
-            decimals := balance.Value.Decimals
-            if decimals == 0 {
-              decimals = 6 // デフォルト値
-            }
-            amountStr := balance.Value.Amount
-            amount, err := strconv.ParseUint(amountStr, 10, 64)
-            if err == nil {
-              balanceValue := float64(amount) / float64(1e6) // decimals=6を想定
-              jpycBalance = &balanceValue
-            } else {
-              // パースエラーの場合（残高0）
-              zeroBalance := 0.0
-              jpycBalance = &zeroBalance
-            }
-          } else {
-            // トークンアカウントが存在しない場合（残高0）
-            zeroBalance := 0.0
-            jpycBalance = &zeroBalance
-          }
-        }
+        // 残高をSOL単位に変換（1 SOL = 1,000,000,000 lamports）
+        balanceValue := float64(balance) / float64(1_000_000_000)
+        solBalance = &balanceValue
+      } else {
+        // エラーの場合（残高0）
+        zeroBalance := 0.0
+        solBalance = &zeroBalance
       }
     }
   }
@@ -101,14 +77,14 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
     PushContents []string     `json:"pushContents"`
     User       collection.UserResponse  `json:"user"`
     Nicknames   []collection.NicknameResponse `json:"nicknames"`
-    JpycBalance            *float64   `json:"jpycBalance,omitempty"`
+    JpycBalance            *float64   `json:"jpycBalance,omitempty"` // 互換性のため保持（SOL残高を返す）
     SolanaWalletAddress    string     `json:"solanaWalletAddress,omitempty"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,
     User         : user,
     Nicknames: nicknames,
-    JpycBalance: jpycBalance,
+    JpycBalance: solBalance, // SOL残高を返す（互換性のためフィールド名は変更しない）
     SolanaWalletAddress: userSolanaWalletAddress,
   }
 

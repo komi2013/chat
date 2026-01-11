@@ -20,7 +20,7 @@ const previewBanner = ref({})  // 各広告ごとに画像を保持 { adID: base
 const previewSquare = ref({})
 const errorMessage = ref('')
 const fetched = ref(false)
-const jpycBalance = ref(null) // JPYC残高
+const jpycBalance = ref(null) // SOL残高（変数名は互換性のため保持）
 const userWalletAddress = ref('') // ユーザーのウォレットアドレス
 const loadingBalance = ref(false) // 残高取得中フラグ
 
@@ -34,7 +34,7 @@ let systemWalletAddress
 let systemFeeWalletAddress // システム利用料を受け取るウォレットアドレス
 let systemFeePayerPublicKey // Fee Payerの公開鍵（バックエンドから取得）
 let jpycCheckURL
-let jpycMintAddress // JPYC SPL Token Mint Address
+let jpycMintAddress // 未使用（互換性のため保持）
 const errors = ref([]);
 async function findAds() {
   const fd = new FormData()
@@ -69,11 +69,11 @@ async function findAds() {
   systemFeeWalletAddress = res.systemFeeWalletAddress || res.systemWalletAddress // デフォルトはシステムウォレット
   systemFeePayerPublicKey = res.systemFeePayerPublicKey // バックエンドから取得
   jpycCheckURL = res.jpycCheckURL
-  jpycMintAddress = res.jpycMintAddress || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" // デフォルト値（実際のJPYC Mintアドレスに置き換え）
+  jpycMintAddress = res.jpycMintAddress || "" // 未使用（互換性のため保持）
   
-  // AdGetから返される残高とウォレットアドレスを使用
+  // AdGetから返されるSOL残高とウォレットアドレスを使用
   if (res.jpycBalance !== undefined) {
-    jpycBalance.value = res.jpycBalance
+    jpycBalance.value = res.jpycBalance // SOL残高（フィールド名は互換性のため保持）
   }
   if (res.solanaWalletAddress) {
     userWalletAddress.value = res.solanaWalletAddress
@@ -249,7 +249,7 @@ async function invoiceAd(index) {
   if (res.error) { errorMessage.value = res.error }
 }
 
-// --- JPYC残高取得 ---
+// --- SOL残高取得 ---
 async function loadJpycBalance() {
   try {
     loadingBalance.value = true
@@ -280,7 +280,7 @@ async function loadJpycBalance() {
       userWalletAddress.value = res.walletAddress || ''
     }
   } catch (error) {
-    console.error('JPYC残高取得エラー:', error)
+    console.error('SOL残高取得エラー:', error)
     jpycBalance.value = null
     userWalletAddress.value = ''
   } finally {
@@ -336,19 +336,9 @@ async function payForAd(index) {
     return
   }
 
-  // 広告料金をJPYCに変換（1円 = 1 JPYC）
-  const jpycAmount = ad.adYen // 円単位
-  const jpycAmountLamports = Math.floor(jpycAmount * 1_000_000) // JPYCは通常decimals=6
-
-  if (jpycAmountLamports <= 0) {
-    errorMessage.value = '送金金額が0以下です。'
-    return
-  }
-
-  // システム利用料（1 JPYC）
-  const systemFeeAmount = 1_000_000 // 1 JPYC = 1,000,000 lamports (decimals=6)
-
-  if (!confirm(`¥${ad.adYen?.toLocaleString() || 0} (${(jpycAmountLamports / 1_000_000).toFixed(6)} JPYC) + システム利用料 1 JPYC を送金しますか？`)) {
+  // 為替レートはバックエンドで取得してSOLに変換される
+  // フロントエンドでは確認メッセージのみ表示
+  if (!confirm(`¥${ad.adYen?.toLocaleString() || 0} をSOLで送金しますか？\n（為替レートに基づいて自動的にSOLに変換されます）`)) {
     return
   }
 
@@ -377,7 +367,7 @@ async function payForAd(index) {
       alert(`支払いが完了しました。\nトランザクション: ${res.signature}`)
       // 広告情報を再取得
       await findAds()
-      // JPYC残高を再取得
+      // SOL残高を再取得
       await loadJpycBalance()
     } else {
       errorMessage.value = '支払い処理が完了しましたが、トランザクション署名が取得できませんでした。'
@@ -547,8 +537,8 @@ function handleTrim(event, adID, targetW, targetH, type) {
           <span>あなたのウォレットアドレス: </span>{{userWalletAddress}}
         </div>
         <div style="margin-top: 8px;">
-          <span>手持ちのJPYC残高: </span>
-          <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }} JPYC</strong>
+          <span>手持ちのSOL残高: </span>
+          <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 9 }) }} SOL</strong>
           <span v-else>取得中...</span>
           <button 
             type="button" 

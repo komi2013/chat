@@ -10,7 +10,7 @@ import (
 	"chat/common"
 	"chat/collection"
 	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/programs/token"
+	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -82,17 +82,25 @@ func PaymentExecute(w http.ResponseWriter, r *http.Request) {
 	}
 	userPubkey := userPrivateKey.PublicKey()
 
-	// 広告料金をJPYCに変換（1円 = 1 JPYC）
-	jpycAmount := ad.AdYen // 円単位
-	jpycAmountLamports := uint64(jpycAmount * 1_000_000) // JPYCは通常decimals=6
+	// 為替レートを取得して円からSOLに変換
+	rate, err := common.GetSolToJpyRate()
+	if err != nil {
+		common.WriteResponseWithSession(w, session, fmt.Sprintf("為替レート取得エラー: %v", err), http.StatusOK)
+		return
+	}
 
-	if jpycAmountLamports <= 0 {
+	// 広告料金をSOLに変換
+	yenAmount := float64(ad.AdYen) // 円単位
+	solAmount := common.YenToSol(yenAmount, rate)
+	solAmountLamports := uint64(solAmount * 1_000_000_000) // 1 SOL = 1,000,000,000 lamports
+
+	if solAmountLamports <= 0 {
 		common.WriteResponseWithSession(w, session, "送金金額が0以下です", http.StatusOK)
 		return
 	}
 
-	// システム利用料（1 JPYC）
-	systemFeeAmount := common.SystemFeeAmount // 1 JPYC = 1,000,000 lamports (decimals=6)
+	// システム利用料（0.01 SOL = 10,000,000 lamports）
+	systemFeeAmount := uint64(0.01 * 1_000_000_000) // 0.01 SOL
 
 	// Solana RPC接続
 	client := rpc.New(rpc.MainNetBeta_RPC)
@@ -104,64 +112,26 @@ func PaymentExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jpycMint, err := solana.PublicKeyFromBase58(common.JpycSolanaMint)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, fmt.Sprintf("Invalid JPYC mint address: %v", err), http.StatusOK)
-		return
-	}
-
 	merchantWallet, err := solana.PublicKeyFromBase58(systemWalletAddress)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, fmt.Sprintf("Invalid merchant wallet address: %v", err), http.StatusOK)
 		return
 	}
 
-	// トークンアカウントアドレスを取得
-	userTokenAccount, err := common.FindAssociatedTokenAddress(
-		userPubkey,
-		jpycMint,
-	)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to get user token account: %v", err), http.StatusOK)
-		return
-	}
-
-	merchantTokenAccount, err := common.FindAssociatedTokenAddress(
-		merchantWallet,
-		jpycMint,
-	)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to get merchant token account: %v", err), http.StatusOK)
-		return
-	}
-
-	systemFeeTokenAccount, err := common.FindAssociatedTokenAddress(
-		systemFeeWallet,
-		jpycMint,
-	)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to get system fee token account: %v", err), http.StatusOK)
-		return
-	}
-
 	// トランザクションを作成
 	tx, err := solana.NewTransaction(
 		[]solana.Instruction{
-			// Instruction 1: ユーザー -> 店舗アドレス: 商品代金（JPYC）
-			token.NewTransferInstruction(
-				jpycAmountLamports,
-				userTokenAccount,
-				merchantTokenAccount,
+			// Instruction 1: ユーザー -> 店舗アドレス: 商品代金（SOL）
+			system.NewTransferInstruction(
+				solAmountLamports,
 				userPubkey,
-				[]solana.PublicKey{},
+				merchantWallet,
 			).Build(),
-			// Instruction 2: ユーザー -> システムアドレス: 手数料（1 JPYC）
-			token.NewTransferInstruction(
+			// Instruction 2: ユーザー -> システムアドレス: 手数料（0.01 SOL）
+			system.NewTransferInstruction(
 				systemFeeAmount,
-				userTokenAccount,
-				systemFeeTokenAccount,
 				userPubkey,
-				[]solana.PublicKey{},
+				systemFeeWallet,
 			).Build(),
 		},
 		recent.Value.Blockhash,
@@ -246,7 +216,7 @@ func PaymentExecute(w http.ResponseWriter, r *http.Request) {
 					InvoiceID:      newID,
 					UserID:         session.UserID,
 					AdID:           adID,
-					AmountJPYC:     ad.AdYen,
+					AmountJPYC:     ad.AdYen, // 円単位（互換性のため保持）
 					FromAddress:    user.SolanaWalletAddress,
 					InvoiceAddress: systemWalletAddress, // Solanaアドレスを使用
 					InvoiceStatus:  1, // pending

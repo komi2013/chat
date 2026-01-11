@@ -337,8 +337,8 @@ async function switchNickname(selectedName) {
             <span>Solanaウォレットアドレス: </span>{{userSolanaWalletAddress}}
           </div>
           <div style="margin-top: 8px;">
-            <span>手持ちのJPYC残高: </span>
-            <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }} JPYC</strong>
+            <span>手持ちのSOL残高: </span>
+            <strong v-if="jpycBalance !== null">{{ jpycBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 9 }) }} SOL</strong>
             <span v-else>取得中...</span>
           </div>
         </div>
