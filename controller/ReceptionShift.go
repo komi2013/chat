@@ -145,6 +145,27 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 	// 	}
 	// }
 
+	// 過去のShiftEndを持つシフトを削除
+	now := time.Now()
+	var validShifts []collection.Shift
+	for _, shift := range reception.Shifts {
+		// ShiftEndをパース（datetime-local形式: "2006-01-02T15:04"）
+		shiftEndTime, err := time.Parse("2006-01-02T15:04", shift.ShiftEnd)
+		if err != nil {
+			// パースエラーの場合は保持（形式が異なる可能性があるため）
+			validShifts = append(validShifts, shift)
+			continue
+		}
+
+		// 現在時刻より未来のシフトのみ保持
+		if shiftEndTime.After(now) {
+			validShifts = append(validShifts, shift)
+		}
+	}
+
+	// 過去のシフトを除外したリストで更新
+	reception.Shifts = validShifts
+
 	update := bson.M{
 		"$set": bson.M{
 			"shifts": reception.Shifts,
