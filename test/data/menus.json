@@ -1,0 +1,42 @@
+"menus": [
+    {
+        "id": 1,
+        "menu_name": "味噌ラーメン",
+        "price": 10000,
+        "items": [
+          1, 3
+        ], 
+        "options": [
+          [3, 500], [4, 0], [5, 400]
+        ]
+    },
+    {
+        "id": 2,
+        "menu_name": "カット",
+        "need_facility": "perm",
+        "need_skill": "cut",
+        "price": 3000,
+        "spend_minute": 60
+    },
+    {
+        "item_details": [
+          {
+              "item_id": 1,
+              "item_name": "ラーメン",
+              "img_path": "/dj/d/d",
+              "choices": ["硬い", "普通", "柔らかい"]
+          },
+          {
+              "item_id": 2,
+              "item_name": "みそラーメン",
+              "img_path": "/dj/d/d",
+              "choices": ["硬い", "普通", "柔らかい"]
+          },
+          {
+              "item_id": 3,
+              "item_name": "コーラ",
+              "img_path": "/dj/d/d"
+          },
+        ]
+    },
+]

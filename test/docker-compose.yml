@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  mongodb-test:
+    image: mongo:6.0
+    container_name: chat-mongodb-test
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test
+      MONGO_INITDB_DATABASE: chat_test
+    volumes:
+      - mongodb_test_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - chat-test-network
+
+networks:
+  chat-test-network:
+    driver: bridge
+
+volumes:
+  mongodb_test_data:
+    driver: local
