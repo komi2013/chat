@@ -106,7 +106,7 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 		maxTotalSize     = 500 << 20 // 500MB (全体の上限)
 		maxFileCount     = 10        // 最大10ファイル
 	)
-	allowedExtensions := map[string]bool{".jpg": true, ".png": true, ".txt": true, ".pdf": true}
+	forbiddenExtensions := map[string]bool{".exe": true, ".apk": true}
 
 	var fileLinks []string
 	files := r.MultipartForm.File["files[]"]
@@ -130,8 +130,8 @@ func FileSave(r *http.Request, channelID string, uploadedBy string, userIDs []st
 		}
 
 		ext := strings.ToLower(filepath.Ext(fileHeader.Filename)) // 🔴 修正後も問題なし
-		if !allowedExtensions[ext] {
-			return nil, fmt.Errorf("file '%s' has an invalid extension: %s", fileHeader.Filename, ext)
+		if forbiddenExtensions[ext] {
+			return nil, fmt.Errorf("file '%s' has a forbidden extension: %s", fileHeader.Filename, ext)
 		}
 
 		file, err := fileHeader.Open()
