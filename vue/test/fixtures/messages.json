@@ -1,0 +1,57 @@
+[
+  {
+    "messageID": "msg-1",
+    "content": "Hello, this is a test message",
+    "userID": "user-1",
+    "userName": "TestUser1",
+    "channelID": "channel-1",
+    "parentID": null,
+    "createdAt": "2025-02-01T10:00:00Z",
+    "updatedAt": "2025-02-01T10:00:00Z",
+    "isEdited": false,
+    "isDeleted": false,
+    "reactions": [],
+    "mentions": [],
+    "attachments": []
+  },
+  {
+    "messageID": "msg-2",
+    "content": "This is a reply message",
+    "userID": "user-2",
+    "userName": "TestUser2",
+    "channelID": "channel-1",
+    "parentID": "msg-1",
+    "createdAt": "2025-02-01T10:05:00Z",
+    "updatedAt": "2025-02-01T10:05:00Z",
+    "isEdited": false,
+    "isDeleted": false,
+    "reactions": [
+      {
+        "emoji": "👍",
+        "userIDs": ["user-1"]
+      }
+    ],
+    "mentions": [],
+    "attachments": []
+  },
+  {
+    "messageID": "msg-3",
+    "content": "Another message with emoji 😊",
+    "userID": "user-3",
+    "userName": "TestUser3",
+    "channelID": "channel-2",
+    "parentID": null,
+    "createdAt": "2025-02-01T10:10:00Z",
+    "updatedAt": "2025-02-01T10:10:00Z",
+    "isEdited": false,
+    "isDeleted": false,
+    "reactions": [
+      {
+        "emoji": "😊",
+        "userIDs": ["user-1", "user-2"]
+      }
+    ],
+    "mentions": ["user-1"],
+    "attachments": []
+  }
+]
