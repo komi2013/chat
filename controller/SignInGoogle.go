@@ -200,8 +200,8 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	    }
 	}
 
-	if len(sessions) > 3 {
-		deleteCount := len(sessions) - 3
+	if len(sessions) > 5 {
+		deleteCount := len(sessions) - 5
 		for i := 0; i < deleteCount; i++ {
 			_, _ = collSession.DeleteOne(context.TODO(), bson.M{
 				"_id": sessions[i].SessionID,
