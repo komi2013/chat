@@ -18,6 +18,7 @@ android/gradlew
 android/gradlew.bat
 android/app/src/main/assets/
 android/app/src/main/ic_launcher.png
+# Keep source files but ignore build artifacts
 
 # upload/
 
