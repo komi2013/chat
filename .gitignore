@@ -1,7 +1,6 @@
 .bash_history
 .cache/
 .config/
-chat
 infrastructure/google*
 infrastructure/.env*
 log/
