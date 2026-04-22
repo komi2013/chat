@@ -21,8 +21,6 @@ type FCMMessage struct {
 		Notification *Notification     `json:"notification,omitempty"`
 		Data         map[string]string `json:"data,omitempty"`
 		Android      *AndroidConfig    `json:"android,omitempty"`
-		Webpush      *WebpushConfig    `json:"webpush,omitempty"`
-		APNS         *APNSConfig       `json:"apns,omitempty"`
 	} `json:"message"`
 }
 

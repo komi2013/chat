@@ -195,7 +195,7 @@ func SendPushNotification(arr []interface{}, pushID string, session collection.S
 	// Send FCM if FCM token exists and it's a mobile session
 	if session.FcmToken != "" && session.IsMobile {
 		cfg := LoadConfig()
-		fcmManager := fcm.NewFCMManager(cfg)
+		fcmManager := NewFCMManager(cfg)
 		
 		// Extract title and body from the notification data
 		title := "New Message"
@@ -234,7 +234,7 @@ func SendFCMPushNotification(title, body, channelId, fcmToken string) error {
 	}
 	
 	cfg := LoadConfig()
-	fcmManager := fcm.NewFCMManager(cfg)
+	fcmManager := NewFCMManager(cfg)
 	
 	err := fcmManager.SendNotification(fcmToken, title, body, channelId)
 	if err != nil {
