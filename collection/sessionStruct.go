@@ -15,6 +15,7 @@ type SessionStruct struct {
   Csrf  string      `bson:"csrf,omitempty"`
   PushContents []string `bson:"pushContents"`
   IsMobile bool `bson:"isMobile" json:"isMobile"`
+  FcmToken string `bson:"fcmToken,omitempty" json:"fcmToken,omitempty"`
   Mail         string    `bson:"mail,omitempty" json:"mail,omitempty"`
   Telephone    string    `bson:"telephone,omitempty" json:"telephone,omitempty"`
   Nickname     string    `bson:"nickname,omitempty" json:"nickname,omitempty"`

@@ -30,6 +30,7 @@ func main() {
 		http.HandleFunc("/LogFromJS/", controller.LogFromJS)
 		http.HandleFunc("/NicknameGet/", controller.NicknameGet)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
+http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		http.HandleFunc("/ReceptionBook/", controller.ReceptionBook)
 		// http.HandleFunc("/ReceptionCheck/", controller.ReceptionCheck)
 		http.HandleFunc("/ReceptionEdit/", controller.ReceptionEdit)

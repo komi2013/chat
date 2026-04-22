@@ -23,5 +23,5 @@ android/app/src/main/ic_launcher.png
 
 # infrastructure/fullchain.pem
 # infrastructure/privkey.pem
-
+infrastructure/service-account-key.json
 

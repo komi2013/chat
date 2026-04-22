@@ -31,6 +31,8 @@ type Config struct {
 	GoogleClientID  string
 	EtherscanApiKey string
 	WebRTC          string
+	FirebaseProjectID      string
+	FirebaseServiceAccountKey string
 }
 
 func LoadConfig() *Config {
@@ -94,6 +96,8 @@ func loadFromEnv() *Config {
 		GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
 		EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
 		WebRTC:          os.Getenv("WEB_RTC"),
+		FirebaseProjectID:      os.Getenv("FIREBASE_PROJECT_ID"),
+		FirebaseServiceAccountKey: os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"),
 	}
 }
 

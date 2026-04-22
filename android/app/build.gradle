@@ -4,6 +4,8 @@ plugins {
     id 'kotlin-kapt'
     id 'dagger.hilt.android.plugin'
     id 'kotlin-parcelize'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.firebase-perf'
 }
 
 android {
@@ -21,6 +23,7 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+        buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${getProperty("GOOGLE_WEB_CLIENT_ID")}\""
     }
 
     buildTypes {
@@ -90,6 +93,14 @@ dependencies {
 
     // Image Loading
     implementation 'io.coil-kt:coil-compose:2.5.0'
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx'
+
+    // Google Sign-In
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
