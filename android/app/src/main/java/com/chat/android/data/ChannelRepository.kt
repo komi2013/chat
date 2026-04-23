@@ -11,9 +11,9 @@ class ChannelRepository @Inject constructor(
     private val apiService: ApiService
 ) {
     
-    suspend fun getChannels(): Result<List<Channel>> {
+    suspend fun getChannels(csrf: String): Result<List<Channel>> {
         return try {
-            val response = apiService.getChannels()
+            val response = apiService.getChannels(csrf)
             if (response.isSuccessful) {
                 response.body()?.let { Result.success(it) }
                     ?: Result.failure(Exception("Empty response"))
@@ -25,9 +25,9 @@ class ChannelRepository @Inject constructor(
         }
     }
     
-    suspend fun createChannel(channel: Channel): Result<Channel> {
+    suspend fun createChannel(csrf: String, channel: Channel): Result<Channel> {
         return try {
-            val response = apiService.createChannel(channel)
+            val response = apiService.createChannel(csrf, channel.name, channel.description)
             if (response.isSuccessful) {
                 response.body()?.let { Result.success(it) }
                     ?: Result.failure(Exception("Empty response"))

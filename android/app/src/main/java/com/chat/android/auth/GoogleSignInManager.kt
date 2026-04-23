@@ -6,12 +6,13 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.chat.android.BuildConfig
 import com.chat.android.network.RetrofitClient
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class GoogleSignInManager @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     
     private val googleSignInClient: GoogleSignInClient by lazy {
@@ -23,10 +24,13 @@ class GoogleSignInManager @Inject constructor(
         GoogleSignIn.getClient(context, gso)
     }
     
-    fun getGoogleSignInClient(): GoogleSignInClient = googleSignInClient
+    fun getClient(): GoogleSignInClient = googleSignInClient
     
-    suspend fun signInWithGoogle(idToken: String) = try {
-        val response = RetrofitClient.apiService.signInWithGoogle(idToken)
+    suspend fun signInWithGoogle(idToken: String, csrf: String) = try {
+        // The Go backend needs the g_csrf_token cookie to match the g_csrf_token form field.
+        RetrofitClient.setCsrfCookie(BuildConfig.BASE_URL, "g_csrf_token", csrf)
+
+        val response = RetrofitClient.apiService.signInWithGoogle(idToken, csrf)
         if (response.isSuccessful) {
             response.body()?.let { Result.success(it) }
                 ?: Result.failure(Exception("Empty response"))

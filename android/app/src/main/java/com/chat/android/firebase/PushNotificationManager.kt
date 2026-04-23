@@ -11,12 +11,13 @@ import com.chat.android.MainActivity
 import com.chat.android.R
 import com.chat.android.network.RetrofitClient
 import kotlinx.coroutines.withContext
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class PushNotificationManager @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

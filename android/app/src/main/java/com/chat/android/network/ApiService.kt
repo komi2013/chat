@@ -18,6 +18,20 @@ data class GoogleSignInResponse(
     val nickname: String? = null
 )
 
+data class Channel(
+    val id: String,
+    val name: String,
+    val description: String? = null
+)
+
+data class Message(
+    val id: String,
+    val channelId: String,
+    val userId: String,
+    val content: String,
+    val timestamp: Long
+)
+
 interface ApiService {
     
     // Mobile push subscription (for Android FCM tokens)
@@ -40,8 +54,8 @@ interface ApiService {
     @FormUrlEncoded
     @POST("SignInGoogle/")
     suspend fun signInWithGoogle(
-        @Field("idToken") idToken: String,
-        @Field("csrf") csrf: String
+        @Field("credential") idToken: String,
+        @Field("g_csrf_token") csrf: String
     ): Response<GoogleSignInResponse>
     
     // Get user info
@@ -56,7 +70,16 @@ interface ApiService {
     @POST("ChannelGet/")
     suspend fun getChannels(
         @Field("csrf") csrf: String
-    ): Response<List<Any>>
+    ): Response<List<Channel>>
+    
+    // Create channel
+    @FormUrlEncoded
+    @POST("ChannelPost/")
+    suspend fun createChannel(
+        @Field("csrf") csrf: String,
+        @Field("name") name: String,
+        @Field("description") description: String?
+    ): Response<Channel>
     
     // Post message
     @FormUrlEncoded
@@ -65,7 +88,7 @@ interface ApiService {
         @Field("csrf") csrf: String,
         @Field("channelId") channelId: String,
         @Field("content") content: String
-    ): Response<Any>
+    ): Response<Message>
     
     // Get messages
     @FormUrlEncoded
@@ -73,5 +96,5 @@ interface ApiService {
     suspend fun getMessages(
         @Field("csrf") csrf: String,
         @Field("channelId") channelId: String
-    ): Response<List<Any>>
+    ): Response<List<Message>>
 }
