@@ -51,7 +51,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            buildConfigField "String", "BASE_URL", '"http://10.0.2.2:8010/"' // For local emulator testing
+            buildConfigField "String", "BASE_URL", '"https://chat.quigen.info/"'
         }
         release {
             buildConfigField "String", "BASE_URL", '"https://chat.quigen.info/"'
