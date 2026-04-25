@@ -38,16 +38,26 @@ func getGooglePublicKey(kid string) (*rsa.PublicKey, error) {
 }
 
 func SignInGoogle(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("DEBUG: SignInGoogle called from %s\n", r.RemoteAddr)
+
 	cookie, err := r.Cookie("g_csrf_token")
 	if err != nil {
+		fmt.Printf("DEBUG: Missing CSRF cookie\n")
 		http.Error(w, "missing csrf cookie", http.StatusServiceUnavailable)
 		return
 	}
-	if r.FormValue("g_csrf_token") != cookie.Value {
+
+	formCsrf := r.FormValue("g_csrf_token")
+	if formCsrf != cookie.Value {
+		fmt.Printf("DEBUG: CSRF mismatch. Cookie: %s, Form: %s\n", cookie.Value, formCsrf)
 		http.Error(w, "csrf mismatch", http.StatusServiceUnavailable)
 		return
 	}
-	token, err := jwt.Parse(r.FormValue("credential"), func(token *jwt.Token) (interface{}, error) {
+
+	credential := r.FormValue("credential")
+	fmt.Printf("DEBUG: Received credential (first 20 chars): %s...\n", credential[:20])
+
+	token, err := jwt.Parse(credential, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}

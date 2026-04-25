@@ -1,34 +1,33 @@
 {
   "project_info": {
-    "project_number": "289998193190",
-    "firebase_url": "https://first-c2036.firebaseio.com",
-    "project_id": "first-c2036",
-    "storage_bucket": "first-c2036.firebasestorage.app"
+    "project_number": "422063987497",
+    "project_id": "free-saas",
+    "storage_bucket": "free-saas.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:289998193190:android:47d6002146213beee81ce7",
+        "mobilesdk_app_id": "1:422063987497:android:031b490f13971805a3b538",
         "android_client_info": {
           "package_name": "com.chat.android"
         }
       },
       "oauth_client": [
         {
-          "client_id": "289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com",
+          "client_id": "422063987497-5438ir04ggde2cjmf8ppoib8jtd00ljt.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDvhXFjbldLvoaOXQET1teeaJfNeWfrjaM"
+          "current_key": "AIzaSyA4Nry0zEBQ2PQ1g68NOEL3JNWRf1JwyLM"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com",
+              "client_id": "422063987497-5438ir04ggde2cjmf8ppoib8jtd00ljt.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
