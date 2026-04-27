@@ -52,10 +52,10 @@ interface ApiService {
         @Field("csrf") csrf: String
     ): Response<PushSubscribeResponse>
     
-    // Google Sign-In
+    // Google Sign-In (Dedicated mobile endpoint)
     @Headers("Accept: application/json")
     @FormUrlEncoded
-    @POST("SignInGoogle/")
+    @POST("SignInGoogleMobile/")
     suspend fun signInWithGoogle(
         @Field("credential") idToken: String,
         @Field("g_csrf_token") csrf: String
