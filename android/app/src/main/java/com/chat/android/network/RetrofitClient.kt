@@ -41,6 +41,7 @@ object RetrofitClient {
                 .name(name)
                 .value(value)
                 .domain(httpUrl.host)
+                .path("/")
                 .build()
             cookieJar.addCookie(httpUrl, cookie)
             android.util.Log.d("RetrofitClient", "Cookie set successfully")

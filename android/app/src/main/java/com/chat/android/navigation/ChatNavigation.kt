@@ -13,6 +13,8 @@ fun ChatNavigation() {
         composable("login") {
             LoginScreen(navController = navController)
         }
-        // Add other destinations here
+        composable("home") {
+            HomeScreen(navController = navController)
+        }
     }
 }
