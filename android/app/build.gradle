@@ -104,6 +104,7 @@ dependencies {
     // Network
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-scalars:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
 
     // ViewModel
@@ -119,6 +120,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-messaging-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
+    implementation 'com.google.firebase:firebase-perf-ktx'
 
     // Google Sign-In
     implementation 'com.google.android.gms:play-services-auth:20.7.0'

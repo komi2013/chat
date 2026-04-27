@@ -219,5 +219,11 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if isMobile {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"success": true, "csrf": "%s", "userId": "%s", "nickname": "%s", "message": "Success"}`, newSession.Csrf, userID, newSession.Nickname)
+		return
+	}
+
 	http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
 }

@@ -70,7 +70,13 @@ fun LoginScreen(
         
         Button(
             onClick = {
-                launcher.launch(viewModel.getGoogleSignInClient().signInIntent)
+                try {
+                    android.util.Log.d("LoginScreen", "Launching Google Sign-In intent")
+                    launcher.launch(viewModel.getGoogleSignInClient().signInIntent)
+                } catch (e: Exception) {
+                    android.util.Log.e("LoginScreen", "Crash during intent launch", e)
+                    viewModel.handleGoogleSignInResult(null, "Failed to start Google Sign-In: ${e.message}")
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = uiState !is LoginUiState.Loading

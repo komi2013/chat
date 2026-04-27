@@ -35,6 +35,7 @@ data class Message(
 interface ApiService {
     
     // Mobile push subscription (for Android FCM tokens)
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("PushSubscribeMobile/")
     suspend fun subscribeMobilePush(
@@ -43,6 +44,7 @@ interface ApiService {
     ): Response<PushSubscribeResponse>
     
     // Legacy web push subscription (for browsers)
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("PushSubscribe/")
     suspend fun subscribeToPush(
@@ -51,6 +53,7 @@ interface ApiService {
     ): Response<PushSubscribeResponse>
     
     // Google Sign-In
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("SignInGoogle/")
     suspend fun signInWithGoogle(
@@ -59,6 +62,7 @@ interface ApiService {
     ): Response<GoogleSignInResponse>
     
     // Get user info
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("UserGet/")
     suspend fun getUser(
@@ -66,6 +70,7 @@ interface ApiService {
     ): Response<GoogleSignInResponse>
     
     // Get channels
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("ChannelGet/")
     suspend fun getChannels(
@@ -73,6 +78,7 @@ interface ApiService {
     ): Response<List<Channel>>
     
     // Create channel
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("ChannelPost/")
     suspend fun createChannel(
@@ -82,6 +88,7 @@ interface ApiService {
     ): Response<Channel>
     
     // Post message
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("TweetPost/")
     suspend fun postMessage(
@@ -91,6 +98,7 @@ interface ApiService {
     ): Response<Message>
     
     // Get messages
+    @Headers("Accept: application/json")
     @FormUrlEncoded
     @POST("TweetGet/")
     suspend fun getMessages(

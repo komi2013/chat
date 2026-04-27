@@ -16,12 +16,24 @@ class GoogleSignInManager @Inject constructor(
 ) {
     
     private val googleSignInClient: GoogleSignInClient by lazy {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-            .requestEmail()
-            .build()
-        
-        GoogleSignIn.getClient(context, gso)
+        try {
+            val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
+            android.util.Log.d("GoogleSignInManager", "Initializing with Client ID: $clientId")
+            
+            if (clientId.isEmpty()) {
+                android.util.Log.e("GoogleSignInManager", "GOOGLE_WEB_CLIENT_ID is empty!")
+            }
+
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(clientId)
+                .requestEmail()
+                .build()
+            
+            GoogleSignIn.getClient(context, gso)
+        } catch (e: Exception) {
+            android.util.Log.e("GoogleSignInManager", "Failed to initialize GoogleSignInClient", e)
+            throw e
+        }
     }
     
     fun getClient(): GoogleSignInClient = googleSignInClient
@@ -35,9 +47,12 @@ class GoogleSignInManager @Inject constructor(
             response.body()?.let { Result.success(it) }
                 ?: Result.failure(Exception("Empty response"))
         } else {
-            Result.failure(Exception("Google sign-in failed: ${response.code()}"))
+            val errorBody = response.errorBody()?.string()
+            android.util.Log.e("GoogleSignInManager", "Response Error (${response.code()}): $errorBody")
+            Result.failure(Exception("Server returned error ${response.code()}: ${errorBody ?: "No details"}"))
         }
     } catch (e: Exception) {
-        Result.failure(e)
+        android.util.Log.e("GoogleSignInManager", "Network or Parsing error", e)
+        Result.failure(Exception("Network or Parsing error: ${e.localizedMessage}"))
     }
 }
