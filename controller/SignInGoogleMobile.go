@@ -85,13 +85,21 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch existing sessions to migrate tweet posts (rate limiting)
+	// Fetch existing sessions to migrate tweet posts (rate limiting) and get previous nickname/nickimg
 	cursor, _ := collSession.Find(context.TODO(), bson.M{"userID": userID})
 	var sessions []collection.SessionStruct
 	var tweetPosts []collection.TweetPost
+	var previousSession collection.SessionStruct
 	if err := cursor.All(context.TODO(), &sessions); err == nil {
 		for _, s := range sessions {
 			tweetPosts = append(tweetPosts, s.TweetPosts...)
+		}
+		// Get the most recent session for nickname and nickimg
+		if len(sessions) > 0 {
+			sort.Slice(sessions, func(i, j int) bool {
+				return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt)
+			})
+			previousSession = sessions[0]
 		}
 	}
 
@@ -100,8 +108,8 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		Csrf:           common.StringRand(16),
 		UserID:         userID,
 		IsMobile:       true,
-		Nickname:       user.Nickname,
-		NickImg:        user.NickImg,
+		Nickname:       previousSession.Nickname,
+		NickImg:        previousSession.NickImg,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 		ChannelAliases: user.ChannelAliases,

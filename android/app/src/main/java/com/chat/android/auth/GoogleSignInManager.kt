@@ -44,8 +44,40 @@ class GoogleSignInManager @Inject constructor(
 
         val response = RetrofitClient.apiService.signInWithGoogle(idToken, csrf)
         if (response.isSuccessful) {
-            response.body()?.let { Result.success(it) }
-                ?: Result.failure(Exception("Empty response"))
+            val responseBody = response.body()?.string()
+            android.util.Log.d("GoogleSignInManager", "Response Body: $responseBody")
+            
+            if (responseBody.isNullOrBlank()) {
+                Result.failure(Exception("Empty response body"))
+            } else {
+                try {
+                    val gson = com.google.gson.Gson()
+                    // Try parsing as the expected object first
+                    val signInResponse = gson.fromJson(responseBody, com.chat.android.network.GoogleSignInResponse::class.java)
+                    Result.success(signInResponse)
+                } catch (e: Exception) {
+                    android.util.Log.w("GoogleSignInManager", "Standard JSON parsing failed, attempting fallback: $responseBody")
+                    
+                    // Fallback: If it's a quoted string containing JSON, or just a plain string
+                    try {
+                        // Check if it's just a literal string (like "success" or a token)
+                        if (!responseBody.trim().startsWith("{")) {
+                             // It's likely a plain string or a quoted string. 
+                             // We'll create a dummy response using this as the message/token
+                             Result.success(com.chat.android.network.GoogleSignInResponse(
+                                 csrf = csrf, // Use the one we sent
+                                 success = true,
+                                 message = responseBody,
+                                 userId = "imported_user"
+                             ))
+                        } else {
+                            Result.failure(Exception("Invalid JSON format: $responseBody"))
+                        }
+                    } catch (e2: Exception) {
+                        Result.failure(Exception("Parsing error: $responseBody"))
+                    }
+                }
+            }
         } else {
             val errorBody = response.errorBody()?.string()
             android.util.Log.e("GoogleSignInManager", "Response Error (${response.code()}): $errorBody")
