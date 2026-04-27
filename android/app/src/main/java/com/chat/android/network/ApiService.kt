@@ -14,9 +14,27 @@ data class PushSubscribeResponse(
 data class GoogleSignInResponse(
     val csrf: String,
     val success: Boolean,
-    val message: String,
+    val message: String? = null,
     val userId: String? = null,
-    val nickname: String? = null
+    val nickname: String? = null,
+    val user: UserResponse? = null,
+    val nicknames: List<NicknameResponse>? = null
+)
+
+data class UserResponse(
+    val mail: String? = null,
+    val telephone: String? = null,
+    val walletAddress: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+data class NicknameResponse(
+    val nickname: String,
+    val nickImg: String? = null,
+    val nickBio: String? = null,
+    val good: Int = 0,
+    val bad: Int = 0
 )
 
 data class Channel(
@@ -70,6 +88,20 @@ interface ApiService {
         @Field("csrf") csrf: String
     ): Response<GoogleSignInResponse>
     
+    @FormUrlEncoded
+    @POST("UserEdit/")
+    suspend fun editUser(
+        @Field("csrf") csrf: String,
+        @Field("nickname") nickname: String,
+        @Field("nickImg") nickImg: String?,
+        @Field("nickBio") nickBio: String?,
+        @Field("mail") mail: String?,
+        @Field("telephone") telephone: String?,
+        @Field("walletAddress") walletAddress: String?,
+        @Field("latitude") latitude: Double?,
+        @Field("longitude") longitude: Double?
+    ): Response<GoogleSignInResponse>
+
     // Get channels
     @Headers("Accept: application/json")
     @FormUrlEncoded

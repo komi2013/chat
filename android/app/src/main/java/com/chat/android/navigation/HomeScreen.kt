@@ -25,6 +25,14 @@ fun HomeScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
         
         Button(onClick = {
+            navController.navigate("user")
+        }) {
+            Text("User Settings")
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Button(onClick = {
             navController.navigate("login") {
                 popUpTo("home") { inclusive = true }
             }

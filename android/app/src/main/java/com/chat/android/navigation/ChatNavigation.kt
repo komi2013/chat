@@ -16,5 +16,8 @@ fun ChatNavigation() {
         composable("home") {
             HomeScreen(navController = navController)
         }
+        composable("user") {
+            UserScreen(navController = navController)
+        }
     }
 }

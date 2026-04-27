@@ -3,6 +3,7 @@ package com.chat.android.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.android.network.GoogleSignInResponse
+import com.chat.android.data.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +12,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val googleSignInManager: GoogleSignInManager
+    private val googleSignInManager: GoogleSignInManager,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -38,6 +40,12 @@ class LoginViewModel @Inject constructor(
                 
                 result.onSuccess { response ->
                     android.util.Log.d("LoginViewModel", "Sign-in success: ${response.userId}")
+                    // Save the session CSRF and user info returned by the server
+                    sessionManager.saveSession(
+                        csrf = response.csrf,
+                        userId = response.userId,
+                        nickname = response.nickname
+                    )
                     _uiState.value = LoginUiState.Success(response)
                 }.onFailure { error ->
                     android.util.Log.e("LoginViewModel", "Sign-in API failure", error)
