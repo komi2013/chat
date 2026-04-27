@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -83,7 +84,9 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := user.UserID
-	isMobile := common.IsMobile(r.Header.Get("User-Agent"))
+	// Identify if this is a mobile app or API request
+	isAPI := strings.Contains(r.Header.Get("Accept"), "application/json") || r.Header.Get("X-Requested-With") == "XMLHttpRequest"
+	isMobile := common.IsMobile(r.Header.Get("User-Agent")) || isAPI
 
 	if userID == "" {
 		userID, err = common.CountUpID("userID")

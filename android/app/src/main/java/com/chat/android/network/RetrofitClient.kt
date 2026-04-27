@@ -57,6 +57,7 @@ object RetrofitClient {
         val request = chain.request().newBuilder()
             .addHeader("Accept", "application/json")
             .addHeader("X-Requested-With", "XMLHttpRequest")
+            .addHeader("User-Agent", "ChatAndroid/1.0 (Android)")
             .build()
         chain.proceed(request)
     }

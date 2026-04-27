@@ -19,9 +19,7 @@ import (
 func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("DEBUG: SignInGoogleMobile called from %s\n", r.RemoteAddr)
 
-	// In mobile, we might not have the cookie set yet or correctly by the first request.
-	// We'll trust the g_csrf_token form value if it's present and matches our logic,
-	// or skip strict cookie matching for the initial mobile sign-in.
+	// In mobile, we trust the g_csrf_token form value.
 	formCsrf := r.FormValue("g_csrf_token")
 	if formCsrf == "" {
 		fmt.Printf("DEBUG: Missing CSRF in form\n")
@@ -87,6 +85,16 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch existing sessions to migrate tweet posts (rate limiting)
+	cursor, _ := collSession.Find(context.TODO(), bson.M{"userID": userID})
+	var sessions []collection.SessionStruct
+	var tweetPosts []collection.TweetPost
+	if err := cursor.All(context.TODO(), &sessions); err == nil {
+		for _, s := range sessions {
+			tweetPosts = append(tweetPosts, s.TweetPosts...)
+		}
+	}
+
 	newSession := collection.SessionStruct{
 		SessionID:      common.StringRand(16),
 		Csrf:           common.StringRand(16),
@@ -99,9 +107,10 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		ChannelAliases: user.ChannelAliases,
 		Mail:           user.Mail,
 		Telephone:      user.Telephone,
+		TweetPosts:     tweetPosts,
 	}
 
-	// For mobile, we still set the session cookie but rely on the JSON response for the CSRF
+	// Set session cookie for subsequent requests
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
 		Value:    newSession.SessionID,
@@ -117,18 +126,14 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clean up old sessions for this user (max 5)
-	cursor, _ := collSession.Find(context.TODO(), bson.M{"userID": userID})
-	var sessions []collection.SessionStruct
-	if err := cursor.All(context.TODO(), &sessions); err == nil {
-		if len(sessions) > 5 {
-			sort.Slice(sessions, func(i, j int) bool {
-				return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
-			})
-			deleteCount := len(sessions) - 5
-			for i := 0; i < deleteCount; i++ {
-				_, _ = collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
-			}
+	// Clean up old sessions (keep latest 5)
+	if len(sessions) > 5 {
+		sort.Slice(sessions, func(i, j int) bool {
+			return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
+		})
+		deleteCount := len(sessions) - 5
+		for i := 0; i < deleteCount; i++ {
+			_, _ = collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
 		}
 	}
 
