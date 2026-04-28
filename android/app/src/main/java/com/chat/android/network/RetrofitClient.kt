@@ -1,8 +1,6 @@
 package com.chat.android.network
 
-import okhttp3.Cookie
 import okhttp3.CookieJar
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -11,40 +9,31 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import com.chat.android.BuildConfig
 import com.google.gson.GsonBuilder
+import okhttp3.JavaNetCookieJar
+import java.net.CookieManager
+import java.net.CookiePolicy
+import java.net.HttpCookie
+import java.net.URI
 
 object RetrofitClient {
     
-    private val cookieJar = object : CookieJar {
-        private val cookieStore = mutableMapOf<String, List<Cookie>>()
-
-        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            cookieStore[url.host] = cookies
-        }
-
-        override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            return cookieStore[url.host] ?: listOf()
-        }
-
-        fun addCookie(url: HttpUrl, cookie: Cookie) {
-            val host = url.host
-            val cookies = cookieStore[host]?.toMutableList() ?: mutableListOf()
-            cookies.add(cookie)
-            cookieStore[host] = cookies
-        }
+    private val cookieManager = CookieManager().apply {
+        setCookiePolicy(CookiePolicy.ACCEPT_ALL)
     }
+
+    private val cookieJar = JavaNetCookieJar(cookieManager)
 
     fun setCsrfCookie(url: String, name: String, value: String) {
         try {
             android.util.Log.d("RetrofitClient", "Setting cookie for URL: $url")
-            val httpUrl = url.toHttpUrl()
-            val cookie = Cookie.Builder()
-                .name(name)
-                .value(value)
-                .domain(httpUrl.host)
-                .path("/")
-                .build()
-            cookieJar.addCookie(httpUrl, cookie)
-            android.util.Log.d("RetrofitClient", "Cookie set successfully")
+            val uri = URI.create(url)
+            val cookie = HttpCookie(name, value).apply {
+                path = "/"
+                domain = uri.host
+                version = 0 
+            }
+            cookieManager.cookieStore.add(uri, cookie)
+            android.util.Log.d("RetrofitClient", "Cookie set successfully: $name=$value")
         } catch (e: Exception) {
             android.util.Log.e("RetrofitClient", "Error setting CSRF cookie", e)
         }
