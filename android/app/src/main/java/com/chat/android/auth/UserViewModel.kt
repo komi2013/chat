@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.android.data.SessionManager
 import com.chat.android.network.ApiService
+import com.chat.android.network.RetrofitClient
 import com.chat.android.network.GoogleSignInResponse
 import com.chat.android.network.NicknameResponse
 import com.chat.android.network.UserResponse
@@ -28,6 +29,13 @@ class UserViewModel @Inject constructor(
 
     fun fetchUser() {
         val csrf = sessionManager.getCsrf() ?: return
+        
+        // Ensure session cookie is present if we have a session ID
+        val sessionId = sessionManager.getSessionId()
+        if (sessionId != null) {
+            RetrofitClient.injectSessionCookie(com.chat.android.BuildConfig.BASE_URL, sessionId)
+        }
+
         viewModelScope.launch {
             try {
                 _uiState.value = UserUiState.Loading

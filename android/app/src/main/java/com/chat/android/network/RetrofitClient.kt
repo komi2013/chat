@@ -23,6 +23,21 @@ object RetrofitClient {
 
     private val cookieJar = JavaNetCookieJar(cookieManager)
 
+    fun injectSessionCookie(url: String, sessionId: String) {
+        try {
+            val uri = URI.create(url)
+            val cookie = HttpCookie("ss", sessionId).apply {
+                path = "/"
+                domain = uri.host
+                version = 0
+            }
+            cookieManager.cookieStore.add(uri, cookie)
+            android.util.Log.d("RetrofitClient", "Session cookie injected: ss=$sessionId")
+        } catch (e: Exception) {
+            android.util.Log.e("RetrofitClient", "Error injecting session cookie", e)
+        }
+    }
+
     fun setCsrfCookie(url: String, name: String, value: String) {
         try {
             android.util.Log.d("RetrofitClient", "Setting cookie for URL: $url")

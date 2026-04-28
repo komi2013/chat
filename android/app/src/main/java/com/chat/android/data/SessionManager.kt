@@ -16,16 +16,22 @@ class SessionManager @Inject constructor(
         private const val KEY_CSRF = "csrf"
         private const val KEY_USER_ID = "user_id"
         private const val KEY_NICKNAME = "nickname"
+        private const val KEY_SESSION_ID = "session_id"
     }
 
-    fun saveSession(csrf: String, userId: String?, nickname: String?) {
+    fun saveSession(csrf: String, userId: String?, nickname: String?, sessionId: String? = null) {
         prefs.edit().apply {
             putString(KEY_CSRF, csrf)
             putString(KEY_USER_ID, userId)
             putString(KEY_NICKNAME, nickname)
+            if (sessionId != null) {
+                putString(KEY_SESSION_ID, sessionId)
+            }
             apply()
         }
     }
+
+    fun getSessionId(): String? = prefs.getString(KEY_SESSION_ID, null)
 
     fun getCsrf(): String? = prefs.getString(KEY_CSRF, null)
     

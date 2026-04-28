@@ -145,8 +145,9 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	_, err = collSession.InsertOne(context.TODO(), newSession)
 	if err != nil {
-		fmt.Printf("DEBUG: CRITICAL - collSession.InsertOne failed: %v\n", err)
-		http.Error(w, "cannot create session", http.StatusInternalServerError)
+		errorMsg := fmt.Sprintf("cannot create session: %v", err)
+		fmt.Printf("DEBUG: CRITICAL - %s\n", errorMsg)
+		http.Error(w, errorMsg, http.StatusInternalServerError)
 		return
 	}
 
