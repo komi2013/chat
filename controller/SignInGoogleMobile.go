@@ -116,6 +116,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		Mail:           user.Mail,
 		Telephone:      user.Telephone,
 		TweetPosts:     tweetPosts,
+		PushContents:   []string{},
 	}
 
 	// Set session cookie for subsequent requests

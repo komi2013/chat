@@ -25,7 +25,7 @@ import com.chat.android.auth.UserUiState
 import com.chat.android.auth.UserViewModel
 import com.chat.android.network.NicknameResponse
 
-@OptIn(Material3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserScreen(
     navController: NavController,
