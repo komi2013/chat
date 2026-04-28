@@ -29,6 +29,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	credential := r.FormValue("credential")
 	if credential == "" {
+		fmt.Printf("DEBUG: Missing credential in form\n")
 		http.Error(w, "missing credential", http.StatusBadRequest)
 		return
 	}
@@ -48,6 +49,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	claims, _ := token.Claims.(jwt.MapClaims)
 	googleSub := claims["sub"]
+	fmt.Printf("DEBUG: Google Sub: %v\n", googleSub)
 
 	collUser := common.DB.UserDB.Collection("user")
 	collSession := common.DB.SessionDB.Collection("session")
@@ -55,6 +57,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	var user collection.UserStruct
 	err = collUser.FindOne(context.TODO(), bson.M{"googleJWTSub": googleSub}).Decode(&user)
 	if err != nil && err != mongo.ErrNoDocuments {
+		fmt.Printf("DEBUG: User lookup failed: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -63,9 +66,13 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	if userID == "" {
 		userID, err = common.CountUpID("userID")
 		if err != nil {
+			fmt.Printf("DEBUG: CountUpID failed: %v\n", err)
 			http.Error(w, "cannot create user", http.StatusInternalServerError)
 			return
 		}
+		fmt.Printf("DEBUG: Generated new userID: %s\n", userID)
+	} else {
+		fmt.Printf("DEBUG: Found existing user: %s\n", userID)
 	}
 
 	_, err = collUser.UpdateOne(
@@ -81,26 +88,31 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		options.Update().SetUpsert(true),
 	)
 	if err != nil {
+		fmt.Printf("DEBUG: collUser.UpdateOne failed: %v\n", err)
 		http.Error(w, "user update fail", http.StatusInternalServerError)
 		return
 	}
 
-	// Fetch existing sessions to migrate tweet posts (rate limiting) and get previous nickname/nickimg
-	cursor, _ := collSession.Find(context.TODO(), bson.M{"userID": userID})
+	// Fetch existing sessions
+	cursor, err := collSession.Find(context.TODO(), bson.M{"userID": userID})
 	var sessions []collection.SessionStruct
 	var tweetPosts []collection.TweetPost
 	var previousSession collection.SessionStruct
-	if err := cursor.All(context.TODO(), &sessions); err == nil {
-		for _, s := range sessions {
-			tweetPosts = append(tweetPosts, s.TweetPosts...)
+	if err == nil {
+		if err := cursor.All(context.TODO(), &sessions); err == nil {
+			fmt.Printf("DEBUG: Found %d existing sessions for user %s\n", len(sessions), userID)
+			for _, s := range sessions {
+				tweetPosts = append(tweetPosts, s.TweetPosts...)
+			}
+			if len(sessions) > 0 {
+				sort.Slice(sessions, func(i, j int) bool {
+					return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt)
+				})
+				previousSession = sessions[0]
+			}
 		}
-		// Get the most recent session for nickname and nickimg
-		if len(sessions) > 0 {
-			sort.Slice(sessions, func(i, j int) bool {
-				return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt)
-			})
-			previousSession = sessions[0]
-		}
+	} else {
+		fmt.Printf("DEBUG: collSession.Find error (non-fatal): %v\n", err)
 	}
 
 	newSession := collection.SessionStruct{
@@ -119,7 +131,9 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		PushContents:   []string{},
 	}
 
-	// Set session cookie for subsequent requests
+	fmt.Printf("DEBUG: Attempting to insert new session ID: %s\n", newSession.SessionID)
+
+	// Set session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
 		Value:    newSession.SessionID,
@@ -131,18 +145,24 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	_, err = collSession.InsertOne(context.TODO(), newSession)
 	if err != nil {
+		fmt.Printf("DEBUG: CRITICAL - collSession.InsertOne failed: %v\n", err)
 		http.Error(w, "cannot create session", http.StatusInternalServerError)
 		return
 	}
 
-	// Clean up old sessions (keep latest 5)
+	fmt.Printf("DEBUG: Session created successfully for user %s\n", userID)
+
+	// Clean up old sessions
 	if len(sessions) > 5 {
 		sort.Slice(sessions, func(i, j int) bool {
 			return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
 		})
 		deleteCount := len(sessions) - 5
 		for i := 0; i < deleteCount; i++ {
-			_, _ = collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
+			_, err := collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
+			if err != nil {
+				fmt.Printf("DEBUG: Failed to delete old session %s: %v\n", sessions[i].SessionID, err)
+			}
 		}
 	}
 
