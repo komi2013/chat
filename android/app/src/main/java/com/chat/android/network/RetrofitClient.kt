@@ -47,8 +47,15 @@ object RetrofitClient {
         val request = chain.request().newBuilder()
             .addHeader("Accept", "application/json")
             .addHeader("X-Requested-With", "XMLHttpRequest")
-            .addHeader("User-Agent", "ChatAndroid/1.0 (Android)")
+            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .addHeader("Referer", BuildConfig.BASE_URL)
             .build()
+        
+        // Log outgoing cookies for this request
+        val url = chain.request().url
+        val cookies = cookieJar.loadForRequest(url)
+        android.util.Log.d("RetrofitClient", "Outgoing cookies for ${url.encodedPath}: ${cookies.joinToString("; ") { "${it.name}=${it.value}" }}")
+
         chain.proceed(request)
     }
 
