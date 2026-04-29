@@ -42,7 +42,7 @@ class UserViewModel @Inject constructor(
                 val response = apiService.getUser(csrf)
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body != null && body.success) {
+                    if (body != null && (body.success == true || body.user != null)) {
                         sessionManager.saveSession(body.csrf, sessionManager.getUserId(), body.nickname)
                         _uiState.value = UserUiState.Success(body)
                     } else {
@@ -76,7 +76,7 @@ class UserViewModel @Inject constructor(
                 )
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body != null && body.success) {
+                    if (body != null && (body.success == true || body.user != null)) {
                         sessionManager.saveSession(body.csrf, sessionManager.getUserId(), body.nickname)
                         _uiState.value = UserUiState.Success(body)
                     } else {

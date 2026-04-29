@@ -13,12 +13,13 @@ data class PushSubscribeResponse(
 
 data class GoogleSignInResponse(
     val csrf: String,
-    val success: Boolean,
+    val success: Boolean? = null,
     val message: String? = null,
     val userId: String? = null,
     val nickname: String? = null,
     val user: UserResponse? = null,
-    val nicknames: List<NicknameResponse>? = null
+    val nicknames: List<NicknameResponse>? = null,
+    val pushContents: List<String>? = null
 )
 
 data class UserResponse(
@@ -34,7 +35,8 @@ data class NicknameResponse(
     val nickImg: String? = null,
     val nickBio: String? = null,
     val good: Int = 0,
-    val bad: Int = 0
+    val bad: Int = 0,
+    val createdAt: String? = null
 )
 
 data class Channel(

@@ -1,7 +1,7 @@
 package com.chat.android.navigation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.chat.android.BuildConfig
 import com.chat.android.auth.UserUiState
 import com.chat.android.auth.UserViewModel
 import com.chat.android.network.NicknameResponse
@@ -36,7 +38,7 @@ fun UserScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ユーザーページ") },
+                title = { Text("ユーザー設定") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -45,22 +47,25 @@ fun UserScreen(
             )
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
         ) {
             when (val state = uiState) {
                 is UserUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is UserUiState.Error -> {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                    Button(onClick = { viewModel.fetchUser() }) {
-                        Text("Retry")
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { viewModel.fetchUser() }) {
+                            Text("再試行")
+                        }
                     }
                 }
                 is UserUiState.Success -> {
@@ -73,22 +78,22 @@ fun UserScreen(
 
 @Composable
 fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: UserViewModel) {
-    var mail by remember { mutableStateOf(data.user?.mail ?: "") }
-    var telephone by remember { mutableStateOf(data.user?.telephone ?: "") }
-    var walletAddress by remember { mutableStateOf(data.user?.walletAddress ?: "") }
-    var latitude by remember { mutableStateOf(data.user?.latitude?.toString() ?: "") }
-    var longitude by remember { mutableStateOf(data.user?.longitude?.toString() ?: "") }
+    var mail by remember(data) { mutableStateOf(data.user?.mail ?: "") }
+    var telephone by remember(data) { mutableStateOf(data.user?.telephone ?: "") }
+    var walletAddress by remember(data) { mutableStateOf(data.user?.walletAddress ?: "") }
+    var latitude by remember(data) { mutableStateOf(data.user?.latitude?.toString() ?: "") }
+    var longitude by remember(data) { mutableStateOf(data.user?.longitude?.toString() ?: "") }
     
-    // We'll just show the nicknames for now, editing them is more involved
     val nicknames = data.nicknames ?: emptyList()
-    var selectedNickname by remember { mutableStateOf(data.nickname ?: "") }
+    var selectedNickname by remember(data) { mutableStateOf(data.nickname ?: "") }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            Text("経緯度", style = MaterialTheme.typography.titleMedium)
+            Text("位置情報", style = MaterialTheme.typography.titleMedium)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = latitude,
@@ -106,11 +111,11 @@ fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: 
         }
 
         item {
-            Text("オプション", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            Text("基本情報", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = mail,
                 onValueChange = { mail = it },
-                label = { Text("メール") },
+                label = { Text("メールアドレス") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -124,13 +129,13 @@ fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: 
             OutlinedTextField(
                 value = walletAddress,
                 onValueChange = { walletAddress = it },
-                label = { Text("JPYCアドレス") },
+                label = { Text("JPYCウォレットアドレス") },
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
         item {
-            Text("ニックネーム一覧", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+            Text("ニックネームの選択", style = MaterialTheme.typography.titleMedium)
         }
 
         items(nicknames) { nick ->
@@ -142,10 +147,11 @@ fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: 
         item {
             Button(
                 onClick = {
+                    val currentNick = nicknames.find { it.nickname == selectedNickname }
                     viewModel.updateUser(
                         nickname = selectedNickname,
-                        nickImg = nicknames.find { it.nickname == selectedNickname }?.nickImg,
-                        nickBio = nicknames.find { it.nickname == selectedNickname }?.nickBio,
+                        nickImg = currentNick?.nickImg,
+                        nickBio = currentNick?.nickBio,
                         mail = mail,
                         telephone = telephone,
                         walletAddress = walletAddress,
@@ -153,9 +159,9 @@ fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: 
                         longitude = longitude.toDoubleOrNull()
                     )
                 },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) {
-                Text("更新")
+                Text("プロフィールを更新")
             }
         }
     }
@@ -163,56 +169,91 @@ fun UserContent(data: com.chat.android.network.GoogleSignInResponse, viewModel: 
 
 @Composable
 fun NicknameItem(nick: NicknameResponse, isSelected: Boolean, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .clickable { onSelect() }
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        onClick = onSelect,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        if (isSelected) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        } else {
-            Spacer(modifier = Modifier.size(24.dp))
-        }
-        
-        Spacer(modifier = Modifier.width(8.dp))
-        
-        // Handle Emoji vs Image
-        val nickImg = nick.nickImg
-        if (nickImg != null) {
-            if (nickImg.startsWith(",")) {
-                val parts = nickImg.split(",")
-                if (parts.size >= 3) {
-                    val emoji = parts[1]
-                    val bgColor = try { Color(android.graphics.Color.parseColor(parts[2])) } catch (e: Exception) { Color.Gray }
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(bgColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(emoji, fontSize = 18.sp)
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NicknameImage(nick.nickImg)
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(nick.nickname, style = MaterialTheme.typography.titleMedium)
+                nick.nickBio?.let {
+                    if (it.isNotEmpty()) {
+                        Text(
+                            it, 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-            } else {
-                AsyncImage(
-                    model = nickImg,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    contentScale = ContentScale.Crop
+            }
+            
+            if (isSelected) {
+                Icon(
+                    Icons.Default.Check, 
+                    contentDescription = "選択済み", 
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-        } else {
-            Box(modifier = Modifier.size(32.dp).background(Color.LightGray))
+        }
+    }
+}
+
+@Composable
+fun NicknameImage(nickImg: String?) {
+    if (nickImg != null) {
+        if (nickImg.startsWith(",")) {
+            val parts = nickImg.split(",")
+            if (parts.size >= 3) {
+                val emoji = parts[1]
+                val bgColor = try { Color(android.graphics.Color.parseColor(parts[2])) } catch (e: Exception) { Color.Gray }
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(bgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 24.sp)
+                }
+                return
+            }
         }
         
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(nick.nickname, style = MaterialTheme.typography.bodyLarge)
+        val fullImgUrl = if (nickImg.startsWith("/")) {
+            "${BuildConfig.BASE_URL.removeSuffix("/")}$nickImg"
+        } else {
+            nickImg
+        }
+        
+        AsyncImage(
+            model = fullImgUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("?", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
