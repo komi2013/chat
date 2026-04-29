@@ -38,6 +38,15 @@ object RetrofitClient {
         }
     }
 
+    fun getSessionId(url: String): String? {
+        return try {
+            val uri = URI.create(url)
+            cookieManager.cookieStore.get(uri).find { it.name == "ss" }?.value
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun setCsrfCookie(url: String, name: String, value: String) {
         try {
             android.util.Log.d("RetrofitClient", "Setting cookie for URL: $url")

@@ -43,8 +43,8 @@ class GoogleSignInManager @Inject constructor(
         android.util.Log.d("GoogleSignInManager", "CSRF: $csrf")
         android.util.Log.d("GoogleSignInManager", "ID Token prefix: ${idToken.take(20)}...")
 
-        // The Go backend needs the g_csrf_token cookie to match the g_csrf_token form field.
-        RetrofitClient.setCsrfCookie(BuildConfig.BASE_URL, "g_csrf_token", csrf)
+        // The Go backend needs the csrf cookie to match the csrf form field.
+        RetrofitClient.setCsrfCookie(BuildConfig.BASE_URL, "csrf", csrf)
 
         val response = RetrofitClient.apiService.signInWithGoogle(idToken, csrf)
         if (response.isSuccessful) {

@@ -77,7 +77,7 @@ interface ApiService {
     @POST("SignInGoogleMobile/")
     suspend fun signInWithGoogle(
         @Field("credential") idToken: String,
-        @Field("g_csrf_token") csrf: String
+        @Field("csrf") csrf: String
     ): Response<ResponseBody>
     
     // Get user info

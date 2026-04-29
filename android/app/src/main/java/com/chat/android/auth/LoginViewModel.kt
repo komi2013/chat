@@ -40,11 +40,16 @@ class LoginViewModel @Inject constructor(
                 
                 result.onSuccess { response ->
                     android.util.Log.d("LoginViewModel", "Sign-in success: ${response.userId}")
+                    
+                    // Capture the session ID from the cookie store after successful sign-in
+                    val sessionId = com.chat.android.network.RetrofitClient.getSessionId(com.chat.android.BuildConfig.BASE_URL)
+
                     // Save the session CSRF and user info returned by the server
                     sessionManager.saveSession(
                         csrf = response.csrf,
                         userId = response.userId,
-                        nickname = response.nickname
+                        nickname = response.nickname,
+                        sessionId = sessionId
                     )
                     _uiState.value = LoginUiState.Success(response)
                 }.onFailure { error ->

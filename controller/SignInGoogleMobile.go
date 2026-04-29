@@ -19,8 +19,8 @@ import (
 func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("DEBUG: SignInGoogleMobile called from %s\n", r.RemoteAddr)
 
-	// In mobile, we trust the g_csrf_token form value.
-	formCsrf := r.FormValue("g_csrf_token")
+	// In mobile, we trust the csrf form value.
+	formCsrf := r.FormValue("csrf")
 	if formCsrf == "" {
 		fmt.Printf("DEBUG: Missing CSRF in form\n")
 		http.Error(w, "missing csrf", http.StatusBadRequest)
