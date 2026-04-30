@@ -63,12 +63,20 @@ fun ChannelScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            if (!uiState.isEditing) {
-                IconButton(onClick = viewModel::startEditing) {
+            Row {
+                IconButton(onClick = { navController.navigate("user") }) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit"
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "User Page"
                     )
+                }
+                if (!uiState.isEditing && channelId != null) {
+                    IconButton(onClick = viewModel::startEditing) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit"
+                        )
+                    }
                 }
             }
         }
