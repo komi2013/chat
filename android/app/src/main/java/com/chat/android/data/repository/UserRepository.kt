@@ -99,6 +99,6 @@ class UserRepository @Inject constructor(
     }
 
     fun isSignedIn(): Boolean {
-        return !getCsrfToken()..isNullOrEmpty()
+        return !getCsrfToken().isNullOrEmpty()
     }
 }

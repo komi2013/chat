@@ -2,6 +2,7 @@ package com.chat.android.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chat.android.data.model.TopLink
 import com.chat.android.data.repository.UserRepository
 import com.chat.android.network.ApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,11 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class TopLink(
-    val topText: String,
-    val topLink: String
-)
 
 data class TopUiState(
     val isLoading: Boolean = false,

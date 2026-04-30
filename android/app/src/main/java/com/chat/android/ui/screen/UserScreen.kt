@@ -282,17 +282,21 @@ private fun CoordinateSection(
         // Show parsed coordinates
         val parts = coordinateInput.split(",").map { it.trim() }
         if (parts.size == 2) {
-            try {
+            val coords = try {
                 val lat = parts[0].toDouble()
                 val lng = parts[1].toDouble()
+                lat to lng
+            } catch (e: NumberFormatException) {
+                null
+            }
+
+            if (coords != null) {
                 Column(
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    Text("➤ 緯度: ${lat}", fontWeight = FontWeight.Medium)
-                    Text("➤ 経度: ${lng}", fontWeight = FontWeight.Medium)
+                    Text("➤ 緯度: ${coords.first}", fontWeight = FontWeight.Medium)
+                    Text("➤ 経度: ${coords.second}", fontWeight = FontWeight.Medium)
                 }
-            } catch (e: NumberFormatException) {
-                // Invalid coordinates, don't show parsed values
             }
         }
     }

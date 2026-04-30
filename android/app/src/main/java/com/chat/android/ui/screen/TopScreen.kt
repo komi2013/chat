@@ -104,7 +104,7 @@ fun TopScreen(
 
 @Composable
 private fun TopLinkCard(
-    link: com.chat.android.ui.viewmodel.TopLink,
+    link: com.chat.android.data.model.TopLink,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {

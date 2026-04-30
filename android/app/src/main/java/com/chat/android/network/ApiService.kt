@@ -19,7 +19,8 @@ data class GoogleSignInResponse(
     val nickname: String? = null,
     val user: UserResponse? = null,
     val nicknames: List<NicknameResponse>? = null,
-    val pushContents: List<String>? = null
+    val pushContents: List<String>? = null,
+    val error: String? = null
 )
 
 data class UserResponse(
@@ -81,6 +82,7 @@ data class ChannelDetail(
     val name: String,
     val description: String? = null,
     val myname: String? = null,
+    val myimg: String? = null,
     val aliasImg: String? = null,
     val members: List<String>? = null
 )
