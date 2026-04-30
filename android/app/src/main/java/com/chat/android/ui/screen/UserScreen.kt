@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.chat.android.ui.component.DrawerLayout
 import com.chat.android.ui.viewmodel.UserViewModel
 import com.chat.android.ui.viewmodel.UserUiState
 
@@ -35,12 +36,14 @@ fun UserScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp)
-    ) {
+    DrawerLayout(navController = navController) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
         // Header
         Text(
             text = "ユーザーページ",
@@ -553,5 +556,6 @@ private fun NicknameItem(
                 modifier = Modifier.weight(1f)
             )
         }
+    }
     }
 }

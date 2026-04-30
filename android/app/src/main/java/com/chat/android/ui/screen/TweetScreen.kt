@@ -4,9 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.chat.android.ui.component.DrawerLayout
 import com.chat.android.ui.viewmodel.TweetViewModel
 import com.chat.android.ui.viewmodel.TweetUiState
 
@@ -42,90 +41,77 @@ fun TweetScreen(
         viewModel.loadTweets(date, parentIDhtml, messageID)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp)
-    ) {
-        // Header
-        Row(
+    DrawerLayout(navController = navController) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(paddingValues)
+                .padding(16.dp)
         ) {
-            IconButton(onClick = { navController.navigateUp() }) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back"
-                )
-            }
+            // Header (title only - menu is handled by DrawerLayout)
             Text(
-                text = "ツイート",
+                text = "Tweet",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            IconButton(onClick = viewModel::refresh) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh"
-                )
-            }
-        }
-
-        // Loading indicator
-        if (uiState.isLoading) {
-            Box(
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+                    .padding(bottom = 16.dp),
+                textAlign = TextAlign.Center
+            )
+
+            // Loading indicator
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        }
 
-        // Error message
-        uiState.errorMessage?.let { error ->
-            ErrorMessageCard(
-                message = error,
-                onDismiss = { viewModel.clearMessages() }
-            )
-        }
-
-        // Success message
-        uiState.successMessage?.let { success ->
-            SuccessMessageCard(
-                message = success,
-                onDismiss = { viewModel.clearMessages() }
-            )
-        }
-
-        // Tweet input
-        TweetInputSection(
-            content = uiState.newTweetContent,
-            onContentChange = viewModel::updateNewTweetContent,
-            onPost = { viewModel.postTweet() }
-        )
-
-        // Tweets list
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(uiState.tweets) { tweet ->
-                TweetItem(
-                    tweet = tweet,
-                    onBookmarkClick = { bookmarked ->
-                        viewModel.toggleBookmark(tweet.messageID, bookmarked)
-                    },
-                    onReplyClick = {
-                        // Navigate to thread or reply screen
-                        navController.navigate("thread/${tweet.channelID}/${tweet.messageID}")
-                    }
+            // Error message
+            uiState.errorMessage?.let { error ->
+                ErrorMessageCard(
+                    message = error,
+                    onDismiss = { viewModel.clearMessages() }
                 )
+            }
+
+            // Success message
+            uiState.successMessage?.let { success ->
+                SuccessMessageCard(
+                    message = success,
+                    onDismiss = { viewModel.clearMessages() }
+                )
+            }
+
+            // Tweet input
+            TweetInputSection(
+                content = uiState.newTweetContent,
+                onContentChange = viewModel::updateNewTweetContent,
+                onPost = { viewModel.postTweet() }
+            )
+
+            // Tweets list
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(uiState.tweets) { tweet ->
+                    TweetItem(
+                        tweet = tweet,
+                        onBookmarkClick = { bookmarked ->
+                            viewModel.toggleBookmark(tweet.messageID, bookmarked)
+                        },
+                        onReplyClick = {
+                            // Navigate to thread or reply screen
+                            navController.navigate("thread/${tweet.channelID}/${tweet.messageID}")
+                        }
+                    )
+                }
             }
         }
     }

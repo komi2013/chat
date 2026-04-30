@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.chat.android.ui.component.DrawerLayout
 import com.chat.android.ui.viewmodel.TopViewModel
 import com.chat.android.ui.viewmodel.TopUiState
 
@@ -29,12 +30,14 @@ fun TopScreen(
         viewModel.refreshTopLinks()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Header
+    DrawerLayout(navController = navController) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+        // Header (title only - menu is handled by DrawerLayout)
         Text(
             text = "ホーム",
             style = MaterialTheme.typography.headlineMedium,

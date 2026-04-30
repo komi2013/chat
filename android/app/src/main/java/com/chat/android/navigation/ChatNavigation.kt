@@ -1,18 +1,82 @@
 package com.chat.android.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.chat.android.ui.screen.*
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatNavigation() {
     val navController = rememberNavController()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    NavHost(navController = navController, startDestination = "top") {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(modifier = Modifier.height(12.dp))
+                NavigationDrawerItem(
+                    label = { Text("ホーム") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("top")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Home, contentDescription = null) }
+                )
+                NavigationDrawerItem(
+                    label = { Text("ユーザー設定") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("user")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) }
+                )
+                NavigationDrawerItem(
+                    label = { Text("チャネル一覧") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("channel")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.List, contentDescription = null) }
+                )
+                NavigationDrawerItem(
+                    label = { Text("ツイート一覧") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("tweets")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Chat, contentDescription = null) }
+                )
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                NavigationDrawerItem(
+                    label = { Text("設定") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("setting")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                )
+            }
+        }
+    ) {
+        NavHost(navController = navController, startDestination = "top") {
         // Main navigation
         composable("top") {
             TopScreen(navController = navController)
@@ -349,6 +413,7 @@ fun ChatNavigation() {
         
         composable("privacy") {
             PrivacyScreen(navController = navController)
+        }
         }
     }
 }

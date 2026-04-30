@@ -37,7 +37,8 @@ data class NicknameResponse(
     val nickBio: String? = null,
     val good: Int = 0,
     val bad: Int = 0,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val accessRight: String? = null
 )
 
 data class Channel(

@@ -52,10 +52,13 @@ fun ChannelScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { navController.navigateUp() }) {
+            IconButton(onClick = { 
+                if (channelId != null) navController.navigateUp() 
+                else { /* Open Drawer - this requires passing the action */ }
+            }) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back"
+                    imageVector = if (channelId != null) Icons.Default.ArrowBack else Icons.Default.Menu,
+                    contentDescription = if (channelId != null) "Back" else "Menu"
                 )
             }
             Text(
