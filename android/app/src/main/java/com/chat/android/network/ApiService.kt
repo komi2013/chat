@@ -24,11 +24,18 @@ data class GoogleSignInResponse(
 )
 
 data class UserResponse(
+    val name: String? = null,
     val mail: String? = null,
+    val nickname: String? = null,
+    val channelID: String? = null,
+    val accessRight: String? = null,
+    val admin: Boolean? = null,
     val telephone: String? = null,
     val walletAddress: String? = null,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val nickImg: String? = null,
+    val nickBio: String? = null
 )
 
 data class NicknameResponse(

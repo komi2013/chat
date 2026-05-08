@@ -24,6 +24,8 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.chat.android.ui.component.DrawerLayout
+import com.chat.android.ui.component.ErrorMessageCard
+import com.chat.android.ui.component.SuccessMessageCard
 import com.chat.android.ui.viewmodel.UserViewModel
 import com.chat.android.ui.viewmodel.UserUiState
 
@@ -124,69 +126,6 @@ fun UserScreen(
                 onNicknameSelected = viewModel::switchNickname
             )
         }
-    }
-}
-
-@Composable
-private fun ErrorMessageCard(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuccessMessageCard(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
         }
     }
 }
@@ -556,6 +495,5 @@ private fun NicknameItem(
                 modifier = Modifier.weight(1f)
             )
         }
-    }
     }
 }

@@ -1,6 +1,8 @@
 package com.chat.android.ui.component
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -8,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import com.chat.android.network.ChannelDetail
 import com.chat.android.network.NicknameResponse
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,6 +21,7 @@ fun DrawerLayout(
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -27,8 +31,7 @@ fun DrawerLayout(
                 channel = channel,
                 aliases = aliases,
                 onClose = { 
-                    // Close drawer when item is clicked
-                    // The drawer will close automatically when navigation happens
+                    scope.launch { drawerState.close() }
                 }
             )
         }
@@ -40,16 +43,17 @@ fun DrawerLayout(
                     navigationIcon = {
                         IconButton(
                             onClick = {
-                                // Toggle drawer
-                                if (drawerState.isClosed) {
-                                    drawerState.open()
-                                } else {
-                                    drawerState.close()
+                                scope.launch {
+                                    if (drawerState.isClosed) {
+                                        drawerState.open()
+                                    } else {
+                                        drawerState.close()
+                                    }
                                 }
                             }
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Menu,
+                                imageVector = Icons.Default.Menu,
                                 contentDescription = "Menu"
                             )
                         }

@@ -153,9 +153,9 @@ private fun DrawerItemRow(
 private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     val items = mutableListOf<DrawerItem>()
     
-    // Always visible items
+    // Always visible items (matching Vue drawer)
     items.add(DrawerItem(
-        title = "Home",
+        title = "ホーム",
         route = "top",
         icon = Icons.Default.Home
     ))
@@ -163,21 +163,21 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     // Authentication-dependent items
     if (uiState.isSignedIn) {
         items.add(DrawerItem(
-            title = "Channel Settings",
+            title = "組織・チャネル設定",
             route = "channel",
-            icon = Icons.Default.Settings,
+            icon = Icons.Default.Business,
             requiresAuth = true
         ))
         
         items.add(DrawerItem(
-            title = "User Settings", 
+            title = "ユーザー設定", 
             route = "user",
             icon = Icons.Default.Person,
             requiresAuth = true
         ))
         
         items.add(DrawerItem(
-            title = "Ad Settings",
+            title = "広告設定",
             route = "adSetting", 
             icon = Icons.Default.AdUnits,
             requiresAuth = true
@@ -187,14 +187,14 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     // Channel-dependent items
     if (uiState.hasChannel) {
         items.add(DrawerItem(
-            title = "Calendar",
+            title = "カレンダー",
             route = "calendar",
             icon = Icons.Default.CalendarMonth,
             requiresChannel = true
         ))
         
         items.add(DrawerItem(
-            title = "Tickets",
+            title = "チケット承認機能",
             route = "tickets",
             icon = Icons.Default.ConfirmationNumber,
             requiresChannel = true
@@ -203,7 +203,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
         // Non-guest items
         if (!uiState.isGuest) {
             items.add(DrawerItem(
-                title = "Timestamp Settings",
+                title = "タイムスタンプ設定",
                 route = "timestampCode",
                 icon = Icons.Default.AccessTime,
                 requiresChannel = true,
@@ -211,7 +211,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
             ))
             
             items.add(DrawerItem(
-                title = "Reception & Booking",
+                title = "受付・予約機能",
                 route = "reception",
                 icon = Icons.Default.Receipt,
                 requiresChannel = true,
@@ -219,7 +219,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
             ))
             
             items.add(DrawerItem(
-                title = "Form Edit",
+                title = "フォーム編集",
                 route = "entryFormEdit",
                 icon = Icons.Default.EditNote,
                 requiresChannel = true,
@@ -227,7 +227,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
             ))
             
             items.add(DrawerItem(
-                title = "Homepage Edit",
+                title = "ホームページ編集",
                 route = "topEdit",
                 icon = Icons.Default.Edit,
                 requiresChannel = true,
@@ -238,32 +238,32 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     
     // Always visible items
     items.add(DrawerItem(
-        title = "Tweets",
+        title = "ツイート一覧",
         route = "tweets",
         icon = Icons.Default.Chat
     ))
     
     items.add(DrawerItem(
-        title = "Settings",
+        title = "設定",
         route = "setting",
         icon = Icons.Default.Settings
     ))
     
     if (!uiState.isSignedIn) {
         items.add(DrawerItem(
-            title = "Sign In",
+            title = "サインイン",
             route = "login",
             icon = Icons.Default.Login
         ))
         
         items.add(DrawerItem(
-            title = "Rules",
+            title = "規則",
             route = "rule",
             icon = Icons.Default.Gavel
         ))
         
         items.add(DrawerItem(
-            title = "Privacy",
+            title = "個人情報遵守",
             route = "privacy",
             icon = Icons.Default.Security
         ))

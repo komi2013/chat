@@ -17,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.chat.android.ui.component.ErrorMessageCard
+import com.chat.android.ui.component.SuccessMessageCard
 import com.chat.android.ui.viewmodel.ChannelViewModel
 import com.chat.android.ui.viewmodel.ChannelUiState
 
@@ -129,7 +131,6 @@ fun ChannelScreen(
         }
     }
 }
-
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
@@ -347,70 +348,6 @@ private fun ChannelListItem(
                     text = "メンバー: ${channel.members.size}人",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ErrorMessageCard(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuccessMessageCard(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         }

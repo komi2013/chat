@@ -138,13 +138,22 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	sameBrowser := false
 	var previousSession collection.SessionStruct
 	var tweetPosts []collection.TweetPost
+	postMap := make(map[string]collection.TweetPost) // Use ParentID as key
+
 	for _, s := range sessions {
 		if s.SessionID == currentSessionID && currentSessionID != "" {
 			previousSession = s
 			sameBrowser = true
-			break
 		}
-		tweetPosts = append(tweetPosts, s.TweetPosts...)  // prevent bad user post unlimited
+		// Add all posts to map, duplicates will be overwritten
+		for _, post := range s.TweetPosts {
+			postMap[post.ParentID] = post
+		}
+	}
+
+	// Convert map back to slice
+	for _, post := range postMap {
+		tweetPosts = append(tweetPosts, post)
 	}
 
 	newSession := collection.SessionStruct{

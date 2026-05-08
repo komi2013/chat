@@ -31,6 +31,40 @@ data class UserUiState(
     val toLink: String? = null
 )
 
+fun UserResponse.toUserData(): UserData {
+    return UserData(
+        name = this.name,
+        email = this.mail,
+        nickname = this.nickname,
+        channelId = this.channelID,
+        accessRight = this.accessRight,
+        isAdmin = this.admin,
+        telephone = this.telephone,
+        walletAddress = this.walletAddress,
+        latitude = this.latitude,
+        longitude = this.longitude,
+        nickImg = this.nickImg,
+        nickBio = this.nickBio
+    )
+}
+
+data class UserData(
+    val name: String? = null,
+    val email: String? = null,
+    val nickname: String? = null,
+    val channelId: String? = null,
+    val accessRight: String? = null,
+    val isAdmin: Boolean? = null,
+    val telephone: String? = null,
+    val walletAddress: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val nickImg: String? = null,
+    val nickBio: String? = null,
+    val nicknames: List<NicknameResponse> = emptyList()
+)
+
+
 @HiltViewModel
 class UserViewModel @Inject constructor(
     private val userRepository: UserRepository,
@@ -45,7 +79,7 @@ class UserViewModel @Inject constructor(
         checkTOStatus()
     }
 
-    private fun loadUserData() {
+    fun loadUserData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             

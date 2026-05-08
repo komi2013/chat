@@ -104,6 +104,7 @@ fun TopScreen(
         }
     }
 }
+}
 
 @Composable
 private fun TopLinkCard(

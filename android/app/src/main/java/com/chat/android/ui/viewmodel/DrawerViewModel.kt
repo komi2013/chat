@@ -52,7 +52,7 @@ class DrawerViewModel @Inject constructor(
             
             val isGuest = if (channel != null && aliases.isNotEmpty()) {
                 aliases.any { alias ->
-                    alias.accessRight == "guest" && alias.aliasName == myname
+                    alias.accessRight == "guest" && alias.nickname == myname
                 }
             } else {
                 // Check from stored data if no channel provided

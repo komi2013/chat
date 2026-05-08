@@ -13,6 +13,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.chat.android.ui.screen.*
+import com.chat.android.ui.screen.settings.UserScreen
+import com.chat.android.ui.screen.calendar.CalendarScreen
+import com.chat.android.ui.screen.calendar.CalendarEditScreen
+import com.chat.android.ui.screen.tickets.TicketsScreen
+import com.chat.android.ui.screen.tickets.TicketScreen
+import com.chat.android.ui.screen.static.RuleScreen
+import com.chat.android.ui.screen.static.PrivacyScreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
