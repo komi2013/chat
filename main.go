@@ -62,6 +62,11 @@ http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		log.Fatal(http.ListenAndServe(cfg.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
+		if os.Args[1] == "TestPushFCM" {
+			console.TestPushFCM()
+			return
+		}
+
 	  cfg := common.LoadConsoleConfig()
 	  common.InitMongo(cfg)
 		switch os.Args[1] {

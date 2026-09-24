@@ -33,6 +33,7 @@ type Config struct {
 	WebRTC          string
 	FirebaseProjectID      string
 	FirebaseServiceAccountKey string
+	FCMTestToken    string
 }
 
 func LoadConfig() *Config {
@@ -98,6 +99,7 @@ func loadFromEnv() *Config {
 		WebRTC:          os.Getenv("WEB_RTC"),
 		FirebaseProjectID:      os.Getenv("FIREBASE_PROJECT_ID"),
 		FirebaseServiceAccountKey: os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"),
+		FCMTestToken:    os.Getenv("FCM_TEST_TOKEN"),
 	}
 }
 
