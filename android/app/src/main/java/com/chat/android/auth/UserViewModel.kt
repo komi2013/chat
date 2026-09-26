@@ -65,7 +65,7 @@ class UserViewModel @Inject constructor(
             try {
                 _uiState.value = UserUiState.Loading
                 val response = apiService.editUser(
-                    csrf, nickname, nickImg, nickBio, mail, telephone, walletAddress, latitude, longitude
+                    csrf, nickname, nickImg, false, nickBio, mail, telephone, walletAddress, latitude, longitude
                 )
                 if (response.isSuccessful) {
                     val body = response.body()

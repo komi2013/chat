@@ -208,6 +208,7 @@ fun UserScreen(
                                 onNameChange = viewModel::updateEditableNickname,
                                 onEmojiChange = viewModel::updateEmoji,
                                 onImageMode = { imagePickerLauncher.launch("image/*"); viewModel.selectImageAvatar() },
+                                onRemoveImage = viewModel::removeNicknameImage,
                                 onChooseColor = { colorPickerVisible = true },
                                 onBioChange = viewModel::updateNickBio,
                                 onFormat = viewModel::formatNickBio,
@@ -251,6 +252,7 @@ private fun NicknameEditor(
     onNameChange: (String) -> Unit,
     onEmojiChange: (String) -> Unit,
     onImageMode: () -> Unit,
+    onRemoveImage: () -> Unit,
     onChooseColor: () -> Unit,
     onBioChange: (TextFieldValue) -> Unit,
     onFormat: (String, String) -> Unit,
@@ -289,6 +291,9 @@ private fun NicknameEditor(
             )
         } else {
             AvatarPreview(state.nickImg, Modifier.size(56.dp))
+        }
+        TextButton(onClick = onRemoveImage, enabled = state.nickImg.isNotBlank() && !state.removeNickImg) {
+            Text("アイコンを削除")
         }
         Text("自己紹介 (${state.nickBio.text.length}/200)", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

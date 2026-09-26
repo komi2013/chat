@@ -282,6 +282,7 @@ class UserViewModel @Inject constructor(
                     csrf = csrf,
                     nickname = nickname,
                     nickImg = currentState.currentNickImg,
+                    removeNickImg = false,
                     nickBio = currentState.currentNickBio,
                     mail = currentState.user?.mail,
                     telephone = currentState.user?.telephone,

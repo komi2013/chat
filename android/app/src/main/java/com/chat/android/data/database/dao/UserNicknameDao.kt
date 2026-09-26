@@ -13,6 +13,9 @@ interface UserNicknameDao {
     @Query("SELECT * FROM user_nickname ORDER BY createdAt, nickname")
     fun observeNicknames(): Flow<List<UserNicknameEntity>>
 
+    @Query("SELECT * FROM user_nickname WHERE nickname = :nickname LIMIT 1")
+    suspend fun getByNickname(nickname: String): UserNicknameEntity?
+
     @Query("DELETE FROM user_nickname")
     suspend fun clear()
 

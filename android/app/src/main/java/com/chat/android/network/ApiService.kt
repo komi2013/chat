@@ -206,6 +206,7 @@ interface ApiService {
         @Field("csrf") csrf: String,
         @Field("nickname") nickname: String,
         @Field("nickImg") nickImg: String?,
+        @Field("removeNickImg") removeNickImg: Boolean,
         @Field("nickBio") nickBio: String?,
         @Field("mail") mail: String?,
         @Field("telephone") telephone: String?,

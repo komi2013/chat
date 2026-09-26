@@ -124,6 +124,7 @@ class UserViewModel @Inject constructor(
                 editingMode = mode,
                 editableNickname = if (mode == MODE_EDIT) state.currentNickname.orEmpty() else "",
                 nickImg = image,
+                removeNickImg = false,
                 nickBio = TextFieldValue(if (mode == MODE_NEW) "" else selected?.nickBio.orEmpty()),
                 isEmojiAvatar = image.isBlank() || image.startsWith(","),
                 errorMessage = null
@@ -140,6 +141,7 @@ class UserViewModel @Inject constructor(
                 editingMode = "",
                 editableNickname = "",
                 nickImg = image,
+                removeNickImg = false,
                 nickBio = TextFieldValue(selected?.nickBio ?: state.profile?.nickBio.orEmpty()),
                 isEmojiAvatar = image.isBlank() || image.startsWith(",")
             )
@@ -172,16 +174,20 @@ class UserViewModel @Inject constructor(
     fun updateEmoji(value: String) {
         val emoji = value.take(2)
         val color = avatarColor(_uiState.value.nickImg)
-        _uiState.update { it.copy(nickImg = ",$emoji,$color", isEmojiAvatar = true) }
+        _uiState.update { it.copy(nickImg = ",$emoji,$color", removeNickImg = false, isEmojiAvatar = true) }
     }
 
     fun updateAvatarColor(value: String) {
         val emoji = avatarEmoji(_uiState.value.nickImg).ifBlank { "🙂" }
-        _uiState.update { it.copy(nickImg = ",$emoji,$value", isEmojiAvatar = true) }
+        _uiState.update { it.copy(nickImg = ",$emoji,$value", removeNickImg = false, isEmojiAvatar = true) }
     }
 
     fun selectImageAvatar() {
-        _uiState.update { it.copy(isEmojiAvatar = false) }
+        _uiState.update { it.copy(removeNickImg = false, isEmojiAvatar = false) }
+    }
+
+    fun removeNicknameImage() {
+        _uiState.update { it.copy(nickImg = "", removeNickImg = true, isEmojiAvatar = false) }
     }
 
     fun setAvatarFromUri(uri: Uri) {
@@ -206,7 +212,7 @@ class UserViewModel @Inject constructor(
                 decoded.recycle()
                 "data:image/jpeg;base64,${Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)}"
             }.onSuccess { dataUrl ->
-                _uiState.update { it.copy(nickImg = dataUrl, isEmojiAvatar = false) }
+                _uiState.update { it.copy(nickImg = dataUrl, removeNickImg = false, isEmojiAvatar = false) }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message ?: "画像を読み込めませんでした") }
             }
@@ -220,6 +226,7 @@ class UserViewModel @Inject constructor(
             it.copy(
                 currentNickname = selected.nickname,
                 nickImg = selected.nickImg.orEmpty(),
+                removeNickImg = false,
                 nickBio = TextFieldValue(selected.nickBio.orEmpty()),
                 isEmojiAvatar = selected.nickImg.isNullOrBlank() || selected.nickImg.startsWith(","),
                 isNicknameFormVisible = false,
@@ -253,6 +260,7 @@ class UserViewModel @Inject constructor(
                 userRepository.updateUser(
                     nickname = nickname,
                     nickImg = state.nickImg,
+                    removeNickImg = state.removeNickImg,
                     nickBio = normalizeLinks(state.nickBio.text),
                     mail = state.mail,
                     telephone = state.telephone,
@@ -280,7 +288,6 @@ class UserViewModel @Inject constructor(
                     errorMessage = null
                 )
             }
-            loadUserData()
         }
     }
 

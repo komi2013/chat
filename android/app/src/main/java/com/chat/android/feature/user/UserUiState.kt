@@ -20,6 +20,7 @@ data class UserUiState(
     val editingMode: String = "",
     val editableNickname: String = "",
     val nickImg: String = "",
+    val removeNickImg: Boolean = false,
     val nickBio: TextFieldValue = TextFieldValue(),
     val isEmojiAvatar: Boolean = true,
     val isTO: Boolean = false,

@@ -12,6 +12,9 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profile WHERE profileId = 'current' LIMIT 1")
     fun observeCurrentProfile(): Flow<UserProfileEntity?>
 
+    @Query("SELECT * FROM user_profile WHERE profileId = 'current' LIMIT 1")
+    suspend fun getCurrentProfileSnapshot(): UserProfileEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(profile: UserProfileEntity)
 }

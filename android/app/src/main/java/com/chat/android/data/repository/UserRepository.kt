@@ -46,6 +46,7 @@ class UserRepository @Inject constructor(
     suspend fun updateUser(
         nickname: String,
         nickImg: String?,
+        removeNickImg: Boolean,
         nickBio: String?,
         mail: String,
         telephone: String,
@@ -59,6 +60,7 @@ class UserRepository @Inject constructor(
             csrf = csrf,
             nickname = nickname,
             nickImg = nickImg,
+            removeNickImg = removeNickImg,
             nickBio = nickBio,
             mail = mail,
             telephone = telephone,
@@ -71,8 +73,38 @@ class UserRepository @Inject constructor(
         }
         val body = response.body() ?: return UserEditResult(error = "サーバーから空の応答が返されました")
         val error = storeCsrfAndReadError(body)
-        return if (error != null) UserEditResult(error = error)
-        else UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
+        if (error != null) return UserEditResult(error = error)
+
+        database.withTransaction {
+            val profileDao = database.userProfileDao()
+            val profile = profileDao.getCurrentProfileSnapshot() ?: UserProfileEntity()
+            profileDao.save(
+                profile.copy(
+                    mail = mail,
+                    telephone = telephone,
+                    walletAddress = walletAddress,
+                    latitude = latitude,
+                    longitude = longitude,
+                    nickname = nickname.ifBlank { profile.nickname },
+                    nickImg = if (removeNickImg) "" else nickImg ?: profile.nickImg,
+                    nickBio = nickBio
+                )
+            )
+
+            if (nickname.isNotBlank()) {
+                val nicknameDao = database.userNicknameDao()
+                val existing = nicknameDao.getByNickname(nickname)
+                val savedNickImg = if (removeNickImg) "" else nickImg ?: existing?.nickImg
+                nicknameDao.insertAll(
+                    listOf(
+                        existing?.copy(nickImg = savedNickImg, nickBio = nickBio)
+                            ?: UserNicknameEntity(nickname = nickname, nickImg = savedNickImg, nickBio = nickBio)
+                    )
+                )
+            }
+        }
+
+        return UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
     }
 
     private suspend fun storeUserResponse(body: GoogleSignInResponse): String? {
