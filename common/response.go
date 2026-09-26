@@ -45,10 +45,12 @@ func WriteResponseWithSession(w http.ResponseWriter, session collection.SessionS
     responseData := struct {
       Csrf         string   `json:"csrf"`
       PushContents []string `json:"pushContents"`
+      SessionID    string   `json:"sessionId,omitempty"`
       Error        string   `json:"error,omitempty"`
     }{
       Csrf:         session.Csrf,
       PushContents: session.PushContents,
+      SessionID:    rotatedSessionID(session),
       Error:        errMsg,
     }
 
@@ -71,4 +73,11 @@ func WriteResponseWithoutSession(w http.ResponseWriter, csrf string, errMsg stri
     }
 
     json.NewEncoder(w).Encode(responseData)
+}
+
+func rotatedSessionID(session collection.SessionStruct) string {
+  if session.SessionIDRotated {
+    return session.SessionID
+  }
+  return ""
 }

@@ -43,14 +43,21 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
     return
   }
 
+  sessionID := ""
+  if session.SessionIDRotated {
+    sessionID = session.SessionID
+  }
+
   responseData := struct {
     Csrf         string       `json:"csrf"`
     PushContents []string     `json:"pushContents"`
+    SessionID    string       `json:"sessionId,omitempty"`
     User       collection.UserResponse  `json:"user"`
     Nicknames   []collection.NicknameResponse `json:"nicknames"`
   }{
     Csrf:         session.Csrf,
     PushContents: session.PushContents,
+    SessionID:    sessionID,
     User         : user,
     Nicknames: nicknames,
   }

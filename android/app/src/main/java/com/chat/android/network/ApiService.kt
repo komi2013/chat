@@ -13,6 +13,7 @@ data class PushSubscribeResponse(
 
 data class GoogleSignInResponse(
     val csrf: String,
+    val sessionId: String? = null,
     val success: Boolean? = null,
     val message: String? = null,
     val userId: String? = null,

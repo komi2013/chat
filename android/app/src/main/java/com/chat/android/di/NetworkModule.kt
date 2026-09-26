@@ -1,5 +1,6 @@
 package com.chat.android.di
 
+import com.chat.android.data.SessionManager
 import com.chat.android.network.ApiService
 import com.chat.android.network.RetrofitClient
 import dagger.Module
@@ -14,7 +15,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideApiService(): ApiService {
+    fun provideApiService(sessionManager: SessionManager): ApiService {
+        RetrofitClient.configureSessionManager(sessionManager)
         return RetrofitClient.apiService
     }
 }

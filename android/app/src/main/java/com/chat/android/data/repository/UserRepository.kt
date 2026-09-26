@@ -2,21 +2,120 @@ package com.chat.android.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.room.withTransaction
+import com.chat.android.data.database.ChatDatabase
+import com.chat.android.data.database.entities.UserNicknameEntity
+import com.chat.android.data.database.entities.UserProfileEntity
+import com.chat.android.data.SessionManager
 import com.chat.android.data.model.TopLink
+import com.chat.android.network.ApiService
+import com.chat.android.network.GoogleSignInResponse
+import com.chat.android.network.NicknameResponse
+import com.chat.android.network.UserResponse
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UserRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val apiService: ApiService,
+    private val sessionManager: SessionManager
 ) {
     private val sharedPreferences: SharedPreferences = 
         context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
     
     private val gson = Gson()
+    private val database = ChatDatabase.getDatabase(context)
+
+    fun observeUserProfile(): Flow<UserProfileEntity?> = database.userProfileDao().observeCurrentProfile()
+
+    fun observeNicknames(): Flow<List<UserNicknameEntity>> = database.userNicknameDao().observeNicknames()
+
+    suspend fun refreshUser(): String? {
+        val csrf = getCsrfToken()?.takeIf(String::isNotBlank) ?: return "サインインが必要です"
+        val response = apiService.getUser(csrf)
+        if (!response.isSuccessful) return "ユーザー情報を取得できませんでした (${response.code()})"
+        val body = response.body() ?: return "サーバーから空の応答が返されました"
+        return storeUserResponse(body)
+    }
+
+    suspend fun updateUser(
+        nickname: String,
+        nickImg: String?,
+        nickBio: String?,
+        mail: String,
+        telephone: String,
+        walletAddress: String,
+        latitude: Double,
+        longitude: Double
+    ): UserEditResult {
+        val csrf = getCsrfToken()?.takeIf(String::isNotBlank)
+            ?: return UserEditResult(error = "サインインが必要です")
+        val response = apiService.editUser(
+            csrf = csrf,
+            nickname = nickname,
+            nickImg = nickImg,
+            nickBio = nickBio,
+            mail = mail,
+            telephone = telephone,
+            walletAddress = walletAddress,
+            latitude = latitude,
+            longitude = longitude
+        )
+        if (!response.isSuccessful) {
+            return UserEditResult(error = "ユーザー情報を更新できませんでした (${response.code()})")
+        }
+        val body = response.body() ?: return UserEditResult(error = "サーバーから空の応答が返されました")
+        val error = storeCsrfAndReadError(body)
+        return if (error != null) UserEditResult(error = error)
+        else UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
+    }
+
+    private suspend fun storeUserResponse(body: GoogleSignInResponse): String? {
+        val error = storeCsrfAndReadError(body)
+        if (error != null) return error
+        val user = body.user ?: return "ユーザー情報が応答に含まれていません"
+        database.withTransaction {
+            database.userProfileDao().save(user.toEntity())
+            database.userNicknameDao().replaceAll(body.nicknames.orEmpty().map { it.toEntity() })
+        }
+        return null
+    }
+
+    private fun storeCsrfAndReadError(body: GoogleSignInResponse): String? {
+        body.csrf?.takeIf(String::isNotBlank)?.let(::setCsrfToken)
+            ?: return body.error ?: "CSRFトークンの更新に失敗しました"
+        return body.error
+    }
+
+    private fun UserResponse.toEntity() = UserProfileEntity(
+        name = name,
+        mail = mail,
+        nickname = nickname,
+        channelID = channelID,
+        accessRight = accessRight,
+        admin = admin,
+        telephone = telephone,
+        walletAddress = walletAddress,
+        latitude = latitude,
+        longitude = longitude,
+        nickImg = nickImg,
+        nickBio = nickBio
+    )
+
+    private fun NicknameResponse.toEntity() = UserNicknameEntity(
+        nickname = nickname,
+        nickImg = nickImg,
+        nickBio = nickBio,
+        good = good,
+        bad = bad,
+        createdAt = createdAt,
+        accessRight = accessRight
+    )
 
     companion object {
         private const val CSRF_TOKEN_KEY = "csrf"
@@ -27,20 +126,22 @@ class UserRepository @Inject constructor(
     }
 
     fun getCsrfToken(): String? {
-        return sharedPreferences.getString(CSRF_TOKEN_KEY, null)
+        return sessionManager.getCsrf() ?: sharedPreferences.getString(CSRF_TOKEN_KEY, null)
     }
 
     fun setCsrfToken(token: String) {
+        sessionManager.setCsrf(token)
         sharedPreferences.edit()
             .putString(CSRF_TOKEN_KEY, token)
             .apply()
     }
 
     fun getNickname(): String? {
-        return sharedPreferences.getString(NICKNAME_KEY, null)
+        return sessionManager.getNickname() ?: sharedPreferences.getString(NICKNAME_KEY, null)
     }
 
     fun setNickname(nickname: String) {
+        sessionManager.setNickname(nickname)
         sharedPreferences.edit()
             .putString(NICKNAME_KEY, nickname)
             .apply()
@@ -102,3 +203,9 @@ class UserRepository @Inject constructor(
         return !getCsrfToken().isNullOrEmpty()
     }
 }
+
+data class UserEditResult(
+    val error: String? = null,
+    val message: String? = null,
+    val pushContents: List<String> = emptyList()
+)

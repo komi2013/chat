@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -133,7 +134,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("DEBUG: Attempting to insert new session ID: %s\n", newSession.SessionID)
 
-	// Set session cookie
+	// Preserve cookie authentication for clients that still use it.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
 		Value:    newSession.SessionID,
@@ -168,5 +169,20 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"success": true, "csrf": "%s", "userId": "%s", "nickname": "%s", "message": "Success"}`, newSession.Csrf, userID, newSession.Nickname)
+	w.Header().Set("X-Session-Token", newSession.SessionID)
+	json.NewEncoder(w).Encode(struct {
+		Success   bool   `json:"success"`
+		Csrf      string `json:"csrf"`
+		SessionID string `json:"sessionId"`
+		UserID    string `json:"userId"`
+		Nickname  string `json:"nickname"`
+		Message   string `json:"message"`
+	}{
+		Success:   true,
+		Csrf:      newSession.Csrf,
+		SessionID: newSession.SessionID,
+		UserID:    userID,
+		Nickname:  newSession.Nickname,
+		Message:   "Success",
+	})
 }

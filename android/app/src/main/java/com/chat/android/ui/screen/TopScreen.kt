@@ -18,6 +18,7 @@ import androidx.navigation.NavController
 import com.chat.android.ui.component.DrawerLayout
 import com.chat.android.ui.viewmodel.TopViewModel
 import com.chat.android.ui.viewmodel.TopUiState
+import com.chat.android.navigation.UserRoute
 import android.content.Context
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -112,7 +113,7 @@ fun TopScreen(
                         onClick = {
                             when (link.topLink) {
                                 "/sign/" -> navController.navigate("login")
-                                "/user/" -> navController.navigate("user")
+                                "/user/" -> navController.navigate(UserRoute)
                                 "/tweets/" -> navController.navigate("tweets")
                                 "/channel/" -> navController.navigate("channel")
                                 "/setting/" -> navController.navigate("setting")

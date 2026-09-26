@@ -62,18 +62,27 @@ http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		log.Fatal(http.ListenAndServe(cfg.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
-		if os.Args[1] == "TestPushFCM" {
+		commandIndex := 1
+		if os.Args[commandIndex] == "." && len(os.Args) > 2 {
+			commandIndex = 2
+		}
+		command := os.Args[commandIndex]
+
+		if command == "TestPushFCM" {
 			console.TestPushFCM()
 			return
 		}
 
-	  cfg := common.LoadConsoleConfig()
-	  common.InitMongo(cfg)
-		switch os.Args[1] {
+		cfg := common.LoadConsoleConfig()
+		common.InitMongo(cfg)
+		switch command {
 			case "AdPublish":	console.AdPublish()
 			case "FileClean":	console.FileClean()
 			case "TestPush": console.TestPush()
 			case "TestCode": console.TestCode()
+			default:
+				fmt.Printf("Unknown console command %q. Available commands: AdPublish, FileClean, TestPush, TestPushFCM, TestCode\n", command)
+				return
 		}
 	}
 }

@@ -13,7 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.chat.android.ui.screen.*
-import com.chat.android.ui.screen.settings.UserScreen
+import com.chat.android.feature.user.UserScreen
 import com.chat.android.ui.screen.calendar.CalendarScreen
 import com.chat.android.ui.screen.calendar.CalendarEditScreen
 import com.chat.android.ui.screen.tickets.TicketsScreen
@@ -47,7 +47,7 @@ fun ChatNavigation() {
                     label = { Text("ユーザー設定") },
                     selected = false,
                     onClick = {
-                        navController.navigate("user")
+                        navController.navigate(UserRoute)
                         scope.launch { drawerState.close() }
                     },
                     icon = { Icon(Icons.Default.Person, contentDescription = null) }
@@ -93,7 +93,7 @@ fun ChatNavigation() {
             LoginScreen(navController = navController)
         }
         
-        composable("user") {
+        composable<UserRoute> {
             UserScreen(navController = navController)
         }
         

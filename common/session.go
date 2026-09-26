@@ -3,9 +3,8 @@ package common
 import (
   "context"
   "errors"
-  // "log"
   "net/http"
-  // "strings"
+	"strings"
   "time"
 
   // "go.mongodb.org/mongo-driver/mongo"
@@ -17,12 +16,12 @@ import (
 
 func SessionGet(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
   var session collection.SessionStruct
-  cookie, err := r.Cookie("ss")
+	sessionID, _, err := sessionIDFromRequest(r)
   if err != nil {
     return session, err
   }
   coll := DB.SessionDB.Collection("session")
-  filter := bson.D{{"_id", cookie.Value}}
+	filter := bson.D{{"_id", sessionID}}
   opts := options.FindOne().SetProjection(bson.D{})
   err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
   return session, err
@@ -47,19 +46,19 @@ func FilterSessionsByChannelID(sessions []collection.SessionStruct, channelID st
 
 func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (collection.SessionStruct, error) {
   var session collection.SessionStruct
-  cookie, err := r.Cookie("ss")
+	sessionID, bearerToken, err := sessionIDFromRequest(r)
   if err != nil {
     return session, err
   }
   coll := DB.SessionDB.Collection("session")
-  filter := bson.D{{"_id", cookie.Value}}
+	filter := bson.D{{"_id", sessionID}}
   opts := options.FindOne().SetProjection(bson.D{})
   err = coll.FindOne(context.TODO(), filter, opts).Decode(&session)
   if err != nil {
     return session, err
   }
 	if session.Csrf != token {
-		LogError("session.Csrf != token:" + session.Csrf + "!=" + token, nil)
+		LogError("session.Csrf != token", nil)
 		return session, errors.New("SessionCheckTake token error")
 	}
 
@@ -67,12 +66,33 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
 		return session, errors.New("session expired")
 	}	else if time.Since(session.UpdatedAt) > 10*24*time.Hour {
 		session, err = SessionRegenerate(session, w)
+		if err == nil && bearerToken {
+			session.SessionIDRotated = true
+			w.Header().Set("X-Session-Token", session.SessionID)
+		}
 	} else {
 		// UpdateSessionTimestamp(db, session)
 		session, err = CSRFcheckMake(session, token)
 	}
   // session, err = CheckMakeCSRFToken(db1, session, token)
   return session, err
+}
+
+func sessionIDFromRequest(r *http.Request) (string, bool, error) {
+	authorization := strings.TrimSpace(r.Header.Get("Authorization"))
+	if authorization != "" {
+		parts := strings.Fields(authorization)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			return "", false, errors.New("invalid Authorization header")
+		}
+		return parts[1], true, nil
+	}
+
+	cookie, err := r.Cookie("ss")
+	if err != nil {
+		return "", false, err
+	}
+	return cookie.Value, false, nil
 }
 
 func CSRFcheckMake(session collection.SessionStruct, token string) (collection.SessionStruct, error) {
@@ -134,16 +154,6 @@ func SessionRegenerate(session collection.SessionStruct, w http.ResponseWriter) 
 	newSession.UpdatedAt = time.Now()
 	newSession.PushContents = []string{}
 
-	cookie := &http.Cookie{
-		Name:     "ss",
-		Value:    newSession.SessionID,
-		MaxAge:   2592000,
-		Secure:   true,
-		HttpOnly: true,
-		Path:     "/",
-	}
-	http.SetCookie(w, cookie)
-
 	coll := DB.SessionDB.Collection("session")
 
 	_, err := coll.InsertOne(context.TODO(), newSession)
@@ -155,6 +165,15 @@ func SessionRegenerate(session collection.SessionStruct, w http.ResponseWriter) 
 	if err != nil {
 		return session, err
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "ss",
+		Value:    newSession.SessionID,
+		MaxAge:   2592000,
+		Secure:   true,
+		HttpOnly: true,
+		Path:     "/",
+	})
 	return newSession, nil
 }
 

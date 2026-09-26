@@ -6,6 +6,7 @@ import (
 
 type SessionStruct struct {
   SessionID  string    `bson:"_id,omitempty"`
+  SessionIDRotated bool `bson:"-" json:"-"`
   UserID  string    `bson:"userID,omitempty"`
   CreatedAt  time.Time `bson:"createdAt,omitempty"`
   UpdatedAt  time.Time `bson:"updatedAt,omitempty"`

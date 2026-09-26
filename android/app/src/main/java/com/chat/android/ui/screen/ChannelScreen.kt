@@ -21,6 +21,7 @@ import com.chat.android.ui.component.ErrorMessageCard
 import com.chat.android.ui.component.SuccessMessageCard
 import com.chat.android.ui.viewmodel.ChannelViewModel
 import com.chat.android.ui.viewmodel.ChannelUiState
+import com.chat.android.navigation.UserRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +70,7 @@ fun ChannelScreen(
                 fontWeight = FontWeight.Bold
             )
             Row {
-                IconButton(onClick = { navController.navigate("user") }) {
+                IconButton(onClick = { navController.navigate(UserRoute) }) {
                     Icon(
                         imageVector = Icons.Default.AccountCircle,
                         contentDescription = "User Page"

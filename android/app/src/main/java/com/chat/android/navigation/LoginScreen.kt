@@ -36,7 +36,7 @@ fun LoginScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is LoginUiState.Success) {
-            navController.navigate("top") {
+            navController.navigate(UserRoute) {
                 popUpTo("login") { inclusive = true }
             }
         }

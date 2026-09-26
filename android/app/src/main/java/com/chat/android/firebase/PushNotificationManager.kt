@@ -9,7 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.chat.android.MainActivity
 import com.chat.android.R
-import com.chat.android.network.RetrofitClient
+import com.chat.android.network.ApiService
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -17,7 +17,8 @@ import javax.inject.Singleton
 
 @Singleton
 class PushNotificationManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val apiService: ApiService
 ) {
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -41,7 +42,7 @@ class PushNotificationManager @Inject constructor(
     
     suspend fun sendTokenToBackend(token: String, csrf: String) {
         try {
-            val response = RetrofitClient.apiService.subscribeMobilePush(token, csrf)
+            val response = apiService.subscribeMobilePush(token, csrf)
             if (response.isSuccessful) {
                 // Token sent successfully
             } else {

@@ -25,7 +25,7 @@ fun HomeScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(16.dp))
         
         Button(onClick = {
-            navController.navigate("user")
+            navController.navigate(UserRoute)
         }) {
             Text("User Settings")
         }

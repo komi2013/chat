@@ -17,10 +17,12 @@ import com.chat.android.data.database.dao.*
         CalendarEntity::class,
         ChannelEntity::class,
         ThreadEntity::class,
-        TicketEntity::class
+        TicketEntity::class,
+        UserProfileEntity::class,
+        UserNicknameEntity::class
         // Add more entities as needed
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ChatDatabase : RoomDatabase() {
@@ -32,6 +34,8 @@ abstract class ChatDatabase : RoomDatabase() {
     abstract fun channelDao(): ChannelDao
     abstract fun threadDao(): ThreadDao
     abstract fun ticketDao(): TicketDao
+    abstract fun userProfileDao(): UserProfileDao
+    abstract fun userNicknameDao(): UserNicknameDao
     
     companion object {
         @Volatile
@@ -55,7 +59,18 @@ abstract class ChatDatabase : RoomDatabase() {
         // Migration for future schema updates
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Add future migrations here
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS user_profile (" +
+                        "profileId TEXT NOT NULL PRIMARY KEY, " +
+                        "name TEXT, mail TEXT, nickname TEXT, channelID TEXT, " +
+                        "accessRight TEXT, admin INTEGER, telephone TEXT, walletAddress TEXT, " +
+                        "latitude REAL, longitude REAL, nickImg TEXT, nickBio TEXT)"
+                )
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS user_nickname (" +
+                        "nickname TEXT NOT NULL PRIMARY KEY, nickImg TEXT, nickBio TEXT, " +
+                        "good INTEGER NOT NULL, bad INTEGER NOT NULL, createdAt TEXT, accessRight TEXT)"
+                )
             }
         }
     }

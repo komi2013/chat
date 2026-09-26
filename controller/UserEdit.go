@@ -146,14 +146,21 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sessionID := ""
+	if session.SessionIDRotated {
+		sessionID = session.SessionID
+	}
+
 	responseData := struct {
 		Csrf         string   `json:"csrf"`
 		PushContents []string `json:"pushContents"`
+		SessionID    string   `json:"sessionId,omitempty"`
 		Message      string   `json:"message"`
 		Nickname     string   `json:"nickname"`
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
+		SessionID:    sessionID,
 		Message:      message,
 		Nickname:     nickname.Nickname,
 	}

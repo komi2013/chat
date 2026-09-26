@@ -32,26 +32,24 @@ class LoginViewModel @Inject constructor(
                 _uiState.value = LoginUiState.Loading
                 android.util.Log.d("LoginViewModel", "Starting Google Sign-In with backend")
                 
-                // The Go backend expects a g_csrf_token cookie that matches the g_csrf_token form field
                 val csrfToken = java.util.UUID.randomUUID().toString()
-                android.util.Log.d("LoginViewModel", "Generated CSRF: $csrfToken")
                 
                 val result = googleSignInManager.signInWithGoogle(idToken, csrfToken)
                 
                 result.onSuccess { response ->
                     android.util.Log.d("LoginViewModel", "Sign-in success: ${response.userId}")
-                    
-                    // Capture the session ID from the cookie store after successful sign-in
-                    val sessionId = com.chat.android.network.RetrofitClient.getSessionId(com.chat.android.BuildConfig.BASE_URL)
-
-                    // Save the session CSRF and user info returned by the server
-                    sessionManager.saveSession(
-                        csrf = response.csrf,
-                        userId = response.userId,
-                        nickname = response.nickname,
-                        sessionId = sessionId
-                    )
-                    _uiState.value = LoginUiState.Success(response)
+                    val sessionId = response.sessionId?.takeIf(String::isNotBlank)
+                    if (sessionId == null) {
+                        _uiState.value = LoginUiState.Error("サーバーからセッション情報を取得できませんでした")
+                    } else {
+                        sessionManager.saveSession(
+                            csrf = response.csrf,
+                            userId = response.userId,
+                            nickname = response.nickname,
+                            sessionId = sessionId
+                        )
+                        _uiState.value = LoginUiState.Success(response)
+                    }
                 }.onFailure { error ->
                     android.util.Log.e("LoginViewModel", "Sign-in API failure", error)
                     _uiState.value = LoginUiState.Error(error.message ?: "Authentication failed")

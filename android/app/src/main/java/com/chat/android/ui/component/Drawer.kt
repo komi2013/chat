@@ -20,6 +20,7 @@ import com.chat.android.network.ChannelDetail
 import com.chat.android.network.NicknameResponse
 import com.chat.android.ui.viewmodel.DrawerViewModel
 import com.chat.android.ui.viewmodel.DrawerUiState
+import com.chat.android.navigation.UserRoute
 import javax.inject.Inject
 
 data class DrawerItem(
@@ -64,7 +65,8 @@ fun AppDrawer(
                 DrawerItemRow(
                     item = item,
                     onClick = {
-                        navController.navigate(item.route)
+                        if (item.route == "user") navController.navigate(UserRoute)
+                        else navController.navigate(item.route)
                         onClose()
                     }
                 )
