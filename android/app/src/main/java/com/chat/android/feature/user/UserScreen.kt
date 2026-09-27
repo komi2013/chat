@@ -66,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.chat.android.data.database.entities.UserNicknameEntity
+import com.chat.android.util.toAbsoluteImageUrl
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -339,7 +340,7 @@ private fun AvatarPreview(image: String, modifier: Modifier = Modifier) {
         val bytes = remember(image) { runCatching { Base64.decode(image.substringAfter(','), Base64.DEFAULT) }.getOrNull() }
         AsyncImage(model = bytes, contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
     } else if (image.isNotBlank()) {
-        AsyncImage(model = image, contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
+        AsyncImage(model = image.toAbsoluteImageUrl(), contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
     } else {
         Box(modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Text("🙂")
