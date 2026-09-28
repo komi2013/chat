@@ -1,4 +1,4 @@
-package com.chat.android.auth
+package com.chat.android.feature.sign
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,36 +11,36 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class LoginViewModel @Inject constructor(
+class SignInViewModel @Inject constructor(
     private val googleSignInManager: GoogleSignInManager,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
+    private val _uiState = MutableStateFlow<SignInUiState>(SignInUiState.Idle)
     val uiState = _uiState.asStateFlow()
 
     fun getGoogleSignInClient() = googleSignInManager.getClient()
 
     fun handleGoogleSignInResult(idToken: String?, errorMessage: String? = null) {
         if (idToken == null) {
-            _uiState.value = LoginUiState.Error(errorMessage ?: "Google Sign-In failed: No ID Token")
+            _uiState.value = SignInUiState.Error(errorMessage ?: "Google Sign-In failed: No ID Token")
             return
         }
 
         viewModelScope.launch {
             try {
-                _uiState.value = LoginUiState.Loading
-                android.util.Log.d("LoginViewModel", "Starting Google Sign-In with backend")
+                _uiState.value = SignInUiState.Loading
+                android.util.Log.d("SignInViewModel", "Starting Google Sign-In with backend")
                 
                 val csrfToken = java.util.UUID.randomUUID().toString()
                 
                 val result = googleSignInManager.signInWithGoogle(idToken, csrfToken)
                 
                 result.onSuccess { response ->
-                    android.util.Log.d("LoginViewModel", "Sign-in success: ${response.userId}")
+                    android.util.Log.d("SignInViewModel", "Sign-in success: ${response.userId}")
                     val sessionId = response.sessionId?.takeIf(String::isNotBlank)
                     if (sessionId == null) {
-                        _uiState.value = LoginUiState.Error("サーバーからセッション情報を取得できませんでした")
+                        _uiState.value = SignInUiState.Error("サーバーからセッション情報を取得できませんでした")
                     } else {
                         sessionManager.saveSession(
                             csrf = response.csrf,
@@ -48,23 +48,23 @@ class LoginViewModel @Inject constructor(
                             nickname = response.nickname,
                             sessionId = sessionId
                         )
-                        _uiState.value = LoginUiState.Success(response)
+                        _uiState.value = SignInUiState.Success(response)
                     }
                 }.onFailure { error ->
-                    android.util.Log.e("LoginViewModel", "Sign-in API failure", error)
-                    _uiState.value = LoginUiState.Error(error.message ?: "Authentication failed")
+                    android.util.Log.e("SignInViewModel", "Sign-in API failure", error)
+                    _uiState.value = SignInUiState.Error(error.message ?: "Authentication failed")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("LoginViewModel", "Crash prevented in handleGoogleSignInResult", e)
-                _uiState.value = LoginUiState.Error("An unexpected error occurred")
+                android.util.Log.e("SignInViewModel", "Crash prevented in handleGoogleSignInResult", e)
+                _uiState.value = SignInUiState.Error("An unexpected error occurred")
             }
         }
     }
 }
 
-sealed class LoginUiState {
-    object Idle : LoginUiState()
-    object Loading : LoginUiState()
-    data class Success(val response: GoogleSignInResponse) : LoginUiState()
-    data class Error(val message: String) : LoginUiState()
+sealed class SignInUiState {
+    object Idle : SignInUiState()
+    object Loading : SignInUiState()
+    data class Success(val response: GoogleSignInResponse) : SignInUiState()
+    data class Error(val message: String) : SignInUiState()
 }

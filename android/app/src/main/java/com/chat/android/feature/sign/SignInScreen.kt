@@ -1,4 +1,4 @@
-package com.chat.android.navigation
+package com.chat.android.feature.sign
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,15 +10,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.chat.android.auth.LoginUiState
-import com.chat.android.auth.LoginViewModel
+import com.chat.android.navigation.UserRoute
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 
 @Composable
-fun LoginScreen(
+fun SignInScreen(
     navController: NavController,
-    viewModel: LoginViewModel = hiltViewModel()
+    viewModel: SignInViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -35,7 +34,7 @@ fun LoginScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is LoginUiState.Success) {
+        if (uiState is SignInUiState.Success) {
             navController.navigate(UserRoute) {
                 popUpTo("login") { inclusive = true }
             }
@@ -55,15 +54,15 @@ fun LoginScreen(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        if (uiState is LoginUiState.Error) {
+        if (uiState is SignInUiState.Error) {
             Text(
-                text = (uiState as LoginUiState.Error).message,
+                text = (uiState as SignInUiState.Error).message,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
         }
 
-        if (uiState is LoginUiState.Loading) {
+        if (uiState is SignInUiState.Loading) {
             CircularProgressIndicator(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -72,15 +71,15 @@ fun LoginScreen(
         Button(
             onClick = {
                 try {
-                    android.util.Log.d("LoginScreen", "Launching Google Sign-In intent")
+                    android.util.Log.d("SignInScreen", "Launching Google Sign-In intent")
                     launcher.launch(viewModel.getGoogleSignInClient().signInIntent)
                 } catch (e: Exception) {
-                    android.util.Log.e("LoginScreen", "Crash during intent launch", e)
+                    android.util.Log.e("SignInScreen", "Crash during intent launch", e)
                     viewModel.handleGoogleSignInResult(null, "Failed to start Google Sign-In: ${e.message}")
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = uiState !is LoginUiState.Loading
+            enabled = uiState !is SignInUiState.Loading
         ) {
             Text("Sign in with Google")
         }

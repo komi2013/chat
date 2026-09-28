@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.chat.android.ui.screen.*
+import com.chat.android.feature.sign.SignInScreen
 import com.chat.android.feature.user.UserScreen
 import com.chat.android.ui.screen.calendar.CalendarScreen
 import com.chat.android.ui.screen.calendar.CalendarEditScreen
@@ -90,7 +91,7 @@ fun ChatNavigation() {
         }
         
         composable("login") {
-            LoginScreen(navController = navController)
+            SignInScreen(navController = navController)
         }
         
         composable<UserRoute> {

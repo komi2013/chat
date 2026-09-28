@@ -22,7 +22,11 @@ import com.chat.android.navigation.UserRoute
 import android.content.Context
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import com.chat.android.BuildConfig
 import com.google.firebase.messaging.FirebaseMessaging
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +72,9 @@ fun TopScreen(
                     .padding(bottom = 24.dp),
                 textAlign = TextAlign.Center
             )
+
+            // インストール中の APK を端末で目視確認するためのビルド情報
+            BuildInfoText(modifier = Modifier.padding(bottom = 16.dp))
 
             // Loading indicator
             if (uiState.isLoading) {
@@ -205,5 +212,41 @@ private fun TopLinkCard(
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+/**
+ * ホーム画面の先頭に表示するビルド情報。
+ * 「修正を反映した APK が実際に入っているか」を端末上で確認できるようにするためのもの。
+ *
+ * 更新日時は APK のインストール（更新）時刻なので、再ビルドして入れ替えるだけで値が変わる。
+ */
+@Suppress("DEPRECATION")
+@Composable
+private fun BuildInfoText(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val updatedAt = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime }
+            .getOrNull()
+            ?.let { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(it)) }
+            ?: "不明"
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "バージョン ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}) / ${BuildConfig.BUILD_TYPE}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = "更新日時: $updatedAt / サーバー: ${BuildConfig.BASE_URL}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }

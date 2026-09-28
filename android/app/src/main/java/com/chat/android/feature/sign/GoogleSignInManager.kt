@@ -1,11 +1,10 @@
-package com.chat.android.auth
+package com.chat.android.feature.sign
 
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.chat.android.BuildConfig
-import com.chat.android.data.SessionManager
 import com.chat.android.network.ApiService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
