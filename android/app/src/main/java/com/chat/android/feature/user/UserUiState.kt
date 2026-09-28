@@ -22,10 +22,23 @@ data class UserUiState(
     val nickImg: String = "",
     val removeNickImg: Boolean = false,
     val nickBio: TextFieldValue = TextFieldValue(),
-    val isEmojiAvatar: Boolean = true,
+    val avatarMode: String = AVATAR_MODE_EMOJI,
+    val emojiAvatar: String = "",
+    val imageAvatar: String = "",
+    val originalAvatar: String = "",
+    val avatarCacheStamp: Long = 0L,
     val isTO: Boolean = false,
     val toLink: String? = null,
     val fetched: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
-)
+) {
+    val isEmojiAvatar: Boolean
+        get() = avatarMode == AVATAR_MODE_EMOJI
+
+    companion object {
+        const val AVATAR_MODE_EMOJI = "emoji"
+        const val AVATAR_MODE_IMAGE = "image"
+        const val DEFAULT_EMOJI_AVATAR = ",🙂,#cccccc"
+    }
+}

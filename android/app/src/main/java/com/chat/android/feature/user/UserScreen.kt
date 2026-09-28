@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -79,6 +81,7 @@ fun UserScreen(
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     var colorPickerVisible by remember { mutableStateOf(false) }
+    var emojiPickerVisible by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -208,7 +211,10 @@ fun UserScreen(
                                 state = state,
                                 onNameChange = viewModel::updateEditableNickname,
                                 onEmojiChange = viewModel::updateEmoji,
-                                onImageMode = { imagePickerLauncher.launch("image/*"); viewModel.selectImageAvatar() },
+                                onEmojiMode = { viewModel.selectAvatarMode(UserUiState.AVATAR_MODE_EMOJI) },
+                                onImageMode = { viewModel.selectAvatarMode(UserUiState.AVATAR_MODE_IMAGE) },
+                                onImagePick = { imagePickerLauncher.launch("image/*") },
+                                onShowEmojiPicker = { emojiPickerVisible = true },
                                 onRemoveImage = viewModel::removeNicknameImage,
                                 onChooseColor = { colorPickerVisible = true },
                                 onBioChange = viewModel::updateNickBio,
@@ -220,6 +226,7 @@ fun UserScreen(
                     items(state.nicknames, key = UserNicknameEntity::nickname) { nickname ->
                         NicknameRow(
                             nickname = nickname,
+                            cacheStamp = state.avatarCacheStamp,
                             selected = nickname.nickname == state.currentNickname,
                             onClick = { viewModel.switchNickname(nickname.nickname) }
                         )
@@ -239,6 +246,14 @@ fun UserScreen(
         }
     }
 
+    if (emojiPickerVisible) {
+        EmojiPickerDialog(
+            selectedEmoji = state.emojiAvatar.split(',').getOrNull(1).orEmpty(),
+            onSelect = { emoji -> viewModel.selectEmoji(emoji); emojiPickerVisible = false },
+            onDismiss = { emojiPickerVisible = false }
+        )
+    }
+
     if (colorPickerVisible) {
         AvatarColorDialog(
             onColorSelected = { viewModel.updateAvatarColor(it); colorPickerVisible = false },
@@ -252,7 +267,10 @@ private fun NicknameEditor(
     state: UserUiState,
     onNameChange: (String) -> Unit,
     onEmojiChange: (String) -> Unit,
+    onEmojiMode: () -> Unit,
     onImageMode: () -> Unit,
+    onImagePick: () -> Unit,
+    onShowEmojiPicker: () -> Unit,
     onRemoveImage: () -> Unit,
     onChooseColor: () -> Unit,
     onBioChange: (TextFieldValue) -> Unit,
@@ -271,29 +289,46 @@ private fun NicknameEditor(
             singleLine = true
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onChooseColor, enabled = state.isEmojiAvatar) {
-                AvatarPreview(state.nickImg, Modifier.size(32.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("絵文字・色")
-            }
-            OutlinedButton(onClick = onImageMode) {
-                Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("画像を選択")
-            }
+            AvatarModeTab("絵文字アイコン", state.isEmojiAvatar, onEmojiMode)
+            AvatarModeTab("画像アイコン", !state.isEmojiAvatar, onImageMode)
         }
         if (state.isEmojiAvatar) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onShowEmojiPicker) {
+                    AvatarPreview(state.emojiAvatar, Modifier.size(32.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("絵文字を選ぶ")
+                }
+                OutlinedButton(onClick = onChooseColor) {
+                    Box(
+                        Modifier.size(24.dp).clip(CircleShape).background(avatarBackgroundColor(state.emojiAvatar)),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Default.Check, contentDescription = null, tint = Color.Transparent) }
+                    Spacer(Modifier.width(8.dp))
+                    Text("背景色")
+                }
+            }
             OutlinedTextField(
-                value = state.nickImg.split(',').getOrNull(1).orEmpty(),
+                value = state.emojiAvatar.split(',').getOrNull(1).orEmpty(),
                 onValueChange = onEmojiChange,
-                label = { Text("絵文字 (1文字)") },
+                label = { Text("絵文字 (1〜2文字)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
         } else {
-            AvatarPreview(state.nickImg, Modifier.size(56.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AvatarPreview(state.imageAvatar, Modifier.size(56.dp), state.avatarCacheStamp)
+                OutlinedButton(onClick = onImagePick) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (state.imageAvatar.isBlank()) "画像を選択" else "画像を変更")
+                }
+            }
         }
-        TextButton(onClick = onRemoveImage, enabled = state.nickImg.isNotBlank() && !state.removeNickImg) {
+        TextButton(
+            onClick = onRemoveImage,
+            enabled = state.nickImg.isNotBlank() || state.originalAvatar.isNotBlank()
+        ) {
             Text("アイコンを削除")
         }
         Text("自己紹介 (${state.nickBio.text.length}/200)", style = MaterialTheme.typography.titleSmall)
@@ -316,12 +351,12 @@ private fun NicknameEditor(
 }
 
 @Composable
-private fun NicknameRow(nickname: UserNicknameEntity, selected: Boolean, onClick: () -> Unit) {
+private fun NicknameRow(nickname: UserNicknameEntity, selected: Boolean, cacheStamp: Long, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarPreview(nickname.nickImg.orEmpty(), Modifier.size(32.dp))
+        AvatarPreview(nickname.nickImg.orEmpty(), Modifier.size(32.dp), cacheStamp)
         Spacer(Modifier.width(10.dp))
         Text(nickname.nickname, modifier = Modifier.weight(1f), fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
         RadioButton(selected = selected, onClick = onClick)
@@ -329,7 +364,7 @@ private fun NicknameRow(nickname: UserNicknameEntity, selected: Boolean, onClick
 }
 
 @Composable
-private fun AvatarPreview(image: String, modifier: Modifier = Modifier) {
+private fun AvatarPreview(image: String, modifier: Modifier = Modifier, cacheStamp: Long = 0L) {
     val emojiParts = image.split(',')
     if (image.startsWith(",") && emojiParts.size >= 3) {
         val color = runCatching { Color(AndroidColor.parseColor(emojiParts[2])) }.getOrDefault(MaterialTheme.colorScheme.surfaceVariant)
@@ -340,7 +375,12 @@ private fun AvatarPreview(image: String, modifier: Modifier = Modifier) {
         val bytes = remember(image) { runCatching { Base64.decode(image.substringAfter(','), Base64.DEFAULT) }.getOrNull() }
         AsyncImage(model = bytes, contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
     } else if (image.isNotBlank()) {
-        AsyncImage(model = image.toAbsoluteImageUrl(), contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
+        val reference = image.toAbsoluteImageUrl()
+        val model = if (cacheStamp > 0L) {
+            val separator = if (reference.contains("?")) "&" else "?"
+            "$reference${separator}v=$cacheStamp"
+        } else reference
+        AsyncImage(model = model, contentDescription = "ニックネーム画像", modifier = modifier.clip(CircleShape))
     } else {
         Box(modifier.clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Text("🙂")
@@ -370,6 +410,53 @@ private fun AvatarColorDialog(onColorSelected: (String) -> Unit, onDismiss: () -
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("閉じる") } }
     )
+}
+
+@Composable
+private fun RowScope.AvatarModeTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.weight(1f),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    ) { Text(label) }
+}
+
+@Composable
+private fun EmojiPickerDialog(selectedEmoji: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("アイコン用絵文字") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("1〜2文字の絵文字を背景色付きのアイコンにします", style = MaterialTheme.typography.bodySmall)
+                UserViewModel.AVATAR_EMOJI_PRESETS.chunked(6).forEach { rowEmojis ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        rowEmojis.forEach { emoji ->
+                            TextButton(onClick = { onSelect(emoji) }) {
+                                Text(
+                                    emoji,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (emoji == selectedEmoji) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("閉じる") } }
+    )
+}
+
+@Composable
+private fun avatarBackgroundColor(image: String): Color {
+    val value = image.split(',').getOrNull(2)
+    return if (value != null && value.startsWith("#")) {
+        runCatching { Color(AndroidColor.parseColor(value)) }.getOrDefault(MaterialTheme.colorScheme.surfaceVariant)
+    } else MaterialTheme.colorScheme.surfaceVariant
 }
 
 @Composable
