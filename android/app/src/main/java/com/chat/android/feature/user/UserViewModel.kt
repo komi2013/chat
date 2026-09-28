@@ -304,31 +304,39 @@ class UserViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "アイコン画像の形式が正しくありません。画像を選び直してください") }
             return
         }
-        // 画像モードで画像が空だが既存アバターが存在する場合、明示的な削除でない限り保存を拒否
-        if (state.avatarMode == AVATAR_MODE_IMAGE && avatar.isBlank() && state.originalAvatar.isNotBlank() && !state.removeNickImg) {
+        // 画像モードで画像が未選択の場合、保存済みアイコンが画像なら削除操作が無い限り保存を拒否する
+        val storedImageAvatar = state.originalAvatar.trim()
+            .takeIf { it.isNotBlank() && !it.startsWith(",") }
+            .orEmpty()
+        val imageNotSelected = state.avatarMode == AVATAR_MODE_IMAGE && avatar.isBlank()
+        if (imageNotSelected && storedImageAvatar.isNotBlank() && !state.removeNickImg) {
             _uiState.update { it.copy(errorMessage = "画像を選択するか、「アイコンを削除」を押してください") }
             return
         }
+        // 画像が未選択で保存済みアイコンが絵文字の場合は、絵文字アイコンを維持して意図しない消去を防ぐ
+        val effectiveAvatar = if (imageNotSelected && !state.removeNickImg) {
+            state.emojiAvatar.ifBlank { DEFAULT_EMOJI_AVATAR }
+        } else avatar
         // 座標が未設定のユーザーでもアイコンだけ変更できるよう、入力がない場合は保存済みの値で送信する
         val coords = parseCoordinates(state.coordinateInput) ?: storedCoordinates(state.profile)
         // 既存の画像URLをサーバーへ再送すると「Emoji invalid:」エラーになるため、未変更の画像パスはDataURIへ再エンコードして送信する
         val unchangedStoredImage = state.avatarMode == AVATAR_MODE_IMAGE &&
-            avatar.isNotBlank() && avatar == state.originalAvatar.trim() &&
-            !avatar.startsWith("data:image/")
+            effectiveAvatar.isNotBlank() && effectiveAvatar == state.originalAvatar.trim() &&
+            !effectiveAvatar.startsWith("data:image/")
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null, successMessage = null) }
             val requestNickImg = when {
                 state.removeNickImg -> ""
                 unchangedStoredImage -> {
-                    val encoded = reencodeStoredImageToDataUri(avatar)
+                    val encoded = reencodeStoredImageToDataUri(effectiveAvatar)
                     if (encoded == null) {
                         _uiState.update { it.copy(isSaving = false, errorMessage = "アイコン画像の取得に失敗しました。画像を選び直してください") }
                         return@launch
                     }
                     encoded
                 }
-                else -> avatar
+                else -> effectiveAvatar
             }
 
             val result = runCatching {
@@ -358,7 +366,7 @@ class UserViewModel @Inject constructor(
             val savedAvatar = when {
                 state.removeNickImg -> ""
                 unchangedStoredImage -> avatar
-                else -> requestNickImg.ifBlank { state.nickImg }
+                else -> requestNickImg.ifBlank { effectiveAvatar }
             }
             val cacheStamp = if (isNewUploadedImage) System.currentTimeMillis() else state.avatarCacheStamp
             _uiState.update {
@@ -371,6 +379,9 @@ class UserViewModel @Inject constructor(
                     currentNickname = nickname,
                     nickImg = savedAvatar,
                     originalAvatar = savedAvatar,
+                    avatarMode = avatarModeFor(savedAvatar),
+                    emojiAvatar = emojiDraftOf(savedAvatar),
+                    imageAvatar = imageDraftOf(savedAvatar),
                     avatarCacheStamp = cacheStamp,
                     successMessage = result.message,
                     errorMessage = null
@@ -554,7 +565,8 @@ class UserViewModel @Inject constructor(
         private const val IMAGE_FORMAT_ERROR = "この形式の画像は読み込めません。別の画像を選んでください"
         private val HEX_COLOR_REGEX = Regex("^#[0-9a-fA-F]{6}$")
         private val AVATAR_EMOJI_REGEX = Regex("^,.{1,2},#[0-9a-fA-F]{6}$")
-        private val AVATAR_IMAGE_REGEX = Regex("^(https?://|/|data:image/[a-zA-Z0-9.+-]+;base64,)")
+        // Kotlin の Regex.matches は全体一致のため、値全体を消費するパターンにする必要がある
+        private val AVATAR_IMAGE_REGEX = Regex("^(https?://\\S+|/[^\\s]*|data:image/[a-zA-Z0-9.+-]+;base64,[-A-Za-z0-9+/=]+)$")
         private val BARE_URL_REGEX = Regex("(?<!（)https?://[^\\s）]+")
     }
 }
