@@ -13,3 +13,7 @@ data class EntryFormEditRoute(val id: String? = null, val formJson: String? = nu
 
 @Serializable
 data class EntryFormAnswerRoute(val id: String)
+
+@Serializable
+data class ChannelRoute(val id: String? = null)
+

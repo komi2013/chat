@@ -25,4 +25,10 @@ object NetworkModule {
     fun provideEntryFormApiService(): com.chat.android.feature.entryform.EntryFormApiService {
         return RetrofitClient.createService(com.chat.android.feature.entryform.EntryFormApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideChannelApiService(): com.chat.android.feature.channel.ChannelApiService {
+        return RetrofitClient.createService(com.chat.android.feature.channel.ChannelApiService::class.java)
+    }
 }

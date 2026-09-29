@@ -21,6 +21,7 @@ import com.chat.android.core.network.NicknameResponse
 import com.chat.android.navigation.UserRoute
 import com.chat.android.navigation.EntryFormListRoute
 import com.chat.android.navigation.EntryFormEditRoute
+import com.chat.android.navigation.ChannelRoute
 import javax.inject.Inject
 
 data class DrawerUiState(
@@ -95,10 +96,12 @@ fun AppDrawer(
                         when (item.route) {
                             "user" -> navController.navigate(UserRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
+                            "channelCreate" -> navController.navigate(ChannelRoute(id = null))
                             else -> navController.navigate(item.route)
                         }
                         onClose()
                     }
+
                 )
             }
         }
@@ -198,6 +201,13 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     // Channel-dependent items (In this version, we always show entry form if signed in for simplicity, 
     // but following the original logic where it was under non-guest check)
     if (uiState.isSignedIn) {
+        items.add(DrawerItem(
+            title = "チャネル登録",
+            route = "channelCreate",
+            icon = Icons.Default.AddBusiness,
+            requiresAuth = true
+        ))
+
         items.add(DrawerItem(
             title = "フォーム編集",
             route = "entryFormEdit",

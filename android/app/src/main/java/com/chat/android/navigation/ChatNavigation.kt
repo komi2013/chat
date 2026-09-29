@@ -14,6 +14,7 @@ import com.chat.android.feature.user.UserScreen
 import com.chat.android.feature.entryform.EntryFormListScreen
 import com.chat.android.feature.entryform.EntryFormEditScreen
 import com.chat.android.feature.entryform.EntryFormAnswerScreen
+import com.chat.android.feature.channel.ChannelScreen
 
 @Composable
 fun ChatNavigation() {
@@ -48,6 +49,14 @@ fun ChatNavigation() {
                 composable<EntryFormAnswerRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<EntryFormAnswerRoute>()
                     EntryFormAnswerScreen(
+                        navController = navController,
+                        id = route.id
+                    )
+                }
+
+                composable<ChannelRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ChannelRoute>()
+                    ChannelScreen(
                         navController = navController,
                         id = route.id
                     )

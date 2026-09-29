@@ -5,11 +5,18 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
+import com.chat.android.core.push.handlers.AliasHandler
+import com.chat.android.core.push.handlers.ChannelEditHandler
 import com.chat.android.core.push.handlers.EntryFormHandler
+import com.chat.android.core.push.handlers.GroupHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
 class PushReceiveDispatcher(
     private val context: Context,
@@ -19,9 +26,15 @@ class PushReceiveDispatcher(
     // even if the FCM service starts shutting down.
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val _onUpdated = MutableSharedFlow<String>(replay = 0)
+    val onUpdated: SharedFlow<String> = _onUpdated.asSharedFlow()
+
     // Registry of available handlers
     private val actions: Map<String, PushHandler> = mapOf(
         "entryForm" to EntryFormHandler(context, dbHelper),
+        "channelEdit" to ChannelEditHandler(context),
+        "alias" to AliasHandler(context),
+        "group" to GroupHandler(context),
         // "thread" to ThreadHandler(context, dbHelper),
         // ... add other handlers here later
     )
@@ -79,6 +92,7 @@ class PushReceiveDispatcher(
                 val action = actions[pd.title]
                 if (action != null) {
                     action.handle(pd)
+                    _onUpdated.emit(pd.channelID)
                 } else if (pd.title == "pushCheck") {
                     Log.i("PushDispatcher", "Health check ping received for channel: ${pd.channelID}")
                 } else {
