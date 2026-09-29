@@ -163,6 +163,12 @@ data class EntryForm(
     val isActive: Boolean = true
 )
 
+data class PushResponse(
+    val error: String? = null,
+    val csrf: String? = null,
+    val pushContents: List<String>? = null
+)
+
 interface ApiService {
     
     // Mobile push subscription (for Android FCM tokens)
@@ -488,6 +494,7 @@ interface ApiService {
         @Field("contents") contents: String,
         @Field("pushTitle") pushTitle: String? = null
     ): Response<ApiResponse<Any>>
+
 
     // Contents just push
     @Headers("Accept: application/json")

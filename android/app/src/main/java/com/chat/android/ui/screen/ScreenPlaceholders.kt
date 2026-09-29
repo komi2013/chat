@@ -264,32 +264,6 @@ fun AnswersScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EntryFormScreen(
-    navController: NavController,
-    id: String
-) {
-    BasicScreen(
-        navController = navController,
-        title = "入力フォーム",
-        subtitle = "ID: $id"
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EntryFormEditScreen(
-    navController: NavController,
-    id: String? = null
-) {
-    BasicScreen(
-        navController = navController,
-        title = "入力フォーム編集",
-        subtitle = if (id != null) "ID: $id" else "新規作成"
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun GroupScreen(
     navController: NavController,
     id: String

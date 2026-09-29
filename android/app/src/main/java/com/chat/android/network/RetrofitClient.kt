@@ -67,4 +67,8 @@ object RetrofitClient {
     val apiService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
+
+    fun <T> createService(serviceClass: Class<T>): T {
+        return retrofit.create(serviceClass)
+    }
 }

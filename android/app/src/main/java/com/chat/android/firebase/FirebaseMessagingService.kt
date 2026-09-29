@@ -3,6 +3,8 @@ package com.chat.android.firebase
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.chat.android.feature.entryform.EntryFormCodec
+import com.chat.android.feature.entryform.EntryFormDbHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -78,6 +80,24 @@ class FirebaseMessagingService : FirebaseMessagingService() {
                 pd.optString(2, "通知の登録が完了しました"),
                 ""
             )
+            return
+        }
+
+        if (event == "entryForm") {
+            val formJson = pd.optJSONObject(4)?.toString()
+            if (formJson != null) {
+                runCatching {
+                    val form = EntryFormCodec.parse(formJson)
+                    EntryFormDbHelper(applicationContext).saveEntryForm(form)
+                    pushNotificationManager.showNotification(
+                        "フォーム更新",
+                        form.title.ifBlank { "入力フォームが更新されました" },
+                        channelID
+                    )
+                }.onFailure { error ->
+                    Log.w(TAG, "Unable to store entry form from push", error)
+                }
+            }
             return
         }
 

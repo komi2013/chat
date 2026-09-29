@@ -357,12 +357,28 @@ fun ChatNavigation() {
         }
         
         composable(
-            "entryFormEdit/{id?}",
-            arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true })
+            "entryFormEdit/{id}?formJson={formJson}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("formJson") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
         ) { backStackEntry ->
             EntryFormEditScreen(
                 navController = navController,
-                id = backStackEntry.arguments?.getString("id")
+                id = backStackEntry.arguments?.getString("id"),
+                formJson = backStackEntry.arguments?.getString("formJson")
+            )
+        }
+
+        composable(
+            "entryFormEdit?formJson={formJson}",
+            arguments = listOf(
+                navArgument("formJson") { type = NavType.StringType; nullable = true; defaultValue = null }
+            )
+        ) { backStackEntry ->
+            EntryFormEditScreen(
+                navController = navController,
+                formJson = backStackEntry.arguments?.getString("formJson")
             )
         }
         

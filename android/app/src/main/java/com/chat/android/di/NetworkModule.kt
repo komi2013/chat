@@ -19,4 +19,10 @@ object NetworkModule {
         RetrofitClient.configureSessionManager(sessionManager)
         return RetrofitClient.apiService
     }
+
+    @Provides
+    @Singleton
+    fun provideEntryFormApiService(): com.chat.android.feature.entryform.EntryFormApiService {
+        return RetrofitClient.createService(com.chat.android.feature.entryform.EntryFormApiService::class.java)
+    }
 }
