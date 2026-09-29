@@ -71,6 +71,15 @@ fun ChatNavigation() {
                     },
                     icon = { Icon(Icons.Default.Chat, contentDescription = null) }
                 )
+                NavigationDrawerItem(
+                    label = { Text("エントリーフォーム") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("entryFormEdit")
+                        scope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Description, contentDescription = null) }
+                )
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
                 NavigationDrawerItem(
                     label = { Text("設定") },

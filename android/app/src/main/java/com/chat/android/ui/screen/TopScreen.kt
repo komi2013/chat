@@ -108,6 +108,17 @@ fun TopScreen(
                 onCopy = { token -> clipboardManager.setText(AnnotatedString(token)) }
             )
 
+            // Test button to quickly access Entry Forms
+            Button(
+                onClick = { navController.navigate("entryFormEdit") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Text("エントリーフォーム一覧 (テスト用)")
+            }
+
             // Top links
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),

@@ -284,7 +284,8 @@ fun EntryFormEditScreen(
                 state.form == null -> FormList(
                     forms = state.forms,
                     onCreate = viewModel::createForm,
-                    onSelect = { stored -> viewModel.loadEditor(stored.form.id, null) }
+                    onSelect = { stored -> viewModel.loadEditor(stored.form.id, null) },
+                    onView = { stored -> navController.navigate("entryForm/${stored.form.id}") }
                 )
                 else -> {
                     val form = state.form!!
@@ -354,7 +355,8 @@ fun EntryFormEditScreen(
 private fun FormList(
     forms: List<StoredEntryForm>,
     onCreate: () -> Unit,
-    onSelect: (StoredEntryForm) -> Unit
+    onSelect: (StoredEntryForm) -> Unit,
+    onView: (StoredEntryForm) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -372,10 +374,19 @@ private fun FormList(
         }
         items(forms, key = { it.form.id }) { stored ->
             Card(Modifier.fillMaxWidth().clickable { onSelect(stored) }) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(stored.form.title.ifBlank { "タイトルなし" }, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text("${stored.form.questions.size} 件の質問 · ${stored.form.id}", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stored.form.title.ifBlank { "タイトルなし" }, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text("${stored.form.questions.size} 件の質問 · ${stored.form.id}", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(onClick = { onView(stored) }) {
+                        Text("回答画面")
+                    }
                 }
             }
         }
