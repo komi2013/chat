@@ -2,16 +2,16 @@ package com.chat.android.di
 
 import android.content.Context
 import androidx.room.Room
-import com.chat.android.data.database.ChatDatabase
-import com.chat.android.data.database.dao.AdvertisementDao
-import com.chat.android.data.database.dao.AliasDao
-import com.chat.android.data.database.dao.BookmarkDao
-import com.chat.android.data.database.dao.CalendarDao
-import com.chat.android.data.database.dao.ChannelDao
-import com.chat.android.data.database.dao.ThreadDao
-import com.chat.android.data.database.dao.TicketDao
-import com.chat.android.data.database.dao.UserNicknameDao
-import com.chat.android.data.database.dao.UserProfileDao
+import com.chat.android.core.database.ChatDatabase
+import com.chat.android.core.database.dao.AdvertisementDao
+import com.chat.android.core.database.dao.AliasDao
+import com.chat.android.core.database.dao.BookmarkDao
+import com.chat.android.core.database.dao.CalendarDao
+import com.chat.android.core.database.dao.ChannelDao
+import com.chat.android.core.database.dao.ThreadDao
+import com.chat.android.core.database.dao.TicketDao
+import com.chat.android.core.database.dao.UserNicknameDao
+import com.chat.android.core.database.dao.UserProfileDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.chat.android.navigation.ChatNavigation
-import com.chat.android.ui.theme.ChatAndroidTheme
+import com.chat.android.core.ui.theme.ChatAndroidTheme
 import dagger.hilt.android.AndroidEntryPoint
 import android.Manifest
 import android.content.pm.PackageManager

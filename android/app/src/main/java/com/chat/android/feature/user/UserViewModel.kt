@@ -7,8 +7,8 @@ import android.net.Uri
 import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chat.android.data.database.entities.UserProfileEntity
-import com.chat.android.data.repository.UserRepository
+import com.chat.android.core.database.entities.UserProfileEntity
+import com.chat.android.core.repository.UserRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -31,11 +31,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_EMOJI
 import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_IMAGE
 import com.chat.android.feature.user.UserUiState.Companion.DEFAULT_EMOJI_AVATAR
-import com.chat.android.util.toAbsoluteImageUrl
+import com.chat.android.core.util.toAbsoluteImageUrl
 
 @HiltViewModel
 class UserViewModel @Inject constructor(
-    private val userRepository: UserRepository,
+    val userRepository: UserRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(UserUiState())

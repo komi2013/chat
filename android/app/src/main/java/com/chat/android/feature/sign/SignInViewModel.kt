@@ -2,8 +2,8 @@ package com.chat.android.feature.sign
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chat.android.network.GoogleSignInResponse
-import com.chat.android.data.SessionManager
+import com.chat.android.core.network.GoogleSignInResponse
+import com.chat.android.core.data.SessionManager
 import com.chat.android.firebase.PushNotificationManager
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,15 +43,14 @@ class SignInViewModel @Inject constructor(
                 
                 result.onSuccess { response ->
                     android.util.Log.d("SignInViewModel", "Sign-in success: ${response.userId}")
-                    val sessionId = response.sessionId?.takeIf(String::isNotBlank)
-                    if (sessionId == null) {
+                    if (response.sessionId == null) {
                         _uiState.value = SignInUiState.Error("サーバーからセッション情報を取得できませんでした")
                     } else {
                         sessionManager.saveSession(
                             csrf = response.csrf,
                             userId = response.userId,
                             nickname = response.nickname,
-                            sessionId = sessionId
+                            sessionId = response.sessionId
                         )
                         registerPushToken(response.csrf)
                         _uiState.value = SignInUiState.Success(response)

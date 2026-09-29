@@ -5,7 +5,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.chat.android.BuildConfig
-import com.chat.android.network.ApiService
+import com.chat.android.core.network.ApiService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,7 +55,7 @@ class GoogleSignInManager @Inject constructor(
                 try {
                     val gson = com.google.gson.Gson()
                     // Try parsing as the expected object first
-                    val signInResponse = gson.fromJson(responseBody, com.chat.android.network.GoogleSignInResponse::class.java)
+                    val signInResponse = gson.fromJson(responseBody, com.chat.android.core.network.GoogleSignInResponse::class.java)
                     Result.success(signInResponse)
                 } catch (e: Exception) {
                     android.util.Log.w("GoogleSignInManager", "Standard JSON parsing failed, attempting fallback: $responseBody")
@@ -66,7 +66,7 @@ class GoogleSignInManager @Inject constructor(
                         if (!responseBody.trim().startsWith("{")) {
                              // It's likely a plain string or a quoted string. 
                              // We'll create a dummy response using this as the message/token
-                             Result.success(com.chat.android.network.GoogleSignInResponse(
+                             Result.success(com.chat.android.core.network.GoogleSignInResponse(
                                  csrf = csrf, // Use the one we sent
                                  success = true,
                                  message = responseBody,
