@@ -18,7 +18,6 @@ export default defineConfig({
         index: fileURLToPath(new URL('./view/index.html', import.meta.url)),
         pushSubscription: fileURLToPath(new URL('./view/pushSubscription.html', import.meta.url)),
         signGoogle: fileURLToPath(new URL('./view/signGoogle.html', import.meta.url)),
-        signTmp: fileURLToPath(new URL('./view/signTmp.html', import.meta.url)),
       }
     }
   },

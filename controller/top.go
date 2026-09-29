@@ -30,7 +30,6 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	var sessionJSON template.JS
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
-		// tmplPath = "view/signTmp.tmpl"
 		tmplPath = "view/signGoogle.html"
 		domain = cfg.Domain
 		googleClientID = cfg.GoogleClientID

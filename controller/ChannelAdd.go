@@ -176,7 +176,9 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 			log.Println("SendWebPushNotification error:", err)
 			continue
 		}
-		defer resp.Body.Close()
+		if resp != nil {
+			defer resp.Body.Close()
+		}
 	}
 
 	// === レスポンス ===

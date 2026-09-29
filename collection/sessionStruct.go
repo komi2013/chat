@@ -4,6 +4,8 @@ import (
   "time"
 )
 
+// 0=none, 1=VAPID JSON, 2=FCM token, 3=APNs reserved.
+
 type SessionStruct struct {
   SessionID  string    `bson:"_id,omitempty"`
   SessionIDRotated bool `bson:"-" json:"-"`
@@ -12,11 +14,13 @@ type SessionStruct struct {
   UpdatedAt  time.Time `bson:"updatedAt,omitempty"`
   // AliasArray  [][]string      `bson:"aliasArray,omitempty"`
   ChannelAliases []ChannelAlias `bson:"channelAliases,omitempty" json:"channelAliases,omitempty"`
-  Subscription  string      `bson:"subscription,omitempty"`
+  // PushToken is the single registered push destination for this session:
+  // web subscription JSON (1), an FCM token (2) or an APNs token (3).
+  PushToken  string `bson:"pushToken,omitempty" json:"-"`
+  // Doubles as the web-vs-native session marker: >= 2 came from a native login.
+  DeviceType int    `bson:"deviceType,omitempty" json:"-"`
   Csrf  string      `bson:"csrf,omitempty"`
   PushContents []string `bson:"pushContents"`
-  IsMobile bool `bson:"isMobile" json:"isMobile"`
-  FcmToken string `bson:"fcmToken,omitempty" json:"fcmToken,omitempty"`
   Mail         string    `bson:"mail,omitempty" json:"mail,omitempty"`
   Telephone    string    `bson:"telephone,omitempty" json:"telephone,omitempty"`
   Nickname     string    `bson:"nickname,omitempty" json:"nickname,omitempty"`

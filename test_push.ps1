@@ -9,11 +9,12 @@ Write-Host "Simulating Push Notification for $packageName..." -ForegroundColor C
 # Note: In modern Android, you can't easily trigger the Firebase service directly via broadcast for security.
 # This command tests the UI and Notification Manager logic specifically.
 
+# Data-only message: "payload" is the JSON array the server sends via
+# FCMManager.SendData; FirebaseMessagingService dispatches on pd[1].
 adb shell am broadcast -a com.google.android.c2dm.intent.RECEIVE `
     -n "$packageName/com.chat.android.firebase.FirebaseMessagingService" `
-    --es "title" "Test Message" `
-    --es "body" "Hello! This is a test notification." `
-    --es "channelId" "general" `
-    --es "from" "123456789"
+    --es "from" "123456789" `
+    --es "pushID" "test-push-1" `
+    --es "payload" '["test-push-1","thread","channel-1","tester"]'
 
 Write-Host "If the app is running and permissions are granted, you should see a notification." -ForegroundColor Green

@@ -19,11 +19,11 @@ import (
 )
 
 func SendWebPushNotification(arr []interface{}, pushID string, session collection.SessionStruct) (*http.Response, error) {
-	if session.Subscription == "" {
+	if _, token := ResolvePushTarget(session); token == "" {
 		pc, _, _, _ := runtime.Caller(1)
 		functionName := runtime.FuncForPC(pc).Name()
-		log.Printf("[%s] SendWebPushNotification no subscription data: %v", functionName)
-		return nil, fmt.Errorf("no subscription data")
+		log.Printf("[%s] SendWebPushNotification no push target registered: %s", functionName, session.SessionID)
+		return nil, nil
 	}
 	jsonData, err := json.Marshal(arr)
 	if err != nil {
@@ -47,8 +47,7 @@ func SendWebPushNotification(arr []interface{}, pushID string, session collectio
 		log.Printf("[%s] SendWebPushNotification session UpdateOne: %v", functionName, err)
 	}
 
-  resp, err := PushNotification(string(jsonData), session.Subscription)
-  return resp, err
+  return dispatchPush(arr, pushID, string(jsonData), session)
 }
 
 func PushNotification(data string, subscription string) (*http.Response, error) {
@@ -66,6 +65,79 @@ func PushNotification(data string, subscription string) (*http.Response, error) 
     return nil, fmt.Errorf("failed to send notification: %w", err)
   }
   return resp, nil
+}
+
+// ResolvePushTarget returns the push transport and token registered for a session.
+// Only the merged pushToken/deviceType fields are used. Sessions without a
+// registered token resolve to (0, "").
+//
+//	deviceType: 0 = none, 1 = VAPID (web), 2 = FCM (Android), 3 = APNs (iOS).
+func ResolvePushTarget(session collection.SessionStruct) (int, string) {
+	if session.PushToken != "" {
+		switch session.DeviceType {
+		case 1, 2, 3:
+			return session.DeviceType, session.PushToken
+		default:
+			// PushToken inherits the deviceType written at registration time,
+			// so an unknown value means corrupt data — never guess a transport.
+			return 0, ""
+		}
+	}
+	return 0, ""
+}
+
+// deviceTypeLabel is used for logs and console output.
+func deviceTypeLabel(deviceType int) string {
+	switch deviceType {
+	case 1:
+		return "vapid"
+	case 2:
+		return "fcm"
+	case 3:
+		return "apns"
+	default:
+		return "none"
+	}
+}
+
+// sendFCMPush forwards the payload array as an FCM data-only message.
+// The client dispatches on pd[1] like vue pushReceive.js and decides
+// importance/display — the server never maps event types.
+func sendFCMPush(arr []interface{}, pushID string, session collection.SessionStruct) error {
+	_, token := ResolvePushTarget(session)
+	if token == "" {
+		return nil
+	}
+	jsonData, err := json.Marshal(arr)
+	if err != nil {
+		return fmt.Errorf("sendFCMPush marshal: %w", err)
+	}
+	return NewFCMManager(LoadConfig()).SendData(pushID, string(jsonData), token)
+}
+
+// dispatchPush routes the payload to the transport registered for this session.
+// The returned response is nil for non-web transports, so callers must nil-check it.
+func dispatchPush(arr []interface{}, pushID string, jsonData string, session collection.SessionStruct) (*http.Response, error) {
+	// VAPID gets the raw JSON array; FCM gets the same JSON as a data-only
+	// message. The client dispatches on pd[1] (like vue pushReceive.js) and
+	// decides importance/display — the server never maps event types.
+	deviceType, token := ResolvePushTarget(session)
+	// 0 = none, 1 = VAPID (web), 2 = FCM (Android), 3 = APNs (iOS).
+	switch deviceType {
+	case 1:
+		return PushNotification(jsonData, token)
+	case 2:
+		if err := sendFCMPush(arr, pushID, session); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	case 3:
+		// TODO: APNs sender is not implemented yet.
+		log.Printf("[dispatchPush] APNs is not implemented yet: session=%s", session.SessionID)
+		return nil, nil
+	default:
+		return nil, nil
+	}
 }
 
 func ChunkPush(sessions []collection.SessionStruct, arr []interface{}) {
@@ -97,7 +169,7 @@ func ChunkPush(sessions []collection.SessionStruct, arr []interface{}) {
       resp, err := SendWebPushNotification(arrForJson, pushID, session)
       if err != nil {
         LogError("SendWebPushNotification:", err)
-      } else {
+      } else if resp != nil {
         defer resp.Body.Close()
       }
     }
@@ -133,7 +205,7 @@ func ChunkJustPush(sessions []collection.SessionStruct, arr []interface{}) {
       resp, err := SendWebJustPush(arrForJson, pushID, session)
       if err != nil {
         LogError("SendWebJustPush:", err)
-      } else {
+      } else if resp != nil {
         defer resp.Body.Close()
       }
     }
@@ -141,11 +213,11 @@ func ChunkJustPush(sessions []collection.SessionStruct, arr []interface{}) {
 }
 
 func SendWebJustPush(arr []interface{}, pushID string, session collection.SessionStruct) (*http.Response, error) {
-	if session.Subscription == "" {
+	if _, token := ResolvePushTarget(session); token == "" {
 		pc, _, _, _ := runtime.Caller(1)
 		functionName := runtime.FuncForPC(pc).Name()
-		log.Printf("[%s] SendWebJustPush no subscription data: %v", functionName)
-		return nil, fmt.Errorf("no subscription data")
+		log.Printf("[%s] SendWebJustPush no push target registered: %s", functionName, session.SessionID)
+		return nil, nil
 	}
 	jsonData, err := json.Marshal(arr)
 	if err != nil {
@@ -153,8 +225,7 @@ func SendWebJustPush(arr []interface{}, pushID string, session collection.Sessio
 		functionName := runtime.FuncForPC(pc).Name()
 		log.Printf("[%s] SendWebJustPush arr: %v", functionName, err)
 	}
-  resp, err := PushNotification(string(jsonData), session.Subscription)
-  return resp, err
+  return dispatchPush(arr, pushID, string(jsonData), session)
 }
 
 // Unified push notification function that supports both Web Push and FCM
@@ -182,46 +253,10 @@ func SendPushNotification(arr []interface{}, pushID string, session collection.S
 		log.Printf("[%s] SendPushNotification session UpdateOne: %v", functionName, err)
 	}
 
-	// Send Web Push if subscription exists
-	if session.Subscription != "" {
-		resp, err := PushNotification(string(jsonData), session.Subscription)
-		if err != nil {
-			log.Printf("Web Push failed: %v", err)
-		} else {
-			defer resp.Body.Close()
-		}
-	}
-
-	// Send FCM if FCM token exists and it's a mobile session
-	if session.FcmToken != "" && session.IsMobile {
-		cfg := LoadConfig()
-		fcmManager := NewFCMManager(cfg)
-		
-		// Extract title and body from the notification data
-		title := "New Message"
-		body := "You have a new message"
-		channelId := ""
-		
-		if len(arr) > 1 {
-			if titleStr, ok := arr[1].(string); ok {
-				title = titleStr
-			}
-		}
-		if len(arr) > 2 {
-			if bodyStr, ok := arr[2].(string); ok {
-				body = bodyStr
-			}
-		}
-		if len(arr) > 3 {
-			if channelStr, ok := arr[3].(string); ok {
-				channelId = channelStr
-			}
-		}
-		
-		err = fcmManager.SendNotification(session.FcmToken, title, body, channelId)
-		if err != nil {
-			log.Printf("FCM Push failed: %v", err)
-		}
+	// Route to the transport registered for this session (Web Push / FCM / APNs).
+	// dispatchPush expects arr = [pushID, event, ...payload].
+	if _, err := dispatchPush(arr, pushID, string(jsonData), session); err != nil {
+		log.Printf("SendPushNotification dispatch failed: %v", err)
 	}
 
 	return nil

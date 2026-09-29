@@ -84,9 +84,13 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := user.UserID
-	// Identify if this is a mobile app or API request
+	// DeviceType doubles as the web-vs-native session marker: native app / API
+	// logins start at 2, web logins stay at 0 until PushSubscribe stores VAPID (1).
 	isAPI := strings.Contains(r.Header.Get("Accept"), "application/json") || r.Header.Get("X-Requested-With") == "XMLHttpRequest"
-	isMobile := common.IsMobile(r.Header.Get("User-Agent")) || isAPI
+	loginDeviceType := 0
+	if common.IsMobile(r.Header.Get("User-Agent")) || isAPI {
+		loginDeviceType = 2
+	}
 
 	if userID == "" {
 		userID, err = common.CountUpID("userID")
@@ -160,8 +164,12 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		SessionID:      common.StringRand(16),
 		Csrf:           common.StringRand(16),
 		UserID:         userID,
-		IsMobile:       isMobile,
+		// New web sessions start unregistered (deviceType 0) unless the
+		// same-browser previous session already carries a registration.
+		DeviceType:     loginDeviceType,
 		PushContents:   previousSession.PushContents,
+		// Carry the push registration over to the new session (same browser).
+		PushToken:    previousSession.PushToken,
 		Nickname:       previousSession.Nickname,
 		NickImg:        previousSession.NickImg,
 		CreatedAt:      time.Now(),
@@ -170,6 +178,9 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		Mail: user.Mail,
 		Telephone: user.Telephone,
 		TweetPosts: tweetPosts,
+	}
+	if previousSession.PushToken != "" {
+		newSession.DeviceType = previousSession.DeviceType
 	}
 
 	// Cookie 更新（ブラウザ側に新しい ss をセット）
@@ -231,7 +242,7 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if isMobile {
+	if loginDeviceType == 2 {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"success": true, "csrf": "%s", "userId": "%s", "nickname": "%s", "message": "Success"}`, newSession.Csrf, userID, newSession.Nickname)
 		return

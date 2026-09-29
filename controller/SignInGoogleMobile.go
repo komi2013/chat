@@ -120,7 +120,9 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		SessionID:      common.StringRand(16),
 		Csrf:           common.StringRand(16),
 		UserID:         userID,
-		IsMobile:       true,
+		// Native app login. The FCM token is registered right after sign-in
+		// via PushSubscribeMobile, which sets deviceType 2.
+		DeviceType:     2,
 		Nickname:       previousSession.Nickname,
 		NickImg:        previousSession.NickImg,
 		CreatedAt:      time.Now(),

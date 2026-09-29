@@ -43,19 +43,19 @@ func loadJSONToCollection(testDB *mongo.Client, dataDir, filename, dbName, colle
 		return fmt.Errorf("failed to unmarshal JSON from %s: %v", filePath, err)
 	}
 	
-	collection := testDB.Database(dbName).Collection(collectionName)
+	coll := testDB.Database(dbName).Collection(collectionName)
 	
 	switch v := target.(type) {
 	case *[]collection.UserStruct:
 		for _, user := range *v {
-			_, err := collection.InsertOne(context.TODO(), user)
+			_, err := coll.InsertOne(context.TODO(), user)
 			if err != nil {
 				return fmt.Errorf("failed to insert user %s: %v", user.UserID, err)
 			}
 		}
 	case *[]collection.SessionStruct:
 		for _, session := range *v {
-			_, err := collection.InsertOne(context.TODO(), session)
+			_, err := coll.InsertOne(context.TODO(), session)
 			if err != nil {
 				return fmt.Errorf("failed to insert session %s: %v", session.SessionID, err)
 			}
@@ -114,7 +114,7 @@ func CreateTestSession(sessionID, userID, csrf string) *collection.SessionStruct
 		UpdatedAt:    time.Now(),
 		Csrf:         csrf,
 		PushContents: []string{"test-content"},
-		IsMobile:     false,
+		DeviceType:   0,
 		Mail:         "test@example.com",
 		Telephone:    "123-456-7890",
 		Nickname:     "TestNick",

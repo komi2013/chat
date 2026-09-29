@@ -170,7 +170,7 @@ interface ApiService {
     @FormUrlEncoded
     @POST("PushSubscribeMobile/")
     suspend fun subscribeMobilePush(
-        @Field("fcmToken") fcmToken: String,
+        @Field("pushToken") pushToken: String,
         @Field("csrf") csrf: String
     ): Response<PushSubscribeResponse>
     

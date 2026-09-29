@@ -85,6 +85,11 @@ func sessionIDFromRequest(r *http.Request) (string, bool, error) {
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			return "", false, errors.New("invalid Authorization header")
 		}
+		// TODO(iOS push): accept the mobile session token here. The Android
+		// app authenticates via the `ss` cookie through OkHttp, so Bearer is
+		// currently unused; a future iOS client without cookie support should
+		// send `Authorization: Bearer <sessionID>` and register its APNs token
+		// via form fields `pushToken` + `deviceType=3` on PushSubscribeMobile.
 		return parts[1], true, nil
 	}
 

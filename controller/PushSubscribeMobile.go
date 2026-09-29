@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,18 +17,28 @@ import (
 
 // PushSubscribeMobile handles FCM token registration for mobile apps
 func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
-	// Get FCM token from request
-	fcmToken := r.FormValue("fcmToken")
-	if fcmToken == "" {
-		// Also try to get from JSON body
-		var req struct {
-			FcmToken string `json:"fcmToken"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.FcmToken != "" {
-			fcmToken = req.FcmToken
+	// FCM token (Android) via the merged pushToken field.
+	// NOTE: form-encoded only. Do NOT json.Decode(r.Body) here: doing so
+	// consumes the body before SessionCheckTake runs, and the iOS JSON client
+	// has no cookie/session yet, so reading the body would also bypass the
+	// CSRF check in the future.
+	pushToken := r.FormValue("pushToken")
+	if pushToken == "" {
+		http.Error(w, "push token is required", http.StatusBadRequest)
+		return
+	}
+
+	deviceType := 2
+	if deviceTypeValue := r.FormValue("deviceType"); deviceTypeValue != "" {
+		if parsed, err := strconv.Atoi(deviceTypeValue); err == nil {
+			switch parsed {
+			case 1, 2, 3:
+				deviceType = parsed
+			default:
+				log.Printf("PushSubscribeMobile unknown deviceType %q, defaulting to FCM", deviceTypeValue)
+			}
 		} else {
-			http.Error(w, "FCM token is required", http.StatusBadRequest)
-			return
+			log.Printf("PushSubscribeMobile invalid deviceType %q: %v, defaulting to FCM", deviceTypeValue, err)
 		}
 	}
 
@@ -52,27 +63,29 @@ func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
 		session.NickImg = nickname.NickImg
 	}
 
-	// Update session with FCM token
+	// Update session with the merged push registration.
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
-	update := bson.D{{"$set", bson.D{
-		{"fcmToken", fcmToken},
-		{"isMobile", true},
-		{"nickname", session.Nickname},
-		{"nickImg", session.NickImg},
-		{"updatedAt", time.Now()}}}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"pushToken", pushToken},
+			{"deviceType", deviceType},
+			{"nickname", session.Nickname},
+			{"nickImg", session.NickImg},
+			{"updatedAt", time.Now()}}},
+	}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 
 	if err != nil {
-		log.Printf("Failed to update session with FCM token: %v", err)
-		http.Error(w, "Failed to register FCM token", http.StatusInternalServerError)
+		log.Printf("Failed to update session with push token: %v", err)
+		http.Error(w, "Failed to register push token", http.StatusInternalServerError)
 		return
 	}
 
 	// Update session object
-	session.FcmToken = fcmToken
-	session.IsMobile = true
+	session.PushToken = pushToken
+	session.DeviceType = deviceType
 
 	// Send confirmation push notification
 	var arr []interface{}
@@ -108,12 +121,12 @@ func PushUnsubscribeMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove FCM token from session
+	// Remove the registered push destination from the session.
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
 	update := bson.D{{"$unset", bson.D{
-		{"fcmToken", ""},
-		{"isMobile", false}}}}
+		{"pushToken", ""},
+		{"deviceType", ""}}}}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 

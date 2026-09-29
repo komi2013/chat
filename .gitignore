@@ -27,3 +27,4 @@ infrastructure/service-account-key.json
 
 .idea/*
 android/.idea/*
+.cline*

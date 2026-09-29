@@ -34,6 +34,9 @@ type Config struct {
 	FirebaseProjectID      string
 	FirebaseServiceAccountKey string
 	FCMTestToken    string
+	// FCMAccessToken optionally overrides the service-account flow with a
+	// short-lived OAuth2 access token (handy for local testing).
+	FCMAccessToken  string
 }
 
 func LoadConfig() *Config {
@@ -100,6 +103,7 @@ func loadFromEnv() *Config {
 		FirebaseProjectID:      os.Getenv("FIREBASE_PROJECT_ID"),
 		FirebaseServiceAccountKey: os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"),
 		FCMTestToken:    os.Getenv("FCM_TEST_TOKEN"),
+		FCMAccessToken:  os.Getenv("FCM_ACCESS_TOKEN"),
 	}
 }
 

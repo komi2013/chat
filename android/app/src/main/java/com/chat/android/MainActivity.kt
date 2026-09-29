@@ -15,10 +15,10 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import com.google.firebase.messaging.FirebaseMessaging
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -28,7 +28,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         requestNotificationPermission()
-        fetchFcmToken()
         setContent {
             ChatAndroidTheme {
                 Surface(
@@ -50,23 +49,6 @@ class MainActivity : ComponentActivity() {
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-    }
-
-    private fun fetchFcmToken() {
-        FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    Log.w(TAG, "Fetching FCM registration token failed", task.exception)
-                    return@addOnCompleteListener
-                }
-
-                val token = task.result
-                getSharedPreferences("chat_prefs", MODE_PRIVATE)
-                    .edit()
-                    .putString("fcm_token", token)
-                    .apply()
-                Log.d(TAG, "FCM_TEST token=$token")
-            }
     }
 
     companion object {

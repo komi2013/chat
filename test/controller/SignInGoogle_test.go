@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"chat/collection"
 	"chat/common"
@@ -62,7 +62,7 @@ func mockGetGooglePublicKey(kid string) (interface{}, error) {
 		publicKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(mockRSAPublicKey))
 		return publicKey, nil
 	}
-	return nil, jwk.ErrKeyNotFound
+	return nil, errors.New("unknown key id")
 }
 
 const mockRSAPublicKey = `-----BEGIN PUBLIC KEY-----
@@ -111,7 +111,7 @@ func TestSignInGoogle_NewUser(t *testing.T) {
 			pubKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(mockRSAPublicKey))
 			return pubKey, nil
 		}
-		return nil, jwk.ErrKeyNotFound
+		return nil, errors.New("unknown key id")
 	}
 	defer func() {
 		getGooglePublicKey = originalGetGooglePublicKey
@@ -229,7 +229,7 @@ func TestSignInGoogle_ExistingUserWithSession(t *testing.T) {
 			pubKey, _ := jwt.ParseRSAPublicKeyFromPEM([]byte(mockRSAPublicKey))
 			return pubKey, nil
 		}
-		return nil, jwk.ErrKeyNotFound
+		return nil, errors.New("unknown key id")
 	}
 	defer func() {
 		getGooglePublicKey = originalGetGooglePublicKey

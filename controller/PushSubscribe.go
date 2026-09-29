@@ -17,9 +17,16 @@ import (
 )
 
 func PushSubscribe(w http.ResponseWriter, r *http.Request) {
-	if !json.Valid([]byte(r.FormValue("subscription"))) {
-		log.Printf("Invalid JSON subscription: %s; Req:", r.URL.Path, r.Form)
-		http.Error(w, "Invalid JSON subscription", http.StatusBadRequest)
+	// Web Push (VAPID) registration. Accepts both the merged field name
+	// (pushToken) and the legacy one (subscription) for backward
+	// compatibility with already-deployed browsers.
+	pushToken := r.FormValue("pushToken")
+	if pushToken == "" {
+		pushToken = r.FormValue("subscription")
+	}
+	if !json.Valid([]byte(pushToken)) {
+		log.Printf("Invalid JSON push token: %s; Req:", r.URL.Path, r.Form)
+		http.Error(w, "Invalid JSON push token", http.StatusBadRequest)
 		return
 	}
 
@@ -91,15 +98,19 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 
 	coll := common.DB.SessionDB.Collection("session")
 	filter := bson.D{{"_id", session.SessionID}}
-	update := bson.D{{"$set", bson.D{
-		{"subscription", r.FormValue("subscription")},
-		{"nickname", session.Nickname},
-		{"nickImg", session.NickImg},
-		{"updatedAt", time.Now()}}}}
+	update := bson.D{
+		{"$set", bson.D{
+			{"pushToken", pushToken},
+			{"deviceType", 1},
+			{"nickname", session.Nickname},
+			{"nickImg", session.NickImg},
+			{"updatedAt", time.Now()}}},
+	}
 	opts := options.Update().SetUpsert(false)
 	_, err = coll.UpdateOne(context.TODO(), filter, update, opts)
 
-	session.Subscription = r.FormValue("subscription")
+	session.PushToken = pushToken
+	session.DeviceType = 1
   var arr []interface{}
   arr = append(arr, "pushCheck")
   arr = append(arr, "push登録完了")
