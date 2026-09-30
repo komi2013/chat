@@ -70,6 +70,26 @@ class SessionManager @Inject constructor(
     fun setCsrf(csrf: String) {
         prefs.edit().putString(KEY_CSRF, csrf).apply()
     }
+
+    /**
+     * サーバーの応答に含まれる CSRF を保存する。
+     *
+     * サーバーはセッション確認に成功したリクエストごとに CSRF を新しい値へ回転させ、
+     * MongoDB 側だけを更新する（common/session.go の CSRFcheckMake → CSRFReGenerate）。
+     * クライアントが回転後の値を保存し忘れると、以降のリクエストがすべて
+     * "SessionCheckTake token error" で失敗し続ける。
+     * 一方、セッション確認に失敗した応答は送信した CSRF をそのまま返す
+     * （common/response.go の WriteResponseWithoutSession）ので保存は不要。
+     * 並列リクエストで古い値へ巻き戻るのを避けるため、送信値と同じ場合は無視する。
+     *
+     * @return 回転後の値を保存した場合はその値、保存不要（エコー・空値）なら null
+     */
+    fun applyResponseCsrf(sentCsrf: String?, receivedCsrf: String?): String? {
+        val received = receivedCsrf?.takeIf(String::isNotBlank) ?: return null
+        if (received == sentCsrf) return null
+        setCsrf(received)
+        return received
+    }
     
     fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
 

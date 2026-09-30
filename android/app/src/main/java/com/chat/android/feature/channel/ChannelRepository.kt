@@ -41,7 +41,7 @@ class ChannelRepository @Inject constructor(
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.csrf != null) {
-                sessionManager.setCsrf(body.csrf)
+                sessionManager.applyResponseCsrf(csrf, body.csrf)
                 body.pushContents?.forEach { 
                     pushDispatcher.receive(it) 
                 }
@@ -75,7 +75,7 @@ class ChannelRepository @Inject constructor(
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.csrf != null) {
-                sessionManager.setCsrf(body.csrf)
+                sessionManager.applyResponseCsrf(csrf, body.csrf)
                 body.pushContents?.forEach { pushDispatcher.receive(it) }
                 _dbUpdateFlow.emit(Unit)
                 return Result.success(Unit)
@@ -96,7 +96,7 @@ class ChannelRepository @Inject constructor(
         if (response.isSuccessful) {
             val body = response.body()
             if (body?.csrf != null) {
-                sessionManager.setCsrf(body.csrf)
+                sessionManager.applyResponseCsrf(csrf, body.csrf)
                 body.pushContents?.forEach { pushDispatcher.receive(it) }
                 _dbUpdateFlow.emit(Unit)
                 return Result.success(Unit)

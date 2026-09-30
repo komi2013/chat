@@ -119,11 +119,14 @@ class EntryFormRepository @Inject constructor(
             )
             if (!response.isSuccessful) return "送信に失敗しました (${response.code()})"
             val body = response.body() ?: return "サーバーから空の応答が返されました"
-            if (!body.error.isNullOrBlank()) return body.error
-            body.csrf?.takeIf(String::isNotBlank)?.let { rotatedCsrf ->
-                sessionManager.setCsrf(rotatedCsrf)
+            // ContentsPush はセッション確認に成功していればエラー応答でも CSRF を回転させて
+            // 返す（common/response.go の WriteResponseWithSession）。エラーで早期 return
+            // する前に保存しないと、回転後の値を取りこぼして以降の API が失敗し続ける。
+            sessionManager.applyResponseCsrf(csrf, body.csrf)?.let { rotatedCsrf ->
                 preferences.edit().putString("csrf", rotatedCsrf).apply()
-            } ?: return "CSRFトークンを更新できませんでした"
+            }
+            if (!body.error.isNullOrBlank()) return body.error
+            if (body.csrf.isNullOrBlank()) return "CSRFトークンを更新できませんでした"
             null
         } catch (error: Exception) {
             error.message ?: "送信に失敗しました"

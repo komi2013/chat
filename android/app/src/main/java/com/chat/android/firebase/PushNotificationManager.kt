@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.chat.android.MainActivity
 import com.chat.android.R
+import com.chat.android.core.data.SessionManager
 import com.chat.android.core.network.ApiService
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 @Singleton
 class PushNotificationManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val sessionManager: SessionManager
 ) {
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -44,7 +46,11 @@ class PushNotificationManager @Inject constructor(
         try {
             val response = apiService.subscribeMobilePush(token, csrf)
             if (response.isSuccessful) {
-                // Token sent successfully
+                // PushSubscribeMobile はセッション確認の一部として CSRF を回転させ、
+                // 新しい値を応答へ返す（common/session.go の CSRFcheckMake）。
+                // ここで保存しないと、以降の API がすべて
+                // "SessionCheckTake token error" で失敗し続ける。
+                sessionManager.applyResponseCsrf(csrf, response.body()?.csrf)
             } else {
                 throw Exception("Server returned error: ${response.code()}")
             }

@@ -40,7 +40,7 @@ class UserRepository @Inject constructor(
         val response = apiService.getUser(csrf)
         if (!response.isSuccessful) return "ユーザー情報を取得できませんでした (${response.code()})"
         val body = response.body() ?: return "サーバーから空の応答が返されました"
-        return storeUserResponse(body)
+        return storeUserResponse(body, csrf)
     }
 
     suspend fun updateUser(
@@ -72,7 +72,7 @@ class UserRepository @Inject constructor(
             return UserEditResult(error = "ユーザー情報を更新できませんでした (${response.code()})")
         }
         val body = response.body() ?: return UserEditResult(error = "サーバーから空の応答が返されました")
-        val error = storeCsrfAndReadError(body)
+        val error = storeCsrfAndReadError(body, csrf)
         if (error != null) return UserEditResult(error = error)
 
         database.withTransaction {
@@ -107,8 +107,8 @@ class UserRepository @Inject constructor(
         return UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
     }
 
-    private suspend fun storeUserResponse(body: GoogleSignInResponse): String? {
-        val error = storeCsrfAndReadError(body)
+    private suspend fun storeUserResponse(body: GoogleSignInResponse, sentCsrf: String): String? {
+        val error = storeCsrfAndReadError(body, sentCsrf)
         if (error != null) return error
         val user = body.user ?: return "ユーザー情報が応答に含まれていません"
         database.withTransaction {
@@ -118,9 +118,18 @@ class UserRepository @Inject constructor(
         return null
     }
 
-    private fun storeCsrfAndReadError(body: GoogleSignInResponse): String? {
-        body.csrf?.takeIf(String::isNotBlank)?.let(::setCsrfToken)
-            ?: return body.error ?: "CSRFトークンの更新に失敗しました"
+    /**
+     * 応答に含まれる CSRF を保存し、エラーメッセージを返す。
+     *
+     * UserGet / UserEdit はセッション確認に成功すると回転後の CSRF を返すので必ず保存する。
+     * 送信値と同じ値はサーバーがエコーしただけ（セッション確認に失敗したときの
+     * common/response.go の WriteResponseWithoutSession）なので保存しない。
+     */
+    private fun storeCsrfAndReadError(body: GoogleSignInResponse, sentCsrf: String): String? {
+        sessionManager.applyResponseCsrf(sentCsrf, body.csrf)?.let(::setCsrfToken)
+        if (body.csrf.isNullOrBlank() && body.error == null) {
+            return "CSRFトークンの更新に失敗しました"
+        }
         return body.error
     }
 
