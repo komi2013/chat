@@ -6,7 +6,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.chat.android.BuildConfig
 import com.chat.android.core.network.ApiService
-import com.chat.android.core.data.SessionManager
+import com.chat.android.core.network.SessionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton

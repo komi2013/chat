@@ -1,8 +1,8 @@
 package com.chat.android.feature.entryform
 
 import android.content.Context
-import com.chat.android.core.data.SessionManager
 import com.chat.android.core.network.ApiService
+import com.chat.android.core.network.SessionManager
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject

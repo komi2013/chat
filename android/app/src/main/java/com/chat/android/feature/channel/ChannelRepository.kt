@@ -1,7 +1,7 @@
 package com.chat.android.feature.channel
 
 import android.content.Context
-import com.chat.android.core.data.SessionManager
+import com.chat.android.core.network.SessionManager
 import com.chat.android.core.push.PushReceiveDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope

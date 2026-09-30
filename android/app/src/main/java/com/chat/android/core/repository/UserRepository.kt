@@ -1,21 +1,27 @@
 package com.chat.android.core.repository
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.room.withTransaction
-import com.chat.android.core.database.ChatDatabase
-import com.chat.android.core.database.entities.UserNicknameEntity
-import com.chat.android.core.database.entities.UserProfileEntity
-import com.chat.android.core.data.SessionManager
-import com.chat.android.core.data.model.TopLink
+import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
 import com.chat.android.core.network.ApiService
 import com.chat.android.core.network.GoogleSignInResponse
 import com.chat.android.core.network.NicknameResponse
+import com.chat.android.core.network.SessionManager
 import com.chat.android.core.network.UserResponse
+import com.chat.android.core.network.model.TopLink
+import com.chat.android.core.network.model.UserNicknameEntity
+import com.chat.android.core.network.model.UserProfileEntity
+import com.chat.android.feature.channel.ChannelDbHelper
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,22 +31,62 @@ class UserRepository @Inject constructor(
     private val apiService: ApiService,
     private val sessionManager: SessionManager
 ) {
+    // 生SQLite: ChannelFeatureDB.db を user_profile / user_nickname の保存先として共有する。
+    private val dbHelper: ChannelDbHelper = ChannelDbHelper(context)
     private val sharedPreferences: SharedPreferences = 
         context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
     
     private val gson = Gson()
-    private val database = ChatDatabase.getDatabase(context)
 
-    fun observeUserProfile(): Flow<UserProfileEntity?> = database.userProfileDao().observeCurrentProfile()
+    private val _userProfile = MutableStateFlow<UserProfileEntity?>(null)
+    private val _nicknames = MutableStateFlow<List<UserNicknameEntity>>(emptyList())
 
-    fun observeNicknames(): Flow<List<UserNicknameEntity>> = database.userNicknameDao().observeNicknames()
+    init {
+        // Initial load
+        refreshLocalState()
+    }
 
-    suspend fun refreshUser(): String? {
-        val csrf = getCsrfToken()?.takeIf(String::isNotBlank) ?: return "サインインが必要です"
+    private fun refreshLocalState() {
+        _userProfile.value = getCurrentProfileSnapshot()
+        _nicknames.value = getNicknamesSnapshot()
+    }
+
+    fun observeUserProfile(): Flow<UserProfileEntity?> = _userProfile.asStateFlow()
+
+    fun observeNicknames(): Flow<List<UserNicknameEntity>> = _nicknames.asStateFlow()
+
+    private fun getCurrentProfileSnapshot(): UserProfileEntity? {
+        val db = dbHelper.readableDatabase
+        val cursor = db.query(
+            "user_profile",
+            null,
+            "profileId = ?",
+            arrayOf(UserProfileEntity.CURRENT_PROFILE_ID),
+            null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) it.toUserProfile() else null
+        }
+    }
+
+    private fun getNicknamesSnapshot(): List<UserNicknameEntity> {
+        val db = dbHelper.readableDatabase
+        val cursor = db.query("user_nickname", null, null, null, null, null, "nickname ASC")
+        val list = mutableListOf<UserNicknameEntity>()
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(it.toUserNickname())
+            }
+        }
+        return list
+    }
+
+    suspend fun refreshUser(): String? = withContext(Dispatchers.IO) {
+        val csrf = getCsrfToken()?.takeIf(String::isNotBlank) ?: return@withContext "サインインが必要です"
         val response = apiService.getUser(csrf)
-        if (!response.isSuccessful) return "ユーザー情報を取得できませんでした (${response.code()})"
-        val body = response.body() ?: return "サーバーから空の応答が返されました"
-        return storeUserResponse(body, csrf)
+        if (!response.isSuccessful) return@withContext "ユーザー情報を取得できませんでした (${response.code()})"
+        val body = response.body() ?: return@withContext "サーバーから空の応答が返されました"
+        return@withContext storeUserResponse(body, csrf)
     }
 
     suspend fun updateUser(
@@ -53,9 +99,9 @@ class UserRepository @Inject constructor(
         walletAddress: String,
         latitude: Double,
         longitude: Double
-    ): UserEditResult {
+    ): UserEditResult = withContext(Dispatchers.IO) {
         val csrf = getCsrfToken()?.takeIf(String::isNotBlank)
-            ?: return UserEditResult(error = "サインインが必要です")
+            ?: return@withContext UserEditResult(error = "サインインが必要です")
         val response = apiService.editUser(
             csrf = csrf,
             nickname = nickname,
@@ -69,62 +115,107 @@ class UserRepository @Inject constructor(
             longitude = longitude
         )
         if (!response.isSuccessful) {
-            return UserEditResult(error = "ユーザー情報を更新できませんでした (${response.code()})")
+            return@withContext UserEditResult(error = "ユーザー情報を更新できませんでした (${response.code()})")
         }
-        val body = response.body() ?: return UserEditResult(error = "サーバーから空の応答が返されました")
+        val body = response.body() ?: return@withContext UserEditResult(error = "サーバーから空の応答が返されました")
         val error = storeCsrfAndReadError(body, csrf)
-        if (error != null) return UserEditResult(error = error)
+        if (error != null) return@withContext UserEditResult(error = error)
 
-        database.withTransaction {
-            val profileDao = database.userProfileDao()
-            val profile = profileDao.getCurrentProfileSnapshot() ?: UserProfileEntity()
-            profileDao.save(
-                profile.copy(
-                    mail = mail,
-                    telephone = telephone,
-                    walletAddress = walletAddress,
-                    latitude = latitude,
-                    longitude = longitude,
-                    nickname = nickname.ifBlank { profile.nickname },
-                    nickImg = if (removeNickImg) "" else nickImg ?: profile.nickImg,
-                    nickBio = nickBio
-                )
+        val db = dbHelper.writableDatabase
+        db.beginTransaction()
+        try {
+            val current = getCurrentProfileSnapshot() ?: UserProfileEntity()
+            val updatedProfile = current.copy(
+                mail = mail,
+                telephone = telephone,
+                walletAddress = walletAddress,
+                latitude = latitude,
+                longitude = longitude,
+                nickname = nickname.ifBlank { current.nickname },
+                nickImg = if (removeNickImg) "" else nickImg ?: current.nickImg,
+                nickBio = nickBio
             )
+            saveProfile(db, updatedProfile)
 
             if (nickname.isNotBlank()) {
-                val nicknameDao = database.userNicknameDao()
-                val existing = nicknameDao.getByNickname(nickname)
+                val existing = getNickname(db, nickname)
                 val savedNickImg = if (removeNickImg) "" else nickImg ?: existing?.nickImg
-                nicknameDao.insertAll(
-                    listOf(
-                        existing?.copy(nickImg = savedNickImg, nickBio = nickBio)
-                            ?: UserNicknameEntity(nickname = nickname, nickImg = savedNickImg, nickBio = nickBio)
-                    )
-                )
+                val updatedNick = existing?.copy(nickImg = savedNickImg, nickBio = nickBio)
+                    ?: UserNicknameEntity(nickname = nickname, nickImg = savedNickImg, nickBio = nickBio)
+                saveNickname(db, updatedNick)
             }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
+        
+        refreshLocalState()
 
-        return UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
+        return@withContext UserEditResult(message = body.message ?: "ユーザー情報を更新しました", pushContents = body.pushContents.orEmpty())
     }
 
-    private suspend fun storeUserResponse(body: GoogleSignInResponse, sentCsrf: String): String? {
+    private fun saveProfile(db: SQLiteDatabase, profile: UserProfileEntity) {
+        val values = ContentValues().apply {
+            put("profileId", profile.profileId)
+            put("name", profile.name)
+            put("mail", profile.mail)
+            put("nickname", profile.nickname)
+            put("channelID", profile.channelID)
+            put("accessRight", profile.accessRight)
+            put("admin", if (profile.admin == true) 1 else 0)
+            put("telephone", profile.telephone)
+            put("walletAddress", profile.walletAddress)
+            put("latitude", profile.latitude)
+            put("longitude", profile.longitude)
+            put("nickImg", profile.nickImg)
+            put("nickBio", profile.nickBio)
+        }
+        db.insertWithOnConflict("user_profile", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    private fun getNickname(db: SQLiteDatabase, nickname: String): UserNicknameEntity? {
+        val cursor = db.query("user_nickname", null, "nickname = ?", arrayOf(nickname), null, null, null)
+        return cursor.use {
+            if (it.moveToFirst()) it.toUserNickname() else null
+        }
+    }
+
+    private fun saveNickname(db: SQLiteDatabase, nickname: UserNicknameEntity) {
+        val values = ContentValues().apply {
+            put("nickname", nickname.nickname)
+            put("nickImg", nickname.nickImg)
+            put("nickBio", nickname.nickBio)
+            put("good", nickname.good)
+            put("bad", nickname.bad)
+            put("createdAt", nickname.createdAt)
+            put("accessRight", nickname.accessRight)
+        }
+        db.insertWithOnConflict("user_nickname", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    private fun storeUserResponse(body: GoogleSignInResponse, sentCsrf: String): String? {
         val error = storeCsrfAndReadError(body, sentCsrf)
         if (error != null) return error
         val user = body.user ?: return "ユーザー情報が応答に含まれていません"
-        database.withTransaction {
-            database.userProfileDao().save(user.toEntity())
-            database.userNicknameDao().replaceAll(body.nicknames.orEmpty().map { it.toEntity() })
+        
+        val db = dbHelper.writableDatabase
+        db.beginTransaction()
+        try {
+            saveProfile(db, user.toEntity())
+            
+            db.delete("user_nickname", null, null)
+            body.nicknames.orEmpty().forEach { 
+                saveNickname(db, it.toEntity())
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
+        
+        refreshLocalState()
         return null
     }
 
-    /**
-     * 応答に含まれる CSRF を保存し、エラーメッセージを返す。
-     *
-     * UserGet / UserEdit はセッション確認に成功すると回転後の CSRF を返すので必ず保存する。
-     * 送信値と同じ値はサーバーがエコーしただけ（セッション確認に失敗したときの
-     * common/response.go の WriteResponseWithoutSession）なので保存しない。
-     */
     private fun storeCsrfAndReadError(body: GoogleSignInResponse, sentCsrf: String): String? {
         sessionManager.applyResponseCsrf(sentCsrf, body.csrf)?.let(::setCsrfToken)
         if (body.csrf.isNullOrBlank() && body.error == null) {
@@ -156,6 +247,32 @@ class UserRepository @Inject constructor(
         bad = bad,
         createdAt = createdAt,
         accessRight = accessRight
+    )
+
+    private fun Cursor.toUserProfile() = UserProfileEntity(
+        profileId = getString(getColumnIndexOrThrow("profileId")),
+        name = getString(getColumnIndexOrThrow("name")),
+        mail = getString(getColumnIndexOrThrow("mail")),
+        nickname = getString(getColumnIndexOrThrow("nickname")),
+        channelID = getString(getColumnIndexOrThrow("channelID")),
+        accessRight = getString(getColumnIndexOrThrow("accessRight")),
+        admin = getInt(getColumnIndexOrThrow("admin")) == 1,
+        telephone = getString(getColumnIndexOrThrow("telephone")),
+        walletAddress = getString(getColumnIndexOrThrow("walletAddress")),
+        latitude = getDouble(getColumnIndexOrThrow("latitude")),
+        longitude = getDouble(getColumnIndexOrThrow("longitude")),
+        nickImg = getString(getColumnIndexOrThrow("nickImg")),
+        nickBio = getString(getColumnIndexOrThrow("nickBio"))
+    )
+
+    private fun Cursor.toUserNickname() = UserNicknameEntity(
+        nickname = getString(getColumnIndexOrThrow("nickname")),
+        nickImg = getString(getColumnIndexOrThrow("nickImg")),
+        nickBio = getString(getColumnIndexOrThrow("nickBio")),
+        good = getInt(getColumnIndexOrThrow("good")),
+        bad = getInt(getColumnIndexOrThrow("bad")),
+        createdAt = getString(getColumnIndexOrThrow("createdAt")),
+        accessRight = getString(getColumnIndexOrThrow("accessRight"))
     )
 
     companion object {

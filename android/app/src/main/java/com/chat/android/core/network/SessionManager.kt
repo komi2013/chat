@@ -1,4 +1,4 @@
-package com.chat.android.core.data
+package com.chat.android.core.network
 
 import android.content.Context
 import android.content.SharedPreferences

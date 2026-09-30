@@ -1,8 +1,8 @@
 package com.chat.android.di
 
-import com.chat.android.core.data.SessionManager
 import com.chat.android.core.network.ApiService
 import com.chat.android.core.network.RetrofitClient
+import com.chat.android.core.network.SessionManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

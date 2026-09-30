@@ -7,7 +7,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import com.chat.android.BuildConfig
 import com.google.gson.GsonBuilder
-import com.chat.android.core.data.SessionManager
 
 object RetrofitClient {
 

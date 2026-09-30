@@ -9,8 +9,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.chat.android.MainActivity
 import com.chat.android.R
-import com.chat.android.core.data.SessionManager
 import com.chat.android.core.network.ApiService
+import com.chat.android.core.network.SessionManager
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject

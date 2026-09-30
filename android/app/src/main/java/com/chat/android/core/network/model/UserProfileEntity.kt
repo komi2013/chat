@@ -1,11 +1,7 @@
-package com.chat.android.core.database.entities
+package com.chat.android.core.network.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "user_profile")
 data class UserProfileEntity(
-    @PrimaryKey val profileId: String = CURRENT_PROFILE_ID,
+    val profileId: String = CURRENT_PROFILE_ID,
     val name: String? = null,
     val mail: String? = null,
     val nickname: String? = null,

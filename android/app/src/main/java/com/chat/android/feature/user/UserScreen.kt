@@ -67,7 +67,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.chat.android.core.database.entities.UserNicknameEntity
+import com.chat.android.core.network.model.UserNicknameEntity
 import com.chat.android.core.util.toAbsoluteImageUrl
 import java.util.Locale
 

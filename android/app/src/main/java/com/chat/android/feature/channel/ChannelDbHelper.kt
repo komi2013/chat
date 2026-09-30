@@ -73,14 +73,75 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 groupBio TEXT
             )
         """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE user_profile (
+                profileId TEXT NOT NULL PRIMARY KEY,
+                name TEXT,
+                mail TEXT,
+                nickname TEXT,
+                channelID TEXT,
+                accessRight TEXT,
+                admin INTEGER,
+                telephone TEXT,
+                walletAddress TEXT,
+                latitude REAL,
+                longitude REAL,
+                nickImg TEXT,
+                nickBio TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE user_nickname (
+                nickname TEXT NOT NULL PRIMARY KEY,
+                nickImg TEXT,
+                nickBio TEXT,
+                good INTEGER NOT NULL DEFAULT 0,
+                bad INTEGER NOT NULL DEFAULT 0,
+                createdAt TEXT,
+                accessRight TEXT
+            )
+        """.trimIndent())
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Simple upgrade path for raw sqlite feature DB
-        db.execSQL("DROP TABLE IF EXISTS channel")
-        db.execSQL("DROP TABLE IF EXISTS alias")
-        db.execSQL("DROP TABLE IF EXISTS \"group\"")
-        onCreate(db)
+        // v2 で user_profile / user_nickname を追加。
+        // channel / alias / "group" は既存データを保持する。
+        if (oldVersion < 2) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_profile (
+                    profileId TEXT NOT NULL PRIMARY KEY,
+                    name TEXT,
+                    mail TEXT,
+                    nickname TEXT,
+                    channelID TEXT,
+                    accessRight TEXT,
+                    admin INTEGER,
+                    telephone TEXT,
+                    walletAddress TEXT,
+                    latitude REAL,
+                    longitude REAL,
+                    nickImg TEXT,
+                    nickBio TEXT
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS user_nickname (
+                    nickname TEXT NOT NULL PRIMARY KEY,
+                    nickImg TEXT,
+                    nickBio TEXT,
+                    good INTEGER NOT NULL DEFAULT 0,
+                    bad INTEGER NOT NULL DEFAULT 0,
+                    createdAt TEXT,
+                    accessRight TEXT
+                )
+                """.trimIndent()
+            )
+        }
     }
 
     fun saveChannel(channel: DbChannel) {
@@ -223,6 +284,6 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }

@@ -1,11 +1,7 @@
-package com.chat.android.core.database.entities
+package com.chat.android.core.network.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "user_nickname")
 data class UserNicknameEntity(
-    @PrimaryKey val nickname: String,
+    val nickname: String,
     val nickImg: String? = null,
     val nickBio: String? = null,
     val good: Int = 0,

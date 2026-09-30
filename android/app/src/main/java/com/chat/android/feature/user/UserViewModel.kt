@@ -7,7 +7,7 @@ import android.net.Uri
 import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chat.android.core.database.entities.UserProfileEntity
+import com.chat.android.core.network.model.UserProfileEntity
 import com.chat.android.core.repository.UserRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority

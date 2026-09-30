@@ -3,7 +3,7 @@ package com.chat.android.feature.sign
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.android.core.network.GoogleSignInResponse
-import com.chat.android.core.data.SessionManager
+import com.chat.android.core.network.SessionManager
 import com.chat.android.firebase.PushNotificationManager
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel

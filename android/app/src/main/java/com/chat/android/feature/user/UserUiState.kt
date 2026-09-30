@@ -1,8 +1,8 @@
 package com.chat.android.feature.user
 
 import androidx.compose.ui.text.input.TextFieldValue
-import com.chat.android.core.database.entities.UserNicknameEntity
-import com.chat.android.core.database.entities.UserProfileEntity
+import com.chat.android.core.network.model.UserNicknameEntity
+import com.chat.android.core.network.model.UserProfileEntity
 
 data class UserUiState(
     val isLoading: Boolean = true,
