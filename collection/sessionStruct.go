@@ -9,6 +9,11 @@ import (
 type SessionStruct struct {
   SessionID  string    `bson:"_id,omitempty"`
   SessionIDRotated bool `bson:"-" json:"-"`
+  // DeviceID はセッションを所有する端末（アプリインストール）を表す識別子。
+  // クライアントが生成する UUIDv4 で、認証情報ではない（認証はサーバー生成の
+  // SessionID のみで行う）。ログイン時の同一端末セッション置換と、push通知の
+  // 「1端末1通」判定に使う。
+  DeviceID string    `bson:"deviceID,omitempty" json:"deviceID,omitempty"`
   UserID  string    `bson:"userID,omitempty"`
   CreatedAt  time.Time `bson:"createdAt,omitempty"`
   UpdatedAt  time.Time `bson:"updatedAt,omitempty"`

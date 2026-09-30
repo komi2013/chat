@@ -195,7 +195,9 @@ interface ApiService {
     @POST("SignInGoogleMobile/")
     suspend fun signInWithGoogle(
         @Field("credential") idToken: String,
-        @Field("csrf") csrf: String
+        @Field("csrf") csrf: String,
+        // 端末識別子（UUIDv4）。サーバーは同一端末の古いセッションを削除するために使う。
+        @Field("deviceID") deviceId: String
     ): Response<ResponseBody>
     
     // Get user info

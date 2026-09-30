@@ -83,6 +83,23 @@ func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Push ターゲットの重複排除。同一ユーザーの他セッションが同じ pushToken を
+	// 保持している場合、同一端末へ同じ通知が複数回届くため（1セッション=1通知の
+	// ループがそのままでは1端末に6通届く）、他セッションからは pushToken を外す。
+	// SessionID(_id) 自体はサーバー生成のままで、認証情報の性質は変えない。
+	if result, err := coll.UpdateMany(context.TODO(),
+		bson.M{
+			"userID":    session.UserID,
+			"_id":       bson.M{"$ne": session.SessionID},
+			"pushToken": pushToken,
+		},
+		bson.M{"$unset": bson.M{"pushToken": "", "deviceType": ""}},
+	); err != nil {
+		log.Printf("Failed to clear duplicate push tokens of user %s: %v", session.UserID, err)
+	} else if result.ModifiedCount > 0 {
+		log.Printf("Cleared duplicate push token from %d session(s) of user %s", result.ModifiedCount, session.UserID)
+	}
+
 	// Update session object
 	session.PushToken = pushToken
 	session.DeviceType = deviceType

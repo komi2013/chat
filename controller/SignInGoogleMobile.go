@@ -28,6 +28,11 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 端末識別子。クライアントが生成する UUIDv4 で、認証情報ではない
+	// （認証はサーバー生成の SessionID のみ）。同じ端末からの再ログイン時に
+	// 古いセッションを削除し、1端末1セッションに保つために使う。
+	deviceID := r.FormValue("deviceID")
+
 	credential := r.FormValue("credential")
 	if credential == "" {
 		fmt.Printf("DEBUG: Missing credential in form\n")
@@ -120,6 +125,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		SessionID:      common.StringRand(16),
 		Csrf:           common.StringRand(16),
 		UserID:         userID,
+		DeviceID:       deviceID,
 		// Native app login. The FCM token is registered right after sign-in
 		// via PushSubscribeMobile, which sets deviceType 2.
 		DeviceType:     2,
@@ -156,12 +162,26 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("DEBUG: Session created successfully for user %s\n", userID)
 
+	// 同じ端末（deviceID）の古いセッションを削除する。1端末1セッションに保つことで、
+	// 同一FCMトークンが複数セッションに残って同一端末へ重複PUSHが届くのを防ぐ。
+	if deviceID != "" {
+		result, err := collSession.DeleteMany(context.TODO(), bson.M{
+			"userID":   userID,
+			"deviceID": deviceID,
+		})
+		if err != nil {
+			fmt.Printf("DEBUG: Failed to delete previous sessions of device %s: %v\n", deviceID, err)
+		} else {
+			fmt.Printf("DEBUG: Deleted %d previous session(s) of device %s\n", result.DeletedCount, deviceID)
+		}
+	}
+
 	// Clean up old sessions
-	if len(sessions) > 5 {
+	if len(sessions) >= 5 {
 		sort.Slice(sessions, func(i, j int) bool {
 			return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
 		})
-		deleteCount := len(sessions) - 5
+		deleteCount := len(sessions) - 4
 		for i := 0; i < deleteCount; i++ {
 			_, err := collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
 			if err != nil {

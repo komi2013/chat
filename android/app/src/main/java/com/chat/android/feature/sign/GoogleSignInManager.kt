@@ -6,6 +6,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.chat.android.BuildConfig
 import com.chat.android.core.network.ApiService
+import com.chat.android.core.data.SessionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,7 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class GoogleSignInManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val sessionManager: SessionManager
 ) {
     
     private val googleSignInClient: GoogleSignInClient by lazy {
@@ -44,7 +46,7 @@ class GoogleSignInManager @Inject constructor(
         android.util.Log.d("GoogleSignInManager", "CSRF: $csrf")
         android.util.Log.d("GoogleSignInManager", "ID Token prefix: ${idToken.take(20)}...")
 
-        val response = apiService.signInWithGoogle(idToken, csrf)
+        val response = apiService.signInWithGoogle(idToken, csrf, sessionManager.getDeviceId())
         if (response.isSuccessful) {
             val responseBody = response.body()?.string()
             android.util.Log.d("GoogleSignInManager", "Response Body: $responseBody")

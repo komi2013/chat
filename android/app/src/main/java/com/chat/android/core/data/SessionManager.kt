@@ -27,6 +27,7 @@ class SessionManager @Inject constructor(
         private const val KEY_USER_ID = "user_id"
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_SESSION_ID = "session_id"
+        private const val KEY_DEVICE_ID = "device_id"
         private const val SESSION_KEY_ALIAS = "chat_session_id"
         private const val ENCRYPTED_PREFIX = "enc:"
         private const val GCM_IV_SIZE = 12
@@ -66,6 +67,21 @@ class SessionManager @Inject constructor(
     }
 
     fun getCsrf(): String? = prefs.getString(KEY_CSRF, null)
+
+    /**
+     * 端末（アプリインストール）固有の UUIDv4 を返す。初回呼び出し時に生成して永続化する。
+     *
+     * 認証情報ではない（認証はサーバー生成の sessionId のみで行う）。サーバー側はこれを
+     * ログイン時の「同一端末の古いセッション削除」と、push通知の1端末1通の判定に使う。
+     * アプリの再インストール時に新しい UUID になるため、サーバー上の旧セッションは
+     * ログイン時に削除される。
+     */
+    fun getDeviceId(): String {
+        prefs.getString(KEY_DEVICE_ID, null)?.takeIf(String::isNotBlank)?.let { return it }
+        val deviceId = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_DEVICE_ID, deviceId).apply()
+        return deviceId
+    }
 
     fun setCsrf(csrf: String) {
         prefs.edit().putString(KEY_CSRF, csrf).apply()
