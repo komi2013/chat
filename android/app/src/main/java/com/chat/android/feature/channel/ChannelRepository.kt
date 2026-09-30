@@ -127,6 +127,67 @@ class ChannelRepository @Inject constructor(
         return Result.success(Unit)
     }
 
+    /**
+     * 招待コードを生成する。
+     *
+     * サーバーは generateInvitation を受けたときだけ invitationCode / invitationGuestCode を
+     * 回転させ지만、channelEdit push には [channelName, channelDescription] しか載せない
+     * （controller/ChannelEdit.go:337）。そのため push 経由ではローカルDBに新しいコードが
+     * 反映されないので、応答の channel を使ってここで DB を更新する。
+     */
+    suspend fun generateInvitation(channelID: String, updatedBy: String, guest: Boolean): Result<Unit> {
+        val csrf = sessionManager.getCsrf() ?: ""
+        val response = apiService.channelEdit(
+            toPart(channelID),
+            toPart(updatedBy),
+            toPart("[]"),
+            null,
+            null,
+            null,
+            generateInvitation = toPart("1"),
+            guest = if (guest) toPart("1") else null,
+            csrf = toPart(csrf)
+        )
+
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
+        }
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+
+        applyChannelPayload(channelID, body.channel)
+        _dbUpdateFlow.emit(Unit)
+        return Result.success(Unit)
+    }
+
+    /**
+     * 応答の channel を使ってローカルDBの招待コード等を更新する。
+     * channelName が空のときは既存レコードを上書きしない（値を消さない）。
+     */
+    private suspend fun applyChannelPayload(channelID: String, payload: ChannelPayload?) {
+        if (payload == null) return
+        val existing = dbHelper.getChannel(channelID) ?: return
+        dbHelper.saveChannel(
+            existing.copy(
+                channelName = payload.channelName?.takeIf { it.isNotBlank() } ?: existing.channelName,
+                channelDescription = payload.channelDescription?.takeIf { it.isNotBlank() }
+                    ?: existing.channelDescription,
+                myname = payload.myname?.takeIf { it.isNotBlank() } ?: existing.myname,
+                invitationCode = payload.invitationCode?.takeIf { it.isNotBlank() }
+                    ?: existing.invitationCode,
+                invitationGuestCode = payload.invitationGuestCode?.takeIf { it.isNotBlank() }
+                    ?: existing.invitationGuestCode
+            )
+        )
+    }
+
     suspend fun deleteChannel(channelID: String, updatedBy: String): Result<Unit> {
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelDelete(
