@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,10 +81,7 @@ class ChannelRepository @Inject constructor(
                 channelName = name,
                 channelDescription = description,
                 myname = myname,
-                myimg = myimg,
-                displayStatus = 0,
-                invitationCode = "",
-                invitationGuestCode = ""
+                myimg = myimg
             )
         )
 
@@ -135,7 +133,7 @@ class ChannelRepository @Inject constructor(
      * （controller/ChannelEdit.go:337）。そのため push 経由ではローカルDBに新しいコードが
      * 反映されないので、応答の channel を使ってここで DB を更新する。
      */
-    suspend fun generateInvitation(channelID: String, updatedBy: String, guest: Boolean): Result<Unit> {
+    suspend fun generateInvitation(channelID: String, updatedBy: String, guest: Boolean): Result<String> {
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
             toPart(channelID),
@@ -156,36 +154,169 @@ class ChannelRepository @Inject constructor(
             ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
-        body.pushContents?.forEach { pushDispatcher.receive(it) }
 
         if (!body.error.isNullOrBlank()) {
             return Result.failure(Exception(body.error))
         }
 
-        applyChannelPayload(channelID, body.channel)
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+
+        // コードは保存せず、呼び出し元へ返すだけにする。
+        val code = body.channel?.let { if (guest) it.invitationGuestCode else it.invitationCode }
+        if (code.isNullOrBlank()) {
+            return Result.failure(Exception("招待コードが返されませんでした"))
+        }
+        _dbUpdateFlow.emit(Unit)
+        return Result.success(code)
+    }
+
+    /**
+     * 招待コードでチャネルに参加する（vue/src/views/Profile.vue の join() に対応）。
+     *
+     * サーバーは参加後に pushContents で
+     *  - channelEdit（チャネル名・説明）
+     *  - alias（参加者全員）
+     *  - group（既存グループ）
+     * を返すので、これをそのまま PushReceiveDispatcher へ流して
+     * ローカルSQLiteを同期する。
+     */
+    suspend fun joinChannel(
+        channelID: String,
+        code: String,
+        myname: String,
+        myimg: String
+    ): Result<Unit> {
+        val csrf = sessionManager.getCsrf() ?: ""
+        val response = apiService.channelJoin(
+            toPart(channelID),
+            toPart(code),
+            toPart(myname),
+            toPart(myimg),
+            toPart(csrf)
+        )
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
+        }
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+
+        // エラー応答には pushContents が含まれないので先に判定する
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
     }
 
     /**
-     * 応答の channel を使ってローカルDBの招待コード等を更新する。
-     * channelName が空のときは既存レコードを上書きしない（値を消さない）。
+     * エイリアス（プロフィール）を編集する（Profile.vue の editAlias 相当）。
+     *
+     * 注意: Profile.vue は pushTitle/contents を送っているが、サーバーは
+     * `admin` フィールド（collection.Alias のJSON）だけを見ている
+     * （controller/ChannelEdit.go:306）。画像は admin.AliasImg 経由で
+     * alias push の index 5 へ流れる（同ファイル:381）ので、
+     * ここで aliasImg を含めて JSON として送る。
      */
-    private suspend fun applyChannelPayload(channelID: String, payload: ChannelPayload?) {
-        if (payload == null) return
-        val existing = dbHelper.getChannel(channelID) ?: return
-        dbHelper.saveChannel(
-            existing.copy(
-                channelName = payload.channelName?.takeIf { it.isNotBlank() } ?: existing.channelName,
-                channelDescription = payload.channelDescription?.takeIf { it.isNotBlank() }
-                    ?: existing.channelDescription,
-                myname = payload.myname?.takeIf { it.isNotBlank() } ?: existing.myname,
-                invitationCode = payload.invitationCode?.takeIf { it.isNotBlank() }
-                    ?: existing.invitationCode,
-                invitationGuestCode = payload.invitationGuestCode?.takeIf { it.isNotBlank() }
-                    ?: existing.invitationGuestCode
-            )
+    suspend fun editAlias(
+        channelID: String,
+        updatedBy: String,
+        aliasName: String,
+        aliasBio: String,
+        aliasImg: String
+    ): Result<Unit> {
+        val csrf = sessionManager.getCsrf() ?: ""
+        val aliases = dbHelper.getAliasesForChannel(channelID)
+        val existing = aliases.find { it.aliasName == updatedBy }
+
+        val adminJson = JSONObject().apply {
+            put("aliasID", existing?.aliasID ?: (channelID + aliasName))
+            put("channelID", channelID)
+            put("aliasName", aliasName)
+            put("aliasImg", aliasImg)
+            put("userID", existing?.userID.orEmpty())
+            put("aliasBio", aliasBio)
+            put("accessRight", existing?.accessRight.orEmpty())
+        }.toString()
+
+        val response = apiService.channelEdit(
+            toPart(channelID),
+            toPart(updatedBy),
+            toPart("[]"),
+            null,
+            null,
+            null,
+            admin = toPart(adminJson),
+            csrf = toPart(csrf)
         )
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
+        }
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+        _dbUpdateFlow.emit(Unit)
+        return Result.success(Unit)
+    }
+
+    /**
+     * 参加済みチャネルの myname（現在のエイリアス）を切り替える。
+     *
+     * サーバーへは送らずローカルSQLiteだけ更新する。
+     * Profile.vue の switchAlias も IndexedDB への upsert のみで、
+     * サーバーAPIは呼んでいないため、Web版と同じ挙動になる。
+     */
+    suspend fun switchChannelMyname(channelID: String, aliasName: String) {
+        val existing = dbHelper.getChannel(channelID) ?: return
+        dbHelper.saveChannel(existing.copy(myname = aliasName))
+        _dbUpdateFlow.emit(Unit)
+    }
+
+    /**
+     * グループの変更を保存する（vue/src/views/Group.vue の editGroup/removeGroup に対応）。
+     *
+     * [groupsJson] は差分（追加・更新・削除）だけを入れる。
+     * 削除は aliasNames を null にした要素で表現する。
+     * サーバーは group ごとに common.ImgSave() を呼ぶため、
+     * 保存済み画像パスは呼び出し側で DataURI へ変換しておく必要がある。
+     */
+    suspend fun editGroups(
+        channelID: String,
+        updatedBy: String,
+        groupsJson: String,
+        pushNamesJson: String
+    ): Result<Unit> {
+        val csrf = sessionManager.getCsrf() ?: ""
+        val response = apiService.channelEdit(
+            toPart(channelID),
+            toPart(updatedBy),
+            toPart(pushNamesJson),
+            null,
+            toPart(groupsJson),
+            null,
+            csrf = toPart(csrf)
+        )
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
+        }
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+        _dbUpdateFlow.emit(Unit)
+        return Result.success(Unit)
     }
 
     suspend fun deleteChannel(channelID: String, updatedBy: String): Result<Unit> {

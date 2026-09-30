@@ -54,10 +54,7 @@ class ChannelEditHandler(
                 channelName = channelName,
                 channelDescription = channelDescription,
                 myname = pd.updatedBy,
-                myimg = "",
-                displayStatus = 0,
-                invitationCode = "",
-                invitationGuestCode = ""
+                myimg = ""
             )
         }
 

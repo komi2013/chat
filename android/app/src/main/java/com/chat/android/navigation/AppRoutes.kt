@@ -20,3 +20,11 @@ data class EntryFormAnswerRoute(val id: String)
 @Serializable
 data class ChannelRoute(val id: String? = null)
 
+/** /profile/{id}/?code=... に対応するルート。 */
+@Serializable
+data class ProfileRoute(val id: String? = null, val code: String? = null)
+
+/** グループ編集画面。 */
+@Serializable
+data class GroupRoute(val id: String? = null)
+

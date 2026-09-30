@@ -32,6 +32,12 @@ android {
 
         buildConfigField "String", "BASE_URL", "\"${configuredBaseUrl}\""
 
+        // ビルド時刻を焼き込み、Home画面で確認できるようにする。
+        // 端末にインストール済みのAPKがどのビルドかを判別するために使う。
+        // 秒単位で、同日中の再ビルドでも値が変わる。
+        def builtAt = new Date().format("yyyy-MM-dd HH:mm:ss")
+        buildConfigField "String", "BUILD_TIME", "\"${builtAt}\""
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true

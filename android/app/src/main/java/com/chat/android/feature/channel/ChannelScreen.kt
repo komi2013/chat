@@ -37,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.BuildConfig
+import com.chat.android.core.ui.component.QrCodeImage
 import com.chat.android.core.util.toAbsoluteImageUrl
+import com.chat.android.navigation.GroupRoute
 
 /**
  * チャネル設定画面（vue/src/views/Channel.vue に対応）。
@@ -196,15 +198,16 @@ fun ChannelScreen(
 
             if (!uiState.isCreateMode) {
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = guest, onCheckedChange = { guest = it })
-                        Text("ゲスト用コードを表示")
-                    }
+                    InvitationCard(
+                        state = uiState,
+                        guest = guest,
+                        onGuestChange = { guest = it },
+                        onGenerate = { viewModel.generateInvitation(it) }
+                    )
                 }
-                item { InvitationCard(uiState, guest) }
 
                 MemberSection(uiState)
-                GroupSection(uiState)
+                GroupSection(uiState, navController)
 
                 if (uiState.iamAdmin) {
                     item {
@@ -358,21 +361,39 @@ private fun ChannelHeaderCard(state: ChannelUiState) {
     }
 }
 
-/** 招待コードの表示とコピー。 */
+/**
+ * 招待URLの表示・コピー・QRコード。
+ *
+ * コードはDBに保存しないため、「招待する」を押したときだけ生成され、
+ * 画面内にだけ存在する。画面を再訪すると消える（＝共有済みのURLは失効する）。
+ */
 @Composable
-private fun InvitationCard(state: ChannelUiState, guest: Boolean) {
+private fun InvitationCard(
+    state: ChannelUiState,
+    guest: Boolean,
+    onGuestChange: (Boolean) -> Unit,
+    onGenerate: (Boolean) -> Unit
+) {
+    var showConfirm by remember { mutableStateOf(false) }
+    val code = if (guest) state.invitationGuestCode else state.invitationCode
+
     SectionCard("招待URL") {
-        val code = if (guest) state.invitationGuestCode else state.invitationCode
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = guest, onCheckedChange = onGuestChange)
+            Text("ゲスト用")
+        }
+
         if (code.isBlank()) {
             Text(
-                "未生成です。右上の送信ボタンで生成します",
+                "未生成です。「招待する」を押すとリンクとQRコードが発行されます。",
                 style = MaterialTheme.typography.bodyMedium
             )
         } else {
-            val url = BuildConfig.BASE_URL.trimEnd('/') +
-                "/profile/${state.channelID}/?code=$code"
+            val url = invitationUrl(state.channelID, code)
+            val webUrl = webInvitationUrl(state.channelID, code)
             val context = LocalContext.current
             Text(url, style = MaterialTheme.typography.bodySmall)
+
             TextButton(onClick = {
                 val clipboard = context
                     .getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
@@ -382,9 +403,79 @@ private fun InvitationCard(state: ChannelUiState, guest: Boolean) {
                 Spacer(Modifier.width(4.dp))
                 Text("コピー")
             }
+
+            // このURLのQRコード。fillMaxWidth() を付けると親幅で伸びて歪むため
+            // 固定サイズの正方形にする。
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                QrCodeImage(content = url, size = 260.dp)
+            }
+
+            Text(
+                "このQRをスキャンすると、このアプリが開きます。" +
+                    "アプリを使わない場合は下のWeb版URLをコピーしてください。",
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = {
+                val clipboard = context
+                    .getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clipboard?.setPrimaryClip(ClipData.newPlainText("channel", webUrl))
+            }) {
+                Text("Web版URLをコピー: $webUrl")
+            }
+        }
+
+        Button(
+            onClick = { showConfirm = true },
+            enabled = !state.isLoading && !state.iamGuest,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Send, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("招待する")
+        }
+
+        if (code.isNotBlank()) {
+            Text(
+                "注意: 「招待する」を押すとコードが更新され、以前共有したURLは無効になります。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
+
+    if (showConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("招待リンクを生成") },
+            text = {
+                Text(
+                    if (code.isBlank()) {
+                        "招待用のリンクとQRコードを生成します。"
+                    } else {
+                        "招待リンクを生成し直します。\n" +
+                            "以前共有したURLはすべて無効になります。よろしいですか？"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirm = false
+                    onGenerate(guest)
+                }) { Text("生成") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) { Text("キャンセル") }
+            }
+        )
+    }
 }
+
+/** 招待用のカスタムスキームURL。QRはこれを埋め込む。 */
+private fun invitationUrl(channelID: String?, code: String): String =
+    "chat://profile/${channelID.orEmpty()}?code=$code"
+
+private fun webInvitationUrl(channelID: String?, code: String): String =
+    BuildConfig.BASE_URL.trimEnd('/') + "/profile/${channelID.orEmpty()}/?code=$code"
 
 /** メンバー一覧。 */
 private fun LazyListScope.MemberSection(state: ChannelUiState) {
@@ -425,8 +516,24 @@ private fun LazyListScope.MemberSection(state: ChannelUiState) {
 }
 
 /** グループ一覧。 */
-private fun LazyListScope.GroupSection(state: ChannelUiState) {
+private fun LazyListScope.GroupSection(
+    state: ChannelUiState,
+    navController: NavController
+) {
     item { SectionTitle("グループ") }
+
+    // グループ編集画面への導線（Vue の「👪 グループアカウント作成・編集」相当）
+    item {
+        OutlinedButton(
+            onClick = { navController.navigate(GroupRoute(id = state.channelID)) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Groups, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("グループの作成・編集")
+        }
+    }
+
     if (state.groups.isEmpty()) {
         item { Text("グループがありません", style = MaterialTheme.typography.bodyMedium) }
     }

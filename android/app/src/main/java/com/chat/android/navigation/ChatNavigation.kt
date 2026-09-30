@@ -15,11 +15,21 @@ import com.chat.android.feature.entryform.EntryFormListScreen
 import com.chat.android.feature.entryform.EntryFormEditScreen
 import com.chat.android.feature.entryform.EntryFormAnswerScreen
 import com.chat.android.feature.channel.ChannelScreen
+import com.chat.android.feature.group.GroupScreen
+import com.chat.android.feature.profile.ProfileScreen
 import com.chat.android.feature.home.HomeScreen
 
 @Composable
-fun ChatNavigation() {
+fun ChatNavigation(inviteLink: ProfileRoute? = null) {
     val navController = rememberNavController()
+
+    // 招待URLで起動された場合は、その参加画面を最初の画面にする。
+    // LaunchedEffect(Unit) なので再コンポジションでは再度遷移しない。
+    LaunchedEffect(Unit) {
+        if (inviteLink != null) {
+            navController.navigate(inviteLink)
+        }
+    }
 
     DrawerLayout(
         navController = navController
@@ -62,6 +72,23 @@ fun ChatNavigation() {
                 composable<ChannelRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<ChannelRoute>()
                     ChannelScreen(
+                        navController = navController,
+                        id = route.id
+                    )
+                }
+
+                composable<ProfileRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ProfileRoute>()
+                    ProfileScreen(
+                        navController = navController,
+                        id = route.id,
+                        code = route.code
+                    )
+                }
+
+                composable<GroupRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<GroupRoute>()
+                    GroupScreen(
                         navController = navController,
                         id = route.id
                     )

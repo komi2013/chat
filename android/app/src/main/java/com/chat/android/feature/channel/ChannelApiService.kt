@@ -66,4 +66,21 @@ interface ChannelApiService {
         @Part("channelDelete") channelDelete: RequestBody,
         @Part("csrf") csrf: RequestBody
     ): Response<ChannelResponse>
+
+    /**
+     * 招待コードでチャネルに参加する。
+     *
+     * サーバーは FormValue で `channelID` と `code` を読む
+     * （controller/ChannelJoin.go:17-20）。`id` や code 未送だと
+     * 必ず "code is wrong or invitation expired" になる。
+     */
+    @Multipart
+    @POST("/ChannelJoin/")
+    suspend fun channelJoin(
+        @Part("channelID") channelID: RequestBody,
+        @Part("code") code: RequestBody,
+        @Part("myname") myname: RequestBody,
+        @Part("myimg") myimg: RequestBody,
+        @Part("csrf") csrf: RequestBody
+    ): Response<ChannelResponse>
 }

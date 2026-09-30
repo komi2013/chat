@@ -76,6 +76,9 @@ class ChannelViewModel @Inject constructor(
             isCreateMode = false,
             error = null,
             successMessage = null,
+            // チャネルを切り替えたら前のチャネルの招待URLは使わない
+            invitationCode = "",
+            invitationGuestCode = "",
             isLoading = true
         )
         observeDbUpdates(channelID)
@@ -121,8 +124,7 @@ class ChannelViewModel @Inject constructor(
                     channelDescription = channel.channelDescription,
                     myName = channel.myname,
                     myImg = channel.myimg,
-                    invitationCode = channel.invitationCode,
-                    invitationGuestCode = channel.invitationGuestCode,
+                    // 招待コードは DB に無いため読み込まない（起動時は空）
                     aliases = aliases,
                     groups = groups,
                     iamAdmin = iamAdmin,
@@ -216,19 +218,21 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    /** 招待コードを生成する（Vue の invite() に対応）。 */
+    /** 招待コードを生成し、UiState に保持する（保存はしない）。 */
     fun generateInvitation(guest: Boolean) {
         val state = _uiState.value
         val id = state.channelID ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, successMessage = null)
             repository.generateInvitation(id, state.myName, guest)
-                .onSuccess {
+                .onSuccess { code ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
+                        // 画面内にだけ保持する。DB には保存しない。
+                        invitationCode = if (guest) "" else code,
+                        invitationGuestCode = if (guest) code else "",
                         successMessage = "招待URLを生成しました"
                     )
-                    loadChannelData(id)
                 }
                 .onFailure {
                     _uiState.value = _uiState.value.copy(
@@ -237,6 +241,11 @@ class ChannelViewModel @Inject constructor(
                     )
                 }
         }
+    }
+
+    /** 画面を離れたときに生成した招待URLを破棄する。 */
+    fun clearInvitation() {
+        _uiState.value = _uiState.value.copy(invitationCode = "", invitationGuestCode = "")
     }
 
     fun deleteChannel() {

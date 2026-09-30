@@ -5,15 +5,21 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+/**
+ * channel テーブルの1行。
+ *
+ * 招待コード（invitationCode / invitationGuestCode）は保持しない。
+ * サーバーは ChannelEdit/ の generateInvitation を受けるたびにコードを
+ * 回転させる（controller/ChannelEdit.go:134）ため、保存すると必ず古くなる。
+ * 必要になったとき API から取得して画面上でだけ扱う。
+ * displayStatus も現時点で未使用のため持ちない。
+ */
 data class DbChannel(
     val channelID: String,
     val channelName: String,
     val channelDescription: String,
     val myname: String,
-    val myimg: String,
-    val displayStatus: Int,
-    val invitationCode: String,
-    val invitationGuestCode: String
+    val myimg: String
 )
 
 data class DbAlias(
@@ -44,10 +50,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 channelName TEXT,
                 channelDescription TEXT,
                 myname TEXT,
-                myimg TEXT,
-                displayStatus INTEGER,
-                invitationCode TEXT,
-                invitationGuestCode TEXT
+                myimg TEXT
             )
         """.trimIndent())
 
@@ -142,6 +145,31 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 """.trimIndent()
             )
         }
+
+        // v3 で channel から displayStatus / invitationCode / invitationGuestCode を削除。
+        // ALTER TABLE ... DROP COLUMN は SQLite 3.35+（Android 13 / API 33 以降）が必要なため、
+        // minSdk 24 では使えない。テーブルを作り直して既存行を移す方式にする。
+        if (oldVersion < 3) {
+            db.execSQL(
+                """
+                CREATE TABLE channel_new (
+                    channelID TEXT PRIMARY KEY,
+                    channelName TEXT,
+                    channelDescription TEXT,
+                    myname TEXT,
+                    myimg TEXT
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO channel_new (channelID, channelName, channelDescription, myname, myimg)
+                SELECT channelID, channelName, channelDescription, myname, myimg FROM channel
+                """.trimIndent()
+            )
+            db.execSQL("DROP TABLE channel")
+            db.execSQL("ALTER TABLE channel_new RENAME TO channel")
+        }
     }
 
     fun saveChannel(channel: DbChannel) {
@@ -151,9 +179,6 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             put("channelDescription", channel.channelDescription)
             put("myname", channel.myname)
             put("myimg", channel.myimg)
-            put("displayStatus", channel.displayStatus)
-            put("invitationCode", channel.invitationCode)
-            put("invitationGuestCode", channel.invitationGuestCode)
         }
         writableDatabase.insertWithOnConflict("channel", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -169,10 +194,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                     channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                     channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
                     myname = it.getString(it.getColumnIndexOrThrow("myname")),
-                    myimg = it.getString(it.getColumnIndexOrThrow("myimg")),
-                    displayStatus = it.getInt(it.getColumnIndexOrThrow("displayStatus")),
-                    invitationCode = it.getString(it.getColumnIndexOrThrow("invitationCode")),
-                    invitationGuestCode = it.getString(it.getColumnIndexOrThrow("invitationGuestCode"))
+                    myimg = it.getString(it.getColumnIndexOrThrow("myimg"))
                 )
             } else null
         }
@@ -189,10 +211,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                         channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                         channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
                         myname = it.getString(it.getColumnIndexOrThrow("myname")),
-                        myimg = it.getString(it.getColumnIndexOrThrow("myimg")),
-                        displayStatus = it.getInt(it.getColumnIndexOrThrow("displayStatus")),
-                        invitationCode = it.getString(it.getColumnIndexOrThrow("invitationCode")),
-                        invitationGuestCode = it.getString(it.getColumnIndexOrThrow("invitationGuestCode"))
+                        myimg = it.getString(it.getColumnIndexOrThrow("myimg"))
                     )
                 )
             }
@@ -284,6 +303,6 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
     }
 }
