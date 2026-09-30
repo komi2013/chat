@@ -22,6 +22,7 @@ import com.chat.android.navigation.UserRoute
 import com.chat.android.navigation.EntryFormListRoute
 import com.chat.android.navigation.EntryFormEditRoute
 import com.chat.android.navigation.ChannelRoute
+import com.chat.android.navigation.HomeRoute
 import javax.inject.Inject
 
 data class DrawerUiState(
@@ -94,6 +95,7 @@ fun AppDrawer(
                     item = item,
                     onClick = {
                         when (item.route) {
+                            "home" -> navController.navigate(HomeRoute)
                             "user" -> navController.navigate(UserRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
                             "channelCreate" -> navController.navigate(ChannelRoute(id = null))
@@ -188,6 +190,13 @@ private fun DrawerItemRow(
 private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     val items = mutableListOf<DrawerItem>()
     
+    // Home item
+    items.add(DrawerItem(
+        title = "ホーム",
+        route = "home",
+        icon = Icons.Default.Home
+    ))
+
     // Authentication-dependent items
     if (uiState.isSignedIn) {
         items.add(DrawerItem(

@@ -117,10 +117,13 @@ class ChannelViewModel @Inject constructor(
             result.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    successMessage = "Saved successfully"
+                    successMessage = "Saved successfully",
+                    error = null
                 )
-                if (state.isCreateMode && it is String) {
+                if (state.isCreateMode && it is String && it.isNotEmpty()) {
                     init(it)
+                } else if (state.channelID != null) {
+                    loadChannelData(state.channelID)
                 }
             }.onFailure {
                 _uiState.value = _uiState.value.copy(

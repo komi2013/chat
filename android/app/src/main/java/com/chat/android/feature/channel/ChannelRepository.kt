@@ -42,11 +42,13 @@ class ChannelRepository @Inject constructor(
             val body = response.body()
             if (body?.csrf != null) {
                 sessionManager.setCsrf(body.csrf)
-                body.pushContents?.forEach { pushDispatcher.receive(it) }
+                body.pushContents?.forEach { 
+                    pushDispatcher.receive(it) 
+                }
                 _dbUpdateFlow.emit(Unit)
                 return Result.success(body.channelID ?: "")
             }
-            return Result.failure(Exception(response.body()?.error ?: "Unknown error"))
+            return Result.failure(Exception(body?.error ?: "Unknown error"))
         }
         return Result.failure(Exception("Network error: ${response.code()}"))
     }

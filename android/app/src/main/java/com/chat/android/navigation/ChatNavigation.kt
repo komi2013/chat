@@ -15,6 +15,7 @@ import com.chat.android.feature.entryform.EntryFormListScreen
 import com.chat.android.feature.entryform.EntryFormEditScreen
 import com.chat.android.feature.entryform.EntryFormAnswerScreen
 import com.chat.android.feature.channel.ChannelScreen
+import com.chat.android.feature.home.HomeScreen
 
 @Composable
 fun ChatNavigation() {
@@ -27,6 +28,10 @@ fun ChatNavigation() {
             NavHost(navController = navController, startDestination = "login") {
                 composable("login") {
                     SignInScreen(navController = navController)
+                }
+                
+                composable<HomeRoute> {
+                    HomeScreen(navController = navController)
                 }
                 
                 composable<UserRoute> {

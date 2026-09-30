@@ -22,8 +22,11 @@ object RetrofitClient {
         sessionIdUpdater = sessionManager::setSessionId
     }
 
+    // デバッグビルドでは BODY にして、POST パラメータ（リクエストボディ）とレスポンスボディを
+    // Logcat でそのまま確認できるようにする。確認方法: adb logcat -s OkHttp
+    // リリースビルドではトークン等の機密情報がログに残らないよう NONE のままにする。
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         redactHeader("Authorization")
         redactHeader("X-Session-Token")
     }

@@ -90,6 +90,7 @@ class PushReceiveDispatcher(
 
                 // 5. Dispatch to Handler
                 val action = actions[pd.title]
+                Log.d("PushDispatcher", "Dispatching action: ${pd.title} for channel: ${pd.channelID}")
                 if (action != null) {
                     action.handle(pd)
                     _onUpdated.emit(pd.channelID)
