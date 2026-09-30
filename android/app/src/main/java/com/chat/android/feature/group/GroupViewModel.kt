@@ -2,7 +2,6 @@ package com.chat.android.feature.group
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chat.android.core.util.ImageDataUri
 import com.chat.android.core.util.RandomAvatar
 import com.chat.android.feature.channel.ChannelRepository
 import com.chat.android.feature.channel.DbAlias
@@ -166,24 +165,14 @@ class GroupViewModel @Inject constructor(
             for (g in current) {
                 val pre = original.find { it.groupID == g.groupID }
                 if (pre == null || isChanged(pre, g)) {
-                    // 画像が取得できなかった場合、空文字を送るとサーバーの
-                    // ImgSave が空を許容して「画像なし」で上書きしてしまうため、
-                    // 保存そのものを中断する。
-                    val image = prepareImageForServer(g.groupImg)
-                    if (image == null) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = "「${g.groupName}」のアイコン画像を取得できませんでした。" +
-                                "通信環境を確認するか、アイコンを変更してください。"
-                        )
-                        return@launch
-                    }
                     diffs.put(
                         JSONObject().apply {
                             put("groupID", id + g.groupName)
                             put("channelID", id)
                             put("groupName", g.groupName)
-                            put("groupImg", image)
+                            // 保存済みパス("/" 始まり) は common.ImgSave がそのまま通す
+                            // ので、敢えてDataURI へ再エンコードしない。
+                            put("groupImg", g.groupImg)
                             put("aliasNames", JSONArray(g.aliasNames))
                             put("groupBio", g.groupBio)
                         }
@@ -226,16 +215,6 @@ class GroupViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false, error = it.message)
                 }
         }
-    }
-
-    /**
-     * サーバーに送るgroupImg を用意する。取得失敗時は null（=保存を中止する）。
-     * 空文字は「画像を削除する」意味になるため、既存画像がある場合は空にしない。
-     */
-    private suspend fun prepareImageForServer(image: String): String? {
-        if (image.isBlank()) return ""
-        if (image.startsWith(",")) return image
-        return ImageDataUri.reencodeStoredImageToDataUri(image)
     }
 
     private fun isChanged(a: EditableGroup, b: EditableGroup): Boolean =

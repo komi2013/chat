@@ -32,10 +32,28 @@ func EmojiImgValid (imgStr string) (bool) {
 	// 	common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "画像が不正", http.StatusOK)
 }
 
+// IsStoredImgPath は、既に保存済みで再アップロード不要な画像参照かを判定する。
+//
+// 保存時にImgSave が返す値は "/img/..." または config の PublicImgPath 開始なので、
+// どちらも "/" で始まる。data:image（新規アップロード）や
+// ",絵文字,#色"（絵文字アイコン）は "/" で始まらないため,false のままになる。
+func IsStoredImgPath(img string) bool {
+	return strings.HasPrefix(img, "/")
+}
+
 func ImgSave(img string, userID string, name string, channelID string, fileIDLength int, usageType int) (string, error) {
+	imgPath := img
+
+  // 既に保存済みのパス（"/" で始まる）はそのまま通す。
+  // これが無いと、メンバー変更などで「画像は触っていないのに保存済みパスを
+  // 送り返す」ケースが下の Emoji 判定に落ちて "Emoji invalid:" になり、
+  // 変更の保存自体が失敗する。
+  if IsStoredImgPath(img) {
+    return imgPath, nil
+  }
+
   cfg := LoadConfig()
 
-	imgPath := img
 	// /img/user/seijiro/seijiro_kom1.png
 	if strings.HasPrefix(img, "data:image") {
 		base64Data := strings.Split(img, ",")[1]
