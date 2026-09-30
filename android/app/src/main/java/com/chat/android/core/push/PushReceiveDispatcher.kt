@@ -49,12 +49,16 @@ class PushReceiveDispatcher(
         }
 
         // Toggle Deduplication Logic
+        // 重複判定は vue/src/pushReceive/pushReceive.js と同じトグル方式:
+        //   1回目 = 適用してマーカー保存 / 2回目 = マーカー削除して破棄（再同期用）
         val pushDuplicationID = "${pd.title}${pd.channelID}${pd.updatedBy}${pd.pushID}"
-        val db = dbHelper.writableDatabase
 
         applicationScope.launch {
             try {
                 // 1. Check if marker exists
+                // FCM の onMessageReceived（メインスレッド）からも呼ばれるため、
+                // DB オープンは必ず IO 側のこの位置で行う。
+                val db = dbHelper.writableDatabase
                 val cursor = db.query(
                     "pushDuplication",
                     arrayOf("pushDuplicationID"),

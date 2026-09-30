@@ -59,7 +59,14 @@ class PushNotificationManager @Inject constructor(
         }
     }
     
-    fun showNotification(title: String, body: String, channelId: String) {
+    /**
+     * 通知を表示する。
+     *
+     * [collapseKey] を渡すと通知IDがそのキーの hashCode になるため、同じキーの通知は
+     * 積み上がらず1件に集約される（サーバー側の FCM `tag` と同じ考え方）。
+     * 省略した場合は従来どおり毎回新しいIDで表示する。
+     */
+    fun showNotification(title: String, body: String, channelId: String, collapseKey: String? = null) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("channelId", channelId)
@@ -81,7 +88,9 @@ class PushNotificationManager @Inject constructor(
             .setContentIntent(pendingIntent)
             .build()
         
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        // collapseKey があるときは同じキーの通知を上書きして1件に集約する。
+        val notificationId = collapseKey?.hashCode() ?: System.currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notification)
     }
     
     companion object {

@@ -6,8 +6,17 @@ import com.chat.android.core.push.PushData
 import com.chat.android.core.push.PushHandler
 import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.channel.DbAlias
-import org.json.JSONObject
 
+/**
+ * alias イベントのハンドラ。
+ *
+ * サーバーが送るワイヤ形式は **位置配列**（vue/src/pushReceive/alias.js と同一）:
+ *   pd = [pushID, "alias", channelID, updatedBy,
+ *         [userID, aliasName, aliasBio, accessRight], aliasImg]
+ *
+ * 旧実装は contents を JSONObject として読んでいたため、配列が常に null 扱いになり
+ * alias がローカルDBへ一切保存されていなかった（= PUSHでDB同期する仕様が動かない原因）。
+ */
 class AliasHandler(
     private val context: Context
 ) : PushHandler {
@@ -15,14 +24,22 @@ class AliasHandler(
     override suspend fun handle(pd: PushData) {
         val dbHelper = ChannelDbHelper(context)
         val channelID = pd.channelID
-        
-        val json = pd.getContentsAsObject() ?: return
-        val aliasName = json.optString("aliasName", "")
-        val accessRight = json.optString("accessRight", "")
-        
+
+        val contents = pd.getContentsAsArray()
+        if (contents == null) {
+            Log.e("AliasHandler", "contents is not a positional array: ${pd.contents}")
+            return
+        }
+
+        val userID = contents.optString(0, "")
+        val aliasName = contents.optString(1, "")
+        val aliasBio = contents.optString(2, "")
+        val accessRight = contents.optString(3, "")
+        val aliasImg = pd.rawJson.optString(5, "")
+
         // aliasID = channelID + (accessRight=='inquirer'?'@':'') + aliasName
-        val prefix = if (accessRight == "inquirer") "@" else ""
-        val aliasID = "$channelID$prefix$aliasName"
+        val atMark = if (accessRight == "inquirer") "@" else ""
+        val aliasID = "$channelID$atMark$aliasName"
 
         if (accessRight == "delete") {
             dbHelper.deleteAlias(aliasID)
@@ -30,17 +47,17 @@ class AliasHandler(
             return
         }
 
-        val alias = DbAlias(
-            aliasID = aliasID,
-            channelID = channelID,
-            aliasName = aliasName,
-            aliasImg = json.optString("aliasImg", ""),
-            userID = json.optString("userID", ""),
-            aliasBio = json.optString("aliasBio", ""),
-            accessRight = accessRight
+        dbHelper.saveAlias(
+            DbAlias(
+                aliasID = aliasID,
+                channelID = channelID,
+                aliasName = "$atMark$aliasName",
+                aliasImg = aliasImg,
+                userID = userID,
+                aliasBio = aliasBio,
+                accessRight = accessRight
+            )
         )
-        
-        dbHelper.saveAlias(alias)
         Log.i("AliasHandler", "Upserted alias $aliasID")
     }
 }

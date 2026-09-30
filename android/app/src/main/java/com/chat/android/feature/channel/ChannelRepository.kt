@@ -4,6 +4,10 @@ import android.content.Context
 import com.chat.android.core.data.SessionManager
 import com.chat.android.core.push.PushReceiveDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -22,8 +26,18 @@ class ChannelRepository @Inject constructor(
 ) {
     private val dbHelper = ChannelDbHelper(context)
     
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val _dbUpdateFlow = MutableSharedFlow<Unit>(replay = 0)
     val dbUpdateFlow: SharedFlow<Unit> = _dbUpdateFlow.asSharedFlow()
+
+    init {
+        // FCM 受信で PushReceiveDispatcher がローカルDBを更新したとき、画面にも
+        // 反映させる。dispatcher.onUpdated を購読している箇所が他に無いための橋渡し。
+        scope.launch {
+            pushDispatcher.onUpdated.collect { _dbUpdateFlow.emit(Unit) }
+        }
+    }
 
     suspend fun getChannel(channelID: String): DbChannel? = dbHelper.getChannel(channelID)
     suspend fun getAllChannels(): List<DbChannel> = dbHelper.getAllChannels()
@@ -37,20 +51,44 @@ class ChannelRepository @Inject constructor(
         val response = apiService.channelAdd(
             toPart(name), toPart(description), toPart(myname), toPart(myimg), toPart(csrf)
         )
-        
-        if (response.isSuccessful) {
-            val body = response.body()
-            if (body?.csrf != null) {
-                sessionManager.applyResponseCsrf(csrf, body.csrf)
-                body.pushContents?.forEach { 
-                    pushDispatcher.receive(it) 
-                }
-                _dbUpdateFlow.emit(Unit)
-                return Result.success(body.channelID ?: "")
-            }
-            return Result.failure(Exception(body?.error ?: "Unknown error"))
+
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
         }
-        return Result.failure(Exception("Network error: ${response.code()}"))
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        // CSRF は成功・エラーどちらの応答でも回転しているので必ず反映する。
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+
+        // 「すでにチャネル作成の上限です」等は HTTP 200 + error で返る。
+        // csrf の有無で成功判定するとエラーを握りつぶしてしまう。
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+
+        val channelID = body.channelID?.takeIf(String::isNotBlank)
+            ?: return Result.failure(Exception("サーバーからチャネルIDが返されませんでした"))
+
+        // ChannelAdd の応答は channelID のみなので、作成直後に画面を開いても
+        // "Channel not found" にならないよう送信値でローカルを先に埋めておく。
+        // 後続の channelEdit / alias push がサーバー値で上書きする。
+        dbHelper.saveChannel(
+            DbChannel(
+                channelID = channelID,
+                channelName = name,
+                channelDescription = description,
+                myname = myname,
+                myimg = myimg,
+                displayStatus = 0,
+                invitationCode = "",
+                invitationGuestCode = ""
+            )
+        )
+
+        _dbUpdateFlow.emit(Unit)
+        return Result.success(channelID)
     }
 
     suspend fun editChannel(
@@ -72,17 +110,21 @@ class ChannelRepository @Inject constructor(
             csrf = toPart(csrf)
         )
 
-        if (response.isSuccessful) {
-            val body = response.body()
-            if (body?.csrf != null) {
-                sessionManager.applyResponseCsrf(csrf, body.csrf)
-                body.pushContents?.forEach { pushDispatcher.receive(it) }
-                _dbUpdateFlow.emit(Unit)
-                return Result.success(Unit)
-            }
-            return Result.failure(Exception(response.body()?.error ?: "Unknown error"))
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
         }
-        return Result.failure(Exception("Network error"))
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+        _dbUpdateFlow.emit(Unit)
+
+        // 権限エラー等は HTTP 200 + error で返る
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+        return Result.success(Unit)
     }
 
     suspend fun deleteChannel(channelID: String, updatedBy: String): Result<Unit> {
@@ -93,15 +135,19 @@ class ChannelRepository @Inject constructor(
             toPart("1"),
             toPart(csrf)
         )
-        if (response.isSuccessful) {
-            val body = response.body()
-            if (body?.csrf != null) {
-                sessionManager.applyResponseCsrf(csrf, body.csrf)
-                body.pushContents?.forEach { pushDispatcher.receive(it) }
-                _dbUpdateFlow.emit(Unit)
-                return Result.success(Unit)
-            }
+        if (!response.isSuccessful) {
+            return Result.failure(Exception("Network error: ${response.code()}"))
         }
-        return Result.failure(Exception("Delete failed"))
+        val body = response.body()
+            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+
+        sessionManager.applyResponseCsrf(csrf, body.csrf)
+        body.pushContents?.forEach { pushDispatcher.receive(it) }
+        _dbUpdateFlow.emit(Unit)
+
+        if (!body.error.isNullOrBlank()) {
+            return Result.failure(Exception(body.error))
+        }
+        return Result.success(Unit)
     }
 }

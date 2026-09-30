@@ -45,7 +45,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	for _, alias := range user.ChannelAliases {
 		uniqueChannels[alias.ChannelID] = struct{}{}
 	}
-	if len(uniqueChannels) >= 3 {
+	if len(uniqueChannels) >= 10 {
 		common.WriteResponseWithSession(w, session, "すでにチャネル作成の上限です", http.StatusOK)
 		return
 	}

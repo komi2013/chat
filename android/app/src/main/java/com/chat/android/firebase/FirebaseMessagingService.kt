@@ -3,8 +3,8 @@ package com.chat.android.firebase
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.chat.android.core.push.PushReceiveDispatcher
 import com.chat.android.feature.entryform.EntryFormCodec
-import com.chat.android.feature.entryform.EntryFormDbHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,6 +18,9 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     
     @Inject
     lateinit var pushNotificationManager: PushNotificationManager
+
+    @Inject
+    lateinit var pushDispatcher: PushReceiveDispatcher
     
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -52,14 +55,26 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             Log.w(TAG, "Message has no data payload; ignoring")
             return
         }
-        dispatchPayload(payload)
+
+        // 1) 状態同期: vue/src/pushReceive/pushReceive.js と同じく、受信した payload を
+        //    そのまま PushReceiveDispatcher に渡して channel / alias / group /
+        //    entryForm を SQLite へ反映する。従来は API レスポンスの pushContents
+        //    経由でしか同期されず、PUSH 受信だけではローカルDBが更新されなかった。
+        pushDispatcher.receive(payload, fromPush = true)
+
+        // 2) 通知: ユーザーに見せる意味のあるイベントのみ表示する。
+        notifyForPayload(payload)
     }
 
     // Mirrors vue/src/pushReceive/pushReceive.js: parse the array
     // [pushID, event, channelID, updatedBy, ...] and dispatch on pd[1].
-    // Known events show a client-side notification; unknown events are
-    // dropped, same as pushReceive.js logging "Unknown action.".
-    private fun dispatchPayload(payload: String) {
+    //
+    // alias / group / channelEdit は他端末の状態同期専用イベントなので通知しない
+    // （Web の service-worker.js も sw 要素を持たない payload では通知しない。
+    //   DB への反映は pushDispatcher 側で完了している）。
+    // 通知するイベントは (event, channelID) 単位で1件に集約し、6セッション分の
+    // 重複配信などで同じ通知が積み上がらないようにする。
+    private fun notifyForPayload(payload: String) {
         val pd = try {
             JSONArray(payload)
         } catch (e: JSONException) {
@@ -72,54 +87,56 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         val channelID = pd.optString(2, "")
         Log.d(TAG, "pushID=$pushID event=$event channelID=$channelID")
 
-        // pushReceive.js special-cases pushCheck: it alerts pd[2] instead of
-        // dispatching an action.
-        if (event == "pushCheck") {
-            pushNotificationManager.showNotification(
+        when (event) {
+            // pushReceive.js special-cases pushCheck: it alerts pd[2] instead of
+            // dispatching an action. 登録確認は毎回表示する。
+            "pushCheck" -> pushNotificationManager.showNotification(
                 "Push登録完了",
                 pd.optString(2, "通知の登録が完了しました"),
                 ""
             )
-            return
-        }
 
-        if (event == "entryForm") {
-            val formJson = pd.optJSONObject(4)?.toString()
-            if (formJson != null) {
-                runCatching {
-                    val form = EntryFormCodec.parse(formJson)
-                    EntryFormDbHelper(applicationContext).saveEntryForm(form)
-                    pushNotificationManager.showNotification(
-                        "フォーム更新",
-                        form.title.ifBlank { "入力フォームが更新されました" },
-                        channelID
-                    )
-                }.onFailure { error ->
-                    Log.w(TAG, "Unable to store entry form from push", error)
-                }
+            "entryForm" -> {
+                val formTitle = pd.optJSONObject(4)
+                    ?.toString()
+                    ?.let { runCatching { EntryFormCodec.parse(it) }.getOrNull() }
+                    ?.title
+                    ?.takeIf(String::isNotBlank)
+                    ?: "入力フォームが更新されました"
+                pushNotificationManager.showNotification(
+                    "フォーム更新",
+                    formTitle,
+                    channelID,
+                    collapseKey = notificationCollapseKey(event, channelID)
+                )
             }
-            return
-        }
 
-        val (title, body) = when (event) {
             // chunk hides the channel id — pd[2] is the chunk body there.
-            "chunk", "thread", "threadHead" -> "新着メッセージ" to "新しい投稿があります"
-            "channelEdit" -> "チャンネル更新" to "チャンネル情報が更新されました"
-            "alias" -> "メンバー更新" to "メンバー情報が更新されました"
-            "group" -> "グループ更新" to "グループ情報が更新されました"
-            in KNOWN_EVENTS -> "新着通知" to event
-            else -> {
-                Log.d(TAG, "Unknown action: $event")
-                return
-            }
-        }
+            "chunk", "thread", "threadHead" -> pushNotificationManager.showNotification(
+                "新着メッセージ",
+                "新しい投稿があります",
+                if (event == "chunk") "" else channelID,
+                collapseKey = notificationCollapseKey(event, channelID)
+            )
 
-        pushNotificationManager.showNotification(
-            title,
-            body,
-            if (event == "chunk") "" else channelID
-        )
+            // 状態同期イベント（ローカルDBは pushDispatcher が更新済み）
+            "alias", "group", "channelEdit" ->
+                Log.i(TAG, "State sync event; notification suppressed: $event")
+
+            in KNOWN_EVENTS -> pushNotificationManager.showNotification(
+                "新着通知",
+                event,
+                channelID,
+                collapseKey = notificationCollapseKey(event, channelID)
+            )
+
+            else -> Log.d(TAG, "Unknown action: $event")
+        }
     }
+
+    /** 同じチャネルの同じイベントは同じ通知IDに上書きして1件に集約する。 */
+    private fun notificationCollapseKey(event: String, channelID: String): String =
+        "$event|$channelID"
 
     companion object {
         private const val TAG = "FCMService"

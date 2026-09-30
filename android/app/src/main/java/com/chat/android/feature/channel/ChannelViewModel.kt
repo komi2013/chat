@@ -128,7 +128,8 @@ class ChannelViewModel @Inject constructor(
             }.onFailure {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = it.message
+                    error = it.message,
+                    successMessage = null
                 )
             }
         }
