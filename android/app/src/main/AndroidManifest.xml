@@ -45,6 +45,28 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="chat" android:host="profile" />
             </intent-filter>
+
+            <!--
+                Web版URL（https://chat.quigen.info/profile/{channelID}/?code=...）を
+                開いたとき、このアプリを直接起動する（App Links / Digital Asset Links）。
+
+                autoVerify が有成効になる条件は
+                  https://chat.quigen.info/.well-known/assetlinks.json
+                が、このアプリの署名証明書の SHA-256 を含み、HTTPS で配信されていること。
+                ファイルは public/.well-known/assetlinks.json（静的ファイル）。
+
+                注意: 検証は**インストール済みAPKの署名証明書**に対して行われる。
+                現状 release 用の keystore が無いため debug keystore の指紋を入れている。
+                release 署名でビルドするようになったら、上の
+                sha256_cert_fingerprints に release 証明書の指紋を追記する必要がある
+                （追記しないと本番ビルドだけ自動起動しなくなる）。
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="chat.quigen.info" android:pathPrefix="/profile" />
+            </intent-filter>
         </activity>
 
         <!-- Firebase Messaging Service -->

@@ -390,7 +390,6 @@ private fun InvitationCard(
             )
         } else {
             val url = invitationUrl(state.channelID, code)
-            val webUrl = webInvitationUrl(state.channelID, code)
             val context = LocalContext.current
             Text(url, style = MaterialTheme.typography.bodySmall)
 
@@ -412,16 +411,9 @@ private fun InvitationCard(
 
             Text(
                 "このQRをスキャンすると、このアプリが開きます。" +
-                    "アプリを使わない場合は下のWeb版URLをコピーしてください。",
+                    "QRの内容はアプリのURL（chat://）です。",
                 style = MaterialTheme.typography.bodySmall
             )
-            TextButton(onClick = {
-                val clipboard = context
-                    .getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                clipboard?.setPrimaryClip(ClipData.newPlainText("channel", webUrl))
-            }) {
-                Text("Web版URLをコピー: $webUrl")
-            }
         }
 
         Button(
@@ -473,9 +465,6 @@ private fun InvitationCard(
 /** 招待用のカスタムスキームURL。QRはこれを埋め込む。 */
 private fun invitationUrl(channelID: String?, code: String): String =
     "chat://profile/${channelID.orEmpty()}?code=$code"
-
-private fun webInvitationUrl(channelID: String?, code: String): String =
-    BuildConfig.BASE_URL.trimEnd('/') + "/profile/${channelID.orEmpty()}/?code=$code"
 
 /** メンバー一覧。 */
 private fun LazyListScope.MemberSection(state: ChannelUiState) {
