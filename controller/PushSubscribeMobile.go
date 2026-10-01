@@ -112,15 +112,55 @@ func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
 	sessions = append(sessions, session)
 	common.ChunkPush(sessions, arr)
 
+	// ======== 所属チャネルを応答に含める ========
+	// Web 版の PushSubscribe（controller/PushSubscribe.go）は応答に channels を
+	// 含めており、vue はそれを受け取って IndexedDB を復元する。
+	// モバイル版は channels を返しておらず、アプリはローカル SQLite を唯一の
+	// データ源にしていたため、再インストール（= SQLite 消去）するとドロワーの
+	// チャネル一覧が戻らない状態になっていた。モバイルでも同じ配列を返す。
+	channelIDSet := make(map[string]struct{})
+	var channelIDs []string
+	for _, ca := range session.ChannelAliases {
+		if _, ok := channelIDSet[ca.ChannelID]; !ok {
+			channelIDSet[ca.ChannelID] = struct{}{}
+			channelIDs = append(channelIDs, ca.ChannelID)
+		}
+	}
+
+	safeChannels := make([]collection.ChannelStruct, 0, len(channelIDs))
+	if len(channelIDs) > 0 {
+		collChannel := common.DB.ChannelDB.Collection("channel")
+		cursor, err := collChannel.Find(ctx, bson.M{"_id": bson.M{"$in": channelIDs}})
+		if err != nil {
+			common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+			return
+		}
+		var channels []collection.ChannelStruct
+		if err := cursor.All(ctx, &channels); err != nil {
+			common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+			return
+		}
+
+		channelAliasMap := make(map[string]collection.ChannelAlias, len(session.ChannelAliases))
+		for _, ca := range session.ChannelAliases {
+			channelAliasMap[ca.ChannelID] = ca
+		}
+		for _, ch := range channels {
+			safeChannels = append(safeChannels, sanitizeMyChannel(ch, channelAliasMap))
+		}
+	}
+
 	// Return success response
 	responseData := struct {
-		Csrf         string   `json:"csrf"`
-		PushContents []string `json:"pushContents"`
-		Success      bool     `json:"success"`
-		Message      string   `json:"message"`
+		Csrf         string                     `json:"csrf"`
+		PushContents []string                   `json:"pushContents"`
+		Channels     []collection.ChannelStruct `json:"channels"`
+		Success      bool                       `json:"success"`
+		Message      string                     `json:"message"`
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
+		Channels:     safeChannels,
 		Success:      true,
 		Message:      "FCM token registered successfully",
 	}

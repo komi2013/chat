@@ -1,5 +1,6 @@
 package com.chat.android.core.network
 
+import com.chat.android.feature.channel.ChannelPayload
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -7,6 +8,12 @@ import retrofit2.http.*
 data class PushSubscribeResponse(
     val csrf: String,
     val pushContents: List<String>,
+    /**
+     * 所属チャネル一覧。Web版のPushSubscribe（controller/PushSubscribe.go）と
+     * 同じ配列。サインイン直後（= PushSubscribeMobile）にローカルSQLiteを
+     * 埋めるために使う。再インストールでSQLiteが消えても復元できる。
+     */
+    val channels: List<ChannelPayload>? = null,
     val success: Boolean,
     val message: String
 )

@@ -11,6 +11,10 @@ import com.chat.android.MainActivity
 import com.chat.android.R
 import com.chat.android.core.network.ApiService
 import com.chat.android.core.network.SessionManager
+import com.chat.android.feature.channel.ChannelDbHelper
+import com.chat.android.feature.channel.ChannelPayload
+import com.chat.android.feature.channel.DbChannel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -42,6 +46,10 @@ class PushNotificationManager @Inject constructor(
         }
     }
     
+    // ChannelDbHelper は Hilt の提供定義が無いので、他の組む場所と同じく
+    // context から直接組み立てる（ChannelRepository / 各PushHandler と同じ方式）。
+    private val dbHelper by lazy { ChannelDbHelper(context) }
+
     suspend fun sendTokenToBackend(token: String, csrf: String) {
         try {
             val response = apiService.subscribeMobilePush(token, csrf)
@@ -50,12 +58,46 @@ class PushNotificationManager @Inject constructor(
                 // 新しい値を応答へ返す（common/session.go の CSRFcheckMake）。
                 // ここで保存しないと、以降の API がすべて
                 // "SessionCheckTake token error" で失敗し続ける。
-                sessionManager.applyResponseCsrf(csrf, response.body()?.csrf)
+                val body = response.body()
+                sessionManager.applyResponseCsrf(csrf, body?.csrf)
+
+                // 所属チャネルをローカルSQLiteへUpsertする。
+                // アプリはローカルDBを唯一のデータ源にしており、再インストールで
+                // DBが消えるとドロワーのチャネルが戻らないため、サインイン時に
+                // サーバーから復元しておく必要がある（Web版のPushSubscribeと同じ）。
+                syncChannels(body?.channels)
             } else {
                 throw Exception("Server returned error: ${response.code()}")
             }
         } catch (e: Exception) {
             throw Exception("Failed to send FCM token: ${e.message}")
+        }
+    }
+
+    /**
+     * 応答に含まれる channels をローカルSQLiteへ保存する。
+     *
+     * myimg は応答に含まれない（sanitizeMyChannel は UserID と一緒に落とす）が、
+     * 既にローカルにmyimg がある場合は上書きしない。
+     */
+    private suspend fun syncChannels(channels: List<ChannelPayload>?) {
+        val list = channels.orEmpty()
+        if (list.isEmpty()) return
+
+        withContext(Dispatchers.IO) {
+            list.forEach { c ->
+                val id = c.channelID?.takeIf { it.isNotBlank() } ?: return@forEach
+                val existing = dbHelper.getChannel(id)
+                dbHelper.saveChannel(
+                    DbChannel(
+                        channelID = id,
+                        channelName = c.channelName ?: existing?.channelName.orEmpty(),
+                        channelDescription = c.channelDescription ?: existing?.channelDescription.orEmpty(),
+                        myname = c.myname ?: existing?.myname.orEmpty(),
+                        myimg = existing?.myimg.orEmpty()
+                    )
+                )
+            }
         }
     }
     

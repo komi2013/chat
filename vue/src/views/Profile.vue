@@ -26,6 +26,14 @@ const aliasImg = ref(',' + getRandomEmoji() + ',' + getRandomColor());
 let sameUserAliases;
 let joinGroups;
 const errorMessage = ref('')
+
+// アプリを直接開くリンク。
+// https の App Links は Android の autoVerify 検証が成功したときだけ自動起動するが、
+// 検証できない端末（古い Android や一部メーカーROM）ではブラウザが開くだけになる。
+// カスタムスキームへのリンクタップは検証不要なので、どの端末でも確実にアプリを起動できる。
+// そのため、招待ページにはこのリンクも表示する。
+const appUrl = 'chat://profile/' + props.id + (props.code ? '?code=' + props.code : '');
+
 onMounted(async () => {
   if (!props.code) {
     channel.value = await getIDB('channel', props.id);
@@ -143,6 +151,9 @@ async function switchAlias (aliasName) {
       <div v-if="!channel">チャネル内ニックネーム設定</div>
     </div>
     <br>
+    <div v-if="props.code" style="margin:8px 0;">
+      <a :href="appUrl" style="display:inline-block;padding:8px 16px;border:1px solid #888;border-radius:6px;">📱 アプリで開く</a>
+    </div>
     <div class="join">
       <div class="icon-name">
         <template v-if="!isEditable">
