@@ -1,0 +1,49 @@
+{
+  "name": "chat - Go + Vue + Android (isolated)",
+
+  // Build the integrated toolchain from the sibling Dockerfile.
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // 1) Make host.docker.internal resolvable on Docker Engine for Linux too.
+  //    (Docker Desktop for Windows/macOS resolves it out of the box.)
+  "runArgs": [
+    "--add-host=host.docker.internal:host-gateway"
+  ],
+
+  // 2) Point the container's adb CLIENT at the ADB server running on the HOST.
+  //    On the host run:   adb kill-server   then   adb -a nodaemon server
+  "containerEnv": {
+    "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037"
+  },
+
+  // 3) Extensions installed automatically INSIDE the container.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "saoudrizwan.claude-dev",
+        "golang.go",
+        "dbaeumer.vscode-eslint",
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-gradle",
+        "Vue.volar"
+      ],
+      "settings": {
+        "go.gopath": "/go",
+        "go.toolsManagement.checkForUpdates": "local",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.eol": "\n"
+      }
+    }
+  },
+
+  // 4) Run as the non-root user created by the base image.
+  "remoteUser": "vscode",
+
+  // No "mounts" / "workspaceMount" beyond the project folder itself:
+  // the host's ~/.ssh, ~/.gitconfig, etc. are NEVER exposed to the container.
+
+  // Optional safety check once the container is created.
+  "postCreateCommand": "bash -lc 'echo GO:$(go version); echo NODE:$(node -v); java -version; adb version'"
+}
