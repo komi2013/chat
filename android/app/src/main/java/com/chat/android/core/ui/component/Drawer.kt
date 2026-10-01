@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.core.network.ChannelDetail
@@ -31,23 +33,33 @@ data class DrawerUiState(
     val isGuest: Boolean = false
 )
 
+/**
+ * ドロワーの表示状態。
+ *
+ * 注意点: 以前は AppDrawer のデフォルト引数で
+ * `DrawerViewModel(hiltViewModel<UserViewModel>().userRepository)` と生成していたため、
+ * 再コンポジションのたびに新しい mutableStateOf を持つインスタンスが作られていた。
+ * その結果 Compose が保持する古いスナップショット（サインイン前の値）が読み出され、
+ * サインイン済みでも「ユーザー設定」「チャネル登録」「フォーム編集」が
+ * 一覧に出ない不具合があった。Hilt の @HiltViewModel にして hiltViewModel() で取得する。
+ */
+@HiltViewModel
 class DrawerViewModel @Inject constructor(
     private val userRepository: UserRepository
-) : androidx.lifecycle.ViewModel() {
-    private val _uiState = mutableStateOf(DrawerUiState())
+) : ViewModel() {
+    private val _uiState = mutableStateOf(readState())
+
     val uiState: State<DrawerUiState> = _uiState
 
-    init {
-        _uiState.value = DrawerUiState(
-            isSignedIn = userRepository.isSignedIn(),
-            hasChannel = userRepository.getCurrentChannelId() != null
-        )
-    }
+    private fun readState(): DrawerUiState = DrawerUiState(
+        isSignedIn = userRepository.isSignedIn(),
+        hasChannel = userRepository.getCurrentChannelId() != null
+    )
 
-    fun updateDrawerState(channel: ChannelDetail?, aliases: List<NicknameResponse>) {
-        _uiState.value = _uiState.value.copy(
-            isSignedIn = userRepository.isSignedIn(),
-            hasChannel = channel != null || userRepository.getCurrentChannelId() != null
+    /** 画面遷移やサインイン状態の変化時に呼ぶ。 */
+    fun refresh(channel: ChannelDetail? = null) {
+        _uiState.value = readState().copy(
+            hasChannel = (channel != null) || _uiState.value.hasChannel
         )
     }
 }
@@ -66,13 +78,13 @@ fun AppDrawer(
     navController: NavController,
     channel: ChannelDetail? = null,
     aliases: List<NicknameResponse> = emptyList(),
-    viewModel: DrawerViewModel = DrawerViewModel(hiltViewModel<com.chat.android.feature.user.UserViewModel>().userRepository),
+    viewModel: DrawerViewModel = hiltViewModel(),
     onClose: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.value
     
     LaunchedEffect(channel, aliases) {
-        viewModel.updateDrawerState(channel, aliases)
+        viewModel.refresh(channel)
     }
 
     ModalDrawerSheet(

@@ -13,7 +13,9 @@ import com.chat.android.core.network.ApiService
 import com.chat.android.core.network.SessionManager
 import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.channel.ChannelPayload
+import com.chat.android.feature.channel.DbAlias
 import com.chat.android.feature.channel.DbChannel
+import com.chat.android.feature.channel.DbGroup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +79,10 @@ class PushNotificationManager @Inject constructor(
     /**
      * 応答に含まれる channels をローカルSQLiteへ保存する。
      *
+     * vue/view/pushSubscription.html と同じく、channel だけでなく
+     * その channel に含まれる aliases と groups もまとめて upsert する。
+     * これを省略すると、サインイン直後にエイリアスとグループが空のままになる。
+     *
      * myimg は応答に含まれない（sanitizeMyChannel は UserID と一緒に落とす）が、
      * 既にローカルにmyimg がある場合は上書きしない。
      */
@@ -85,8 +91,8 @@ class PushNotificationManager @Inject constructor(
         if (list.isEmpty()) return
 
         withContext(Dispatchers.IO) {
-            list.forEach { c ->
-                val id = c.channelID?.takeIf { it.isNotBlank() } ?: return@forEach
+            list.forEach channelLoop@{ c ->
+                val id = c.channelID?.takeIf { it.isNotBlank() } ?: return@channelLoop
                 val existing = dbHelper.getChannel(id)
                 dbHelper.saveChannel(
                     DbChannel(
@@ -97,6 +103,37 @@ class PushNotificationManager @Inject constructor(
                         myimg = existing?.myimg.orEmpty()
                     )
                 )
+
+                // エイリアス（UserID はサーバー側の sanitizeMyChannel で除去されている）
+                c.aliases?.forEach aliasLoop@{ alias ->
+                    val aliasID = alias.aliasID?.takeIf { it.isNotBlank() } ?: return@aliasLoop
+                    dbHelper.saveAlias(
+                        DbAlias(
+                            aliasID = aliasID,
+                            channelID = id,
+                            aliasName = alias.aliasName.orEmpty(),
+                            aliasImg = alias.aliasImg.orEmpty(),
+                            userID = alias.userID.orEmpty(),
+                            aliasBio = alias.aliasBio.orEmpty(),
+                            accessRight = alias.accessRight.orEmpty()
+                        )
+                    )
+                }
+
+                // グループ
+                c.groups?.forEach groupLoop@{ group ->
+                    val groupID = group.groupID?.takeIf { it.isNotBlank() } ?: return@groupLoop
+                    dbHelper.saveGroup(
+                        DbGroup(
+                            groupID = groupID,
+                            channelID = id,
+                            groupName = group.groupName.orEmpty(),
+                            groupImg = group.groupImg.orEmpty(),
+                            aliasNamesJson = group.aliasNames?.toString() ?: "[]",
+                            groupBio = group.groupBio.orEmpty()
+                        )
+                    )
+                }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.chat.android.feature.channel
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
@@ -39,6 +40,38 @@ data class DbGroup(
     val groupImg: String,
     val aliasNamesJson: String, // JSON array string e.g. '["name1", "name2"]'
     val groupBio: String
+)
+
+data class DbThread(
+    val messageID: String,
+    val parentID: String,
+    val channelID: String,
+    val messageTxt: String,
+    val aliasName: String,
+    val aliasImg: String,
+    val aliasNamesJson: String,
+    val backID: String,
+    val emojisJson: String,
+    val createdAt: String
+)
+
+data class DbThreadHead(
+    val parentID: String,
+    val channelID: String,
+    val title: String,
+    val messageTxt: String,
+    val description: String,
+    val aliasName: String,
+    val aliasNamesJson: String,
+    val adminNamesJson: String,
+    val displayStatus: Int,
+    val broadcastFlag: Int,
+    val updatedAt: String,
+    /** リアクション。vue の threadHead.emojis に対応する。 */
+    val emojisJson: String = "[]",
+    /** 返信元のスレッドID。vue の Channel.vue は !backID で絞り込み、
+     *  一覧にはトップレベルのスレッドだけを出す。 */
+    val backID: String = ""
 )
 
 class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -106,6 +139,9 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 accessRight TEXT
             )
         """.trimIndent())
+
+        db.execSQL(THREAD_HEAD_TABLE)
+        db.execSQL(THREAD_TABLE)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -170,7 +206,155 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             db.execSQL("DROP TABLE channel")
             db.execSQL("ALTER TABLE channel_new RENAME TO channel")
         }
+
+        // v4 でスレッド用の threadHead / thread を追加（vue の IndexedDB ストアに対応）。
+        if (oldVersion < 4) {
+            db.execSQL(THREAD_HEAD_TABLE)
+            db.execSQL(THREAD_TABLE)
+        }
+
+        // v5 で threadHead に emojis（リアクション）を追加。
+        // 注意: v4 の CREATE TABLE にも emojis 列を含めているため、
+        // v3 から直接バージョンアップするとこの列は既に存在している。
+        // 無条件に ADD COLUMN すると duplicate column で例外になり、
+        // onUpgrade 全体がロールバックしてDBが開かなくなるため、
+        // 存在を確認してから追加する。
+        if (oldVersion < 5) {
+            val hasEmojis = db.rawQuery("PRAGMA table_info(threadHead)", null).use { cursor ->
+                (0 until cursor.count).any {
+                    cursor.getString(it).equals("emojis", ignoreCase = true)
+                }
+            }
+            if (!hasEmojis) {
+                db.execSQL("ALTER TABLE threadHead ADD COLUMN emojis TEXT")
+            }
+        }
+
+        // v6 で threadHead に backID を追加。
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE threadHead ADD COLUMN backID TEXT")
+        }
     }
+
+    /** スレッドの親（見出し）を保存。vue の threadHead IndexedDB ストアに対応。 */
+    fun saveThreadHead(head: DbThreadHead) {
+        val values = ContentValues().apply {
+            put("parentID", head.parentID)
+            put("channelID", head.channelID)
+            put("title", head.title)
+            put("messageTxt", head.messageTxt)
+            put("description", head.description)
+            put("aliasName", head.aliasName)
+            put("aliasNames", head.aliasNamesJson)
+            put("adminNames", head.adminNamesJson)
+            put("displayStatus", head.displayStatus)
+            put("broadcastFlag", head.broadcastFlag)
+            put("updatedAt", head.updatedAt)
+            put("emojis", head.emojisJson)
+            put("backID", head.backID)
+        }
+        writableDatabase.insertWithOnConflict("threadHead", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getThreadHead(parentID: String): DbThreadHead? {
+        val cursor = readableDatabase.query(
+            "threadHead", null, "parentID = ?", arrayOf(parentID), null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) it.toThreadHead() else null
+        }
+    }
+
+    fun saveThread(thread: DbThread) {
+        val values = ContentValues().apply {
+            put("messageID", thread.messageID)
+            put("parentID", thread.parentID)
+            put("channelID", thread.channelID)
+            put("messageTxt", thread.messageTxt)
+            put("aliasName", thread.aliasName)
+            put("aliasImg", thread.aliasImg)
+            put("aliasNames", thread.aliasNamesJson)
+            put("backID", thread.backID)
+            put("emojis", thread.emojisJson)
+            put("createdAt", thread.createdAt)
+        }
+        writableDatabase.insertWithOnConflict("thread", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getThread(messageID: String): DbThread? {
+        val cursor = readableDatabase.query(
+            "thread", null, "messageID = ?", arrayOf(messageID), null, null, null
+        )
+        return cursor.use {
+            if (it.moveToFirst()) it.toThread() else null
+        }
+    }
+
+    fun deleteThread(messageID: String) {
+        writableDatabase.delete("thread", "messageID = ?", arrayOf(messageID))
+    }
+
+    /** 親ID（スレッドID）に属するメッセージを古い順に返す。 */
+    fun getThreads(parentID: String): List<DbThread> {
+        val list = mutableListOf<DbThread>()
+        val cursor = readableDatabase.query(
+            "thread", null, "parentID = ?", arrayOf(parentID), null, null, "createdAt ASC, messageID ASC"
+        )
+        cursor.use {
+            while (it.moveToNext()) list.add(it.toThread())
+        }
+        return list
+    }
+
+    /**
+ * チャネルのスレッド一覧。vue の Channel.vue と同じく
+ * backID が無いトップレベルのスレッドだけを、更新日時順に返す。
+ */
+    fun getThreadHeadsForChannel(channelID: String): List<DbThreadHead> {
+        val list = mutableListOf<DbThreadHead>()
+        val cursor = readableDatabase.query(
+            "threadHead",
+            null,
+            "channelID = ? AND (backID IS NULL OR backID = '')",
+            arrayOf(channelID),
+            null,
+            null,
+            "updatedAt DESC"
+        )
+        cursor.use {
+            while (it.moveToNext()) list.add(it.toThreadHead())
+        }
+        return list
+    }
+
+    private fun Cursor.toThreadHead() = DbThreadHead(
+        parentID = getString(getColumnIndexOrThrow("parentID")),
+        channelID = getString(getColumnIndexOrThrow("channelID")),
+        title = getString(getColumnIndexOrThrow("title")),
+        messageTxt = getString(getColumnIndexOrThrow("messageTxt")),
+        description = getString(getColumnIndexOrThrow("description")),
+        aliasName = getString(getColumnIndexOrThrow("aliasName")),
+        aliasNamesJson = getString(getColumnIndexOrThrow("aliasNames")),
+        adminNamesJson = getString(getColumnIndexOrThrow("adminNames")),
+        displayStatus = getInt(getColumnIndexOrThrow("displayStatus")),
+        broadcastFlag = getInt(getColumnIndexOrThrow("broadcastFlag")),
+        updatedAt = getString(getColumnIndexOrThrow("updatedAt")),
+        emojisJson = getString(getColumnIndexOrThrow("emojis")),
+        backID = getString(getColumnIndexOrThrow("backID"))
+    )
+
+    private fun Cursor.toThread() = DbThread(
+        messageID = getString(getColumnIndexOrThrow("messageID")),
+        parentID = getString(getColumnIndexOrThrow("parentID")),
+        channelID = getString(getColumnIndexOrThrow("channelID")),
+        messageTxt = getString(getColumnIndexOrThrow("messageTxt")),
+        aliasName = getString(getColumnIndexOrThrow("aliasName")),
+        aliasImg = getString(getColumnIndexOrThrow("aliasImg")),
+        aliasNamesJson = getString(getColumnIndexOrThrow("aliasNames")),
+        backID = getString(getColumnIndexOrThrow("backID")),
+        emojisJson = getString(getColumnIndexOrThrow("emojis")),
+        createdAt = getString(getColumnIndexOrThrow("createdAt"))
+    )
 
     fun saveChannel(channel: DbChannel) {
         val values = ContentValues().apply {
@@ -312,6 +496,41 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 6
+
+/** スレッド見出し。vue の threadHead IndexedDB ストアの項目に揃えている。 */
+private val THREAD_HEAD_TABLE = """
+        CREATE TABLE IF NOT EXISTS threadHead (
+            parentID TEXT NOT NULL PRIMARY KEY,
+            channelID TEXT,
+            title TEXT,
+            messageTxt TEXT,
+            description TEXT,
+            aliasName TEXT,
+            aliasNames TEXT,
+            adminNames TEXT,
+            displayStatus INTEGER NOT NULL DEFAULT 0,
+            broadcastFlag INTEGER NOT NULL DEFAULT 0,
+            updatedAt TEXT,
+            emojis TEXT,
+            backID TEXT
+        )
+    """.trimIndent()
+
+/** スレッドのメッセージ。vue の thread IndexedDB ストアの項目に揃えている。 */
+private val THREAD_TABLE = """
+        CREATE TABLE IF NOT EXISTS thread (
+            messageID TEXT NOT NULL PRIMARY KEY,
+            parentID TEXT,
+            channelID TEXT,
+            messageTxt TEXT,
+            aliasName TEXT,
+            aliasImg TEXT,
+            aliasNames TEXT,
+            backID TEXT,
+            emojis TEXT,
+            createdAt TEXT
+        )
+    """.trimIndent()
     }
 }

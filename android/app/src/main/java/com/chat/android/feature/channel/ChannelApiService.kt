@@ -14,13 +14,34 @@ import retrofit2.http.Part
  * （controller/ChannelEdit.go は channelName が空だと push を送らない）、
  * クライアントはこの応答からローカルDBを更新する必要がある。
  */
+data class AliasPayload(
+    val aliasID: String? = null,
+    val aliasName: String? = null,
+    val aliasImg: String? = null,
+    val userID: String? = null,
+    val aliasBio: String? = null,
+    val accessRight: String? = null
+)
+
+data class GroupPayload(
+    val groupID: String? = null,
+    val groupName: String? = null,
+    val groupImg: String? = null,
+    val aliasNames: List<String>? = null,
+    val groupBio: String? = null
+)
+
 data class ChannelPayload(
     val channelID: String? = null,
     val channelName: String? = null,
     val channelDescription: String? = null,
     val myname: String? = null,
     val invitationCode: String? = null,
-    val invitationGuestCode: String? = null
+    val invitationGuestCode: String? = null,
+    /** PushSubscribeMobile / PushSubscribe が返す所属エイリアス。 */
+    val aliases: List<AliasPayload>? = null,
+    /** 同上、所属グループ。 */
+    val groups: List<GroupPayload>? = null
 )
 
 data class ChannelResponse(

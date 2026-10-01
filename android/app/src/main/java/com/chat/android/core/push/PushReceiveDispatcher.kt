@@ -7,8 +7,11 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import com.chat.android.core.push.handlers.AliasHandler
 import com.chat.android.core.push.handlers.ChannelEditHandler
+import com.chat.android.core.push.handlers.EmojiHandler
 import com.chat.android.core.push.handlers.EntryFormHandler
 import com.chat.android.core.push.handlers.GroupHandler
+import com.chat.android.core.push.handlers.ThreadHandler
+import com.chat.android.core.push.handlers.ThreadHeadHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,7 +38,10 @@ class PushReceiveDispatcher(
         "channelEdit" to ChannelEditHandler(context),
         "alias" to AliasHandler(context),
         "group" to GroupHandler(context),
-        // "thread" to ThreadHandler(context, dbHelper),
+        "thread" to ThreadHandler(context),
+        "threadEdit" to ThreadHandler(context),
+        "threadHead" to ThreadHeadHandler(context),
+        "emoji" to EmojiHandler(context),
         // ... add other handlers here later
     )
 

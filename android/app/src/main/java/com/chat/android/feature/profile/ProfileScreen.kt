@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.chat.android.core.util.RandomAvatar
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
+import com.chat.android.navigation.PeopleRoute
 
 /**
  * チャネル参加 / プロフィール編集画面（vue/src/views/Profile.vue に対応）。
@@ -147,7 +148,9 @@ fun ProfileScreen(
                 item { SectionTitle("参加グループ一覧") }
                 items(state.joinGroups, key = { it.groupID }) { group ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            navController.navigate(PeopleRoute(id = id, name = group.groupName))
+                        }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AliasAvatar(
@@ -164,7 +167,9 @@ fun ProfileScreen(
                 item { SectionTitle("マイニックネーム一覧") }
                 items(state.sameUserAliases, key = { it.aliasID }) { alias ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            navController.navigate(PeopleRoute(id = id, name = alias.aliasName))
+                        }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AliasAvatar(

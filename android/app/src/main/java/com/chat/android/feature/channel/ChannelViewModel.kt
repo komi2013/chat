@@ -22,6 +22,8 @@ data class ChannelUiState(
     val invitationGuestCode: String = "",
     val aliases: List<DbAlias> = emptyList(),
     val groups: List<DbGroup> = emptyList(),
+    /** スレッド一覧（vue の Channel.vue の threadHeads 相当）。 */
+    val threadHeads: List<DbThreadHead> = emptyList(),
     val error: String? = null,
     val successMessage: String? = null,
     val iamAdmin: Boolean = false,
@@ -114,6 +116,7 @@ class ChannelViewModel @Inject constructor(
             if (channel != null) {
                 val aliases = repository.getAliases(id)
                 val groups = repository.getGroups(id)
+            val threadHeads = repository.getThreadHeads(id)
                 
                 val iamAdmin = aliases.any { it.aliasName == channel.myname && it.accessRight == "admin" }
                 val iamGuest = aliases.any { it.aliasName == channel.myname && it.accessRight == "guest" }
@@ -127,6 +130,7 @@ class ChannelViewModel @Inject constructor(
                     // 招待コードは DB に無いため読み込まない（起動時は空）
                     aliases = aliases,
                     groups = groups,
+                    threadHeads = threadHeads,
                     iamAdmin = iamAdmin,
                     iamGuest = iamGuest
                 )

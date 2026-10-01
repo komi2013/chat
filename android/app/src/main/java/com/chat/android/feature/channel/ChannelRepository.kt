@@ -45,6 +45,12 @@ class ChannelRepository @Inject constructor(
     suspend fun getAliases(channelID: String): List<DbAlias> = dbHelper.getAliasesForChannel(channelID)
     suspend fun getGroups(channelID: String): List<DbGroup> = dbHelper.getGroupsForChannel(channelID)
 
+    /** スレッド一覧（トップレベルのみ）。vue の Channel.vue と同じ。 */
+    suspend fun getThreadHeads(channelID: String): List<DbThreadHead> =
+        dbHelper.getThreadHeadsForChannel(channelID)
+
+    suspend fun getThreadHead(parentID: String): DbThreadHead? = dbHelper.getThreadHead(parentID)
+
     private fun toPart(value: String): RequestBody = value.toRequestBody("text/plain".toMediaTypeOrNull())
 
     suspend fun createChannel(name: String, description: String, myname: String, myimg: String): Result<String> {
@@ -315,8 +321,50 @@ class ChannelRepository @Inject constructor(
             return Result.failure(Exception(body.error))
         }
         body.pushContents?.forEach { pushDispatcher.receive(it) }
+
+        // サーバーの group push は FCM 経由の非同期配信で、HTTP 応答の
+        // pushContents には含まれない（common/push.go の ChunkPush は
+        // SendWebPushNotification を送るだけで session.PushContents に積まない）。
+        // push が届く前に画面を再読込すると「保存成功だが一覧に出てこない」状態になる。
+        // createChannel と同じ考え方（送信値で先にローカルへ埋める）で、保存内容を
+        // ローカルSQLiteへ直接反映する。
+        applyGroupsLocally(channelID, groupsJson)
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
+    }
+
+    /**
+     * 保存した groups 差分（追加・更新・削除）をローカルSQLiteへ反映する。
+     * aliasNames が null の要素は削除を表す（vue の Group.vue と同じ表現）。
+     */
+    private suspend fun applyGroupsLocally(channelID: String, groupsJson: String) {
+        val array = runCatching { org.json.JSONArray(groupsJson) }.getOrNull() ?: return
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val groupName = obj.optString("groupName", "")
+            if (groupName.isEmpty()) continue
+
+            val aliasNames = obj.optJSONArray("aliasNames")
+            if (aliasNames == null) {
+                dbHelper.deleteGroup(channelID + groupName)
+                continue
+            }
+
+            val groupID = obj.optString("groupID", "").takeIf { it.isNotBlank() }
+                ?: (channelID + groupName)
+            val existing = dbHelper.getGroupsForChannel(channelID)
+                .firstOrNull { it.groupID == groupID }
+            dbHelper.saveGroup(
+                DbGroup(
+                    groupID = groupID,
+                    channelID = channelID,
+                    groupName = groupName,
+                    groupImg = obj.optString("groupImg", existing?.groupImg.orEmpty()),
+                    aliasNamesJson = aliasNames.toString(),
+                    groupBio = obj.optString("groupBio", existing?.groupBio.orEmpty())
+                )
+            )
+        }
     }
 
     suspend fun deleteChannel(channelID: String, updatedBy: String): Result<Unit> {

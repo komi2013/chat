@@ -1,6 +1,7 @@
 package com.chat.android.core.network
 
 import com.chat.android.feature.channel.ChannelPayload
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
@@ -495,24 +496,37 @@ interface ApiService {
     ): Response<EntryForm>
 
     // Contents push (generic endpoint)
+    // サーバーは channelID / updatedBy / pushNames を必ず要求し、
+    // updatedBy が session の ChannelAliases に無いと "no true access right" で拒否する。
+    //
+    // 注意: @FormUrlEncoded ではなく **@Multipart** が必須。
+    // controller/ContentsPush.go:40 が ParseMultipartForm を無条件に呼ぶため、
+    // application/x-www-form-urlencoded では必ず
+    // "request Content-Type isn't multipart/form-data;files more than 10MB" で失敗する
+    // （Web 版の sendRequest は FormData をそのまま fetch に渡すので自動で multipart になる）。
     @Headers("Accept: application/json")
-    @FormUrlEncoded
+    @Multipart
     @POST("ContentsPush/")
     suspend fun contentsPush(
-        @Field("csrf") csrf: String,
-        @Field("contents") contents: String,
-        @Field("pushTitle") pushTitle: String? = null
+        @Part("csrf") csrf: RequestBody,
+        @Part("channelID") channelID: RequestBody,
+        @Part("updatedBy") updatedBy: RequestBody,
+        @Part("pushNames") pushNames: RequestBody,
+        @Part("contents") contents: RequestBody,
+        @Part("pushTitle") pushTitle: RequestBody
     ): Response<ApiResponse<Any>>
 
 
     // Contents just push
+    // こちらも controller/ContentsJustPush.go:37 が ParseMultipartForm を無条件に呼ぶため
+    // @Multipart 必須（現状 Android 側からの呼び出しは無い）。
     @Headers("Accept: application/json")
-    @FormUrlEncoded
+    @Multipart
     @POST("ContentsJustPush/")
     suspend fun contentsJustPush(
-        @Field("csrf") csrf: String,
-        @Field("contents") contents: String,
-        @Field("pushTitle") pushTitle: String? = null
+        @Part("csrf") csrf: RequestBody,
+        @Part("contents") contents: RequestBody,
+        @Part("pushTitle") pushTitle: RequestBody? = null
     ): Response<ApiResponse<Any>>
 
     // WebRTC token for calls

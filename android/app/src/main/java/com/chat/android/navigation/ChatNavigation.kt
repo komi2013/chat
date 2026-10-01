@@ -17,6 +17,8 @@ import com.chat.android.feature.entryform.EntryFormAnswerScreen
 import com.chat.android.InviteRequest
 import com.chat.android.feature.channel.ChannelScreen
 import com.chat.android.feature.group.GroupScreen
+import com.chat.android.feature.people.PeopleScreen
+import com.chat.android.feature.thread.ThreadScreen
 import com.chat.android.feature.profile.ProfileScreen
 import com.chat.android.feature.home.HomeScreen
 
@@ -102,6 +104,24 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                     GroupScreen(
                         navController = navController,
                         id = route.id
+                    )
+                }
+
+                composable<PeopleRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<PeopleRoute>()
+                    PeopleScreen(
+                        navController = navController,
+                        id = route.id,
+                        name = route.name
+                    )
+                }
+
+                composable<ThreadRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ThreadRoute>()
+                    ThreadScreen(
+                        navController = navController,
+                        channelID = route.channelID,
+                        parentID = route.parentID
                     )
                 }
             }

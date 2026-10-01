@@ -40,6 +40,9 @@ import com.chat.android.BuildConfig
 import com.chat.android.core.ui.component.QrCodeImage
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.navigation.GroupRoute
+import com.chat.android.navigation.PeopleRoute
+import com.chat.android.navigation.ProfileRoute
+import com.chat.android.navigation.ThreadRoute
 
 /**
  * チャネル設定画面（vue/src/views/Channel.vue に対応）。
@@ -206,8 +209,9 @@ fun ChannelScreen(
                     )
                 }
 
-                MemberSection(uiState)
+                MemberSection(uiState, navController)
                 GroupSection(uiState, navController)
+                ThreadSection(uiState, navController)
 
                 if (uiState.iamAdmin) {
                     item {
@@ -472,18 +476,35 @@ private fun invitationUrl(channelID: String?, code: String): String =
     BuildConfig.BASE_URL.trimEnd('/') + "/profile/${channelID.orEmpty()}/?code=$code"
 
 /** メンバー一覧。 */
-private fun LazyListScope.MemberSection(state: ChannelUiState) {
+private fun LazyListScope.MemberSection(
+    state: ChannelUiState,
+    navController: NavController
+) {
     item { SectionTitle("ユーザー一覧") }
     if (state.aliases.isEmpty()) {
         item { Text("メンバーがいません", style = MaterialTheme.typography.bodyMedium) }
     }
     items(state.aliases, key = { it.aliasID }) { alias ->
+        // Vue の Channel.vue と同じ導線:
+        //   自分のニックネーム → /profile/{id}/
+        //   それ以外         → /people/{id}/{aliasName}/
+        val isMe = alias.aliasName == state.myName
         Surface(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier
+                    .clickable {
+                        if (isMe) {
+                            navController.navigate(ProfileRoute(id = state.channelID))
+                        } else {
+                            navController.navigate(
+                                PeopleRoute(id = state.channelID, name = alias.aliasName)
+                            )
+                        }
+                    }
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AliasAvatar(
@@ -507,6 +528,80 @@ private fun LazyListScope.MemberSection(state: ChannelUiState) {
             }
         }
     }
+}
+
+/**
+ * スレッド一覧（vue/src/views/Channel.vue の threadHeads 相当）。
+ *
+ * 「+ 新規」はランダム3文字のスレッドIDでスレッド画面を開く。
+ * threadHead はまだ存在せず、最初の投稿で作成される（vue と同じ）。
+ */
+private fun LazyListScope.ThreadSection(
+    state: ChannelUiState,
+    navController: NavController
+) {
+    item { SectionTitle("スレッド") }
+
+    items(state.threadHeads, key = { it.parentID }) { head ->
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .clickable {
+                        navController.navigate(
+                            ThreadRoute(channelID = state.channelID, parentID = head.parentID)
+                        )
+                    }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(head.title.ifBlank { "(無題)" }, style = MaterialTheme.typography.bodyLarge)
+                    if (head.messageTxt.isNotBlank()) {
+                        Text(
+                            head.messageTxt.take(30),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+                // 未読（displayStatus 1 or 2）
+                if (head.displayStatus == 1 || head.displayStatus == 2) {
+                    Text(
+                        "NEW",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    item {
+        OutlinedButton(
+            onClick = {
+                navController.navigate(
+                    ThreadRoute(
+                        channelID = state.channelID,
+                        parentID = randomThreadId()
+                    )
+                )
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("+ 新規")
+        }
+    }
+}
+
+/** vue の generateRandomCode(3) 相当。 */
+private fun randomThreadId(): String {
+    val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    val random = java.util.Random()
+    return (1..3).map { chars[random.nextInt(chars.length)] }.joinToString("")
 }
 
 /** グループ一覧。 */
