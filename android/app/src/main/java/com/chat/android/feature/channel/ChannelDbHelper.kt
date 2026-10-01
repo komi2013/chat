@@ -275,6 +275,15 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
         writableDatabase.insertWithOnConflict("\"group\"", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    /** 指定 groupID のローカル保存済み groupBio を返す。未保存なら null。 */
+    fun getGroupBio(groupID: String): String? {
+        readableDatabase.query(
+            "\"group\"", arrayOf("groupBio"), "groupID = ?", arrayOf(groupID), null, null, null
+        ).use {
+            return if (it.moveToFirst()) it.getString(0) else null
+        }
+    }
+
     fun getGroupsForChannel(channelID: String): List<DbGroup> {
         val list = mutableListOf<DbGroup>()
         val cursor = readableDatabase.query(

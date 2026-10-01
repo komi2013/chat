@@ -47,13 +47,20 @@ class GroupHandler(
 
         val groupID = channelID + groupName
 
+        // group push には groupBio が含まれない（サーバーも送信していない: controller/ChannelEdit.go:387）。
+        // vue/src/pushReceive/group.js も、既存レコードを複製したうえで
+        // aliasNames と groupImg のみを上書きする（groupBio には触れない）。
+        // ここも同じ挙動にしない。さもないと、push のたびにローカル SQLite の groupBio が
+        // 空文字で上書きされてしまい、編集した経歴が消えていた。
+        val groupBio = dbHelper.getGroupBio(groupID) ?: ""
+
         val group = DbGroup(
             groupID = groupID,
             channelID = channelID,
             groupName = groupName,
             groupImg = groupImg,
             aliasNamesJson = aliasNames,
-            groupBio = ""
+            groupBio = groupBio
         )
 
         dbHelper.saveGroup(group)

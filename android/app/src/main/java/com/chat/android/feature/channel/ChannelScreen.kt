@@ -410,8 +410,8 @@ private fun InvitationCard(
             }
 
             Text(
-                "このQRをスキャンすると、このアプリが開きます。" +
-                    "QRの内容はアプリのURL（chat://）です。",
+                "このQRをスキャンすると、このアプリをインストール済みの場合はアプリが開きます。" +
+                    "未インストールの場合はWeb版が開きます。",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -462,9 +462,14 @@ private fun InvitationCard(
     }
 }
 
-/** 招待用のカスタムスキームURL。QRはこれを埋め込む。 */
+/** 招待URL。QRはこれを埋め込む。
+ *
+ *  https + App Links（public/.well-known/assetlinks.json）を使っているため、
+ *  アプリがインストール済みならアプリが直接開き、
+ *  未インストールならWeb版（vueのProfile.vue）が開く。
+ */
 private fun invitationUrl(channelID: String?, code: String): String =
-    "chat://profile/${channelID.orEmpty()}?code=$code"
+    BuildConfig.BASE_URL.trimEnd('/') + "/profile/${channelID.orEmpty()}/?code=$code"
 
 /** メンバー一覧。 */
 private fun LazyListScope.MemberSection(state: ChannelUiState) {
