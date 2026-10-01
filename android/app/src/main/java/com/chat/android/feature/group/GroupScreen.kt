@@ -81,20 +81,20 @@ fun GroupScreen(
                 item { Text("グループがありません", style = MaterialTheme.typography.bodyMedium) }
             }
 
-            items(state.groups, key = { it.groupID.ifBlank { "new-${it.groupName}" } }) { group ->
+            items(state.groups, key = { it.localId }) { group ->
                 GroupCard(
                     group = group,
                     aliases = state.aliases,
-                    searchOpen = searchFor == group.groupID,
+                    searchOpen = searchFor == group.localId,
                     onToggleSearch = {
-                        searchFor = if (searchFor == group.groupID) null else group.groupID
+                        searchFor = if (searchFor == group.localId) null else group.localId
                     },
-                    onNameChange = { viewModel.updateName(group.groupID, it) },
-                    onBioChange = { viewModel.updateBio(group.groupID, it) },
-                    onRandomImg = { viewModel.randomImage(group.groupID) },
-                    onAddMember = { viewModel.addMember(group.groupID, it) },
-                    onRemoveMember = { viewModel.removeMember(group.groupID, it) },
-                    onToggleRemoved = { viewModel.toggleRemoved(group.groupID) }
+                    onNameChange = { viewModel.updateName(group.localId, it) },
+                    onBioChange = { viewModel.updateBio(group.localId, it) },
+                    onRandomImg = { viewModel.randomImage(group.localId) },
+                    onAddMember = { viewModel.addMember(group.localId, it) },
+                    onRemoveMember = { viewModel.removeMember(group.localId, it) },
+                    onToggleRemoved = { viewModel.toggleRemoved(group.localId) }
                 )
             }
 

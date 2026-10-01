@@ -30,16 +30,22 @@ class GroupHandler(
         }
 
         val array = pd.getContentsAsArray() ?: return
-        
-        // Example mapping based on Vue group.js:
-        // contents: [groupName, aliasNames, groupID, groupImg, groupBio]
+
+        // サーバーが送る group push（controller/ChannelEdit.go:387）は
+        //   pd = [pushID, "group", channelID, updatedBy, [groupName, aliasNames], groupImg]
+        // つまり contents には groupName と aliasNames の **2要素しかない**。
+        // groupID を contents から読むと必ず空になり、処理全体が
+        // 旧来の if (groupID.isEmpty()) return で打ち切られていた（＝グループが
+        // ローカルDBに保存されない原因）。
+        // vue/src/pushReceive/group.js と同じく channelID + groupName で合成する。
         val groupName = array.optString(0, "")
         val aliasNames = array.optJSONArray(1)?.toString() ?: "[]"
-        val groupID = array.optString(2, "")
-        val groupImg = pd.rawJson.optString(5, "") // imgPath is often at index 5 in pd
-        val groupBio = array.optString(4, "")
+        val groupImg = pd.rawJson.optString(5, "")
+        // groupBio は group push に含まれない（サーバーも送信していない）
 
-        if (groupID.isEmpty()) return
+        if (groupName.isEmpty()) return
+
+        val groupID = channelID + groupName
 
         val group = DbGroup(
             groupID = groupID,
@@ -47,9 +53,9 @@ class GroupHandler(
             groupName = groupName,
             groupImg = groupImg,
             aliasNamesJson = aliasNames,
-            groupBio = groupBio
+            groupBio = ""
         )
-        
+
         dbHelper.saveGroup(group)
         Log.i("GroupHandler", "Upserted group $groupID")
     }

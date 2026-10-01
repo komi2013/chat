@@ -19,6 +19,9 @@ import javax.inject.Inject
 
 /** 編集中のグループ（Group.vue の groups に対応）。 */
 data class EditableGroup(
+    /** 画面上での識別子。保存前（新規）は UUID、保存後は groupID。
+     *  IME 入力中に変わらないため、LazyColumn の key などに使う。 */
+    val localId: String,
     val groupID: String,
     val groupName: String,
     val groupImg: String,
@@ -86,6 +89,7 @@ class GroupViewModel @Inject constructor(
                 // Vue と同じ判定: 既存メンバーのいるグループは自分が含まれる場合のみ編集可
                 val hasMember = names.any { it in allNames }
                 EditableGroup(
+                    localId = g.groupID,
                     groupID = g.groupID,
                     groupName = g.groupName,
                     groupImg = g.groupImg,
@@ -112,6 +116,7 @@ class GroupViewModel @Inject constructor(
         val myName = state.channel?.myname.orEmpty()
         _uiState.value = state.copy(
             groups = state.groups + EditableGroup(
+                localId = "new-" + java.util.UUID.randomUUID(),
                 groupID = "",
                 groupName = "",
                 groupImg = "",
@@ -122,24 +127,27 @@ class GroupViewModel @Inject constructor(
         )
     }
 
-    fun updateName(groupID: String, name: String) = mutate(groupID) { it.copy(groupName = name) }
-    fun updateBio(groupID: String, bio: String) = mutate(groupID) { it.copy(groupBio = bio) }
-    fun updateImg(groupID: String, img: String) = mutate(groupID) { it.copy(groupImg = img) }
-    fun randomImage(groupID: String) = updateImg(groupID, RandomAvatar.random())
+    fun updateName(localId: String, name: String) = mutate(localId) { it.copy(groupName = name) }
+    fun updateBio(localId: String, bio: String) = mutate(localId) { it.copy(groupBio = bio) }
+    fun updateImg(localId: String, img: String) = mutate(localId) { it.copy(groupImg = img) }
+    fun randomImage(localId: String) = updateImg(localId, RandomAvatar.random())
 
-    fun addMember(groupID: String, aliasName: String) = mutate(groupID) {
+    fun addMember(localId: String, aliasName: String) = mutate(localId) {
         if (aliasName in it.aliasNames) it else it.copy(aliasNames = it.aliasNames + aliasName)
     }
 
-    fun removeMember(groupID: String, aliasName: String) = mutate(groupID) {
+    fun removeMember(localId: String, aliasName: String) = mutate(localId) {
         it.copy(aliasNames = it.aliasNames - aliasName)
     }
 
-    fun toggleRemoved(groupID: String) = mutate(groupID) { it.copy(removed = !it.removed) }
+    fun toggleRemoved(localId: String) = mutate(localId) { it.copy(removed = !it.removed) }
 
-    private fun mutate(groupID: String, block: (EditableGroup) -> EditableGroup) {
+    /** groupID ではなく localId で照合する。
+     *  新規グループは groupID が "" のため、groupID で照合すると
+     *  複数新建時に「片方に入力すると両方変わってしまう」バグになる。 */
+    private fun mutate(localId: String, block: (EditableGroup) -> EditableGroup) {
         _uiState.value = _uiState.value.copy(
-            groups = _uiState.value.groups.map { if (it.groupID == groupID) block(it) else it }
+            groups = _uiState.value.groups.map { if (it.localId == localId) block(it) else it }
         )
     }
 
