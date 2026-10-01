@@ -49,6 +49,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.chat.android.core.network.model.UserNicknameEntity
 import com.chat.android.core.util.toAbsoluteImageUrl
+import com.chat.android.navigation.ProfileRoute
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +92,17 @@ fun UserScreen(
     }
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let(viewModel::setAvatarFromUri)
+    }
+
+    // TO に控えておいた招待URLがあれば、サインイン後に参加画面へ自動で遷移する。
+    LaunchedEffect(state.isTO, state.toLink) {
+        val link = state.toLink
+        if (state.isTO && !link.isNullOrBlank()) {
+            val route = viewModel.consumePendingInvite()
+            if (route != null) {
+                navController.navigate(route)
+            }
+        }
     }
 
     Scaffold(

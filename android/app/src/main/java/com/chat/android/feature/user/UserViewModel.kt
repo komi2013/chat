@@ -32,6 +32,7 @@ import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_EMOJI
 import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_IMAGE
 import com.chat.android.feature.user.UserUiState.Companion.DEFAULT_EMOJI_AVATAR
 import com.chat.android.core.util.toAbsoluteImageUrl
+import com.chat.android.navigation.ProfileRoute
 
 @HiltViewModel
 class UserViewModel @Inject constructor(
@@ -97,6 +98,24 @@ class UserViewModel @Inject constructor(
         userRepository.getTO()?.let { link ->
             _uiState.update { it.copy(isTO = true, toLink = link) }
         }
+    }
+
+    /**
+     * TO に保存された招待URLを取り出して ProfileRoute に変換し、TO をクリアする。
+     * サインイン後に参加画面へ自動遷移するために使う。
+     * 対応していない形式なら null を返す（TO はそのままで残す）。
+     */
+    fun consumePendingInvite(): ProfileRoute? {
+        val link = userRepository.getTO()?.takeIf { it.isNotBlank() } ?: return null
+        // chat://profile/{channelID}?code=XXX
+        val uri = runCatching { Uri.parse(link) }.getOrNull() ?: return null
+        if (uri.scheme != "chat" || uri.host != "profile") return null
+        val channelID = uri.pathSegments?.firstOrNull().orEmpty()
+        if (channelID.isBlank()) return null
+
+        userRepository.clearTO()
+        _uiState.update { it.copy(isTO = false, toLink = "") }
+        return ProfileRoute(id = channelID, code = uri.getQueryParameter("code"))
     }
 
     fun loadUserData() {
