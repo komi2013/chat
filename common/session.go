@@ -85,11 +85,15 @@ func sessionIDFromRequest(r *http.Request) (string, bool, error) {
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			return "", false, errors.New("invalid Authorization header")
 		}
-		// TODO(iOS push): accept the mobile session token here. The Android
-		// app authenticates via the `ss` cookie through OkHttp, so Bearer is
-		// currently unused; a future iOS client without cookie support should
-		// send `Authorization: Bearer <sessionID>` and register its APNs token
-		// via form fields `pushToken` + `deviceType=3` on PushSubscribeMobile.
+		// Bearer 認証を使うクライアント:
+		//   - Android アプリ: OkHttp の interceptor
+		//     (android/core/network/RetrofitClient.kt) が、SessionManager に保存した
+		//     sessionId を `Authorization: Bearer <sessionID>` として送信する。
+		//     Cookie (`ss`) は使わない。
+		//   - iOS（予定）: Cookie 非対応のため Bearer を使う。
+		//     APNs トークンは PushSubscribeMobile のフォーム項目
+		//     pushToken + deviceType=3 で登録する。
+		// Cookie (`ss`) を使うのは Web (vue) クライアント側。
 		return parts[1], true, nil
 	}
 

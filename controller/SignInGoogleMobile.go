@@ -142,6 +142,29 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("DEBUG: Attempting to insert new session ID: %s\n", newSession.SessionID)
 
+	// 同じ端末（deviceID）の古いセッションを削除する。1端末1セッションに保つことで、
+	// 同一FCMトークンが複数セッションに残って同一端末へ重複PUSHが届くのを防ぐ。
+	//
+	// 注意: この削除は **新セッションの InsertOne より前** に実行すること。
+	// 従来は InsertOne の後に実行しており、フィルタ {userID, deviceID} が
+	// たった今 Insert した新セッションにも一致してしまいます。その結果、
+	// サーバーが発行直後に自分のセッションを削除し、クライアントが保持する
+	// sessionId が Mongo に存在しない状態になっていた。
+	// そのため続く UserGet が SessionCheckTake で
+	// "mongo: no documents in result;Session Check" になり、
+	// モバイルのログインが常に壊れていた（Web はこの削除を行わないため正常）。
+	if deviceID != "" {
+		result, err := collSession.DeleteMany(context.TODO(), bson.M{
+			"userID":   userID,
+			"deviceID": deviceID,
+		})
+		if err != nil {
+			fmt.Printf("DEBUG: Failed to delete previous sessions of device %s: %v\n", deviceID, err)
+		} else {
+			fmt.Printf("DEBUG: Deleted %d previous session(s) of device %s\n", result.DeletedCount, deviceID)
+		}
+	}
+
 	// Preserve cookie authentication for clients that still use it.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
@@ -161,20 +184,6 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("DEBUG: Session created successfully for user %s\n", userID)
-
-	// 同じ端末（deviceID）の古いセッションを削除する。1端末1セッションに保つことで、
-	// 同一FCMトークンが複数セッションに残って同一端末へ重複PUSHが届くのを防ぐ。
-	if deviceID != "" {
-		result, err := collSession.DeleteMany(context.TODO(), bson.M{
-			"userID":   userID,
-			"deviceID": deviceID,
-		})
-		if err != nil {
-			fmt.Printf("DEBUG: Failed to delete previous sessions of device %s: %v\n", deviceID, err)
-		} else {
-			fmt.Printf("DEBUG: Deleted %d previous session(s) of device %s\n", result.DeletedCount, deviceID)
-		}
-	}
 
 	// Clean up old sessions
 	if len(sessions) >= 5 {
