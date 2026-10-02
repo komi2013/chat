@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,6 +39,7 @@ fun ThreadScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var initialized by rememberSaveable { mutableStateOf(false) }
 
     var editingId by remember { mutableStateOf<String?>(null) }
@@ -83,39 +85,132 @@ fun ThreadScreen(
                 contentPadding = PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                state.head?.let { head ->
+                    item(key = "head") {
+                        val isEditing = editingId == head.parentID
+                        val headAlias = state.aliases.find { it.aliasName == head.aliasName }
+                        MessageRow(
+                            aliasName = head.aliasName,
+                            aliasImg = headAlias?.aliasImg?.toAbsoluteImageUrl().orEmpty(),
+                            createdAt = head.updatedAt,
+                            emojisJson = head.emojisJson,
+                            canEdit = head.aliasName == state.myname,
+                            isEditing = isEditing,
+                            onEdit = {
+                                editingId = head.parentID
+                                editingText = head.messageTxt
+                            },
+                            onReact = { emojiTarget = head.parentID },
+                            onShowReactions = { emojiedTarget = head.parentID }
+                        ) {
+                            if (isEditing) {
+                                EditBox(
+                                    editingMessageId = editingId,
+                                    initialText = editingText,
+                                    canPost = state.canPost,
+                                    isPosting = state.isPosting,
+                                    isDm = state.isDm,
+                                    isNewThread = false,
+                                    myname = state.myname,
+                                    aliases = state.aliases,
+                                    groups = state.groups,
+                                    onPost = { text, editingMessageID, asDelete, task, group, fileUris ->
+                                        // parentID is messageID for threadHead
+                                        viewModel.postMessage(text, editingMessageID, asDelete, task, group, fileUris)
+                                        editingId = null
+                                        editingText = ""
+                                    },
+                                    onCall = {
+                                        viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                                    },
+                                    onCancelEdit = {
+                                        editingId = null
+                                        editingText = ""
+                                    }
+                                )
+                            } else {
+                                ThreadMessageText(
+                                    text = head.messageTxt,
+                                    modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp)
+                                )
+                            }
+                        }
+                        if (!isEditing) {
+                            Divider(Modifier.padding(vertical = 8.dp))
+                        }
+                    }
+                }
+
                 items(state.messages, key = { it.messageID }) { message ->
+                    val isEditing = editingId == message.messageID
                     MessageRow(
                         aliasName = message.aliasName,
                         aliasImg = message.aliasImg.toAbsoluteImageUrl(),
-                        messageTxt = message.messageTxt,
                         createdAt = message.createdAt,
                         emojisJson = message.emojisJson,
                         canEdit = message.aliasName == state.myname,
+                        isEditing = isEditing,
                         onEdit = {
                             editingId = message.messageID
                             editingText = message.messageTxt
                         },
                         onReact = { emojiTarget = message.messageID },
                         onShowReactions = { emojiedTarget = message.messageID }
-                    )
+                    ) {
+                        if (isEditing) {
+                            EditBox(
+                                editingMessageId = editingId,
+                                initialText = editingText,
+                                canPost = state.canPost,
+                                isPosting = state.isPosting,
+                                isDm = state.isDm,
+                                isNewThread = false,
+                                myname = state.myname,
+                                aliases = state.aliases,
+                                groups = state.groups,
+                                onPost = { text, editingMessageID, asDelete, task, group, fileUris ->
+                                    viewModel.postMessage(text, editingMessageID, asDelete, task, group, fileUris)
+                                    editingId = null
+                                    editingText = ""
+                                },
+                                onCall = {
+                                    viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                                },
+                                onCancelEdit = {
+                                    editingId = null
+                                    editingText = ""
+                                }
+                            )
+                        } else {
+                            ThreadMessageText(
+                                text = message.messageTxt,
+                                modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            EditBox(
-                editingMessageId = editingId,
-                initialText = editingText,
-                canPost = state.canPost,
-                isPosting = state.isPosting,
-                onPost = { text, editingMessageID, asDelete ->
-                    viewModel.postMessage(text, editingMessageID, asDelete)
-                    editingId = null
-                    editingText = ""
-                },
-                onCancelEdit = {
-                    editingId = null
-                    editingText = ""
-                }
-            )
+            if (editingId == null) {
+                EditBox(
+                    editingMessageId = null,
+                    initialText = "",
+                    canPost = state.canPost,
+                    isPosting = state.isPosting,
+                    isDm = state.isDm,
+                    isNewThread = state.isNewThread,
+                    myname = state.myname,
+                    aliases = state.aliases,
+                    groups = state.groups,
+                    onPost = { text, editingMessageID, asDelete, task, group, fileUris ->
+                        viewModel.postMessage(text, editingMessageID, asDelete, task, group, fileUris)
+                    },
+                    onCall = {
+                        viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                    },
+                    onCancelEdit = {}
+                )
+            }
         }
     }
 
@@ -133,21 +228,26 @@ fun ThreadScreen(
     }
 
     emojiedTarget?.let { messageID ->
-        val json = state.messages.firstOrNull { it.messageID == messageID }?.emojisJson ?: "[]"
+        val json = if (messageID == state.parentID) {
+            state.head?.emojisJson ?: "[]"
+        } else {
+            state.messages.firstOrNull { it.messageID == messageID }?.emojisJson ?: "[]"
+        }
         EmojiedModal(emojisJson = json, onDismiss = { emojiedTarget = null })
     }
 }
-    @Composable
+@Composable
 private fun MessageRow(
     aliasName: String,
     aliasImg: String,
-    messageTxt: String,
     createdAt: String,
     emojisJson: String,
     canEdit: Boolean,
+    isEditing: Boolean,
     onEdit: () -> Unit,
     onReact: () -> Unit,
-    onShowReactions: () -> Unit
+    onShowReactions: () -> Unit,
+    content: @Composable () -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -157,14 +257,12 @@ private fun MessageRow(
             Spacer(Modifier.width(8.dp))
             Text(createdAt, style = MaterialTheme.typography.labelSmall)
         }
-        ThreadMessageText(
-            text = messageTxt,
-            modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp)
-        )
+        
+        content()
 
         // リアクションの集約表示（vue の calcEmoji 相当）
         val counts = EmojiCatalog.calcEmojis(emojisJson, aliasName)
-        if (counts.isNotEmpty()) {
+        if (counts.isNotEmpty() && !isEditing) {
             Row(
                 modifier = Modifier.padding(start = 40.dp, top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -186,13 +284,15 @@ private fun MessageRow(
             }
         }
 
-        Row(modifier = Modifier.padding(start = 40.dp)) {
-            IconButton(onClick = onReact, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Mood, contentDescription = "リアクション", modifier = Modifier.size(18.dp))
-            }
-            if (canEdit) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "編集", modifier = Modifier.size(18.dp))
+        if (!isEditing) {
+            Row(modifier = Modifier.padding(start = 40.dp)) {
+                IconButton(onClick = onReact, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Mood, contentDescription = "リアクション", modifier = Modifier.size(18.dp))
+                }
+                if (canEdit) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "編集", modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }

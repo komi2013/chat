@@ -8,11 +8,26 @@ import com.chat.android.feature.channel.DbThreadHead
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** 添付ファイル1件。vue の FormData の files[] に相当する。 */
+class ThreadFile(
+    val fileName: String,
+    val mimeType: String,
+    val bytes: ByteArray
+)
+
+/** vue の generateRandomCode(n) 相当のランダム英数字文字列。 */
+internal fun randomCode(length: Int): String {
+    val chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    val random = java.util.Random()
+    return buildString { repeat(length) { append(chars[random.nextInt(chars.length)]) } }
+}
 
 /**
  * スレッドの送信側（vue/src/components/EditBox.vue と EmojiModal.vue に対応）。
@@ -32,19 +47,35 @@ class ThreadRepository @Inject constructor(
         updatedBy: String,
         pushNames: List<String>,
         pushTitle: String,
-        contentsJson: String
+        contentsJson: String,
+        notifyUrl: String? = null,
+        notifyMessage: String? = null,
+        notifyIcon: String? = null,
+        files: List<ThreadFile> = emptyList()
     ): Result<Unit> = withContext(Dispatchers.IO) {
         val csrf = sessionManager.getCsrf()?.takeIf { it.isNotBlank() }
             ?: return@withContext Result.failure(Exception("サインインが必要です"))
 
         runCatching {
+            // 添付は multipart の files[] として ContentsPush に同梱する（vue と同じ）
+            val fileParts = files.map { file ->
+                MultipartBody.Part.createFormData(
+                    "files[]",
+                    file.fileName,
+                    file.bytes.toRequestBody(file.mimeType.toMediaTypeOrNull())
+                )
+            }
             val response = apiService.contentsPush(
                 csrf = csrf.toPart(),
                 channelID = channelID.toPart(),
                 updatedBy = updatedBy.toPart(),
                 pushNames = JSONArray(pushNames).toString().toPart(),
                 contents = contentsJson.toPart(),
-                pushTitle = pushTitle.toPart()
+                pushTitle = pushTitle.toPart(),
+                notifyUrl = notifyUrl?.toPart(),
+                notifyMessage = notifyMessage?.toPart(),
+                notifyIcon = notifyIcon?.toPart(),
+                files = fileParts
             )
             val body = response.body()
             if (!response.isSuccessful) {
@@ -75,7 +106,8 @@ class ThreadRepository @Inject constructor(
         backID: String,
         yets: List<Pair<String, String>>,
         groupName: String,
-        editingMessageID: String? = null
+        editingMessageID: String? = null,
+        files: List<ThreadFile> = emptyList()
     ): Result<Unit> {
         val pushTitle = if (editingMessageID != null) "threadEdit" else "thread"
         val messageID = editingMessageID ?: newMessageID()
@@ -94,7 +126,47 @@ class ThreadRepository @Inject constructor(
         }
 
         val names = (totalNames + myname).distinct()
-        return push(channelID, myname, names, pushTitle, contents.toString())
+        return push(channelID, myname, names, pushTitle, contents.toString(), files = files)
+    }
+
+    /**
+     * DM の呼び出しメッセージを送る（vue/src/components/EditBox.vue の calling と同じ）。
+     *
+     * notifyUrl を付けるとサーバーが相手へ通話通知を push する。
+     */
+    suspend fun postCall(
+        channelID: String,
+        myname: String,
+        parentID: String,
+        opponent: String,
+        aliasImg: String,
+        backID: String,
+        callUrl: String
+    ): Result<Unit> {
+        val messageData = "＠＠${opponent}・＠＠ 「calling」（${callUrl}）"
+        val pushNames = listOf(myname, opponent)
+        val messageID = newMessageID()
+        val contents = JSONArray().apply {
+            put(parentID)
+            put(messageID)
+            put(messageData)
+            put(aliasImg)
+            put(JSONArray(pushNames))
+            put(backID)
+            put(JSONArray())
+            put("")
+            put(System.currentTimeMillis() / 1000)
+        }
+        return push(
+            channelID = channelID,
+            updatedBy = myname,
+            pushNames = pushNames,
+            pushTitle = "thread",
+            contentsJson = contents.toString(),
+            notifyUrl = callUrl,
+            notifyMessage = "$myname is calling",
+            notifyIcon = aliasImg
+        )
     }
 
     /** 絵文字リアクションを付ける／外す（vue/src/components/EmojiModal.vue と同じ）。 */
@@ -123,7 +195,8 @@ class ThreadRepository @Inject constructor(
     suspend fun postThreadHead(
         channelID: String,
         myname: String,
-        head: DbThreadHead
+        head: DbThreadHead,
+        files: List<ThreadFile> = emptyList()
     ): Result<Unit> {
         val obj = org.json.JSONObject().apply {
             put("parentID", head.parentID)
@@ -139,7 +212,7 @@ class ThreadRepository @Inject constructor(
             put("emojis", JSONArray(head.emojisJson))
         }
         val names = head.aliasNamesJson.toNameList() + myname
-        return push(channelID, myname, names.distinct(), "threadHead", obj.toString())
+        return push(channelID, myname, names.distinct(), "threadHead", obj.toString(), files = files)
     }
 
     /** vue の base62Encode(Date.now()) + ランダム1文字と同じ形式。 */

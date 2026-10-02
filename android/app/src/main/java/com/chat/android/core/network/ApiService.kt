@@ -1,6 +1,7 @@
 package com.chat.android.core.network
 
 import com.chat.android.feature.channel.ChannelPayload
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -513,7 +514,13 @@ interface ApiService {
         @Part("updatedBy") updatedBy: RequestBody,
         @Part("pushNames") pushNames: RequestBody,
         @Part("contents") contents: RequestBody,
-        @Part("pushTitle") pushTitle: RequestBody
+        @Part("pushTitle") pushTitle: RequestBody,
+        // 通話通知（vue の notifyUrl / notifyMessage / notifyIcon と同じ。未指定なら null）
+        @Part("notifyUrl") notifyUrl: RequestBody?,
+        @Part("notifyMessage") notifyMessage: RequestBody?,
+        @Part("notifyIcon") notifyIcon: RequestBody?,
+        // 添付ファイル。名前付きで送る（vue の files[] と同じ）
+        @Part files: List<MultipartBody.Part>
     ): Response<ApiResponse<Any>>
 
 

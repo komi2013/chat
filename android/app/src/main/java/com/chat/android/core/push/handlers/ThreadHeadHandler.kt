@@ -49,12 +49,14 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
             displayStatus = 1
         }
 
+        val messageTxt = obj.optString("messageTxt", "") + imageAwareFileLinks(pd.rawJson.optJSONArray(5))
+
         dbHelper.saveThreadHead(
             DbThreadHead(
                 parentID = parentID,
                 channelID = obj.optString("channelID", channelID),
                 title = title,
-                messageTxt = obj.optString("messageTxt", ""),
+                messageTxt = messageTxt,
                 description = obj.optString("description", ""),
                 aliasName = obj.optString("aliasName", updatedBy),
                 aliasNamesJson = obj.optJSONArray("aliasNames")?.toString() ?: "[]",
@@ -67,5 +69,18 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
             )
         )
         Log.i("ThreadHeadHandler", "Upserted threadHead $parentID")
+    }
+
+    private fun imageAwareFileLinks(files: org.json.JSONArray?): String {
+        if (files == null) return ""
+        var out = ""
+        for (i in 0 until files.length()) {
+            val link = files.optString(i, "")
+            if (link.isEmpty()) continue
+            val lower = link.lowercase()
+            val m = if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) "img" else "f"
+            out += "＊${m}＊${link}・＊${m}＊ "
+        }
+        return out
     }
 }
