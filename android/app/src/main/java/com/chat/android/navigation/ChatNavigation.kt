@@ -121,7 +121,8 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                     ThreadScreen(
                         navController = navController,
                         channelID = route.channelID,
-                        parentID = route.parentID
+                        parentID = route.parentID,
+                        backID = route.backID
                     )
                 }
             }

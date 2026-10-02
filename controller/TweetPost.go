@@ -23,6 +23,7 @@ func TweetPost(w http.ResponseWriter, r *http.Request) {
 	parentID := r.FormValue("parentID")
 	backID := r.FormValue("backID")
 	messageTxt := r.FormValue("messageTxt")
+	messageTxt = common.SanitizeRichText(messageTxt)
 	if len(messageTxt) == 0 {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "本文が空です。", http.StatusOK)
 		return

@@ -4,13 +4,14 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.chat.android.core.push.PushReceiveDispatcher
+import com.chat.android.core.push.PushMentionMatcher
+import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.entryform.EntryFormCodec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import org.json.JSONArray
-import org.json.JSONException
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -62,7 +63,8 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         //    経由でしか同期されず、PUSH 受信だけではローカルDBが更新されなかった。
         pushDispatcher.receive(payload, fromPush = true)
 
-        // 2) 通知: ユーザーに見せる意味のあるイベントのみ表示する。
+        // Show a high priority alert for a direct mention or a group mention
+        // when the signed-in alias belongs to that group.
         notifyForPayload(payload)
     }
 
@@ -75,63 +77,30 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     // 通知するイベントは (event, channelID) 単位で1件に集約し、6セッション分の
     // 重複配信などで同じ通知が積み上がらないようにする。
     private fun notifyForPayload(payload: String) {
-        val pd = try {
-            JSONArray(payload)
-        } catch (e: JSONException) {
-            Log.w(TAG, "Unparseable payload: $payload")
-            return
-        }
+        val push = runCatching { JSONArray(payload) }.getOrNull() ?: return
+        if (push.optString(1) != "thread") return
+        val channelID = push.optString(2)
+        val contents = push.optJSONArray(4) ?: return
+        val messageID = contents.optString(1)
+        val message = contents.optString(2)
+        if (channelID.isBlank() || messageID.isBlank()) return
 
-        val pushID = pd.optString(0, "")
-        val event = pd.optString(1, "")
-        val channelID = pd.optString(2, "")
-        Log.d(TAG, "pushID=$pushID event=$event channelID=$channelID")
+        val db = ChannelDbHelper(this)
+        if (!PushMentionMatcher.mentionsCurrentUser(message, channelID, db)) return
 
-        when (event) {
-            // pushReceive.js special-cases pushCheck: it alerts pd[2] instead of
-            // dispatching an action. 登録確認は毎回表示する。
-            "pushCheck" -> pushNotificationManager.showNotification(
-                "Push登録完了",
-                pd.optString(2, "通知の登録が完了しました"),
-                ""
-            )
-
-            "entryForm" -> {
-                val formTitle = pd.optJSONObject(4)
-                    ?.toString()
-                    ?.let { runCatching { EntryFormCodec.parse(it) }.getOrNull() }
-                    ?.title
-                    ?.takeIf(String::isNotBlank)
-                    ?: "入力フォームが更新されました"
-                pushNotificationManager.showNotification(
-                    "フォーム更新",
-                    formTitle,
-                    channelID,
-                    collapseKey = notificationCollapseKey(event, channelID)
-                )
-            }
-
-            // chunk hides the channel id — pd[2] is the chunk body there.
-            "chunk", "thread", "threadHead" -> pushNotificationManager.showNotification(
-                "新着メッセージ",
-                "新しい投稿があります",
-                if (event == "chunk") "" else channelID,
-                collapseKey = notificationCollapseKey(event, channelID)
-            )
-
-            // 状態同期イベント（ローカルDBは pushDispatcher が更新済み）
-            "alias", "group", "channelEdit" ->
-                Log.i(TAG, "State sync event; notification suppressed: $event")
-
-            in KNOWN_EVENTS -> pushNotificationManager.showNotification(
-                "新着通知",
-                event,
-                channelID,
-                collapseKey = notificationCollapseKey(event, channelID)
-            )
-
-            else -> Log.d(TAG, "Unknown action: $event")
-        }
+        val author = contents.optString(7).ifBlank { push.optString(3) }
+        val body = message
+            .replace(Regex("＠＠[^・＠]+・＠＠"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(120)
+            .ifBlank { "You were mentioned in a group" }
+        pushNotificationManager.showNotification(
+            title = "$author mentioned you",
+            body = body,
+            channelId = channelID,
+            collapseKey = "mention|$messageID"
+        )
     }
 
     /** 同じチャネルの同じイベントは同じ通知IDに上書きして1件に集約する。 */

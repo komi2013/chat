@@ -122,7 +122,12 @@ class ThreadRepository @Inject constructor(
             put(JSONArray(yets.map { JSONArray().apply { put(it.first); put(it.second) } }))
             put(groupName)
             // 編集時だけ更新時刻を付ける（vue と同じ）
-            if (editingMessageID != null) put(System.currentTimeMillis() / 1000)
+            if (editingMessageID != null) {
+                put(System.currentTimeMillis() / 1000)
+                // 既存のブックマーク状態を維持（vue と同じ）
+                // 本来はローカルDBから取得すべきだが、ContentsPush は差分更新なので
+                // サーバー側でマージされる。配列の index 8 に置く。
+            }
         }
 
         val names = (totalNames + myname).distinct()
@@ -210,9 +215,28 @@ class ThreadRepository @Inject constructor(
             put("displayStatus", head.displayStatus)
             put("broadcastFlag", head.broadcastFlag)
             put("emojis", JSONArray(head.emojisJson))
+            put("backID", head.backID)
+            put("isBookmarked", head.isBookmarked)
         }
         val names = head.aliasNamesJson.toNameList() + myname
         return push(channelID, myname, names.distinct(), "threadHead", obj.toString(), files = files)
+    }
+
+    /** ブックマークを付ける／外す（vue/src/pushReceive/bookmark.js と同じ）。 */
+    suspend fun postBookmark(
+        channelID: String,
+        myname: String,
+        pushNames: List<String>,
+        messageID: String,
+        parentID: String,
+        isBookmarked: Boolean
+    ): Result<Unit> {
+        val contents = JSONArray().apply {
+            put(messageID)
+            put(parentID)
+            put(isBookmarked)
+        }
+        return push(channelID, myname, pushNames, "bookmark", contents.toString())
     }
 
     /** vue の base62Encode(Date.now()) + ランダム1文字と同じ形式。 */

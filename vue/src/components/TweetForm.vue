@@ -55,7 +55,7 @@ let task = ref(false);
 const messageID = message.messageID
 const parentID = message.parentID
 let editTxt = ref({});
-editTxt.value[messageID] = markdownToHtml(props.message.messageTxt)
+editTxt.value[messageID] = markdownToHtml(props.message.messageTxt, { channelID: props.threadHead?.channelID || props.message.channelID })
 let quill
 async function initQuill() {
   quill = new Quill('#edit_' + messageID, {

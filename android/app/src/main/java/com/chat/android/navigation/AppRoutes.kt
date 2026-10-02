@@ -40,7 +40,11 @@ data class PeopleRoute(val id: String? = null, val name: String? = null)
  * vue/src/views/Thread.vue に対応し、parentID はスレッドID。
  */
 @Serializable
-data class ThreadRoute(val channelID: String? = null, val parentID: String? = null)
+data class ThreadRoute(
+    val channelID: String? = null,
+    val parentID: String? = null,
+    val backID: String? = null
+)
 
 /** /threadHead/{parentID}/ に対応するルート（スレッド設定）。 */
 @Serializable

@@ -65,7 +65,8 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
                 broadcastFlag = obj.optInt("broadcastFlag", 0),
                 updatedAt = obj.optString("updatedAt", ""),
                 emojisJson = obj.optJSONArray("emojis")?.toString() ?: "[]",
-                backID = obj.optString("backID", "")
+                backID = obj.optString("backID", ""),
+                isBookmarked = obj.optBoolean("isBookmarked", false)
             )
         )
         Log.i("ThreadHeadHandler", "Upserted threadHead $parentID")
@@ -77,8 +78,8 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
         for (i in 0 until files.length()) {
             val link = files.optString(i, "")
             if (link.isEmpty()) continue
-            val lower = link.lowercase()
-            val m = if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) "img" else "f"
+            val path = link.substringBefore('?').lowercase()
+            val m = if (listOf(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp").any { path.endsWith(it) }) "img" else "f"
             out += "＊${m}＊${link}・＊${m}＊ "
         }
         return out

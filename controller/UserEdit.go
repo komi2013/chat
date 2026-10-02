@@ -40,6 +40,7 @@ func UserEdit(w http.ResponseWriter, r *http.Request) {
 	var nickname collection.NicknameStruct
 	nickname.Nickname = r.FormValue("nickname")
 	nickname.NickBio = r.FormValue("nickBio")
+	nickname.NickBio = common.SanitizeRichText(nickname.NickBio)
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {

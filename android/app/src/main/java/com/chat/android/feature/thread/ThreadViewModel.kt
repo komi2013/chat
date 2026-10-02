@@ -55,7 +55,15 @@ internal fun extractMentions(text: String): List<String> =
 
 /** markdown の記号だけを取り除いた文字列（vue の removeMark の簡易版）。 */
 internal fun removeMark(text: String): String =
-    text.replace("＊", "").replace("・", "")
+    text
+        .replace(Regex("＊(?:太|p)＊|・＊(?:太|p)＊|〜〜|・〜〜|＜quote＞|＜・quote＞|｀｀｀|・｀｀｀|色＊赤|赤＊色"), "")
+        .replace(Regex("＠＠|・＠＠"), "")
+        .replace(Regex("「([^」]*)」（[^）]*）"), "\$1")
+        .replace(Regex("!?\\[([^\\]]*)\\]\\([^)]*\\)"), "\$1")
+        .replace(Regex("(?m)^\\s{0,3}#{1,6}\\s+|^\\s*>\\s?"), "")
+        .replace(Regex("[*_~`]"), "")
+        .replace(Regex("\\s+"), " ")
+        .trim()
 
 /** スレッド画面の状態（vue/src/views/Thread.vue に対応）。 */
 @HiltViewModel
@@ -70,13 +78,18 @@ class ThreadViewModel @Inject constructor(
 
     private var updateJob: kotlinx.coroutines.Job? = null
 
-    fun init(channelID: String?, parentID: String?) {
+    fun init(channelID: String?, parentID: String?, backID: String? = null) {
         val id = channelID ?: return
         val parent = parentID ?: return
 
         updateJob?.cancel()
+        _uiState.value = ThreadUiState(
+            isLoading = true,
+            channelID = id,
+            parentID = parent
+        )
         viewModelScope.launch {
-            _uiState.value = withContext(Dispatchers.IO) { load(id, parent) }
+            _uiState.value = withContext(Dispatchers.IO) { load(id, parent, backID.orEmpty()) }
             markRead()
         }
 
@@ -89,7 +102,7 @@ class ThreadViewModel @Inject constructor(
         }
     }
 
-    private fun load(channelID: String, parentID: String): ThreadUiState {
+    private fun load(channelID: String, parentID: String, backID: String): ThreadUiState {
         val db = ChannelDbHelper(context)
         val channel = db.getChannel(channelID)
         val myname = channel?.myname.orEmpty()
@@ -135,18 +148,25 @@ class ThreadViewModel @Inject constructor(
             }.distinct()
         }
 
+        val replySource = if (backID.isNotBlank()) db.getThread(parentID) else null
+        val sourceHead = replySource?.let { db.getThreadHead(it.parentID) }
+        val replyDraft = replySource != null && sourceHead != null
+        val initialAliases = if (replyDraft) {
+            (sourceHead!!.aliasNamesJson.toNameList() + replySource!!.aliasName).distinct()
+        } else aliasNames
         val draft = DbThreadHead(
             parentID = parentID,
             channelID = channelID,
-            title = title,
-            messageTxt = if (parentID.contains('@')) title else "",
+            title = if (replyDraft) removeMark(replySource!!.messageTxt).take(12) else title,
+            messageTxt = if (replyDraft) replySource!!.messageTxt else if (parentID.contains('@')) title else "",
             description = "",
-            aliasName = myname,
-            aliasNamesJson = org.json.JSONArray(aliasNames).toString(),
-            adminNamesJson = "[]",
+            aliasName = if (replyDraft) replySource!!.aliasName else myname,
+            aliasNamesJson = org.json.JSONArray(initialAliases).toString(),
+            adminNamesJson = sourceHead?.adminNamesJson ?: "[]",
             displayStatus = 0,
-            broadcastFlag = 0,
-            updatedAt = ""
+            broadcastFlag = sourceHead?.broadcastFlag ?: 0,
+            updatedAt = "",
+            backID = if (replyDraft) backID else ""
         )
 
         return ThreadUiState(
@@ -154,10 +174,11 @@ class ThreadViewModel @Inject constructor(
             channelID = channelID,
             parentID = parentID,
             myname = myname,
-            title = title,
+            title = draft.title,
             head = draft,
             messages = emptyList(),
             isNewThread = true,
+            canPost = draft.broadcastFlag == 0 || draft.adminNamesJson.toNameList().contains(myname),
             groups = groups,
             aliases = aliases,
             isDm = isDm,
@@ -196,6 +217,16 @@ class ThreadViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = state.copy(isPosting = true, error = null)
 
+            val files = try {
+                withContext(Dispatchers.IO) { readFiles(fileUris) }
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isPosting = false,
+                    error = error.message ?: "添付ファイルを読み込めませんでした"
+                )
+                return@launch
+            }
+
             val body = if (asDelete) "" else text
             val head = state.head
 
@@ -216,14 +247,14 @@ class ThreadViewModel @Inject constructor(
             // 新規スレッド、頭の編集、またはメンションがあるときは threadHead を先に送る
             if (head != null && (state.isNewThread || editingMessageID == state.parentID || mentions.isNotEmpty())) {
                 val isHeadEdit = editingMessageID == state.parentID
-                val files = withContext(Dispatchers.IO) { readFiles(fileUris) }
+                val isReplyDraft = state.isNewThread && head.backID.isNotBlank()
                 val savedHead = head.copy(
-                    messageTxt = if (state.isNewThread || isHeadEdit) body else head.messageTxt,
-                    title = if (state.isNewThread || isHeadEdit) {
+                    messageTxt = if ((state.isNewThread && !isReplyDraft) || isHeadEdit) body else head.messageTxt,
+                    title = if ((state.isNewThread && !isReplyDraft) || isHeadEdit) {
                         removeMark(body).take(30).ifBlank { state.title }
                     } else head.title,
                     aliasNamesJson = org.json.JSONArray(totalNames).toString(),
-                    adminNamesJson = if (state.isNewThread) {
+                    adminNamesJson = if (state.isNewThread && !isReplyDraft) {
                         org.json.JSONArray(listOf(state.myname)).toString()
                     } else head.adminNamesJson
                 )
@@ -243,7 +274,6 @@ class ThreadViewModel @Inject constructor(
                 }
             }
 
-            val files = withContext(Dispatchers.IO) { readFiles(fileUris) }
             val result = repository.postMessage(
                 channelID = state.channelID,
                 myname = state.myname,
@@ -263,6 +293,34 @@ class ThreadViewModel @Inject constructor(
                 error = result.exceptionOrNull()?.message
             )
             if (result.isSuccess) reload()
+        }
+    }
+
+    /** ブックマークを保存する（サーバーと同期）。 */
+    fun toggleBookmark(messageID: String) {
+        val state = _uiState.value
+        viewModelScope.launch {
+            val isBookmarked = if (messageID == state.parentID) {
+                state.head?.isBookmarked ?: false
+            } else {
+                state.messages.find { it.messageID == messageID }?.isBookmarked ?: false
+            }
+
+            val aliasNames = state.head?.aliasNamesJson?.toNameList() ?: listOf(state.myname)
+            val result = repository.postBookmark(
+                channelID = state.channelID,
+                myname = state.myname,
+                pushNames = (aliasNames + state.myname).distinct(),
+                messageID = messageID,
+                parentID = state.parentID,
+                isBookmarked = !isBookmarked
+            )
+
+            if (result.isSuccess) {
+                reload()
+            } else {
+                _uiState.value = _uiState.value.copy(error = result.exceptionOrNull()?.message)
+            }
         }
     }
 
@@ -303,17 +361,27 @@ class ThreadViewModel @Inject constructor(
     }
 
     /** 選択されたファイル Uri を読み込んで送信できる形にする。 */
-    private fun readFiles(uris: List<Uri>): List<ThreadFile> = uris.mapNotNull { uri ->
-        runCatching {
+    private fun readFiles(uris: List<Uri>): List<ThreadFile> = uris.map { uri ->
+        try {
             val resolver = context.contentResolver
             val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
-                ?: return@runCatching null
+                ?: throw IllegalStateException("添付ファイルを開けませんでした")
+            val fileName = queryDisplayName(uri)
+                ?: uri.lastPathSegment.orEmpty().ifBlank { "file" }
+            if (bytes.isEmpty()) {
+                throw IllegalStateException("添付ファイルが空です: $fileName")
+            }
             ThreadFile(
-                fileName = queryDisplayName(uri) ?: uri.lastPathSegment.orEmpty().ifBlank { "file" },
+                fileName = fileName,
                 mimeType = resolver.getType(uri) ?: "application/octet-stream",
                 bytes = bytes
             )
-        }.getOrNull()
+        } catch (error: Exception) {
+            throw IllegalStateException(
+                "添付ファイルを読み込めませんでした: ${error.message ?: uri.lastPathSegment.orEmpty()}",
+                error
+            )
+        }
     }
 
     private fun queryDisplayName(uri: Uri): String? = runCatching {
@@ -324,11 +392,29 @@ class ThreadViewModel @Inject constructor(
     }.getOrNull()
 
     /** 絵文字リアクションを付ける／外す。 */
-    fun postEmoji(messageID: String, emoji: String, parentID: String, delete: Boolean) {
+    fun postEmoji(messageID: String, emoji: String, parentID: String, forceDelete: Boolean = false) {
         val state = _uiState.value
         viewModelScope.launch {
+            // Vue の clickEmoji 相当のトグルロジック:
+            // 既にその絵文字を付けていれば削除、そうでなければ追加。
+            val targetJson = if (messageID == parentID) {
+                state.head?.emojisJson
+            } else {
+                state.messages.find { it.messageID == messageID }?.emojisJson
+            }
+
+            val isAlreadyReacted = runCatching {
+                val array = org.json.JSONArray(targetJson ?: "[]")
+                (0 until array.length()).any { i ->
+                    val obj = array.optJSONObject(i)
+                    obj?.optString("aliasName") == state.myname && obj.optString("emoji") == emoji
+                }
+            }.getOrDefault(false)
+
+            val delete = forceDelete || isAlreadyReacted
             val aliasNames = state.head?.aliasNamesJson?.toNameList() ?: listOf(state.myname)
-            repository.postEmoji(
+
+            val result = repository.postEmoji(
                 channelID = state.channelID,
                 myname = state.myname,
                 pushNames = (aliasNames + state.myname).distinct(),
@@ -337,7 +423,11 @@ class ThreadViewModel @Inject constructor(
                 parentID = parentID,
                 delete = delete
             )
-            reload()
+            if (result.isSuccess) {
+                reload()
+            } else {
+                _uiState.value = _uiState.value.copy(error = result.exceptionOrNull()?.message)
+            }
         }
     }
 

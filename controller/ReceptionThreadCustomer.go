@@ -19,6 +19,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	messageID := r.FormValue("messageID")
 	parentID := r.FormValue("parentID")
 	messageTxt := r.FormValue("messageTxt")
+	messageTxt = common.SanitizeRichText(messageTxt)
 	// threadHead := r.FormValue("threadHead")
 	threadHeadNew := false
 	var threadHead collection.ThreadHeadStruct
@@ -28,6 +29,8 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		threadHeadNew = true
+		threadHead.MessageTxt = common.SanitizeRichText(threadHead.MessageTxt)
+		threadHead.Description = common.SanitizeRichText(threadHead.Description)
 	}
 
 	// セッションチェック

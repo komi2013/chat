@@ -19,6 +19,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	myimg := r.FormValue("myimg")
 	channelName := r.FormValue("channelName")
 	channelDescription := r.FormValue("channelDescription")
+	channelDescription = common.SanitizeRichText(channelDescription)
 
 	// === セッション確認 ===
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))

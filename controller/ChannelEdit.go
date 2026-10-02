@@ -50,6 +50,7 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 	channelID := r.FormValue("channelID")
 	channelName := r.FormValue("channelName")
 	channelDescription := r.FormValue("channelDescription")
+	channelDescription = common.SanitizeRichText(channelDescription)
 	updatedBy := r.FormValue("updatedBy")
 	guest := r.FormValue("guest") != ""
 	csrf := r.FormValue("csrf")

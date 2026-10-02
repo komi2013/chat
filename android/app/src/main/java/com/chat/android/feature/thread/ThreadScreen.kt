@@ -1,28 +1,37 @@
 package com.chat.android.feature.thread
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.chat.android.core.util.Base62
 import com.chat.android.core.util.EmojiCatalog
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.navigation.ThreadHeadRoute
+import com.chat.android.navigation.ThreadRoute
+import coil.compose.AsyncImage
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /**
  * スレッド画面（vue/src/views/Thread.vue に対応）。
@@ -35,23 +44,21 @@ fun ThreadScreen(
     navController: NavController,
     channelID: String? = null,
     parentID: String? = null,
+    backID: String? = null,
     viewModel: ThreadViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    var initialized by rememberSaveable { mutableStateOf(false) }
 
     var editingId by remember { mutableStateOf<String?>(null) }
     var editingText by remember { mutableStateOf("") }
     var emojiTarget by remember { mutableStateOf<String?>(null) }
-    var emojiedTarget by remember { mutableStateOf<String?>(null) }
+    var emojiedTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var optionsTarget by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(channelID, parentID) {
-        if (!initialized) {
-            initialized = true
-            viewModel.init(channelID, parentID)
-        }
+    LaunchedEffect(channelID, parentID, backID) {
+        viewModel.init(channelID, parentID, backID)
     }
 
     val emojis = remember(emojiTarget) { EmojiCatalog.masterEmojis(context) }
@@ -68,7 +75,16 @@ fun ThreadScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = {
+                        val backID = state.head?.backID.orEmpty()
+                        if (backID.isNotBlank() && channelID != null) {
+                            navController.navigate(ThreadRoute(channelID = channelID, parentID = backID)) {
+                                popUpTo<ThreadRoute> { inclusive = true }
+                            }
+                        } else {
+                            navController.navigateUp()
+                        }
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
                     }
                 }
@@ -76,6 +92,9 @@ fun ThreadScreen(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (state.isLoading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(8.dp))
             }
@@ -92,16 +111,16 @@ fun ThreadScreen(
                         MessageRow(
                             aliasName = head.aliasName,
                             aliasImg = headAlias?.aliasImg?.toAbsoluteImageUrl().orEmpty(),
+                            myAliasName = state.myname,
                             createdAt = head.updatedAt,
                             emojisJson = head.emojisJson,
-                            canEdit = head.aliasName == state.myname,
                             isEditing = isEditing,
-                            onEdit = {
-                                editingId = head.parentID
-                                editingText = head.messageTxt
+                            isBookmarked = head.isBookmarked,
+                            onEmojiToggle = { emoji ->
+                                viewModel.postEmoji(head.parentID, emoji, state.parentID)
                             },
-                            onReact = { emojiTarget = head.parentID },
-                            onShowReactions = { emojiedTarget = head.parentID }
+                            onLongClickEmoji = { emoji -> emojiedTarget = head.parentID to emoji },
+                            onLongClickMessage = { optionsTarget = head.parentID }
                         ) {
                             if (isEditing) {
                                 EditBox(
@@ -109,6 +128,7 @@ fun ThreadScreen(
                                     initialText = editingText,
                                     canPost = state.canPost,
                                     isPosting = state.isPosting,
+                                    postError = state.error,
                                     isDm = state.isDm,
                                     isNewThread = false,
                                     myname = state.myname,
@@ -146,16 +166,16 @@ fun ThreadScreen(
                     MessageRow(
                         aliasName = message.aliasName,
                         aliasImg = message.aliasImg.toAbsoluteImageUrl(),
+                        myAliasName = state.myname,
                         createdAt = message.createdAt,
                         emojisJson = message.emojisJson,
-                        canEdit = message.aliasName == state.myname,
                         isEditing = isEditing,
-                        onEdit = {
-                            editingId = message.messageID
-                            editingText = message.messageTxt
+                        isBookmarked = message.isBookmarked,
+                        onEmojiToggle = { emoji ->
+                            viewModel.postEmoji(message.messageID, emoji, state.parentID)
                         },
-                        onReact = { emojiTarget = message.messageID },
-                        onShowReactions = { emojiedTarget = message.messageID }
+                        onLongClickEmoji = { emoji -> emojiedTarget = message.messageID to emoji },
+                        onLongClickMessage = { optionsTarget = message.messageID }
                     ) {
                         if (isEditing) {
                             EditBox(
@@ -163,6 +183,7 @@ fun ThreadScreen(
                                 initialText = editingText,
                                 canPost = state.canPost,
                                 isPosting = state.isPosting,
+                                postError = state.error,
                                 isDm = state.isDm,
                                 isNewThread = false,
                                 myname = state.myname,
@@ -197,6 +218,7 @@ fun ThreadScreen(
                     initialText = "",
                     canPost = state.canPost,
                     isPosting = state.isPosting,
+                    postError = state.error,
                     isDm = state.isDm,
                     isNewThread = state.isNewThread,
                     myname = state.myname,
@@ -220,48 +242,156 @@ fun ThreadScreen(
             errorMessage = null,
             onSelect = { emoji ->
                 EmojiCatalog.rotateEmoji(context, emoji)
-                viewModel.postEmoji(messageID, emoji, state.parentID, delete = false)
+                viewModel.postEmoji(messageID, emoji, state.parentID)
                 emojiTarget = null
             },
             onDismiss = { emojiTarget = null }
         )
     }
 
-    emojiedTarget?.let { messageID ->
+    emojiedTarget?.let { (messageID, emoji) ->
         val json = if (messageID == state.parentID) {
             state.head?.emojisJson ?: "[]"
         } else {
             state.messages.firstOrNull { it.messageID == messageID }?.emojisJson ?: "[]"
         }
-        EmojiedModal(emojisJson = json, onDismiss = { emojiedTarget = null })
+        EmojiedModal(
+            emojisJson = json,
+            emojiFilter = emoji,
+            onDismiss = { emojiedTarget = null }
+        )
+    }
+
+    optionsTarget?.let { messageID ->
+        val head = state.head
+        val msg = if (messageID == head?.parentID) head else state.messages.find { it.messageID == messageID }
+        if (msg == null) {
+            optionsTarget = null
+            return@let
+        }
+
+        // Get properties polymorphically
+        val msgAliasName = when (msg) {
+            is com.chat.android.feature.channel.DbThreadHead -> msg.aliasName
+            is com.chat.android.feature.channel.DbThread -> msg.aliasName
+            else -> ""
+        }
+        val msgText = when (msg) {
+            is com.chat.android.feature.channel.DbThreadHead -> msg.messageTxt
+            is com.chat.android.feature.channel.DbThread -> msg.messageTxt
+            else -> ""
+        }
+        val msgBackID = when (msg) {
+            is com.chat.android.feature.channel.DbThreadHead -> msg.backID
+            is com.chat.android.feature.channel.DbThread -> msg.backID
+            else -> ""
+        }
+
+        // vue/src/views/Messages.vue: editable() logic
+        val createdAtUnix = Base62.decode(if (messageID.length > 1) messageID.dropLast(1) else messageID)
+        val tenMinsMillis = 10 * 60 * 1000L
+        val isTimeOk = (System.currentTimeMillis() - (createdAtUnix * 1000)) < tenMinsMillis
+
+        val isOwner = msgAliasName == state.myname
+        val isHead = messageID == state.parentID
+        val editable = (isTimeOk && isOwner) || isHead
+        val replyable = !isHead && msgBackID.isEmpty()
+        val isBookmarked = when (msg) {
+            is com.chat.android.feature.channel.DbThreadHead -> msg.isBookmarked
+            is com.chat.android.feature.channel.DbThread -> msg.isBookmarked
+            else -> false
+        }
+
+        MessageOptionsModal(
+            show = true,
+            editable = editable,
+            replyable = replyable,
+            onEmoji = { emojiTarget = messageID },
+            onReply = {
+                val replyMessage = msg as? com.chat.android.feature.channel.DbThread
+                if (channelID != null && replyMessage != null) {
+                    navController.navigate(
+                        ThreadRoute(
+                            channelID = channelID,
+                            parentID = replyMessage.messageID,
+                            backID = replyMessage.parentID
+                        )
+                    )
+                }
+            },
+            onEdit = {
+                editingId = messageID
+                editingText = msgText
+            },
+            onDelete = {
+                viewModel.postMessage("", editingMessageID = messageID, asDelete = true)
+            },
+            onBookmark = {
+                viewModel.toggleBookmark(messageID)
+            },
+            isBookmarked = isBookmarked,
+            onClose = { optionsTarget = null }
+        )
     }
 }
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageRow(
     aliasName: String,
     aliasImg: String,
+    myAliasName: String,
     createdAt: String,
     emojisJson: String,
-    canEdit: Boolean,
     isEditing: Boolean,
-    onEdit: () -> Unit,
-    onReact: () -> Unit,
-    onShowReactions: () -> Unit,
+    isBookmarked: Boolean = false,
+    onEmojiToggle: (String) -> Unit,
+    onLongClickEmoji: (String) -> Unit,
+    onLongClickMessage: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AliasAvatar(aliasImg = aliasImg, modifier = Modifier.size(32.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(aliasName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(8.dp))
-            Text(createdAt, style = MaterialTheme.typography.labelSmall)
+    val displayTime = remember(createdAt) {
+        runCatching {
+            SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault())
+                .parse(createdAt)
+                ?.let { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(it) }
+        }.getOrNull() ?: createdAt
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = {}, onLongClick = onLongClickMessage)
+    ) {
+        Column(
+            modifier = if (isEditing) Modifier.fillMaxWidth() else {
+                Modifier
+                    .padding(vertical = 6.dp)
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 56.dp)
+                    .padding(vertical = 6.dp)
+            }
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AliasAvatar(aliasImg = aliasImg, modifier = Modifier.size(32.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(aliasName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                if (isBookmarked) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Bookmark,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(displayTime, style = MaterialTheme.typography.labelSmall)
+            }
+            content()
         }
-        
-        content()
 
         // リアクションの集約表示（vue の calcEmoji 相当）
-        val counts = EmojiCatalog.calcEmojis(emojisJson, aliasName)
+        val counts = EmojiCatalog.calcEmojis(emojisJson, myAliasName)
         if (counts.isNotEmpty() && !isEditing) {
             Row(
                 modifier = Modifier.padding(start = 40.dp, top = 4.dp),
@@ -272,29 +402,32 @@ private fun MessageRow(
                         color = if (item.selected) MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant,
                         shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.clickable(onClick = onShowReactions)
-                    ) {
-                        Text(
-                            "${item.emoji} ${item.count}",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.combinedClickable(
+                            onClick = { onEmojiToggle(item.emoji) },
+                            onLongClick = { onLongClickEmoji(item.emoji) }
                         )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (EmojiCatalog.isImageEmoji(item.emoji)) {
+                                AsyncImage(
+                                    model = item.emoji.toAbsoluteImageUrl(),
+                                    contentDescription = "Reaction",
+                                    modifier = Modifier.size(20.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            } else {
+                                Text(item.emoji, style = MaterialTheme.typography.labelSmall)
+                            }
+                            Text(item.count.toString(), style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
         }
 
-        if (!isEditing) {
-            Row(modifier = Modifier.padding(start = 40.dp)) {
-                IconButton(onClick = onReact, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Mood, contentDescription = "リアクション", modifier = Modifier.size(18.dp))
-                }
-                if (canEdit) {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "編集", modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
         }
-    }
 }

@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import com.chat.android.core.push.handlers.AliasHandler
+import com.chat.android.core.push.handlers.BookmarkHandler
 import com.chat.android.core.push.handlers.ChannelEditHandler
 import com.chat.android.core.push.handlers.EmojiHandler
 import com.chat.android.core.push.handlers.EntryFormHandler
@@ -42,6 +43,7 @@ class PushReceiveDispatcher(
         "threadEdit" to ThreadHandler(context),
         "threadHead" to ThreadHeadHandler(context),
         "emoji" to EmojiHandler(context),
+        "bookmark" to BookmarkHandler(context),
         // ... add other handlers here later
     )
 

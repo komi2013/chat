@@ -1,170 +1,85 @@
-export const htmlToMarkdown = (html) => {
-  let markdown = html;
-  // markdown = markdown.replace(/<br>/g, "\n");
-  markdown = reverseEmphasis(markdown);
-  markdown = reverseStrikethrough(markdown);
-  markdown = reverseBlockquotes(markdown);
-  markdown = reverseCodeBlocks(markdown);
-  markdown = reverseLinks(markdown);
-  markdown = reverseColors(markdown);
-  markdown = reverseMention(markdown);
-  markdown = reverseParagraph(markdown);
-  return markdown;
-};
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
+import TurndownService from 'turndown';
 
-const reverseEmphasis = (html) => {
-  return html.replace(/<strong>([^<]+)<\/strong>/g, '＊太＊$1・＊太＊');
-};
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
 
-const reverseStrikethrough = (html) => {
-  return html.replace(/<s>(.*?)<\/s>/g, '〜〜$1・〜〜');
-};
+// Keep the app's mention and red-text markers while writing standard Markdown
+// for the formats that Markdown already represents.
+turndown.addRule('chatMentionLink', {
+  filter: (node) => node.nodeName === 'A' && !!node.querySelector('.mentioned'),
+  replacement: (_content, node) => {
+    const name = node.querySelector('.mentioned').textContent.replace(/^@/, '');
+    return `＠＠${name}・＠＠`;
+  },
+});
+turndown.addRule('chatMention', {
+  filter: (node) => node.nodeName === 'SPAN' && node.classList.contains('mentioned'),
+  replacement: (_content, node) => {
+    const name = node.textContent.replace(/^@/, '');
+    return `＠＠${name}・＠＠`;
+  },
+});
+turndown.addRule('redText', {
+  filter: (node) => node.nodeName === 'SPAN' && (node.classList.contains('markdown-red') || node.getAttribute('style')?.toLowerCase().includes('color: red')),
+  replacement: (content) => `色＊赤${content}赤＊色`,
+});
 
-const reverseBlockquotes = (html) => {
-  return html.replace(/<blockquote>([^]*?)<\/blockquote>/g, '＜quote＞$1＜・quote＞');
-};
+/** Convert Quill HTML to the persisted chat format. */
+export const htmlToMarkdown = (html) => turndown.turndown(html || '');
 
-const reverseCodeBlocks = (html) => {
-  return html
-    .replace(/<pre class="ql-syntax" spellcheck="false">/g, '<pre>')
-    .replace(/<pre>([^]*?)<\/pre>/g, '｀｀｀$1・｀｀｀');
-};
-
-const reverseLinks = (html) => {
-  return html
-    .replace(/ rel="noopener noreferrer" target="_blank"/g, '')
-    .replace(/<a href="([^]*?)">([^]*?)<\/a>/g, '「$2」（$1）');
-};
-
-const reverseColors = (html) => {
-  return html.replace(/<span style="color: red;">(.*?)<\/span>/g, '色＊赤$1赤＊色');
-};
-
-const reverseMention = (html) => {
-  const replacedHtml = html.replace(/<span class="mention" .*?>(.*?)<\/span>/g, '$1');
-  return replacedHtml.replace(/<span contenteditable="false">@(.*?)<\/span>/g, '＠＠$1・＠＠');
-};
-
-const reverseParagraph = (html) => {
-  return html
-    .replace(/<p><br><\/p>/g, '')
-    .replace(/<p>([^]*?)<\/p>/g, '＊p＊$1・＊p＊');
-};
-
-export const markdownToHtml = (markdown) => {
-  if (!markdown) {
-    return ''; 
-  }
-  let html = markdown.replace(/<(?!\/?(table|thead|tbody|tfoot|tr|th|td)\b)[^>]*>/gi, '');
-  html = html.replace(/\n/g, '')
-  html = applyEmphasis(html)
-  html = applyStrikethrough(html)
-  html = applyBlockquotes(html)
-  html = applyCodeBlocks(html)
-  html = applyAttach(html)
-  html = applyImage(html)
-  html = applyLinks(html)
-  html = applyColors(html)
-  html = applyMention(html)
-  html = applyParagraphs(html)
-  return html;
-};
-
-const applyEmphasis = (markdown) => {
-  return markdown.replace(/＊太＊(.*?)・＊太＊/g, '<strong>$1</strong>');
-};
-
-const applyStrikethrough = (markdown) => {
-  return markdown.replace(/〜〜(.*?)・〜〜/g, '<s>$1</s>');
-};
-
-const applyBlockquotes = (markdown) => {
-  return markdown.replace(/＜quote＞([^]*?)＜・quote＞/g, '<blockquote>$1</blockquote>');
-};
-
-const applyCodeBlocks = (markdown) => {
-  return markdown.replace(/｀｀｀([\s\S]*?)・｀｀｀/g, '<pre class="ql-syntax" spellcheck="false">$1</pre>');
-};
-
-const applyAttach = (markdown) => {
-  return markdown.replace(/＊f＊([^]*?)・＊f＊/g, `<p><a href="$1" download>$1</a></p>`);
-};
-
-const applyImage = (markdown) => {
-  return markdown.replace(/＊img＊([^]*?)・＊img＊/g, `<div class="img-center"><img src="$1" alt="expired"></div>`);
-}
-
-const applyLinks = (markdown) => {
-  return markdown.replace(/「([^]*?)」（([^]*?)）/g, '<a href="$2" target="_blank">$1</a>');
-};
-
-const applyColors = (markdown) => {
-  return markdown.replace(/色＊赤([^]*?)赤＊色/g, '<span style="color: red;">$1</span>');
-};
-
-const applyMention = (markdown) => {
-  const channelID = localStorage.getItem('channelID')
-  const regex = /＠＠([^]*?)・＠＠/g
-  // const atName = '＠＠' + aliasName + '・＠＠';
-  
-  // if (markdown.includes(atName)) {
-  //   markdown = markdown.replace(new RegExp(atName, 'g'), 
-  //     `<a href="/thread/${channelID}/@${aliasName}/"><span class="mentionme" contenteditable="false">@${aliasName}</span></a>`);
-  // }
-
-  return markdown.replace(regex, (match, p1) => {
-    // const sortedNames = [aliasName, p1].sort();
-    // const sortedMention = `${sortedNames[0]}@${sortedNames[1]}`;
-    return `<a href="/people/${channelID}/${p1}/"><span class="mentioned" contenteditable="false">@${p1}</span></a>`;
+/** Render both the persisted full-width syntax and standard Markdown safely. */
+export const markdownToHtml = (source, channel) => {
+  if (!source) return '';
+  const markdown = decodeLegacyFormat(String(source), channel);
+  const rendered = marked.parse(markdown, { gfm: true, breaks: true });
+  return DOMPurify.sanitize(rendered, {
+    ADD_ATTR: ['download', 'target'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|\/(?!\/)|#)/i,
+    FORBID_TAGS: ['style', 'svg', 'math', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['style'],
   });
 };
 
-const applyParagraphs = (markdown) => {
-  return markdown.replace(/＊p＊([^]*?)・＊p＊/g, '<p>$1</p>');
-};
+const escapeMarkdownText = (value) => value.replace(/([\\`*_{}\[\]()#+.!|>~-])/g, '\\$1');
+const markdownUrl = (value) => value.replace(/[\\()< >\t\r\n]/g, (character) => encodeURIComponent(character));
 
-export const removeMark = (html) => {
-  html = html.replace(/<[^>]*>/g, '');
-  html = html.replace(/\n/g, '');
-  html = removeEmphasis(html);
-  html = removeStrikethrough(html);
-  html = removeBlockquotes(html);
-  html = removeCodeBlocks(html);
-  html = removeLinks(html);
-  html = removeColors(html);
-  html = removeMention(html);
-  html = removeParagraphs(html);
-  return html;
-};
+function decodeLegacyFormat(source, channel) {
+  const savedChannelID = typeof localStorage === 'undefined' ? '' : localStorage.getItem('channelID') || '';
+  const channelID = typeof channel === 'string' ? channel : channel?.channelID || savedChannelID;
+  let markdown = source;
 
-const removeEmphasis = (markdown) => {
-  return markdown.replace(/＊太＊(.*?)・＊太＊/g, '$1');
-};
+  // Attachments are rendered as ordinary Markdown links/images. DOMPurify
+  // enforces the URL protocol allowlist after marked has generated HTML.
+  markdown = markdown.replace(/＊img＊([\s\S]*?)・＊img＊/g, (_match, url) => `![Image](${markdownUrl(url.trim())})`);
+  markdown = markdown.replace(/＊f＊([\s\S]*?)・＊f＊/g, (_match, url) => `[Download file](${markdownUrl(url.trim())})`);
+  markdown = markdown.replace(/「([\s\S]*?)」（([\s\S]*?)）/g, (_match, label, url) => `[${escapeMarkdownText(label)}](${markdownUrl(url)})`);
+  markdown = markdown.replace(/＠＠([\s\S]*?)・＠＠/g, (_match, name) => {
+    const href = `/people/${encodeURIComponent(channelID)}/${encodeURIComponent(name)}/`;
+    return `<a href="${href}"><span class="mentioned" contenteditable="false">@${name.replace(/[&<>"']/g, '')}</span></a>`;
+  });
+  markdown = markdown.replace(/色＊赤([\s\S]*?)赤＊色/g, '<span class="markdown-red">$1</span>');
+  markdown = markdown.replace(/＊太＊([\s\S]*?)・＊太＊/g, '**$1**');
+  markdown = markdown.replace(/〜〜([\s\S]*?)・〜〜/g, '~~$1~~');
+  markdown = markdown.replace(/＜quote＞([\s\S]*?)＜・quote＞/g, (_match, quote) => quote.split('\n').map((line) => `> ${line}`).join('\n'));
+  markdown = markdown.replace(/｀｀｀([\s\S]*?)・｀｀｀/g, (_match, code) => `\n\`\`\`\n${code}\n\`\`\`\n`);
+  markdown = markdown.replace(/＊p＊([\s\S]*?)・＊p＊/g, '\n$1\n');
+  return markdown;
+}
 
-const removeStrikethrough = (markdown) => {
-  return markdown.replace(/〜〜(.*?)・〜〜/g, '$1');
-};
-
-const removeBlockquotes = (markdown) => {
-  return markdown.replace(/＜quote＞([^]*?)＜・quote＞/g, '$1');
-};
-
-const removeCodeBlocks = (markdown) => {
-  return markdown.replace(/｀｀｀([\s\S]*?)・｀｀｀/g, '$1');
-};
-
-const removeLinks = (markdown) => {
-  return markdown.replace(/「([^]*?)」（([^]*?)）/g, '$1');
-};
-
-const removeColors = (markdown) => {
-  return markdown.replace(/色＊赤([^]*?)赤＊色/g, '$1');
-};
-
-const removeMention = (markdown) => {
-  return markdown.replace(/＠＠([^]*?)・＠＠/g, '$1');
-};
-
-const removeParagraphs = (markdown) => {
-  return markdown.replace(/＊p＊([^]*?)・＊p＊/g, '$1');
+export const removeMark = (value) => {
+  return String(value || '')
+    .replace(/<[A-Za-z!/][^>]*>/g, '')
+    .replace(/＊(?:太|p)＊|・＊(?:太|p)＊/g, '')
+    .replace(/〜〜|・〜〜|＜quote＞|＜・quote＞|｀｀｀|・｀｀｀|色＊赤|赤＊色/g, '')
+    .replace(/＠＠|・＠＠/g, '')
+    .replace(/「([\s\S]*?)」（[\s\S]*?）/g, '$1')
+    .replace(/!?(\[)([^\]]*)\]\([^)]*\)/g, '$2')
+    .replace(/[`*_~>#]/g, '')
+    .replace(/\r?\n/g, ' ')
+    .trim();
 };

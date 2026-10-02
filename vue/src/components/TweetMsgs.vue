@@ -207,7 +207,7 @@ const sendEmoji = async (message, emoji) => {
         </div>
         <div v-if="!message.editFlg" colspan="3" class="ql-container ql-snow" >
           <div
-            v-html="markdownToHtml(message.messageTxt)"
+            v-html="markdownToHtml(message.messageTxt, { channelID: props.threadHead?.channelID })"
             class="ql-editor"></div>
           <template v-for="emoji in calcEmoji(message.emojis, nickname)">
             <template v-if="emojiPath(emoji.emoji)">

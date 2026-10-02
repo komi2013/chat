@@ -5,12 +5,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Bookmark
@@ -24,19 +26,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.chat.android.core.util.toAbsoluteImageUrl
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.ui.platform.LocalUriHandler
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.feature.channel.DbAlias
 import com.chat.android.feature.channel.DbGroup
 import com.chat.android.feature.channel.MarkdownCodec
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 /** 「グループなし」を表す選択肢（vue の emptyGroup と同じ）。 */
 private val NO_GROUP = DbGroup(
@@ -52,10 +58,10 @@ private val NO_GROUP = DbGroup(
  * markdown.js と同じ記号を使う。Triple(表示名, 開始記号, 終了記号)。
  * リンクだけは選択文字列を「」で挟み、（）内にURLを書かせるため特別扱いする。 */
 private val FORMAT_BUTTONS = listOf(
-    Triple("太字", "＊太＊", "・＊太＊"),
-    Triple("取消", "〜〜", "・〜〜"),
-    Triple("引用", "＜quote＞", "＜・quote＞"),
-    Triple("コード", "｀｀｀", "・｀｀｀"),
+    Triple("太字", "**", "**"),
+    Triple("取消", "~~", "~~"),
+    Triple("引用", "> ", "\n"),
+    Triple("コード", "```\n", "\n```"),
     Triple("赤", "色＊赤", "赤＊色")
 )
 
@@ -73,6 +79,7 @@ fun EditBox(
     initialText: String,
     canPost: Boolean,
     isPosting: Boolean,
+    postError: String? = null,
     isDm: Boolean,
     isNewThread: Boolean,
     myname: String,
@@ -90,9 +97,9 @@ fun EditBox(
     onCancelEdit: () -> Unit
 ) {
     // Vue と同じく、編集時は素のテキストを入力欄に読み込む。
-    // markdown のタグを含めたまま編集できるようにするため removeMark は使用しない。
-    val plainInitial = remember(editingMessageId) { initialText }
-    var field by remember(editingMessageId) { mutableStateOf(TextFieldValue(plainInitial)) }
+    // initialText が変わったとき（返信時など）にもリセットされるようにする。
+    val plainInitial = remember(editingMessageId, initialText) { initialText }
+    var field by remember(editingMessageId, initialText) { mutableStateOf(TextFieldValue(plainInitial)) }
     var editMode by remember(editingMessageId) { mutableStateOf(editingMessageId != null) }
     var task by remember(editingMessageId) { mutableStateOf(false) }
     var selectedGroup by remember(editingMessageId) { mutableStateOf<DbGroup?>(null) }
@@ -101,7 +108,21 @@ fun EditBox(
     var fileNames by remember(editingMessageId) { mutableStateOf<List<String>>(emptyList()) }
     var showMentions by remember { mutableStateOf(false) }
     var mentionQuery by remember { mutableStateOf("") }
+    var wasPosting by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    LaunchedEffect(isPosting, postError) {
+        if (wasPosting && !isPosting && postError == null) {
+            field = TextFieldValue("")
+            task = false
+            selectedGroup = null
+            files = emptyList()
+            fileNames = emptyList()
+            showMentions = false
+            mentionQuery = ""
+        }
+        wasPosting = isPosting
+    }
 
     // 自分が所属するグループだけ選べる（vue の myGroups と同じ）。先頭は「グループなし」。
     val myGroups = remember(groups, myname) {
@@ -109,8 +130,8 @@ fun EditBox(
     }
     // ＠メンションの候補（エイリアス＋グループ。vue の mention source と同じ）。
     val mentionTargets = remember(aliases, groups) {
-        val aliasItems = aliases.map { MentionTarget(it.aliasName, it.aliasImg) }
-        val groupItems = groups.map { MentionTarget(it.groupName, it.groupImg) }
+        val aliasItems = aliases.map { MentionTarget(it.aliasName, it.aliasImg, isGroup = false) }
+        val groupItems = groups.map { MentionTarget(it.groupName, it.groupImg, isGroup = true) }
         aliasItems + groupItems
     }
     val mentionSuggestions = remember(mentionQuery, mentionTargets) {
@@ -122,7 +143,10 @@ fun EditBox(
         // 直前の ＠ からカーソルまでの文字列を候補の絞り込みに使う。
         val cursor = value.selection.start.coerceIn(0, value.text.length)
         val before = value.text.take(cursor)
-        val at = before.lastIndexOf('＠')
+        var at = before.lastIndexOfAny(charArrayOf('@', '＠'))
+        while (at > 0 && (before[at - 1] == '＠' || before[at - 1] == '・')) {
+            at = before.lastIndexOfAny(charArrayOf('@', '＠'), at - 1)
+        }
         if (at < 0) {
             showMentions = false
             mentionQuery = ""
@@ -130,7 +154,7 @@ fun EditBox(
         }
         val query = before.substring(at + 1, cursor)
         // 空白や改行を含む場合はメンション入力中とみなさない（quill-mention 相当）。
-        if (query.contains(' ') || query.contains('　') || query.contains('\n')) {
+        if (query.contains(' ') || query.contains('　') || query.contains('\n') || query.contains('・')) {
             showMentions = false
             mentionQuery = ""
             return
@@ -143,7 +167,7 @@ fun EditBox(
         // カーソル直前の ＠... を ＠＠名前・＠＠ に置き換える。
         val cursor = field.selection.start.coerceIn(0, field.text.length)
         val before = field.text.take(cursor)
-        val at = before.lastIndexOf('＠')
+        val at = before.lastIndexOfAny(charArrayOf('@', '＠'))
         val start = if (at >= 0) at else cursor
         val mention = "＠＠${target.name}・＠＠"
         val newText = field.text.replaceRange(start, cursor, mention)
@@ -187,9 +211,26 @@ fun EditBox(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 投稿ボタンは右端ではなく左端に置く（横スクロールで隠れないように）。
+            Button(
+                onClick = {
+                    editMode = false
+                    onPost(field.text, editingMessageId, false, task, selectedGroup, files)
+                },
+                enabled = !isPosting &&
+                    (field.text.isNotBlank() || editMode || files.isNotEmpty())
+            ) {
+                if (isPosting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Send, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (editMode) "更新" else "投稿")
+                }
+            }
             FORMAT_BUTTONS.forEach { (label, open, close) ->
                 OutlinedButton(
-                    onClick = { field = wrapSelection(field, open, close) },
+                    onClick = { field = if (label == "引用") quoteSelection(field) else wrapSelection(field, open, close) },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                 ) { Text(label, style = MaterialTheme.typography.labelSmall) }
             }
@@ -230,40 +271,8 @@ fun EditBox(
                     Icon(Icons.Default.Call, contentDescription = "通話")
                 }
             }
-            Button(
-                onClick = {
-                    editMode = false
-                    onPost(field.text, editingMessageId, false, task, selectedGroup, files)
-                },
-                enabled = !isPosting &&
-                    (field.text.isNotBlank() || editMode || files.isNotEmpty())
-            ) {
-                if (isPosting) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Send, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (editMode) "更新" else "投稿")
-                }
-            }
         }
 
-        OutlinedTextField(
-            value = field,
-            onValueChange = { newValue ->
-                field = newValue
-                refreshMentionState(newValue)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            placeholder = { Text(if (editMode) "メッセージを編集" else "メッセージを入力") },
-            visualTransformation = { text ->
-                androidx.compose.ui.text.input.TransformedText(
-                    MarkdownCodec.styleTags(text.text),
-                    androidx.compose.ui.text.input.OffsetMapping.Identity
-                )
-            }
-        )
         if (showMentions && mentionSuggestions.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier
@@ -284,11 +293,54 @@ fun EditBox(
                     ) {
                         AliasAvatar(aliasImg = target.icon, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(target.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            target.name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            if (target.isGroup) "グループ" else "ユーザー",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
         }
+
+        OutlinedTextField(
+            value = field,
+            onValueChange = { newValue ->
+                val oldText = field.text
+                field = removeEmptyFormatting(newValue)
+                val newText = field.text
+
+                // 「＠」が入力されたとき、または「＠」以降で入力中のときにメンションを表示
+                if (newText.length > oldText.length) {
+                    val cursor = field.selection.start
+                    if (cursor > 0) {
+                        val added = newText.substring(cursor - 1, cursor)
+                        if (added == "＠" || added == "@") {
+                            // @ も ＠ に変換して扱う（vue parity）
+                            if (added == "@") {
+                                field = field.copy(text = newText.replaceRange(cursor - 1, cursor, "＠"))
+                            }
+                            showMentions = true
+                        }
+                    }
+                }
+                refreshMentionState(field)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            placeholder = { Text(if (editMode) "メッセージを編集" else "メッセージを入力") },
+            visualTransformation = { text ->
+                androidx.compose.ui.text.input.TransformedText(
+                    MarkdownCodec.styleTags(text.text),
+                    androidx.compose.ui.text.input.OffsetMapping.Identity
+                )
+            }
+        )
         if (editMode) {
             TextButton(onClick = onCancelEdit) { Text("編集をやめる") }
         }
@@ -379,8 +431,69 @@ private fun wrapSelection(value: TextFieldValue, open: String, close: String): T
     )
 }
 
+private fun quoteSelection(value: TextFieldValue): TextFieldValue {
+    val text = value.text
+    val start = value.selection.start.coerceIn(0, text.length)
+    val end = value.selection.end.coerceIn(0, text.length)
+    val (from, to) = if (start <= end) start to end else end to start
+    if (from == to) {
+        val newText = text.substring(0, from) + "> " + text.substring(from)
+        return value.copy(text = newText, selection = TextRange(from + 2))
+    }
+    val selected = text.substring(from, to)
+    val quoted = selected.lineSequence().joinToString("\n") { "> $it" }
+    val newText = text.substring(0, from) + quoted + text.substring(to)
+    val insertedPrefixLength = quoted.length - selected.length
+    return value.copy(
+        text = newText,
+        selection = TextRange(from + 2, to + insertedPrefixLength)
+    )
+}
+
+/** Remove empty formatting pairs after the user deletes their formatted text. */
+private fun removeEmptyFormatting(value: TextFieldValue): TextFieldValue {
+    var text = value.text
+    var selectionStart = value.selection.start
+    var selectionEnd = value.selection.end
+    val emptyPairs = listOf(
+        "****",
+        "~~~~",
+        "> \n",
+        "```\n\n```",
+        "＊太＊・＊太＊",
+        "〜〜・〜〜",
+        "＜quote＞＜・quote＞",
+        "｀｀｀・｀｀｀",
+        "色＊赤赤＊色"
+    )
+
+    var changed: Boolean
+    do {
+        changed = false
+        for (pair in emptyPairs) {
+            val index = text.indexOf(pair)
+            if (index < 0) continue
+            val end = index + pair.length
+            fun adjust(offset: Int): Int = when {
+                offset <= index -> offset
+                offset >= end -> offset - pair.length
+                else -> index
+            }
+            selectionStart = adjust(selectionStart)
+            selectionEnd = adjust(selectionEnd)
+            text = text.removeRange(index, end)
+            changed = true
+        }
+    } while (changed)
+
+    return value.copy(
+        text = text,
+        selection = TextRange(selectionStart.coerceAtMost(text.length), selectionEnd.coerceAtMost(text.length))
+    )
+}
+
 /** メンション候補の1件（エイリアス名またはグループ名とそのアイコン）。 */
-private data class MentionTarget(val name: String, val icon: String)
+private data class MentionTarget(val name: String, val icon: String, val isGroup: Boolean)
 
 /**
  * 選択文字列を「選択」（）のリンク形にする。
@@ -392,16 +505,16 @@ private fun wrapLink(value: TextFieldValue): TextFieldValue {
     val end = value.selection.end.coerceIn(0, text.length)
     val (from, to) = if (start <= end) start to end else end to start
     if (from == to) {
-        val insert = "「」（）"
+        val insert = "[]()"
         val newText = text.substring(0, from) + insert + text.substring(from)
-        // （ の直後（＝ ）の前）にカーソルを置く
-        val cursor = from + "「」".length + 1
+        // Put the cursor inside the destination parentheses.
+        val cursor = from + "[](".length
         return value.copy(text = newText, selection = TextRange(cursor))
     }
     val selected = text.substring(from, to)
-    val insert = "「$selected」（）"
+    val insert = "[$selected]()"
     val newText = text.substring(0, from) + insert + text.substring(to)
-    // （）の中にカーソル
+    // Place the cursor inside the destination parentheses.
     val cursor = from + insert.length - 1
     return value.copy(text = newText, selection = TextRange(cursor))
 }
@@ -420,18 +533,103 @@ private fun insertAtCursor(value: TextFieldValue, insert: String): TextFieldValu
 /** 本文をComposeのテキストへ描画する（MarkdownCodec を利用）。リンクのタップに対応。 */
 @Composable
 fun ThreadMessageText(text: String, modifier: Modifier = Modifier) {
-    val annotatedString = MarkdownCodec.toAnnotatedString(text)
+    val parts = remember(text) { parseThreadMessageParts(text) }
     val uriHandler = LocalUriHandler.current
 
-    ClickableText(
-        text = annotatedString,
-        modifier = modifier,
-        style = LocalTextStyle.current.copy(color = LocalContentColor.current),
-        onClick = { offset ->
-            annotatedString.getStringAnnotations("URL", offset, offset)
-                .firstOrNull()?.let { annotation ->
-                    runCatching { uriHandler.openUri(annotation.item) }
+    Column(modifier = modifier) {
+        parts.forEach { part ->
+            when (part.kind) {
+                ThreadMessagePartKind.TEXT -> {
+                    val annotated = MarkdownCodec.toAnnotatedString(part.value)
+                    ClickableText(
+                        text = annotated,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = LocalTextStyle.current.copy(color = LocalContentColor.current),
+                        onClick = { offset ->
+                            annotated.getStringAnnotations("URL", offset, offset)
+                                .firstOrNull()?.let { annotation ->
+                                    val url = annotation.item.trim()
+                                    if (url.startsWith("https://", true) || url.startsWith("http://", true) || url.startsWith("mailto:", true) || url.startsWith("tel:", true) || url.startsWith("/")) {
+                                        runCatching { uriHandler.openUri(url.toAbsoluteImageUrl()) }
+                                    }
+                                }
+                        }
+                    )
                 }
+                ThreadMessagePartKind.IMAGE -> {
+                    AsyncImage(
+                        model = part.value.toAbsoluteImageUrl(),
+                        contentDescription = "Attached image",
+                        modifier = Modifier
+                            .padding(vertical = 4.dp)
+                            .sizeIn(maxWidth = 250.dp, maxHeight = 250.dp)
+                            .wrapContentSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                ThreadMessagePartKind.FILE -> {
+                    val fileName = runCatching {
+                        URLDecoder.decode(
+                            part.value.substringBefore('?').substringAfterLast('/'),
+                            StandardCharsets.UTF_8.name()
+                        )
+                    }.getOrDefault("Download file").ifBlank { "Download file" }
+                    Text(
+                        text = "📎 $fileName",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable {
+                            if (isSafeMessageUrl(part.value)) {
+                                runCatching { uriHandler.openUri(part.value.toAbsoluteImageUrl()) }
+                            }
+                        }.padding(vertical = 4.dp)
+                    )
+                }
+            }
         }
-    )
+    }
+}
+
+private enum class ThreadMessagePartKind { TEXT, IMAGE, FILE }
+
+private data class ThreadMessagePart(val kind: ThreadMessagePartKind, val value: String)
+
+private fun parseThreadMessageParts(text: String): List<ThreadMessagePart> {
+    val parts = mutableListOf<ThreadMessagePart>()
+    val attachmentPattern = Regex("＊(img|f)＊(.*?)・＊\\1＊|!\\[[^\\]]*\\]\\(([^)]+)\\)", RegexOption.DOT_MATCHES_ALL)
+    var cursor = 0
+    attachmentPattern.findAll(text).forEach { match ->
+        if (match.range.first > cursor) {
+            parts += ThreadMessagePart(
+                ThreadMessagePartKind.TEXT,
+                text.substring(cursor, match.range.first)
+            )
+        }
+        val markdownImageUrl = match.groups[3]?.value
+        val attachmentUrl = (markdownImageUrl ?: match.groupValues[2]).trim()
+        val isImage = markdownImageUrl != null || match.groupValues[1] == "img"
+        if (isImage && !isSafeMessageUrl(attachmentUrl, allowMailAndTel = false)) {
+            parts += ThreadMessagePart(ThreadMessagePartKind.TEXT, match.value)
+            cursor = match.range.last + 1
+            return@forEach
+        }
+        val kind = if (isImage) {
+            ThreadMessagePartKind.IMAGE
+        } else {
+            ThreadMessagePartKind.FILE
+        }
+        parts += ThreadMessagePart(kind, attachmentUrl)
+        cursor = match.range.last + 1
+    }
+    if (cursor < text.length || parts.isEmpty()) {
+        parts += ThreadMessagePart(ThreadMessagePartKind.TEXT, text.substring(cursor))
+    }
+    return parts
+}
+
+private fun isSafeMessageUrl(value: String, allowMailAndTel: Boolean = true): Boolean {
+    val url = value.trim()
+    if (url.startsWith("https://", true) || url.startsWith("http://", true)) return true
+    if (url.startsWith("/") && !url.startsWith("//")) return true
+    if (allowMailAndTel && (url.startsWith("mailto:", true) || url.startsWith("tel:", true))) return true
+    return !Regex("^[a-z][a-z0-9+.-]*:", RegexOption.IGNORE_CASE).containsMatchIn(url) && !url.startsWith("//")
 }

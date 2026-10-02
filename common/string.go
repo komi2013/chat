@@ -2,11 +2,10 @@ package common
 
 import (
 	"math/rand"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
-	"regexp"
-
 )
 
 const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -103,17 +102,14 @@ func SliceStrContains(slice []string, target string) bool {
 }
 
 func GenerateTitle(messageTxt string) string {
-	// HTMLタグ除去
-	re := regexp.MustCompile(`<[^>]*>`)
-	clean := re.ReplaceAllString(messageTxt, "")
-
-	// 改行などの削除
-	clean = regexp.MustCompile(`\r?\n`).ReplaceAllString(clean, "")
-
-	// 不要な記号や装飾などの軽い除去（JSの removeMark 相当の一部）
-	clean = regexp.MustCompile(`[*_~>`+"`"+`]`).ReplaceAllString(clean, "")
-
-	// 必要に応じてさらに特殊なMarkdown除去処理を追加可
+	clean := regexp.MustCompile(`<[A-Za-z!/][^>]*>`).ReplaceAllString(messageTxt, "")
+	clean = regexp.MustCompile(`＊(?:太|p)＊|・＊(?:太|p)＊|〜〜|・〜〜|＜/?quote＞|＜・quote＞|｀｀｀|・｀｀｀|色＊赤|赤＊色`).ReplaceAllString(clean, "")
+	clean = regexp.MustCompile(`＠＠|・＠＠`).ReplaceAllString(clean, "")
+	clean = regexp.MustCompile(`「([^」]*)」（[^）]*）`).ReplaceAllString(clean, "$1")
+	clean = regexp.MustCompile(`!?(\[)([^\]]*)\]\([^)]*\)`).ReplaceAllString(clean, "$2")
+	clean = regexp.MustCompile(`(?m)^\s{0,3}#{1,6}\s+|^\s*>\s?`).ReplaceAllString(clean, "")
+	clean = regexp.MustCompile(`[*_~` + "`" + `]`).ReplaceAllString(clean, "")
+	clean = strings.Join(strings.Fields(clean), " ")
 
 	// 30文字に制限（マルチバイト対応）
 	runes := []rune(clean)

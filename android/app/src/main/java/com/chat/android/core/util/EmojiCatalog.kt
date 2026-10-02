@@ -51,8 +51,8 @@ object EmojiCatalog {
     fun rotateEmoji(context: Context, emoji: String) {
         val current = masterEmojis(context).filter { it != emoji }.toMutableList()
         current.add(0, emoji)
-        val imageEmojis = current.filter { it.startsWith("/img/") }
-        val normalEmojis = current.filter { !it.startsWith("/img/") }.take(35)
+        val imageEmojis = current.filter(::isImageEmoji)
+        val normalEmojis = current.filterNot(::isImageEmoji).take(35)
         val rotated = normalEmojis + imageEmojis
 
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -61,9 +61,11 @@ object EmojiCatalog {
             .apply()
     }
 
-    /** /img/... のような画像パスかどうか。 */
+    /** ローカル画像パスまたはユーザー指定のHTTP画像URLかどうか。 */
     fun isImageEmoji(value: String): Boolean =
-        Regex("^/[\\w.-]+(/[\\w.-]+)*$").matches(value)
+        Regex("^/[\\w.-]+(/[\\w.-]+)*$").matches(value) ||
+            value.startsWith("https://", ignoreCase = true) ||
+            value.startsWith("http://", ignoreCase = true)
 
     fun isEmojiInRange(value: String): Boolean {
         if (value.isEmpty()) return false
@@ -74,6 +76,7 @@ object EmojiCatalog {
     /** vue の validateEmoji と同じ。絵文字でないなら1文字まで許可する。 */
     fun validateEmoji(value: String): Boolean {
         if (value.isEmpty()) return false
+        if (isImageEmoji(value.trim())) return true
         return if (!isEmojiInRange(value) && value.length > 1) false else true
     }
 

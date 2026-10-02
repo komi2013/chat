@@ -2,6 +2,7 @@ package com.chat.android.core.network
 
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
@@ -49,9 +50,14 @@ object RetrofitClient {
     }
 
     private val okHttpClient = OkHttpClient.Builder()
+        .writeTimeout(2, TimeUnit.MINUTES)
+        .readTimeout(2, TimeUnit.MINUTES)
         .addInterceptor(headerInterceptor)
         .addInterceptor(loggingInterceptor)
         .build()
+
+    /** Coil must use the same session headers as Retrofit for protected upload URLs. */
+    fun authenticatedOkHttpClient(): OkHttpClient = okHttpClient
     
     private val retrofit by lazy {
         val gson = GsonBuilder()
