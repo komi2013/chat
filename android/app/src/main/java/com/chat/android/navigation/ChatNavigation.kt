@@ -21,6 +21,8 @@ import com.chat.android.feature.people.PeopleScreen
 import com.chat.android.feature.thread.ThreadScreen
 import com.chat.android.feature.profile.ProfileScreen
 import com.chat.android.feature.home.HomeScreen
+import com.chat.android.feature.calendar.CalendarScreen
+import com.chat.android.feature.calendar.CalendarEditScreen
 
 /**
  * @param inviteRequest 招待URLで起動/復帰したときの遷移指示。
@@ -55,6 +57,16 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                 
                 composable<HomeRoute> {
                     HomeScreen(navController = navController)
+                }
+
+                composable<CalendarRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<CalendarRoute>()
+                    CalendarScreen(navController = navController, date = route.date)
+                }
+
+                composable<CalendarEditRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<CalendarEditRoute>()
+                    CalendarEditScreen(navController = navController, id = route.id, dateTime = route.dateTime)
                 }
                 
                 composable<UserRoute> {

@@ -4,6 +4,8 @@ import android.text.Html
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -207,6 +209,78 @@ object MarkdownCodec {
                 }
             }
         }
+    }
+
+    /**
+     * Render bold text without showing its delimiters and map selection offsets
+     * back to the editable Markdown value.
+     */
+    fun editorText(text: String): TransformedText {
+        data class BoldRange(
+            val start: Int,
+            val contentStart: Int,
+            val contentEnd: Int,
+            val end: Int
+        )
+
+        val boldRanges = Regex(
+            "(?s)\\*\\*(.+?)\\*\\*|＊太＊(.*?)・＊太＊"
+        ).findAll(text).map { match ->
+            val content = match.groups[1] ?: match.groups[2]!!
+            BoldRange(match.range.first, content.range.first, content.range.last + 1, match.range.last + 1)
+        }.toList()
+
+        if (boldRanges.isEmpty()) {
+            return TransformedText(styleTags(text), OffsetMapping.Identity)
+        }
+
+        val styledSource = styleTags(text)
+        val hidden = BooleanArray(text.length)
+        val visibleSourceOffsets = ArrayList<Int>(text.length)
+        val transformed = buildAnnotatedString {
+            var sourceIndex = 0
+            for (range in boldRanges) {
+                append(styledSource.subSequence(sourceIndex, range.start))
+                append(styledSource.subSequence(range.contentStart, range.contentEnd))
+                for (index in range.start until range.contentStart) hidden[index] = true
+                for (index in range.contentEnd until range.end) hidden[index] = true
+                for (index in sourceIndex until range.start) visibleSourceOffsets.add(index)
+                for (index in range.contentStart until range.contentEnd) visibleSourceOffsets.add(index)
+                sourceIndex = range.end
+            }
+            append(styledSource.subSequence(sourceIndex, text.length))
+            for (index in sourceIndex until text.length) visibleSourceOffsets.add(index)
+        }
+
+        val originalToTransformed = IntArray(text.length + 1)
+        var visibleCount = 0
+        for (index in text.indices) {
+            originalToTransformed[index] = visibleCount
+            if (!hidden[index]) visibleCount++
+        }
+        originalToTransformed[text.length] = visibleCount
+
+        val transformedToOriginal = IntArray(visibleCount + 1)
+        transformedToOriginal[0] = visibleSourceOffsets.firstOrNull() ?: text.length
+        for (offset in 1..visibleCount) {
+            transformedToOriginal[offset] = visibleSourceOffsets[offset - 1] + 1
+        }
+        for (range in boldRanges) {
+            val start = originalToTransformed[range.contentStart]
+            val end = originalToTransformed[range.contentEnd]
+            transformedToOriginal[start] = range.contentStart
+            transformedToOriginal[end] = range.contentEnd
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int =
+                originalToTransformed[offset.coerceIn(0, text.length)]
+
+            override fun transformedToOriginal(offset: Int): Int =
+                transformedToOriginal[offset.coerceIn(0, visibleCount)]
+        }
+
+        return TransformedText(transformed, offsetMapping)
     }
 
     /**

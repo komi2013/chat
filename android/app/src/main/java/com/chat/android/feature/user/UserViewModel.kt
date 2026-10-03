@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_EMOJI
 import com.chat.android.feature.user.UserUiState.Companion.AVATAR_MODE_IMAGE
 import com.chat.android.feature.user.UserUiState.Companion.DEFAULT_EMOJI_AVATAR
+import com.chat.android.core.util.MarkdownFormatRepair
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.navigation.ProfileRoute
 
@@ -205,10 +206,11 @@ class UserViewModel @Inject constructor(
     }
 
     fun updateNickBio(value: TextFieldValue) {
-        val text = value.text.take(MAX_BIO_LENGTH)
+        val repaired = MarkdownFormatRepair.repair(value)
+        val text = repaired.text.take(MAX_BIO_LENGTH)
         val selection = TextRange(
-            value.selection.start.coerceAtMost(text.length),
-            value.selection.end.coerceAtMost(text.length)
+            repaired.selection.start.coerceAtMost(text.length),
+            repaired.selection.end.coerceAtMost(text.length)
         )
         _uiState.update { it.copy(nickBio = TextFieldValue(text, selection), isDraftDirty = true) }
     }

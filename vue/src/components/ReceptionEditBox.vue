@@ -7,7 +7,7 @@
       <button class="ql-code-block"></button>
       <button class="ql-link"></button>
       <select class="ql-color">
-        <option value="red">Red</option>
+        <option value="red">🔴</option>
         <option value=""></option>
       </select>
       <button class="emoji" @click="attach(messageID)">🌄</button>

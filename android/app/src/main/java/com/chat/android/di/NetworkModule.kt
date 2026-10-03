@@ -31,4 +31,10 @@ object NetworkModule {
     fun provideChannelApiService(): com.chat.android.feature.channel.ChannelApiService {
         return RetrofitClient.createService(com.chat.android.feature.channel.ChannelApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideCalendarApiService(): com.chat.android.feature.calendar.CalendarApiService {
+        return RetrofitClient.createService(com.chat.android.feature.calendar.CalendarApiService::class.java)
+    }
 }

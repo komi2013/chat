@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.repository.UserRepository
@@ -25,7 +26,12 @@ import com.chat.android.navigation.EntryFormListRoute
 import com.chat.android.navigation.EntryFormEditRoute
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.HomeRoute
+import com.chat.android.navigation.CalendarRoute
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 data class DrawerUiState(
     val isSignedIn: Boolean = false,
@@ -47,20 +53,20 @@ data class DrawerUiState(
 class DrawerViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
-    private val _uiState = mutableStateOf(readState())
+    private val _uiState = MutableStateFlow(DrawerUiState())
+    val uiState = _uiState.asStateFlow()
 
-    val uiState: State<DrawerUiState> = _uiState
-
-    private fun readState(): DrawerUiState = DrawerUiState(
-        isSignedIn = userRepository.isSignedIn(),
-        hasChannel = userRepository.getCurrentChannelId() != null
-    )
+    init {
+        viewModelScope.launch {
+            combine(userRepository.signInState, userRepository.currentChannelId) { isSignedIn, channelId ->
+                DrawerUiState(isSignedIn = isSignedIn, hasChannel = channelId != null)
+            }.collect { state -> _uiState.value = state }
+        }
+    }
 
     /** 画面遷移やサインイン状態の変化時に呼ぶ。 */
     fun refresh(channel: ChannelDetail? = null) {
-        _uiState.value = readState().copy(
-            hasChannel = (channel != null) || _uiState.value.hasChannel
-        )
+        if (channel != null) _uiState.value = _uiState.value.copy(hasChannel = true)
     }
 }
 
@@ -81,7 +87,7 @@ fun AppDrawer(
     viewModel: DrawerViewModel = hiltViewModel(),
     onClose: () -> Unit = {}
 ) {
-    val uiState = viewModel.uiState.value
+    val uiState by viewModel.uiState.collectAsState()
     
     LaunchedEffect(channel, aliases) {
         viewModel.refresh(channel)
@@ -108,6 +114,7 @@ fun AppDrawer(
                     onClick = {
                         when (item.route) {
                             "home" -> navController.navigate(HomeRoute)
+                            "calendar" -> navController.navigate(CalendarRoute())
                             "user" -> navController.navigate(UserRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
                             "channelCreate" -> navController.navigate(ChannelRoute(id = null))
@@ -216,6 +223,15 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
             route = "user",
             icon = Icons.Default.Person,
             requiresAuth = true
+        ))
+    }
+
+    if (uiState.isSignedIn) {
+        items.add(DrawerItem(
+            title = "カレンダー",
+            route = "calendar",
+            icon = Icons.Default.CalendarMonth,
+            requiresChannel = true
         ))
     }
     

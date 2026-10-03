@@ -346,11 +346,11 @@ private fun NicknameEditor(
         }
         Text("自己紹介 (${state.nickBio.text.length}/200)", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = { onFormat("＊太＊", "・＊太＊") }) { Text("太字") }
-            TextButton(onClick = { onFormat("〜〜", "・〜〜") }) { Text("取消") }
-            TextButton(onClick = { onFormat("＜quote＞", "＜・quote＞") }) { Text("引用") }
-            TextButton(onClick = { onFormat("｀｀｀", "・｀｀｀") }) { Text("コード") }
-            TextButton(onClick = { onFormat("色＊赤", "赤＊色") }) { Text("赤") }
+            TextButton(onClick = { onFormat("＊太＊", "・＊太＊") }) { Text("🅱️") }
+            TextButton(onClick = { onFormat("〜〜", "・〜〜") }) { Text("🆂") }
+            TextButton(onClick = { onFormat("＜quote＞", "＜・quote＞") }) { Text("💬") }
+            TextButton(onClick = { onFormat("｀｀｀", "・｀｀｀") }) { Text("💻") }
+            TextButton(onClick = { onFormat("色＊赤", "赤＊色") }) { Text("🔴") }
         }
         OutlinedTextField(
             value = state.nickBio,

@@ -18,6 +18,12 @@ data class EntryFormEditRoute(val id: String? = null, val formJson: String? = nu
 data class EntryFormAnswerRoute(val id: String)
 
 @Serializable
+data class CalendarRoute(val date: String? = null)
+
+@Serializable
+data class CalendarEditRoute(val id: String? = null, val dateTime: String? = null)
+
+@Serializable
 data class ChannelRoute(val id: String? = null)
 
 /** /profile/{id}/?code=... に対応するルート。 */

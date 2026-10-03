@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.chat.android.core.util.MarkdownFormatRepair
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.feature.channel.DbAlias
@@ -55,14 +56,22 @@ private val NO_GROUP = DbGroup(
 )
 
 /** 装飾ツールバーのボタン（Vue の Quill ツールバー相当）。
- * markdown.js と同じ記号を使う。Triple(表示名, 開始記号, 終了記号)。
+ * emoji は表示アイコン、open/close は挿入する記号（markdown.js と同じ）。
+ * 引用だけは選択行の先頭に「> 」を付ける専用処理にするため isQuote で区別する。
  * リンクだけは選択文字列を「」で挟み、（）内にURLを書かせるため特別扱いする。 */
+private data class FormatButton(
+    val emoji: String,
+    val open: String,
+    val close: String,
+    val isQuote: Boolean = false
+)
+
 private val FORMAT_BUTTONS = listOf(
-    Triple("太字", "**", "**"),
-    Triple("取消", "~~", "~~"),
-    Triple("引用", "> ", "\n"),
-    Triple("コード", "```\n", "\n```"),
-    Triple("赤", "色＊赤", "赤＊色")
+    FormatButton("🅱️", "**", "**"),
+    FormatButton("🆂", "~~", "~~"),
+    FormatButton("💬", "> ", "\n", isQuote = true),
+    FormatButton("💻", "```\n", "\n```"),
+    FormatButton("🔴", "色＊赤", "赤＊色")
 )
 
 /**
@@ -228,18 +237,18 @@ fun EditBox(
                     Text(if (editMode) "更新" else "投稿")
                 }
             }
-            FORMAT_BUTTONS.forEach { (label, open, close) ->
+            FORMAT_BUTTONS.forEach { button ->
                 OutlinedButton(
-                    onClick = { field = if (label == "引用") quoteSelection(field) else wrapSelection(field, open, close) },
+                    onClick = { field = if (button.isQuote) quoteSelection(field) else wrapSelection(field, button.open, button.close) },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) { Text(label, style = MaterialTheme.typography.labelSmall) }
+                ) { Text(button.emoji, style = MaterialTheme.typography.labelSmall) }
             }
             // リンクは「選択文字列」（URL）の形（markdown.js の applyLinks の逆）にする。
             // 選択なしのときはカーソル位置に「」（）を挿入し、（）の中にカーソルを置く。
             OutlinedButton(
                 onClick = { field = wrapLink(field) },
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) { Text("リンク", style = MaterialTheme.typography.labelSmall) }
+            ) { Text("🔗", style = MaterialTheme.typography.labelSmall) }
             IconButton(onClick = { filePicker.launch("*/*") }) {
                 Icon(Icons.Default.AttachFile, contentDescription = "添付")
             }
@@ -312,7 +321,7 @@ fun EditBox(
             value = field,
             onValueChange = { newValue ->
                 val oldText = field.text
-                field = removeEmptyFormatting(newValue)
+                field = MarkdownFormatRepair.repair(newValue)
                 val newText = field.text
 
                 // 「＠」が入力されたとき、または「＠」以降で入力中のときにメンションを表示
@@ -334,12 +343,7 @@ fun EditBox(
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             placeholder = { Text(if (editMode) "メッセージを編集" else "メッセージを入力") },
-            visualTransformation = { text ->
-                androidx.compose.ui.text.input.TransformedText(
-                    MarkdownCodec.styleTags(text.text),
-                    androidx.compose.ui.text.input.OffsetMapping.Identity
-                )
-            }
+            visualTransformation = { text -> MarkdownCodec.editorText(text.text) }
         )
         if (editMode) {
             TextButton(onClick = onCancelEdit) { Text("編集をやめる") }
@@ -447,48 +451,6 @@ private fun quoteSelection(value: TextFieldValue): TextFieldValue {
     return value.copy(
         text = newText,
         selection = TextRange(from + 2, to + insertedPrefixLength)
-    )
-}
-
-/** Remove empty formatting pairs after the user deletes their formatted text. */
-private fun removeEmptyFormatting(value: TextFieldValue): TextFieldValue {
-    var text = value.text
-    var selectionStart = value.selection.start
-    var selectionEnd = value.selection.end
-    val emptyPairs = listOf(
-        "****",
-        "~~~~",
-        "> \n",
-        "```\n\n```",
-        "＊太＊・＊太＊",
-        "〜〜・〜〜",
-        "＜quote＞＜・quote＞",
-        "｀｀｀・｀｀｀",
-        "色＊赤赤＊色"
-    )
-
-    var changed: Boolean
-    do {
-        changed = false
-        for (pair in emptyPairs) {
-            val index = text.indexOf(pair)
-            if (index < 0) continue
-            val end = index + pair.length
-            fun adjust(offset: Int): Int = when {
-                offset <= index -> offset
-                offset >= end -> offset - pair.length
-                else -> index
-            }
-            selectionStart = adjust(selectionStart)
-            selectionEnd = adjust(selectionEnd)
-            text = text.removeRange(index, end)
-            changed = true
-        }
-    } while (changed)
-
-    return value.copy(
-        text = text,
-        selection = TextRange(selectionStart.coerceAtMost(text.length), selectionEnd.coerceAtMost(text.length))
     )
 }
 

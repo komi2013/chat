@@ -40,6 +40,10 @@ class UserRepository @Inject constructor(
 
     private val _userProfile = MutableStateFlow<UserProfileEntity?>(null)
     private val _nicknames = MutableStateFlow<List<UserNicknameEntity>>(emptyList())
+    private val _signInState = MutableStateFlow(isSignedIn())
+    val signInState = _signInState.asStateFlow()
+    private val _currentChannelId = MutableStateFlow(getCurrentChannelId())
+    val currentChannelId = _currentChannelId.asStateFlow()
 
     init {
         // Initial load
@@ -292,6 +296,7 @@ class UserRepository @Inject constructor(
         sharedPreferences.edit()
             .putString(CSRF_TOKEN_KEY, token)
             .apply()
+        _signInState.value = token.isNotEmpty()
     }
 
     fun getNickname(): String? {
@@ -313,6 +318,7 @@ class UserRepository @Inject constructor(
         sharedPreferences.edit()
             .putString(CHANNEL_ID_KEY, channelId)
             .apply()
+        _currentChannelId.value = channelId
     }
 
     fun getTO(): String? {
@@ -355,6 +361,8 @@ class UserRepository @Inject constructor(
             .remove(CHANNEL_ID_KEY)
             .remove(TO_KEY)
             .apply()
+        _signInState.value = false
+        _currentChannelId.value = null
     }
 
     fun isSignedIn(): Boolean {

@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.BuildConfig
 import com.chat.android.core.ui.component.QrCodeImage
+import com.chat.android.core.util.MarkdownFormatRepair
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.navigation.GroupRoute
 import com.chat.android.navigation.PeopleRoute
@@ -181,8 +182,8 @@ fun ChannelScreen(
                 OutlinedTextField(
                     value = descriptionField,
                     onValueChange = {
-                        descriptionField = it
-                        viewModel.onDescriptionChange(it.text)
+                        descriptionField = MarkdownFormatRepair.repair(it)
+                        viewModel.onDescriptionChange(descriptionField.text)
                     },
                     label = { Text("説明") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp),
@@ -648,16 +649,17 @@ private fun LazyListScope.GroupSection(
     }
 }
 
-/** 説明文の装飾ツールバー（Vue の toolbar 相当）。 */
+/** 説明文の装飾ツールバー（Vue の toolbar 相当）。
+ * emoji は表示アイコン、open/close は挿入する記号。 */
 @Composable
 private fun MarkdownToolbar(enabled: Boolean, onWrap: (String, String) -> Unit) {
     val buttons = listOf(
-        "＊太＊" to "・＊太＊",
-        "〜〜" to "・〜〜",
-        "＜quote＞" to "＜・quote＞",
-        "｀｀｀" to "・｀｀｀",
-        "「" to "」（）",
-        "色＊赤" to "赤＊色"
+        Triple("🅱️", "＊太＊", "・＊太＊"),
+        Triple("🆂", "〜〜", "・〜〜"),
+        Triple("💬", "＜quote＞", "＜・quote＞"),
+        Triple("💻", "｀｀｀", "・｀｀｀"),
+        Triple("🔗", "「", "」（）"),
+        Triple("🔴", "色＊赤", "赤＊色")
     )
     Row(
         modifier = Modifier
@@ -665,9 +667,9 @@ private fun MarkdownToolbar(enabled: Boolean, onWrap: (String, String) -> Unit) 
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        buttons.forEach { (open, close) ->
+        buttons.forEach { (emoji, open, close) ->
             OutlinedButton(onClick = { onWrap(open, close) }, enabled = enabled) {
-                Text(open.take(3), style = MaterialTheme.typography.labelSmall)
+                Text(emoji, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
