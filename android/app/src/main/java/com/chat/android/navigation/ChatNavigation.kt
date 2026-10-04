@@ -8,7 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.chat.android.core.ui.component.DrawerLayout
+import com.chat.android.core.ui.component.DrawerViewModel
 import com.chat.android.feature.sign.SignInScreen
 import com.chat.android.feature.user.UserScreen
 import com.chat.android.feature.entryform.EntryFormListScreen
@@ -31,6 +33,8 @@ import com.chat.android.feature.calendar.CalendarEditScreen
 @Composable
 fun ChatNavigation(inviteRequest: InviteRequest? = null) {
     val navController = rememberNavController()
+    // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する（Activity スコープ）。
+    val drawerViewModel: DrawerViewModel = hiltViewModel()
 
     // 招待URLで起動された場合、その参加画面へ遷移する。
     // キーに inviteRequest を使うことで、起動後にさらに招待リンクを
@@ -47,7 +51,8 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
     }
 
     DrawerLayout(
-        navController = navController
+        navController = navController,
+        viewModel = drawerViewModel
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             NavHost(navController = navController, startDestination = "login") {
@@ -96,6 +101,9 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
 
                 composable<ChannelRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<ChannelRoute>()
+                    LaunchedEffect(route.id) {
+                        route.id?.let { drawerViewModel.onChannelOpened(it) }
+                    }
                     ChannelScreen(
                         navController = navController,
                         id = route.id
@@ -130,6 +138,9 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
 
                 composable<ThreadRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<ThreadRoute>()
+                    LaunchedEffect(route.channelID) {
+                        route.channelID?.let { drawerViewModel.onChannelOpened(it) }
+                    }
                     ThreadScreen(
                         navController = navController,
                         channelID = route.channelID,

@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.network.ChannelDetail
 import com.chat.android.core.network.NicknameResponse
@@ -18,6 +19,7 @@ fun DrawerLayout(
     navController: NavController,
     channel: ChannelDetail? = null,
     aliases: List<NicknameResponse> = emptyList(),
+    viewModel: DrawerViewModel = hiltViewModel(),
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -30,6 +32,7 @@ fun DrawerLayout(
                 navController = navController,
                 channel = channel,
                 aliases = aliases,
+                viewModel = viewModel,
                 onClose = { 
                     scope.launch { drawerState.close() }
                 }

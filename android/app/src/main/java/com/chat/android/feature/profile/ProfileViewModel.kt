@@ -1,7 +1,13 @@
 package com.chat.android.feature.profile
 
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.chat.android.core.util.RandomAvatar
 import com.chat.android.feature.channel.ChannelRepository
 import com.chat.android.feature.channel.DbAlias
@@ -41,7 +47,8 @@ data class ProfileUiState(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val repository: ChannelRepository
+    private val repository: ChannelRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -107,6 +114,33 @@ class ProfileViewModel @Inject constructor(
     fun onNameChange(name: String) { _uiState.value = _uiState.value.copy(aliasName = name) }
     fun onBioChange(bio: String) { _uiState.value = _uiState.value.copy(aliasBio = bio) }
     fun onImgChange(img: String) { _uiState.value = _uiState.value.copy(aliasImg = img) }
+    fun setImageFromUri(uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("画像を読み込めませんでした")
+                    require(bytes.isNotEmpty()) { "画像を読み込めませんでした" }
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        ?: error("画像形式を読み込めませんでした")
+                    try {
+                        val scale = 512f / maxOf(bitmap.width, bitmap.height)
+                        val resized = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(
+                            bitmap, (bitmap.width * scale).toInt().coerceAtLeast(1),
+                            (bitmap.height * scale).toInt().coerceAtLeast(1), true
+                        ) else bitmap
+                        try {
+                            val output = java.io.ByteArrayOutputStream()
+                            resized.compress(android.graphics.Bitmap.CompressFormat.JPEG, 88, output)
+                            "data:image/jpeg;base64,${Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)}"
+                        } finally { if (resized !== bitmap) resized.recycle() }
+                    } finally { bitmap.recycle() }
+                }
+            }.onSuccess(::onImgChange).onFailure {
+                _uiState.value = _uiState.value.copy(error = it.message ?: "画像を読み込めませんでした")
+            }
+        }
+    }
     fun onErrorDismiss() { _uiState.value = _uiState.value.copy(error = null, successMessage = null) }
 
     /** 「参加」または「保存」を実行する。 */

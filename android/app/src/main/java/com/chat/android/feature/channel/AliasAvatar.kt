@@ -1,5 +1,6 @@
 package com.chat.android.feature.channel
 
+import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +31,11 @@ fun AliasAvatar(aliasImg: String, modifier: Modifier = Modifier) {
         ) {
             Text(text = content, color = Color.White)
         }
+    } else if (aliasImg.startsWith("data:image")) {
+        val bytes = androidx.compose.runtime.remember(aliasImg) {
+            runCatching { Base64.decode(aliasImg.substringAfter(','), Base64.DEFAULT) }.getOrNull()
+        }
+        AsyncImage(model = bytes, contentDescription = "Avatar", modifier = modifier.clip(CircleShape))
     } else {
         // Standard URL image loading using Coil
         AsyncImage(

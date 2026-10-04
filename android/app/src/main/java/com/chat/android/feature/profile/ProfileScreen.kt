@@ -1,5 +1,9 @@
 package com.chat.android.feature.profile
 
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +48,9 @@ fun ProfileScreen(
     val state by viewModel.uiState.collectAsState()
     var showImgPicker by remember { mutableStateOf(false) }
     var initialized by rememberSaveable { mutableStateOf(false) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let(viewModel::setImageFromUri)
+    }
 
     LaunchedEffect(id, code) {
         if (!initialized) {
@@ -118,9 +125,10 @@ fun ProfileScreen(
 
             item {
                 OutlinedButton(
-                    onClick = { showImgPicker = true },
+                    onClick = { imagePicker.launch("image/*") },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("アイコンを変更") }
+                ) { Text("画像を選択") }
+                TextButton(onClick = { showImgPicker = true }) { Text("絵文字アイコンを選ぶ") }
             }
 
             // 自己紹介は参加後に編集できる
