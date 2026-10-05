@@ -1,6 +1,5 @@
 package com.chat.android.core.ui.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,13 +18,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.repository.UserRepository
-import com.chat.android.core.network.ChannelDetail
-import com.chat.android.core.network.NicknameResponse
 import com.chat.android.feature.channel.ChannelRepository
 import com.chat.android.feature.channel.DbChannel
 import com.chat.android.navigation.UserRoute
 import com.chat.android.navigation.EntryFormListRoute
-import com.chat.android.navigation.EntryFormEditRoute
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.HomeRoute
 import com.chat.android.navigation.CalendarRoute
@@ -33,17 +29,13 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class DrawerUiState(
-    val isSignedIn: Boolean = false,
     val hasChannel: Boolean = false,
-    val isGuest: Boolean = false,
     val channelName: String = "",
-    val myAlias: String = "",
-    val myImg: String = ""
+    val myAlias: String = ""
 )
 
 /**
@@ -65,11 +57,11 @@ class DrawerViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        // サインイン有無では出し分けない（Android は必ずサインイン画面を通る）。
+        // チャネル選択の変化だけ追って、ヘッダー表示を更新する。
         viewModelScope.launch {
-            combine(userRepository.signInState, userRepository.currentChannelId) { isSignedIn, channelId ->
-                isSignedIn to channelId
-            }.collect { (isSignedIn, channelId) ->
-                _uiState.value = loadInto(DrawerUiState(isSignedIn = isSignedIn), channelId)
+            userRepository.currentChannelId.collect { channelId ->
+                _uiState.value = loadInto(_uiState.value, channelId)
             }
         }
         // エイリアス切替・チャネル編集はローカルDBを書き換えるので、ヘッダー表示も更新する。
@@ -88,20 +80,6 @@ class DrawerViewModel @Inject constructor(
         if (channelId.isNotBlank()) userRepository.setCurrentChannelId(channelId)
     }
 
-    /** 画面遷移やサインイン状態の変化時に呼ぶ。 */
-    fun refresh(channel: ChannelDetail? = null) {
-        viewModelScope.launch {
-            val loaded = loadInto(_uiState.value, userRepository.currentChannelId.value)
-            _uiState.value = if (channel != null) {
-                loaded.copy(
-                    hasChannel = true,
-                    channelName = channel.name,
-                    myAlias = channel.myname.orEmpty()
-                )
-            } else loaded
-        }
-    }
-
     /**
      * 「現在のチャネル」からチャネル名・自分のエイリアスを読み込む。
      * channelID が無ければ一覧の先頭を使う（CalendarRepository と同じフォールバック）。
@@ -113,8 +91,7 @@ class DrawerViewModel @Inject constructor(
             state.copy(
                 hasChannel = channel != null,
                 channelName = channel?.channelName.orEmpty(),
-                myAlias = channel?.myname.orEmpty(),
-                myImg = channel?.myimg.orEmpty()
+                myAlias = channel?.myname.orEmpty()
             )
         }
 }
@@ -123,31 +100,22 @@ data class DrawerItem(
     val title: String,
     val route: String,
     val icon: ImageVector,
-    val requiresAuth: Boolean = false,
-    val requiresChannel: Boolean = false,
-    val requiresNonGuest: Boolean = false
+    val requiresChannel: Boolean = false
 )
 
 @Composable
 fun AppDrawer(
     navController: NavController,
-    channel: ChannelDetail? = null,
-    aliases: List<NicknameResponse> = emptyList(),
     viewModel: DrawerViewModel = hiltViewModel(),
     onClose: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    LaunchedEffect(channel, aliases) {
-        viewModel.refresh(channel)
-    }
 
     ModalDrawerSheet(
         modifier = Modifier.width(280.dp)
     ) {
         // Header
         DrawerHeader(
-            isSignedIn = uiState.isSignedIn,
             channelName = uiState.channelName,
             myAlias = uiState.myAlias,
             onClose = onClose
@@ -179,27 +147,24 @@ fun AppDrawer(
         }
         
         // Advertisement section (like in Vue)
-        if (uiState.isSignedIn) {
-            Divider()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Advertisement",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        Divider()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Advertisement",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
 private fun DrawerHeader(
-    isSignedIn: Boolean,
     channelName: String,
     myAlias: String,
     onClose: () -> Unit
@@ -225,23 +190,13 @@ private fun DrawerHeader(
         }
     }
     
-    when {
-        channelName.isNotBlank() -> {
-            Text(
-                text = "現在のチャネル: $channelName / あなた: $myAlias",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-            )
-        }
-        isSignedIn -> {
-            Text(
-                text = "Signed In",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-            )
-        }
+    if (channelName.isNotBlank()) {
+        Text(
+            text = "現在のチャネル: $channelName / あなた: $myAlias",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+        )
     }
 }
 
@@ -271,60 +226,29 @@ private fun DrawerItemRow(
 
 private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     val items = mutableListOf<DrawerItem>()
-    
-    // Home item
+
+    // Android はサインイン画面を必ず通るため、ドロワーではサインイン有無で出し分けしない。
+    // チャネル登録はチャネルを作る導線なので、チャネルが無くても表示する。
+    items.add(DrawerItem(title = "ホーム", route = "home", icon = Icons.Default.Home))
+    items.add(DrawerItem(title = "ユーザー設定", route = "user", icon = Icons.Default.Person))
     items.add(DrawerItem(
-        title = "ホーム",
-        route = "home",
-        icon = Icons.Default.Home
+        title = "カレンダー",
+        route = "calendar",
+        icon = Icons.Default.CalendarMonth,
+        requiresChannel = true
+    ))
+    items.add(DrawerItem(
+        title = "チャネル登録",
+        route = "channelCreate",
+        icon = Icons.Default.AddBusiness
+    ))
+    items.add(DrawerItem(
+        title = "フォーム編集",
+        route = "entryFormEdit",
+        icon = Icons.Default.EditNote,
+        requiresChannel = true
     ))
 
-    // Authentication-dependent items
-    if (uiState.isSignedIn) {
-        items.add(DrawerItem(
-            title = "ユーザー設定", 
-            route = "user",
-            icon = Icons.Default.Person,
-            requiresAuth = true
-        ))
-    }
-
-    if (uiState.isSignedIn) {
-        items.add(DrawerItem(
-            title = "カレンダー",
-            route = "calendar",
-            icon = Icons.Default.CalendarMonth,
-            requiresAuth = true,
-            requiresChannel = true
-        ))
-    }
-    
-    // チャネル依存の画面。チャネル登録はチャネルを作る導線なので、チャネルが無くても表示する。
-    if (uiState.isSignedIn) {
-        items.add(DrawerItem(
-            title = "チャネル登録",
-            route = "channelCreate",
-            icon = Icons.Default.AddBusiness,
-            requiresAuth = true
-        ))
-
-        items.add(DrawerItem(
-            title = "フォーム編集",
-            route = "entryFormEdit",
-            icon = Icons.Default.EditNote,
-            requiresAuth = true,
-            requiresChannel = true
-        ))
-    }
-    
-    if (!uiState.isSignedIn) {
-        items.add(DrawerItem(
-            title = "サインイン",
-            route = "login",
-            icon = Icons.Default.Login
-        ))
-    }
-    
     // チャネルIDが必要な画面（カレンダー・フォーム編集など）は、チャネルが無ければ一覧に出さない。
     return items.filter { !it.requiresChannel || uiState.hasChannel }
 }

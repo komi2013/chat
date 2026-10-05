@@ -9,16 +9,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.chat.android.core.network.ChannelDetail
-import com.chat.android.core.network.NicknameResponse
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DrawerLayout(
     navController: NavController,
-    channel: ChannelDetail? = null,
-    aliases: List<NicknameResponse> = emptyList(),
     viewModel: DrawerViewModel = hiltViewModel(),
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -30,8 +26,6 @@ fun DrawerLayout(
         drawerContent = {
             AppDrawer(
                 navController = navController,
-                channel = channel,
-                aliases = aliases,
                 viewModel = viewModel,
                 onClose = { 
                     scope.launch { drawerState.close() }

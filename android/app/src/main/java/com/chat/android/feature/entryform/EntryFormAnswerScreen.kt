@@ -95,8 +95,35 @@ fun EntryFormAnswerScreen(
                                             }
                                         }
                                     }
-                                    else -> {
-                                        Text("サポートされていない質問タイプです", style = MaterialTheme.typography.bodySmall)
+                                    is Question.MultiChoice -> {
+                                        val currentAnswers = (answers[question.sequence] as? Set<String>).orEmpty()
+                                        question.choices.forEach { choice ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Checkbox(
+                                                    checked = currentAnswers.contains(choice),
+                                                    onCheckedChange = { checked ->
+                                                        val next = currentAnswers.toMutableSet()
+                                                        if (checked) next.add(choice) else next.remove(choice)
+                                                        answers[question.sequence] = next
+                                                    }
+                                                )
+                                                Text(choice)
+                                            }
+                                        }
+                                    }
+                                    is Question.DatePicker -> {
+                                        val currentAnswer = (answers[question.sequence] as? String).orEmpty()
+                                        // Simple text field for now, ideally a real date picker
+                                        OutlinedTextField(
+                                            value = currentAnswer,
+                                            onValueChange = { answers[question.sequence] = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text(if (question.dateType == 2) "日付・時刻を入力" else "日付を入力") },
+                                            placeholder = { Text("YYYY/MM/DD") }
+                                        )
                                     }
                                 }
                             }

@@ -95,7 +95,9 @@ fun EntryFormEditScreen(
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(id, formJson) {
-        if (state.form == null) {
+        if (id == null && formJson == null) {
+            if (state.form == null) viewModel.createForm()
+        } else if (state.form == null) {
             viewModel.loadEditor(id, formJson)
         }
     }
@@ -112,7 +114,7 @@ fun EntryFormEditScreen(
                 actions = {
                     Button(
                         onClick = { viewModel.saveAndPublish() },
-                        enabled = !state.saving
+                        enabled = !state.saving && state.form != null
                     ) {
                         Text("保存・送信")
                     }
@@ -120,33 +122,52 @@ fun EntryFormEditScreen(
             )
         }
     ) { padding ->
-        state.form?.let { form ->
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    OutlinedTextField(
-                        value = form.title,
-                        onValueChange = viewModel::setTitle,
-                        label = { Text("フォームタイトル") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+        when {
+            state.loading -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
+            state.form != null -> {
+                val form = state.form!!
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        OutlinedTextField(
+                            value = form.title,
+                            onValueChange = viewModel::setTitle,
+                            label = { Text("フォームタイトル") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                items(form.questions, key = { it.sequence }) { question ->
-                    QuestionEditor(
-                        question = question,
-                        onTextChange = { viewModel.setQuestionText(question.sequence, it) },
-                        onDelete = { viewModel.removeQuestion(question.sequence) }
-                    )
+                    items(form.questions, key = { it.sequence }) { question ->
+                        QuestionEditor(
+                            question = question,
+                            onTextChange = { viewModel.setQuestionText(question.sequence, it) },
+                            onDelete = { viewModel.removeQuestion(question.sequence) }
+                        )
+                    }
+
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { viewModel.addQuestion(QuestionType.TEXT) }) { Text("+ テキスト") }
+                            Button(onClick = { viewModel.addQuestion(QuestionType.SELECT) }) { Text("+ 単一選択") }
+                        }
+                    }
                 }
-
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { viewModel.addQuestion(QuestionType.TEXT) }) { Text("+ テキスト") }
-                        Button(onClick = { viewModel.addQuestion(QuestionType.SELECT) }) { Text("+ 単一選択") }
+            }
+            state.error != null -> {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(state.error ?: "不明なエラー", color = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { viewModel.loadEditor(id, formJson) }) {
+                            Text("再試行")
+                        }
                     }
                 }
             }
