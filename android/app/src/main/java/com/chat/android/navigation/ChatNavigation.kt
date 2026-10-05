@@ -27,22 +27,22 @@ import com.chat.android.feature.calendar.CalendarScreen
 import com.chat.android.feature.calendar.CalendarEditScreen
 
 /**
- * @param inviteRequest 招待URLで起動/復帰したときの遷移指示。
- *   LaunchedEffect のキーに使うため、同じURLでも token が変われば再遷移する。
+ * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
+ *   LaunchedEffect のキーに使ぁE��め、同じURLでめEtoken が変われ�E再�E移する、E
  */
 @Composable
 fun ChatNavigation(inviteRequest: InviteRequest? = null) {
     val navController = rememberNavController()
-    // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する（Activity スコープ）。
+    // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する！Ectivity スコープ）、E
     val drawerViewModel: DrawerViewModel = hiltViewModel()
 
-    // 招待URLで起動された場合、その参加画面へ遷移する。
-    // キーに inviteRequest を使うことで、起動後にさらに招待リンクを
-    // 叩いた場合も（onNewIntent → state 更新 → 再コンポジション）遷移する。
+    // 招征ERLで起動された場合、その参加画面へ遷移する、E
+    // キーに inviteRequest を使ぁE��とで、起動後にさらに招征E��ンクめE
+    // 叩ぁE��場合も�E�EnNewIntent ↁEstate 更新 ↁE再コンポジション�E��E移する、E
     LaunchedEffect(inviteRequest) {
         val request = inviteRequest ?: return@LaunchedEffect
-        // 未サインインなら csrf が無いため ChannelJoin を呼べない。
-        // Vue の Profile.vue と同じくサインイン画面へ送り、TO から再開する。
+        // 未サインインなめEcsrf が無ぁE��めEChannelJoin を呼べなぁE��E
+        // Vue の Profile.vue と同じくサインイン画面へ送り、TO から再開する、E
         if (request.hasSession) {
             navController.navigate(request.route)
         } else {
@@ -148,7 +148,33 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                         backID = route.backID
                     )
                 }
+
+                composable<TimestampRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<TimestampRoute>()
+                    com.chat.android.feature.timestamp.TimestampScreen(
+                        navController = navController,
+                        adminName = route.adminName,
+                        code = route.code
+                    )
+                }
+
+                composable<TimestampCodeRoute> {
+                    com.chat.android.feature.timestamp.TimestampCodeScreen(
+                        navController = navController
+                    )
+                }
+
+                composable<TimestampReportRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<TimestampReportRoute>()
+                    com.chat.android.feature.timestamp.TimestampReportScreen(
+                        navController = navController,
+                        admin = route.admin,
+                        month = route.month,
+                        stamper = route.stamper
+                    )
+                }
             }
         }
     }
 }
+

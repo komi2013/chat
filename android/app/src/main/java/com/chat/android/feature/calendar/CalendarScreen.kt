@@ -26,6 +26,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.chat.android.navigation.CalendarEditRoute
+import androidx.compose.foundation.ScrollState
+import androidx.compose.ui.text.style.TextAlign
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -90,24 +92,13 @@ fun CalendarScreen(
                     }
                 }
             }
-            Row(
-                Modifier.fillMaxWidth().clipToBounds(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(Modifier.offset { IntOffset(-dayScroll.value, 0) }) {
-                    Spacer(Modifier.width(52.dp))
-                    days.forEach { day ->
-                        Column(Modifier.width(112.dp).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(day.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.JAPAN))
-                            Text(day.format(DateTimeFormatter.ofPattern("MM/dd")), fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
             LazyColumn(Modifier.weight(1f)) {
+                item {
+                    CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = false)
+                }
                 items((0..23).toList()) { hour ->
                     Row(Modifier.height(62.dp), verticalAlignment = Alignment.Top) {
-                        Text("%02d:00".format(hour), modifier = Modifier.width(52.dp).padding(top = 4.dp), style = MaterialTheme.typography.labelSmall)
+                        Text("%02d:00".format(hour), modifier = Modifier.width(52.dp).padding(top = 4.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelSmall)
                         Row(Modifier.horizontalScroll(dayScroll)) {
                             days.forEach { day ->
                                 val events = eventsByDayHour[day to hour].orEmpty()
@@ -127,12 +118,66 @@ fun CalendarScreen(
                         }
                     }
                 }
+                item {
+                    CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = true)
+                }
             }
             Button(onClick = { navController.navigate(CalendarEditRoute(dateTime = dayStart(LocalDate.now(), java.time.LocalTime.now().hour))) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("予定を追加")
             }
         }
         state.notice?.let { Text(it, Modifier.fillMaxWidth().padding(8.dp), color = MaterialTheme.colorScheme.primary) }
+    }
+}
+
+@Composable
+private fun CalendarDateHeader(
+    days: List<LocalDate>,
+    dayScroll: ScrollState,
+    isBottom: Boolean = false
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.width(52.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("≡", style = MaterialTheme.typography.titleMedium)
+        }
+        Row(Modifier.horizontalScroll(dayScroll)) {
+            days.forEach { day ->
+                Column(
+                    Modifier.width(112.dp).padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (!isBottom) {
+                        Text(
+                            day.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.JAPAN),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Text(
+                            day.format(DateTimeFormatter.ofPattern("MM/dd")),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    } else {
+                        Text(
+                            day.format(DateTimeFormatter.ofPattern("MM/dd")),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            day.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.JAPAN),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

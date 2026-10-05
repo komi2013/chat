@@ -8,6 +8,10 @@ import android.util.Log
 import com.chat.android.core.push.handlers.AliasHandler
 import com.chat.android.core.push.handlers.BookmarkHandler
 import com.chat.android.core.push.handlers.CalendarHandler
+import com.chat.android.core.push.handlers.TimestampHandler
+import com.chat.android.core.push.handlers.TimestampCodeHandler
+import com.chat.android.core.push.handlers.TimestampReportHandler
+import com.chat.android.core.push.handlers.TimestampRevertHandler
 import com.chat.android.core.push.handlers.ChannelEditHandler
 import com.chat.android.core.push.handlers.EmojiHandler
 import com.chat.android.core.push.handlers.EntryFormHandler
@@ -46,6 +50,10 @@ class PushReceiveDispatcher(
         "emoji" to EmojiHandler(context),
         "bookmark" to BookmarkHandler(context),
         "calendar" to CalendarHandler(context, dbHelper),
+        "timestamp" to TimestampHandler(context, dbHelper),
+        "timestampCode" to TimestampCodeHandler(context),
+        "timestampReport" to TimestampReportHandler(context),
+        "timestampRevert" to TimestampRevertHandler(context),
         // ... add other handlers here later
     )
 
@@ -59,15 +67,15 @@ class PushReceiveDispatcher(
         }
 
         // Toggle Deduplication Logic
-        // 重複判定は vue/src/pushReceive/pushReceive.js と同じトグル方式:
-        //   1回目 = 適用してマーカー保存 / 2回目 = マーカー削除して破棄（再同期用）
+        // 重褁E��定�E vue/src/pushReceive/pushReceive.js と同じトグル方弁E
+        //   1回目 = 適用してマ�Eカー保孁E/ 2回目 = マ�Eカー削除して破棁E���E同期用�E�E
         val pushDuplicationID = "${pd.title}${pd.channelID}${pd.updatedBy}${pd.pushID}"
 
         applicationScope.launch {
             try {
                 // 1. Check if marker exists
-                // FCM の onMessageReceived（メインスレッド）からも呼ばれるため、
-                // DB オープンは必ず IO 側のこの位置で行う。
+                // FCM の onMessageReceived�E�メインスレチE���E�からも呼ばれるため、E
+                // DB オープンは忁E�� IO 側のこ�E位置で行う、E
                 val db = dbHelper.writableDatabase
                 val cursor = db.query(
                     "pushDuplication",
@@ -120,3 +128,5 @@ class PushReceiveDispatcher(
         }
     }
 }
+
+

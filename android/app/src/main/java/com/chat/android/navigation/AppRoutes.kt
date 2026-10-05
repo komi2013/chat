@@ -56,3 +56,12 @@ data class ThreadRoute(
 @Serializable
 data class ThreadHeadRoute(val parentID: String? = null)
 
+
+@Serializable
+data class TimestampRoute(val adminName: String, val code: String)
+
+@Serializable
+data object TimestampCodeRoute
+
+@Serializable
+data class TimestampReportRoute(val admin: String, val month: String? = null, val stamper: String? = null)
