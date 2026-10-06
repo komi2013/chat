@@ -63,11 +63,6 @@ fun ProfileScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (state.isJoinMode) "チャネルに参加" else "プロフィール編集") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
-                    }
-                },
                 actions = {
                     IconButton(onClick = { viewModel.onImgChange(RandomAvatar.random()) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "アイコンをランダムに")

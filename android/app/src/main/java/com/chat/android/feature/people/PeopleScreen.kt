@@ -48,12 +48,7 @@ fun PeopleScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ニックネーム一覧") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
-                    }
-                }
+                title = { Text("ニックネーム一覧") }
             )
         }
     ) { padding ->

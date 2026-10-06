@@ -28,9 +28,14 @@ import androidx.navigation.NavController
 import com.chat.android.navigation.CalendarEditRoute
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.Menu
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+import com.chat.android.feature.calendar.ui.CalendarDrawer
+import com.chat.android.core.ui.component.DrawerLayout
+import com.chat.android.core.ui.component.LocalDrawerState
 
 @Composable
 fun CalendarScreen(
@@ -39,60 +44,57 @@ fun CalendarScreen(
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    
+    DrawerLayout(
+        drawerContent = {
+            CalendarDrawer(navController = navController, viewModel = viewModel)
+        }
+    ) {
+        CalendarScreenContent(navController, date, viewModel, state)
+    }
+}
+
+@Composable
+private fun CalendarScreenContent(
+    navController: NavController,
+    date: String?,
+    viewModel: CalendarViewModel,
+    state: CalendarUiState
+) {
+    val drawerState = LocalDrawerState.current
+    val scope = rememberCoroutineScope()
     var firstDay by remember(date) { mutableStateOf(runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())) }
     // The body rows own this state; the header follows it via offset. All rows have identical content/viewport width so they stay in sync.
     val dayScroll = rememberScrollState()
-    var userSearch by remember { mutableStateOf("") }
-    var searchedUsers by remember { mutableStateOf(emptyList<String>()) }
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.notice) {
         if (state.notice != null) { kotlinx.coroutines.delay(2400); viewModel.clearNotice() }
     }
+    
     val days = remember(firstDay) { (0..29).map { firstDay.plusDays(it.toLong()) } }
     val eventsByDayHour = remember(state.events) {
         state.events.groupBy { event ->
             calendarDateTime(event.timeStart)?.let { it.toLocalDate() to it.hour }
         }
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = { scope.launch { drawerState?.open() } }) {
+                Icon(Icons.Default.Menu, "メニュー")
+            }
             IconButton(onClick = { firstDay = firstDay.minusDays(30) }) { Icon(Icons.Default.ChevronLeft, "前の30日") }
             Text("${firstDay.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))} から30日", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             IconButton(onClick = { firstDay = firstDay.plusDays(30) }) { Icon(Icons.Default.ChevronRight, "次の30日") }
         }
-        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 8.dp))
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
-        if (state.channelID.isNotBlank()) {
-            OutlinedTextField(
-                value = userSearch,
-                onValueChange = { userSearch = it },
-                label = { Text("検索ユーザー") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            if (userSearch.isNotBlank()) {
-                val matches = (state.aliases.filter { it.aliasName.contains(userSearch, true) }.map { it.aliasName } +
-                    state.groups.filter { it.groupName.contains(userSearch, true) }.flatMap { parseCalendarNames(it.aliasNamesJson) })
-                    .distinct().filterNot { it in searchedUsers }
-                matches.take(6).forEach { aliasName ->
-                    Text("＋ $aliasName", Modifier.fillMaxWidth().clickable {
-                        searchedUsers = searchedUsers + aliasName
-                        userSearch = ""
-                        viewModel.searchCalendar(aliasName, firstDay.toString())
-                    }.padding(horizontal = 8.dp, vertical = 5.dp))
-                }
-            }
-            if (searchedUsers.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                    searchedUsers.forEach { aliasName ->
-                        AssistChip(onClick = {
-                            searchedUsers = searchedUsers - aliasName
-                            viewModel.removeSearchedCalendar(aliasName)
-                        }, label = { Text("$aliasName ×") }, modifier = Modifier.padding(end = 4.dp))
-                    }
-                }
-            }
-            LazyColumn(Modifier.weight(1f)) {
+    if (state.channelID.isNotBlank()) {
+            LazyColumn(Modifier.weight(1f).padding(horizontal = 8.dp)) {
                 item {
                     CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = false)
                 }
@@ -122,7 +124,10 @@ fun CalendarScreen(
                     CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = true)
                 }
             }
-            Button(onClick = { navController.navigate(CalendarEditRoute(dateTime = dayStart(LocalDate.now(), java.time.LocalTime.now().hour))) }, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { navController.navigate(CalendarEditRoute(dateTime = dayStart(LocalDate.now(), java.time.LocalTime.now().hour))) },
+                modifier = Modifier.fillMaxWidth().padding(8.dp)
+            ) {
                 Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("予定を追加")
             }
         }
@@ -224,47 +229,61 @@ fun CalendarEditScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (id == null) "予定を作成" else "予定を編集", style = MaterialTheme.typography.headlineSmall)
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth()) else {
-            OutlinedTextField(start, { start = it }, label = { Text("開始 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(end, { end = it }, label = { Text("終了 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            OutlinedTextField(todo, { todo = it }, label = { Text("Todo") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-            Text("参加ユーザー", style = MaterialTheme.typography.titleSmall)
-            OutlinedTextField(search, { search = it }, label = { Text("ユーザーまたはグループを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            candidates.take(8).forEach { name ->
-                Text("＋ $name", Modifier.fillMaxWidth().clickable { attendees = attendees + name; search = "" }.padding(6.dp))
-            }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                attendees.forEach { name -> AssistChip(onClick = { attendees = attendees - name }, label = { Text("$name ×") }, modifier = Modifier.padding(end = 4.dp)) }
-            }
-            var expanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                OutlinedTextField(
-                    value = when (repeat) { "weekly" -> "毎週同じ曜日"; "monthly" -> "毎月同じ日"; else -> "繰り返しなし" },
-                    onValueChange = {}, readOnly = true, label = { Text("繰り返し") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) }, modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    listOf("none" to "繰り返しなし", "weekly" to "毎週同じ曜日", "monthly" to "毎月同じ日").forEach { (value, label) ->
-                        DropdownMenuItem(text = { Text(label) }, onClick = { repeat = value; expanded = false })
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(if (id == null) "予定を作成" else "予定を編集") }
+            )
+        }
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth()) else {
+                OutlinedTextField(start, { start = it }, label = { Text("開始 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(end, { end = it }, label = { Text("終了 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(todo, { todo = it }, label = { Text("Todo") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                Text("参加ユーザー", style = MaterialTheme.typography.titleSmall)
+                OutlinedTextField(search, { search = it }, label = { Text("ユーザーまたはグループを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                candidates.take(8).forEach { name ->
+                    Text("＋ $name", Modifier.fillMaxWidth().clickable { attendees = attendees + name; search = "" }.padding(6.dp))
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    attendees.forEach { name -> AssistChip(onClick = { attendees = attendees - name }, label = { Text("$name ×") }, modifier = Modifier.padding(end = 4.dp)) }
+                }
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(
+                        value = when (repeat) { "weekly" -> "毎週同じ曜日"; "monthly" -> "毎月同じ日"; else -> "繰り返しなし" },
+                        onValueChange = {}, readOnly = true, label = { Text("繰り返し") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        listOf("none" to "繰り返しなし", "weekly" to "毎週同じ曜日", "monthly" to "毎月同じ日").forEach { (value, label) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = { repeat = value; expanded = false })
+                        }
                     }
                 }
-            }
-            val googleUrl = remember(todo, start, end) {
-                val dates = runCatching {
-                    val a = calendarDateTime(start)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                    val b = calendarDateTime(end)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                    "https://www.google.com/calendar/render?action=TEMPLATE&text=${java.net.URLEncoder.encode(todo, "UTF-8")}&dates=$a/$b"
-                }.getOrDefault("")
-                dates
-            }
-            if (googleUrl.isNotBlank()) Text(googleUrl, style = MaterialTheme.typography.bodySmall, maxLines = 3)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { confirmAction = "save" }, enabled = todo.isNotBlank() && !saving, modifier = Modifier.weight(1f)) { Text(if (saving) "送信中…" else "保存") }
-                if (id != null) OutlinedButton(onClick = { confirmAction = "delete" }, enabled = !saving) { Text("削除") }
-                OutlinedButton(onClick = { navController.popBackStack() }) { Text("閉じる") }
+                val googleUrl = remember(todo, start, end) {
+                    val dates = runCatching {
+                        val a = calendarDateTime(start)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
+                        val b = calendarDateTime(end)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
+                        "https://www.google.com/calendar/render?action=TEMPLATE&text=${java.net.URLEncoder.encode(todo, "UTF-8")}&dates=$a/$b"
+                    }.getOrDefault("")
+                    dates
+                }
+                if (googleUrl.isNotBlank()) Text(googleUrl, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { confirmAction = "save" }, enabled = todo.isNotBlank() && !saving, modifier = Modifier.weight(1f)) { Text(if (saving) "送信中…" else "保存") }
+                    if (id != null) OutlinedButton(onClick = { confirmAction = "delete" }, enabled = !saving) { Text("削除") }
+                    OutlinedButton(onClick = { navController.popBackStack() }) { Text("閉じる") }
+                }
             }
         }
     }

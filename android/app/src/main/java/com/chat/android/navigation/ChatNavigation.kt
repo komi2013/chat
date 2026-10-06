@@ -27,8 +27,8 @@ import com.chat.android.feature.calendar.CalendarScreen
 import com.chat.android.feature.calendar.CalendarEditScreen
 
 /**
- * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
- *   LaunchedEffect のキーに使ぁE��め、同じURLでめEtoken が変われ�E再�E移する、E
+ * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
+ *   LaunchedEffect のキーに使ぁE��め、同じURLでめEtoken が変われ�E再�E移する、E
  */
 @Composable
 fun ChatNavigation(inviteRequest: InviteRequest? = null) {
@@ -37,11 +37,11 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
     val drawerViewModel: DrawerViewModel = hiltViewModel()
 
     // 招征ERLで起動された場合、その参加画面へ遷移する、E
-    // キーに inviteRequest を使ぁE��とで、起動後にさらに招征E��ンクめE
-    // 叩ぁE��場合も�E�EnNewIntent ↁEstate 更新 ↁE再コンポジション�E��E移する、E
+    // キーに inviteRequest を使ぁE��とで、起動後にさらに招征E��ンクめE
+    // 叩ぁE��場合も�E�EnNewIntent ↁEstate 更新 ↁE再コンポジション�E��E移する、E
     LaunchedEffect(inviteRequest) {
         val request = inviteRequest ?: return@LaunchedEffect
-        // 未サインインなめEcsrf が無ぁE��めEChannelJoin を呼べなぁE��E
+        // 未サインインなめEcsrf が無ぁE��めEChannelJoin を呼べなぁE��E
         // Vue の Profile.vue と同じくサインイン画面へ送り、TO から再開する、E
         if (request.hasSession) {
             navController.navigate(request.route)
@@ -50,12 +50,7 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
         }
     }
 
-    DrawerLayout(
-        navController = navController,
-        viewModel = drawerViewModel
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            NavHost(navController = navController, startDestination = "login") {
+    NavHost(navController = navController, startDestination = "login") {
                 composable("login") {
                     SignInScreen(navController = navController)
                 }
@@ -174,7 +169,5 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                     )
                 }
             }
-        }
-    }
 }
 

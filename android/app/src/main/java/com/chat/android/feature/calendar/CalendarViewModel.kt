@@ -42,6 +42,11 @@ class CalendarViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            repository.localUpdateFlow.collect {
+                refresh()
+            }
+        }
+        viewModelScope.launch {
             val id = repository.currentChannelId().orEmpty()
             if (id.isBlank()) { mutableState.value = CalendarUiState(loading = false, error = "チャネルを選択してください"); return@launch }
             initializedChannel = id

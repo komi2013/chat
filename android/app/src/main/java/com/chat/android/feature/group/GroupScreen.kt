@@ -49,11 +49,6 @@ fun GroupScreen(
         topBar = {
             TopAppBar(
                 title = { Text("グループ編集") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
-                    }
-                },
                 actions = {
                     TextButton(onClick = { viewModel.save() }, enabled = !state.isLoading) {
                         Text("保存")

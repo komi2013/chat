@@ -73,6 +73,13 @@ import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.navigation.ProfileRoute
 import java.util.Locale
 
+import com.chat.android.core.ui.component.DrawerLayout
+import com.chat.android.core.ui.component.AppDrawer
+import com.chat.android.core.ui.component.LocalDrawerState
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserScreen(
@@ -80,6 +87,25 @@ fun UserScreen(
     viewModel: UserViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    
+    DrawerLayout(
+        drawerContent = {
+            AppDrawer(navController = navController)
+        }
+    ) {
+        UserScreenContent(navController, viewModel, state)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UserScreenContent(
+    navController: NavController,
+    viewModel: UserViewModel,
+    state: UserUiState
+) {
+    val drawerState = LocalDrawerState.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     var colorPickerVisible by remember { mutableStateOf(false) }
@@ -110,8 +136,8 @@ fun UserScreen(
             TopAppBar(
                 title = { Text("ユーザー設定") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
+                    IconButton(onClick = { scope.launch { drawerState?.open() } }) {
+                        Icon(Icons.Default.Menu, contentDescription = "メニュー")
                     }
                 }
             )
