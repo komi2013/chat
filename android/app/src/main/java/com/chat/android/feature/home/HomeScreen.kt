@@ -20,12 +20,6 @@ import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.navigation.ChannelRoute
 
-import com.chat.android.core.ui.component.DrawerLayout
-import com.chat.android.core.ui.component.AppDrawer
-import com.chat.android.core.ui.component.LocalDrawerState
-import androidx.compose.material.icons.filled.Menu
-import kotlinx.coroutines.launch
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -33,35 +27,11 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    DrawerLayout(
-        drawerContent = {
-            AppDrawer(navController = navController)
-        }
-    ) {
-        HomeScreenContent(navController, viewModel, uiState)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HomeScreenContent(
-    navController: NavController,
-    viewModel: HomeViewModel,
-    uiState: HomeUiState
-) {
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("チャネル一覧") },
-                navigationIcon = {
-                    IconButton(onClick = { scope.launch { drawerState?.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
-                    }
-                }
+                title = { Text("チャネル一覧") }
             )
         },
         floatingActionButton = {

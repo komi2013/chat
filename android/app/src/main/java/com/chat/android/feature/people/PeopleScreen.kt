@@ -20,6 +20,7 @@ import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.GroupRoute
 import com.chat.android.navigation.PeopleRoute
+import com.chat.android.navigation.ThreadRoute
 
 /**
  * ニックネーム一覧画面（vue/src/views/People.vue に対応）。
@@ -48,7 +49,12 @@ fun PeopleScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ニックネーム一覧") }
+                title = { Text("ニックネーム一覧") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -103,6 +109,28 @@ fun PeopleScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(state.personName, style = MaterialTheme.typography.headlineSmall)
+                }
+            }
+
+            // Vue People.vue opens a stable DM thread named by the sorted pair of aliases.
+            // Keep the same ID on Android so messages are shared with the web client.
+            if (!state.isGroup && state.channel?.myname != state.personName) {
+                item {
+                    Button(
+                        onClick = {
+                            val channel = state.channel ?: return@Button
+                            val pair = listOf(channel.myname, state.personName).sorted()
+                            navController.navigate(
+                                ThreadRoute(
+                                    channelID = channel.channelID,
+                                    parentID = "${pair[0]}@${pair[1]}"
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("DMメッセージを送る")
+                    }
                 }
             }
 

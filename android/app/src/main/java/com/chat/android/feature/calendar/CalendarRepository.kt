@@ -10,8 +10,6 @@ import com.chat.android.feature.channel.DbGroup
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
@@ -29,9 +27,6 @@ class CalendarRepository @Inject constructor(
     private val dispatcher: PushReceiveDispatcher
 ) {
     private val db = CalendarDbHelper(context)
-    private val _localUpdateFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val localUpdateFlow = _localUpdateFlow.asSharedFlow()
-
     suspend fun currentChannelId(): String? = withContext(Dispatchers.IO) {
         users.getCurrentChannelId() ?: channels.getAllChannels().firstOrNull()?.channelID
     }
@@ -63,7 +58,6 @@ class CalendarRepository @Inject constructor(
 
     suspend fun removeUserCalendar(channelID: String, aliasName: String) = withContext(Dispatchers.IO) {
         db.deleteByAlias(channelID, aliasName)
-        _localUpdateFlow.tryEmit(Unit)
     }
 
     suspend fun send(item: CalendarItem, attendees: List<String>, events: List<CalendarItem>, delete: Boolean = false): String? {

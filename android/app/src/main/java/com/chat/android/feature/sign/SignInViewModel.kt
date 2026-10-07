@@ -66,6 +66,29 @@ class SignInViewModel @Inject constructor(
         }
     }
 
+    fun signInWithTestUsername(username: String) {
+        val normalizedUsername = username.trim()
+        if (normalizedUsername.isEmpty()) {
+            _uiState.value = SignInUiState.Error("ユーザー名を入力してください")
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = SignInUiState.Loading
+            val csrfToken = java.util.UUID.randomUUID().toString()
+            googleSignInManager.signInWithTestUsername(normalizedUsername, csrfToken)
+                .onSuccess { response ->
+                    if (response.sessionId.isNullOrBlank()) {
+                        _uiState.value = SignInUiState.Error("サーバーからセッション情報を取得できませんでした")
+                    } else {
+                        sessionManager.saveSession(response.csrf, response.userId, response.nickname, response.sessionId)
+                        registerPushToken(response.csrf)
+                        _uiState.value = SignInUiState.Success(response)
+                    }
+                }
+                .onFailure { error -> _uiState.value = SignInUiState.Error(error.message ?: "Authentication failed") }
+        }
+    }
+
     /**
      * Registers the FCM token with the backend after sign-in/up so the server can push to
      * this device (POST /PushSubscribeMobile/ -> session.pushToken + deviceType 2).

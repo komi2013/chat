@@ -44,11 +44,6 @@ import com.chat.android.navigation.GroupRoute
 import com.chat.android.navigation.PeopleRoute
 import com.chat.android.navigation.ProfileRoute
 import com.chat.android.navigation.ThreadRoute
-import com.chat.android.core.ui.component.DrawerLayout
-import com.chat.android.core.ui.component.AppDrawer
-import com.chat.android.core.ui.component.LocalDrawerState
-import androidx.compose.material.icons.filled.Menu
-import kotlinx.coroutines.launch
 
 /**
  * チャネル設定画面（vue/src/views/Channel.vue に対応）。
@@ -65,25 +60,7 @@ fun ChannelScreen(
     id: String? = null,
     viewModel: ChannelViewModel = hiltViewModel()
 ) {
-    DrawerLayout(
-        drawerContent = {
-            AppDrawer(navController = navController)
-        }
-    ) {
-        ChannelScreenContent(navController, id, viewModel)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ChannelScreenContent(
-    navController: NavController,
-    id: String?,
-    viewModel: ChannelViewModel
-) {
     val uiState by viewModel.uiState.collectAsState()
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
 
     // ルート引数は初期選択としてだけ使う。以降は一覧のタップで切り替える。
     var initialized by rememberSaveable { mutableStateOf(false) }
@@ -121,8 +98,8 @@ private fun ChannelScreenContent(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { scope.launch { drawerState?.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "メニュー")
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
                     }
                 },
                 actions = {

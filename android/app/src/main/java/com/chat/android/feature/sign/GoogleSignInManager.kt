@@ -91,4 +91,17 @@ class GoogleSignInManager @Inject constructor(
         android.util.Log.e("GoogleSignInManager", "Network or Parsing error", e)
         Result.failure(Exception("Network or Parsing error: ${e.localizedMessage}"))
     }
+
+    suspend fun signInWithTestUsername(username: String, csrf: String) = try {
+        val response = apiService.signInTestMobile(username, csrf, sessionManager.getDeviceId())
+        if (!response.isSuccessful) {
+            Result.failure(Exception("Server returned error ${response.code()}: ${response.errorBody()?.string() ?: "No details"}"))
+        } else {
+            val body = response.body()?.string()
+            if (body.isNullOrBlank()) Result.failure(Exception("Empty response body"))
+            else Result.success(com.google.gson.Gson().fromJson(body, com.chat.android.core.network.GoogleSignInResponse::class.java))
+        }
+    } catch (e: Exception) {
+        Result.failure(Exception("Network or parsing error: ${e.localizedMessage}"))
+    }
 }

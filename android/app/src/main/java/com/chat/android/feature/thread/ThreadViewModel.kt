@@ -356,9 +356,11 @@ class ThreadViewModel @Inject constructor(
                 return@launch
             }
             reload()
-            onOpen(callUrl)
+            onOpen(randomCodeFromUrl(callUrl))
         }
     }
+
+    private fun randomCodeFromUrl(url: String): String = url.trimEnd('/').substringAfterLast('/')
 
     /** 選択されたファイル Uri を読み込んで送信できる形にする。 */
     private fun readFiles(uris: List<Uri>): List<ThreadFile> = uris.map { uri ->

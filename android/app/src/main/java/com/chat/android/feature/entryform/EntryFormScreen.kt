@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,10 +16,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.navigation.EntryFormEditRoute
 import com.chat.android.navigation.EntryFormAnswerRoute
-import com.chat.android.core.ui.component.DrawerLayout
-import com.chat.android.core.ui.component.AppDrawer
-import com.chat.android.core.ui.component.LocalDrawerState
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,24 +23,7 @@ fun EntryFormListScreen(
     navController: NavController,
     viewModel: EntryFormViewModel = hiltViewModel()
 ) {
-    DrawerLayout(
-        drawerContent = {
-            AppDrawer(navController = navController)
-        }
-    ) {
-        EntryFormListContent(navController, viewModel)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EntryFormListContent(
-    navController: NavController,
-    viewModel: EntryFormViewModel
-) {
     val state by viewModel.state.collectAsState()
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.loadEditor(null, null)
@@ -56,8 +34,8 @@ private fun EntryFormListContent(
             TopAppBar(
                 title = { Text("フォーム一覧") },
                 navigationIcon = {
-                    IconButton(onClick = { scope.launch { drawerState?.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "メニュー")
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
                     }
                 }
             )
@@ -128,6 +106,11 @@ fun EntryFormEditScreen(
         topBar = {
             TopAppBar(
                 title = { Text(if (id == null) "フォーム作成" else "フォーム編集") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
+                    }
+                },
                 actions = {
                     Button(
                         onClick = { viewModel.saveAndPublish() },

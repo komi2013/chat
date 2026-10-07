@@ -5,6 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,7 @@ fun SignInScreen(
     viewModel: SignInViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var username by remember { mutableStateOf("") }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -67,7 +70,7 @@ fun SignInScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
         }
-        
+
         Button(
             onClick = {
                 try {
@@ -82,6 +85,24 @@ fun SignInScreen(
             enabled = uiState !is SignInUiState.Loading
         ) {
             Text("Sign in with Google")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Test username") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = uiState !is SignInUiState.Loading
+        )
+        Button(
+            onClick = { viewModel.signInWithTestUsername(username) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = uiState !is SignInUiState.Loading
+        ) {
+            Text("Sign in with test username")
         }
     }
 }

@@ -9,6 +9,9 @@ data object HomeRoute
 data object UserRoute
 
 @Serializable
+data object SettingsRoute
+
+@Serializable
 data object EntryFormListRoute
 
 @Serializable
@@ -51,6 +54,10 @@ data class ThreadRoute(
     val parentID: String? = null,
     val backID: String? = null
 )
+
+/** Native SkyWay video call room, shared with the Vue /threadCall/{code}/ route. */
+@Serializable
+data class ThreadCallRoute(val code: String)
 
 /** /threadHead/{parentID}/ に対応するルート（スレッド設定）。 */
 @Serializable

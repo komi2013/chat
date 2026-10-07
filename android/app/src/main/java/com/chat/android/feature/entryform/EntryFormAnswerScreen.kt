@@ -31,6 +31,11 @@ fun EntryFormAnswerScreen(
         topBar = {
             TopAppBar(
                 title = { Text(state.form?.title ?: "回答入力") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.navigateUp() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
+                    }
+                },
                 actions = {
                     Button(
                         onClick = { viewModel.submitAnswers(answers.toMap()) },

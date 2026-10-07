@@ -2,6 +2,7 @@ package com.chat.android.feature.channel
 
 import android.util.Base64
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -10,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
 @Composable
@@ -26,10 +28,12 @@ fun AliasAvatar(aliasImg: String, modifier: Modifier = Modifier) {
         }
         
         Box(
-            modifier = modifier.background(color, CircleShape),
+            modifier = modifier
+                .background(androidx.compose.material3.MaterialTheme.colorScheme.surface, CircleShape)
+                .border(1.dp, color, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = content, color = Color.White)
+            Text(text = content, color = color)
         }
     } else if (aliasImg.startsWith("data:image")) {
         val bytes = androidx.compose.runtime.remember(aliasImg) {

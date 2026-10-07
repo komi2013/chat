@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -28,14 +29,9 @@ import androidx.navigation.NavController
 import com.chat.android.navigation.CalendarEditRoute
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material.icons.filled.Menu
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-import com.chat.android.feature.calendar.ui.CalendarDrawer
-import com.chat.android.core.ui.component.DrawerLayout
-import com.chat.android.core.ui.component.LocalDrawerState
 
 @Composable
 fun CalendarScreen(
@@ -44,94 +40,101 @@ fun CalendarScreen(
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    
-    DrawerLayout(
-        drawerContent = {
-            CalendarDrawer(navController = navController, viewModel = viewModel)
-        }
-    ) {
-        CalendarScreenContent(navController, date, viewModel, state)
-    }
-}
-
-@Composable
-private fun CalendarScreenContent(
-    navController: NavController,
-    date: String?,
-    viewModel: CalendarViewModel,
-    state: CalendarUiState
-) {
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
     var firstDay by remember(date) { mutableStateOf(runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())) }
-    // The body rows own this state; the header follows it via offset. All rows have identical content/viewport width so they stay in sync.
     val dayScroll = rememberScrollState()
+    var searchedUsers by remember { mutableStateOf(emptyList<String>()) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.notice) {
         if (state.notice != null) { kotlinx.coroutines.delay(2400); viewModel.clearNotice() }
     }
-    
     val days = remember(firstDay) { (0..29).map { firstDay.plusDays(it.toLong()) } }
     val eventsByDayHour = remember(state.events) {
         state.events.groupBy { event ->
             calendarDateTime(event.timeStart)?.let { it.toLocalDate() to it.hour }
         }
     }
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            IconButton(onClick = { scope.launch { drawerState?.open() } }) {
-                Icon(Icons.Default.Menu, "メニュー")
-            }
-            IconButton(onClick = { firstDay = firstDay.minusDays(30) }) { Icon(Icons.Default.ChevronLeft, "前の30日") }
-            Text("${firstDay.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))} から30日", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { firstDay = firstDay.plusDays(30) }) { Icon(Icons.Default.ChevronRight, "次の30日") }
-        }
-        if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 8.dp))
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
-    if (state.channelID.isNotBlank()) {
-            LazyColumn(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                item {
-                    CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = false)
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            CalendarDrawer(
+                state = state,
+                searchedUsers = searchedUsers,
+                onSearch = { aliasName ->
+                    searchedUsers = searchedUsers + aliasName
+                    viewModel.searchCalendar(aliasName, firstDay.toString())
+                },
+                onRemove = { aliasName ->
+                    searchedUsers = searchedUsers - aliasName
+                    viewModel.removeSearchedCalendar(aliasName)
+                },
+                onClose = { scope.launch { drawerState.close() } }
+            )
+        },
+        gesturesEnabled = drawerState.isOpen // Prevent drawer from being dragged open if it interferes with main navigation
+    ) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+            // Calendar controls
+            Column(Modifier.background(MaterialTheme.colorScheme.surface)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    IconButton(onClick = { firstDay = firstDay.minusDays(30) }) { Icon(Icons.Default.ChevronLeft, "前の30日") }
+                    Text("${firstDay.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))} から30日", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { firstDay = firstDay.plusDays(30) }) { Icon(Icons.Default.ChevronRight, "次の30日") }
                 }
-                items((0..23).toList()) { hour ->
-                    Row(Modifier.height(62.dp), verticalAlignment = Alignment.Top) {
-                        Text("%02d:00".format(hour), modifier = Modifier.width(52.dp).padding(top = 4.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelSmall)
-                        Row(Modifier.horizontalScroll(dayScroll)) {
-                            days.forEach { day ->
-                                val events = eventsByDayHour[day to hour].orEmpty()
-                                Box(Modifier.width(112.dp).fillMaxHeight().padding(1.dp).background(
-                                    if (day.dayOfWeek.value == 7) MaterialTheme.colorScheme.error.copy(alpha = .06f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .28f)
-                                ).clickable { navController.navigate(CalendarEditRoute(dateTime = dayStart(day, hour))) }) {
-                                    Column(Modifier.fillMaxSize()) {
-                                        events.take(2).forEach { event ->
-                                            Text(event.title, Modifier.fillMaxWidth().padding(2.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(4.dp)).clickable {
-                                                navController.navigate(CalendarEditRoute(id = event.calendarID))
-                                            }.padding(horizontal = 4.dp, vertical = 3.dp), maxLines = 2, style = MaterialTheme.typography.labelSmall)
+                if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+                state.notice?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.primary) }
+            }
+
+            if (state.channelID.isNotBlank()) {
+                Box(Modifier.weight(1f)) {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        item {
+                            CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = false, onMenuClick = {
+                                scope.launch { drawerState.open() }
+                            })
+                        }
+                        items((0..23).toList()) { hour ->
+                            Row(Modifier.height(62.dp), verticalAlignment = Alignment.Top) {
+                                Text("%02d:00".format(hour), modifier = Modifier.width(52.dp).padding(top = 4.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelSmall)
+                                Row(Modifier.horizontalScroll(dayScroll)) {
+                                    days.forEach { day ->
+                                        val events = eventsByDayHour[day to hour].orEmpty()
+                                        Box(Modifier.width(112.dp).fillMaxHeight().padding(1.dp).background(
+                                            if (day.dayOfWeek.value == 7) MaterialTheme.colorScheme.error.copy(alpha = .06f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .28f)
+                                        ).clickable { navController.navigate(CalendarEditRoute(dateTime = dayStart(day, hour))) }) {
+                                            Column(Modifier.fillMaxSize()) {
+                                                events.take(2).forEach { event ->
+                                                    Text(event.title, Modifier.fillMaxWidth().padding(2.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(4.dp)).clickable {
+                                                        navController.navigate(CalendarEditRoute(id = event.calendarID))
+                                                    }.padding(horizontal = 4.dp, vertical = 3.dp), maxLines = 2, style = MaterialTheme.typography.labelSmall)
+                                                }
+                                                if (events.size > 2) Text("+${events.size - 2}", style = MaterialTheme.typography.labelSmall)
+                                            }
                                         }
-                                        if (events.size > 2) Text("+${events.size - 2}", style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                             }
                         }
+                        item {
+                            CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = true, onMenuClick = {
+                                scope.launch { drawerState.open() }
+                            })
+                        }
+                    }
+
+                    FloatingActionButton(
+                        onClick = { navController.navigate(CalendarEditRoute(dateTime = dayStart(LocalDate.now(), java.time.LocalTime.now().hour))) },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.Add, "予定を追加")
                     }
                 }
-                item {
-                    CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = true)
-                }
-            }
-            Button(
-                onClick = { navController.navigate(CalendarEditRoute(dateTime = dayStart(LocalDate.now(), java.time.LocalTime.now().hour))) },
-                modifier = Modifier.fillMaxWidth().padding(8.dp)
-            ) {
-                Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("予定を追加")
             }
         }
-        state.notice?.let { Text(it, Modifier.fillMaxWidth().padding(8.dp), color = MaterialTheme.colorScheme.primary) }
     }
 }
 
@@ -139,7 +142,8 @@ private fun CalendarScreenContent(
 private fun CalendarDateHeader(
     days: List<LocalDate>,
     dayScroll: ScrollState,
-    isBottom: Boolean = false
+    isBottom: Boolean = false,
+    onMenuClick: () -> Unit = {}
 ) {
     Row(
         Modifier
@@ -148,7 +152,7 @@ private fun CalendarDateHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.width(52.dp),
+            modifier = Modifier.width(52.dp).clickable { onMenuClick() },
             contentAlignment = Alignment.Center
         ) {
             Text("≡", style = MaterialTheme.typography.titleMedium)
@@ -232,18 +236,16 @@ fun CalendarEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (id == null) "予定を作成" else "予定を編集") }
+                title = { Text(if (id == null) "予定を作成" else "予定を編集") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.Close, "閉じる")
+                    }
+                }
             )
         }
     ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth()) else {
                 OutlinedTextField(start, { start = it }, label = { Text("開始 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(end, { end = it }, label = { Text("終了 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -251,7 +253,11 @@ fun CalendarEditScreen(
                 Text("参加ユーザー", style = MaterialTheme.typography.titleSmall)
                 OutlinedTextField(search, { search = it }, label = { Text("ユーザーまたはグループを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 candidates.take(8).forEach { name ->
-                    Text("＋ $name", Modifier.fillMaxWidth().clickable { attendees = attendees + name; search = "" }.padding(6.dp))
+                    ListItem(
+                        headlineContent = { Text(name) },
+                        modifier = Modifier.clickable { attendees = attendees + name; search = "" },
+                        leadingContent = { Text("＋", color = MaterialTheme.colorScheme.primary) }
+                    )
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                     attendees.forEach { name -> AssistChip(onClick = { attendees = attendees - name }, label = { Text("$name ×") }, modifier = Modifier.padding(end = 4.dp)) }
@@ -269,20 +275,10 @@ fun CalendarEditScreen(
                         }
                     }
                 }
-                val googleUrl = remember(todo, start, end) {
-                    val dates = runCatching {
-                        val a = calendarDateTime(start)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                        val b = calendarDateTime(end)!!.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss"))
-                        "https://www.google.com/calendar/render?action=TEMPLATE&text=${java.net.URLEncoder.encode(todo, "UTF-8")}&dates=$a/$b"
-                    }.getOrDefault("")
-                    dates
-                }
-                if (googleUrl.isNotBlank()) Text(googleUrl, style = MaterialTheme.typography.bodySmall, maxLines = 3)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { confirmAction = "save" }, enabled = todo.isNotBlank() && !saving, modifier = Modifier.weight(1f)) { Text(if (saving) "送信中…" else "保存") }
                     if (id != null) OutlinedButton(onClick = { confirmAction = "delete" }, enabled = !saving) { Text("削除") }
-                    OutlinedButton(onClick = { navController.popBackStack() }) { Text("閉じる") }
                 }
             }
         }

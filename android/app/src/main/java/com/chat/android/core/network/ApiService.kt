@@ -178,6 +178,12 @@ data class PushResponse(
     val pushContents: List<String>? = null
 )
 
+data class WebRTCTokenResponse(
+    val csrf: String? = null,
+    val token: String? = null,
+    val error: String? = null
+)
+
 interface ApiService {
     
     // Mobile push subscription (for Android FCM tokens)
@@ -206,6 +212,16 @@ interface ApiService {
         @Field("credential") idToken: String,
         @Field("csrf") csrf: String,
         // 端末識別子（UUIDv4）。サーバーは同一端末の古いセッションを削除するために使う。
+        @Field("deviceID") deviceId: String
+    ): Response<ResponseBody>
+
+    // Username-only sign-in for local/test environments.
+    @Headers("Accept: application/json")
+    @FormUrlEncoded
+    @POST("SignInTestMobile/")
+    suspend fun signInTestMobile(
+        @Field("username") username: String,
+        @Field("csrf") csrf: String,
         @Field("deviceID") deviceId: String
     ): Response<ResponseBody>
     
@@ -542,7 +558,7 @@ interface ApiService {
     @POST("WebRTCTokenGet/")
     suspend fun getWebRTCToken(
         @Field("csrf") csrf: String
-    ): Response<ApiResponse<String>>
+    ): Response<WebRTCTokenResponse>
 
     // Get answers
     @Headers("Accept: application/json")

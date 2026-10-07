@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
@@ -27,11 +26,6 @@ import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.navigation.ThreadHeadRoute
 import com.chat.android.navigation.ThreadRoute
-import com.chat.android.core.ui.component.DrawerLayout
-import com.chat.android.core.ui.component.AppDrawer
-import com.chat.android.core.ui.component.LocalDrawerState
-import androidx.compose.material.icons.filled.Menu
-import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -52,29 +46,8 @@ fun ThreadScreen(
     backID: String? = null,
     viewModel: ThreadViewModel = hiltViewModel()
 ) {
-    DrawerLayout(
-        drawerContent = {
-            AppDrawer(navController = navController)
-        }
-    ) {
-        ThreadScreenContent(navController, channelID, parentID, backID, viewModel)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ThreadScreenContent(
-    navController: NavController,
-    channelID: String?,
-    parentID: String?,
-    backID: String?,
-    viewModel: ThreadViewModel
-) {
     val state by viewModel.uiState.collectAsState()
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
 
     var editingId by remember { mutableStateOf<String?>(null) }
     var editingText by remember { mutableStateOf("") }
@@ -100,8 +73,17 @@ private fun ThreadScreenContent(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { scope.launch { drawerState?.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "メニュー")
+                    IconButton(onClick = {
+                        val backID = state.head?.backID.orEmpty()
+                        if (backID.isNotBlank() && channelID != null) {
+                            navController.navigate(ThreadRoute(channelID = channelID, parentID = backID)) {
+                                popUpTo<ThreadRoute> { inclusive = true }
+                            }
+                        } else {
+                            navController.navigateUp()
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "戻る")
                     }
                 }
             )
@@ -157,7 +139,7 @@ private fun ThreadScreenContent(
                                         editingText = ""
                                     },
                                     onCall = {
-                                        viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                                        viewModel.postCall { code -> navController.navigate(com.chat.android.navigation.ThreadCallRoute(code)) }
                                     },
                                     onCancelEdit = {
                                         editingId = null
@@ -167,7 +149,8 @@ private fun ThreadScreenContent(
                             } else {
                                 ThreadMessageText(
                                     text = head.messageTxt,
-                                    modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp)
+                                    modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp),
+                                    onCallLink = { code -> navController.navigate(com.chat.android.navigation.ThreadCallRoute(code)) }
                                 )
                             }
                         }
@@ -211,7 +194,7 @@ private fun ThreadScreenContent(
                                     editingText = ""
                                 },
                                 onCall = {
-                                    viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                                    viewModel.postCall { code -> navController.navigate(com.chat.android.navigation.ThreadCallRoute(code)) }
                                 },
                                 onCancelEdit = {
                                     editingId = null
@@ -221,7 +204,8 @@ private fun ThreadScreenContent(
                         } else {
                             ThreadMessageText(
                                 text = message.messageTxt,
-                                modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp)
+                                modifier = Modifier.fillMaxWidth().padding(start = 40.dp, top = 2.dp),
+                                onCallLink = { code -> navController.navigate(com.chat.android.navigation.ThreadCallRoute(code)) }
                             )
                         }
                     }
@@ -244,7 +228,7 @@ private fun ThreadScreenContent(
                         viewModel.postMessage(text, editingMessageID, asDelete, task, group, fileUris)
                     },
                     onCall = {
-                        viewModel.postCall { url -> runCatching { uriHandler.openUri(url) } }
+                        viewModel.postCall { code -> navController.navigate(com.chat.android.navigation.ThreadCallRoute(code)) }
                     },
                     onCancelEdit = {}
                 )

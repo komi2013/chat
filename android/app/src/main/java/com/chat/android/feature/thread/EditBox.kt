@@ -494,7 +494,11 @@ private fun insertAtCursor(value: TextFieldValue, insert: String): TextFieldValu
 
 /** 本文をComposeのテキストへ描画する（MarkdownCodec を利用）。リンクのタップに対応。 */
 @Composable
-fun ThreadMessageText(text: String, modifier: Modifier = Modifier) {
+fun ThreadMessageText(
+    text: String,
+    modifier: Modifier = Modifier,
+    onCallLink: ((String) -> Unit)? = null
+) {
     val parts = remember(text) { parseThreadMessageParts(text) }
     val uriHandler = LocalUriHandler.current
 
@@ -511,7 +515,10 @@ fun ThreadMessageText(text: String, modifier: Modifier = Modifier) {
                             annotated.getStringAnnotations("URL", offset, offset)
                                 .firstOrNull()?.let { annotation ->
                                     val url = annotation.item.trim()
-                                    if (url.startsWith("https://", true) || url.startsWith("http://", true) || url.startsWith("mailto:", true) || url.startsWith("tel:", true) || url.startsWith("/")) {
+                                    val callCode = Regex("/threadCall/([^/?#]+)/?").find(url)?.groupValues?.getOrNull(1)
+                                    if (callCode != null && onCallLink != null) {
+                                        onCallLink(callCode)
+                                    } else if (url.startsWith("https://", true) || url.startsWith("http://", true) || url.startsWith("mailto:", true) || url.startsWith("tel:", true) || url.startsWith("/")) {
                                         runCatching { uriHandler.openUri(url.toAbsoluteImageUrl()) }
                                     }
                                 }

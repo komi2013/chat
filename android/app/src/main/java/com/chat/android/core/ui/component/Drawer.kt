@@ -1,6 +1,5 @@
 package com.chat.android.core.ui.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,12 +21,11 @@ import com.chat.android.core.repository.UserRepository
 import com.chat.android.feature.channel.ChannelRepository
 import com.chat.android.feature.channel.DbChannel
 import com.chat.android.navigation.UserRoute
+import com.chat.android.navigation.SettingsRoute
 import com.chat.android.navigation.EntryFormListRoute
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.HomeRoute
 import com.chat.android.navigation.CalendarRoute
-import com.chat.android.feature.calendar.CalendarRepository
-import com.chat.android.feature.calendar.parseCalendarNames
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,9 +36,7 @@ import kotlinx.coroutines.withContext
 data class DrawerUiState(
     val hasChannel: Boolean = false,
     val channelName: String = "",
-    val myAlias: String = "",
-    val aliases: List<com.chat.android.feature.channel.DbAlias> = emptyList(),
-    val groups: List<com.chat.android.feature.channel.DbGroup> = emptyList()
+    val myAlias: String = ""
 )
 
 /**
@@ -93,14 +89,10 @@ class DrawerViewModel @Inject constructor(
         withContext(Dispatchers.IO) {
             val id = channelId ?: channelRepository.getAllChannels().firstOrNull()?.channelID
             val channel = id?.let { channelRepository.getChannel(it) }
-            val aliases = id?.let { channelRepository.getAliases(it) } ?: emptyList()
-            val groups = id?.let { channelRepository.getGroups(it) } ?: emptyList()
             state.copy(
                 hasChannel = channel != null,
                 channelName = channel?.channelName.orEmpty(),
-                myAlias = channel?.myname.orEmpty(),
-                aliases = aliases,
-                groups = groups
+                myAlias = channel?.myname.orEmpty()
             )
         }
 }
@@ -115,11 +107,10 @@ data class DrawerItem(
 @Composable
 fun AppDrawer(
     navController: NavController,
-    viewModel: DrawerViewModel = hiltViewModel()
+    viewModel: DrawerViewModel = hiltViewModel(),
+    onClose: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val drawerState = LocalDrawerState.current
-    val scope = rememberCoroutineScope()
 
     ModalDrawerSheet(
         modifier = Modifier.width(280.dp)
@@ -128,7 +119,7 @@ fun AppDrawer(
         DrawerHeader(
             channelName = uiState.channelName,
             myAlias = uiState.myAlias,
-            onClose = { scope.launch { drawerState?.close() } }
+            onClose = onClose
         )
         
         Divider()
@@ -145,12 +136,14 @@ fun AppDrawer(
                             "home" -> navController.navigate(HomeRoute)
                             "calendar" -> navController.navigate(CalendarRoute())
                             "user" -> navController.navigate(UserRoute)
+                            "settings" -> navController.navigate(SettingsRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
                             "channelCreate" -> navController.navigate(ChannelRoute(id = null))
                             else -> navController.navigate(item.route)
                         }
-                        scope.launch { drawerState?.close() }
+                        onClose()
                     }
+
                 )
             }
         }
@@ -240,6 +233,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     // チャネル登録はチャネルを作る導線なので、チャネルが無くても表示する。
     items.add(DrawerItem(title = "ホーム", route = "home", icon = Icons.Default.Home))
     items.add(DrawerItem(title = "ユーザー設定", route = "user", icon = Icons.Default.Person))
+    items.add(DrawerItem(title = "設定・SQLite", route = "settings", icon = Icons.Default.Storage))
     items.add(DrawerItem(
         title = "カレンダー",
         route = "calendar",

@@ -13,8 +13,8 @@ import (
 
 func main() {
 	if len(os.Args) == 1 {
-	  cfg := common.LoadConfig()
-	  common.InitMongo(cfg)
+		cfg := common.LoadConfig()
+		common.InitMongo(cfg)
 		http.HandleFunc("/AdDelete/", controller.AdDelete)
 		http.HandleFunc("/AdEdit/", controller.AdEdit)
 		http.HandleFunc("/AdGet/", controller.AdGet)
@@ -30,7 +30,7 @@ func main() {
 		http.HandleFunc("/LogFromJS/", controller.LogFromJS)
 		http.HandleFunc("/NicknameGet/", controller.NicknameGet)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
-http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
+		http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		http.HandleFunc("/ReceptionBook/", controller.ReceptionBook)
 		// http.HandleFunc("/ReceptionCheck/", controller.ReceptionCheck)
 		http.HandleFunc("/ReceptionEdit/", controller.ReceptionEdit)
@@ -45,6 +45,7 @@ http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		// http.HandleFunc("/StoreSelect/", controller.StoreSelect)
 		http.HandleFunc("/SignInGoogle/", controller.SignInGoogle)
 		http.HandleFunc("/SignInGoogleMobile/", controller.SignInGoogleMobile)
+		http.HandleFunc("/SignInTestMobile/", controller.SignInTestMobile)
 		http.HandleFunc("/TweetEmoji/", controller.TweetEmoji)
 		http.HandleFunc("/TweetGet/", controller.TweetGet)
 		http.HandleFunc("/TweetGetLatest/", controller.TweetGetLatest)
@@ -57,7 +58,7 @@ http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		// default
 		http.HandleFunc("/", controller.Top)
 
-		fmt.Println("starting.." + cfg.GoPort + " " + cfg.CacheV )
+		fmt.Println("starting.." + cfg.GoPort + " " + cfg.CacheV)
 		log.Fatal(http.ListenAndServe(cfg.GoPort, nil))
 	} else {
 		fmt.Printf("console is running %#v\n", os.Args)
@@ -75,13 +76,17 @@ http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		cfg := common.LoadConsoleConfig()
 		common.InitMongo(cfg)
 		switch command {
-			case "AdPublish":	console.AdPublish()
-			case "FileClean":	console.FileClean()
-			case "TestPush": console.TestPush()
-			case "TestCode": console.TestCode()
-			default:
-				fmt.Printf("Unknown console command %q. Available commands: AdPublish, FileClean, TestPush, TestPushFCM, TestCode\n", command)
-				return
+		case "AdPublish":
+			console.AdPublish()
+		case "FileClean":
+			console.FileClean()
+		case "TestPush":
+			console.TestPush()
+		case "TestCode":
+			console.TestCode()
+		default:
+			fmt.Printf("Unknown console command %q. Available commands: AdPublish, FileClean, TestPush, TestPushFCM, TestCode\n", command)
+			return
 		}
 	}
 }

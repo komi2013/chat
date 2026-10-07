@@ -21,10 +21,12 @@ import com.chat.android.feature.channel.ChannelScreen
 import com.chat.android.feature.group.GroupScreen
 import com.chat.android.feature.people.PeopleScreen
 import com.chat.android.feature.thread.ThreadScreen
+import com.chat.android.feature.call.ThreadCallScreen
 import com.chat.android.feature.profile.ProfileScreen
 import com.chat.android.feature.home.HomeScreen
 import com.chat.android.feature.calendar.CalendarScreen
 import com.chat.android.feature.calendar.CalendarEditScreen
+import com.chat.android.feature.settings.SettingsScreen
 
 /**
  * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
@@ -50,7 +52,12 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
         }
     }
 
-    NavHost(navController = navController, startDestination = "login") {
+    DrawerLayout(
+        navController = navController,
+        viewModel = drawerViewModel
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            NavHost(navController = navController, startDestination = "login") {
                 composable("login") {
                     SignInScreen(navController = navController)
                 }
@@ -71,6 +78,10 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                 
                 composable<UserRoute> {
                     UserScreen(navController = navController)
+                }
+
+                composable<SettingsRoute> {
+                    SettingsScreen()
                 }
 
                 composable<EntryFormListRoute> {
@@ -144,6 +155,11 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                     )
                 }
 
+                composable<ThreadCallRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ThreadCallRoute>()
+                    ThreadCallScreen(code = route.code, onLeave = { navController.navigateUp() })
+                }
+
                 composable<TimestampRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<TimestampRoute>()
                     com.chat.android.feature.timestamp.TimestampScreen(
@@ -169,5 +185,7 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                     )
                 }
             }
+        }
+    }
 }
 
