@@ -18,6 +18,7 @@ import com.chat.android.core.push.handlers.EntryFormHandler
 import com.chat.android.core.push.handlers.GroupHandler
 import com.chat.android.core.push.handlers.ThreadHandler
 import com.chat.android.core.push.handlers.ThreadHeadHandler
+import com.chat.android.core.push.handlers.ReceptionOrderHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +55,7 @@ class PushReceiveDispatcher(
         "timestampCode" to TimestampCodeHandler(context),
         "timestampReport" to TimestampReportHandler(context),
         "timestampRevert" to TimestampRevertHandler(context),
+        "receptionOrder" to ReceptionOrderHandler(context),
         // ... add other handlers here later
     )
 
@@ -67,15 +69,15 @@ class PushReceiveDispatcher(
         }
 
         // Toggle Deduplication Logic
-        // 重褁E��定�E vue/src/pushReceive/pushReceive.js と同じトグル方弁E
-        //   1回目 = 適用してマ�Eカー保孁E/ 2回目 = マ�Eカー削除して破棁E���E同期用�E�E
+        // 重褁E��定�E vue/src/pushReceive/pushReceive.js と同じトグル方弁E
+        //   1回目 = 適用してマ�Eカー保孁E/ 2回目 = マ�Eカー削除して破棁E���E同期用�E�E
         val pushDuplicationID = "${pd.title}${pd.channelID}${pd.updatedBy}${pd.pushID}"
 
         applicationScope.launch {
             try {
                 // 1. Check if marker exists
-                // FCM の onMessageReceived�E�メインスレチE���E�からも呼ばれるため、E
-                // DB オープンは忁E�� IO 側のこ�E位置で行う、E
+                // FCM の onMessageReceived�E�メインスレチE���E�からも呼ばれるため、E
+                // DB オープンは忁E�� IO 側のこ�E位置で行う、E
                 val db = dbHelper.writableDatabase
                 val cursor = db.query(
                     "pushDuplication",

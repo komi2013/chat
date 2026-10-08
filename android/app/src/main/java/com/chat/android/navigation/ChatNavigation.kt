@@ -27,6 +27,8 @@ import com.chat.android.feature.home.HomeScreen
 import com.chat.android.feature.calendar.CalendarScreen
 import com.chat.android.feature.calendar.CalendarEditScreen
 import com.chat.android.feature.settings.SettingsScreen
+import com.chat.android.feature.reception.ReceptionScreen
+import kotlinx.serialization.Serializable
 
 /**
  * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
@@ -182,6 +184,70 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
                         admin = route.admin,
                         month = route.month,
                         stamper = route.stamper
+                    )
+                }
+
+                composable<ReceptionRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionRoute>()
+                    ReceptionScreen(
+                        navController = navController,
+                        id = route.id,
+                        code = route.code
+                    )
+                }
+
+                composable<ReceptionEnterRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionEnterRoute>()
+                    com.chat.android.feature.reception.ReceptionEnterScreen(
+                        id = route.id,
+                        passkey = route.passkey,
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable<ReceptionMenuRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionMenuRoute>()
+                    com.chat.android.feature.reception.ReceptionMenuScreen(
+                        id = route.id,
+                        code = route.code,
+                        codeType = route.codeType,
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable<ReceptionBookRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionBookRoute>()
+                    com.chat.android.feature.reception.ReceptionBookScreen(
+                        receptionID = route.id,
+                        initialDate = route.date,
+                        initialMenuID = route.menuID,
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable<ReceptionOrderRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionOrderRoute>()
+                    com.chat.android.feature.reception.ReceptionOrderScreen(
+                        id = route.id,
+                        code = route.code
+                    )
+                }
+
+                composable<ReceptionShiftRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionShiftRoute>()
+                    com.chat.android.feature.reception.ReceptionShiftScreen(
+                        receptionID = route.receptionID,
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable<ReceptionThreadRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<ReceptionThreadRoute>()
+                    com.chat.android.feature.reception.ReceptionThreadScreen(
+                        navController = navController,
+                        channelID = route.channelID,
+                        code = route.code,
+                        backID = route.backID
                     )
                 }
             }

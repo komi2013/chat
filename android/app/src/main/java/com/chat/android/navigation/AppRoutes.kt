@@ -72,3 +72,24 @@ data object TimestampCodeRoute
 
 @Serializable
 data class TimestampReportRoute(val admin: String, val month: String? = null, val stamper: String? = null)
+
+@Serializable
+data class ReceptionRoute(val id: String? = null, val code: String? = null)
+
+@Serializable
+data class ReceptionEnterRoute(val id: String, val passkey: String)
+
+@Serializable
+data class ReceptionMenuRoute(val id: String, val code: String, val codeType: String)
+
+@Serializable
+data class ReceptionBookRoute(val id: String, val date: String? = null, val menuID: Int? = null)
+
+@Serializable
+data class ReceptionOrderRoute(val id: String, val code: String)
+
+@Serializable
+data class ReceptionShiftRoute(val receptionID: String, val date: String? = null)
+
+@Serializable
+data class ReceptionThreadRoute(val channelID: String, val code: String, val backID: String? = null)
