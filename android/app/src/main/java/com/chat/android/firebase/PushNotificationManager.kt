@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.chat.android.MainActivity
@@ -45,6 +47,24 @@ class PushNotificationManager @Inject constructor(
                 description = "Notifications for new messages"
             }
             notificationManager.createNotificationChannel(channel)
+
+            val callChannel = NotificationChannel(
+                CALL_CHANNEL_ID,
+                "Incoming calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Incoming voice and video calls"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 250, 500)
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+            }
+            notificationManager.createNotificationChannel(callChannel)
         }
     }
     
@@ -99,7 +119,9 @@ class PushNotificationManager @Inject constructor(
                         channelID = id,
                         channelName = c.channelName ?: existing?.channelName.orEmpty(),
                         channelDescription = c.channelDescription ?: existing?.channelDescription.orEmpty(),
-                        myname = c.myname ?: existing?.myname.orEmpty(),
+                        // Keep the alias chosen on this device when refreshing the
+                        // server's channel snapshot after a later sign-in.
+                        myname = existing?.myname?.takeIf { it.isNotBlank() } ?: c.myname.orEmpty(),
                         myimg = existing?.myimg.orEmpty()
                     )
                 )
@@ -171,8 +193,40 @@ class PushNotificationManager @Inject constructor(
         val notificationId = collapseKey?.hashCode() ?: System.currentTimeMillis().toInt()
         notificationManager.notify(notificationId, notification)
     }
+
+    fun showIncomingCall(caller: String, callCode: String) {
+        val callIntent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_OPEN_CALL
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_CALL_CODE, callCode)
+        }
+        val callPendingIntent = PendingIntent.getActivity(
+            context,
+            callCode.hashCode(),
+            callIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CALL_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Incoming call")
+            .setContentText("${caller.ifBlank { "Someone" }} is calling")
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setFullScreenIntent(callPendingIntent, true)
+            .setContentIntent(callPendingIntent)
+            .build()
+
+        notificationManager.notify(callCode.hashCode(), notification)
+    }
     
     companion object {
         private const val CHANNEL_ID = "chat_notifications"
+        private const val CALL_CHANNEL_ID = "incoming_calls"
+        const val ACTION_OPEN_CALL = "com.chat.android.OPEN_CALL"
+        const val EXTRA_CALL_CODE = "call_code"
     }
 }

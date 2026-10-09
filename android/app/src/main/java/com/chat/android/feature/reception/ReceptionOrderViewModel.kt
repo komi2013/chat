@@ -7,15 +7,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chat.android.core.push.PushReceiveDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ReceptionOrderViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: ReceptionRepository
+    private val repository: ReceptionRepository,
+    private val dbHelper: ReceptionDbHelper,
+    private val pushDispatcher: PushReceiveDispatcher
 ) : ViewModel() {
 
     var reception by mutableStateOf<Reception?>(null)
@@ -39,7 +43,7 @@ class ReceptionOrderViewModel @Inject constructor(
     var isLoading by mutableStateOf(false)
         private set
 
-    private val dbHelper = ReceptionDbHelper(context)
+    private var updateJob: kotlinx.coroutines.Job? = null
 
     fun init(id: String, code: String) {
         viewModelScope.launch {
@@ -58,6 +62,15 @@ class ReceptionOrderViewModel @Inject constructor(
                 errorMessage = it.message
             }
             isLoading = false
+        }
+
+        updateJob?.cancel()
+        updateJob = viewModelScope.launch {
+            pushDispatcher.onUpdated.collect { updatedChannelID ->
+                if (updatedChannelID == reception?.channelID) {
+                    fetchOrders()
+                }
+            }
         }
     }
 
@@ -84,5 +97,10 @@ class ReceptionOrderViewModel @Inject constructor(
             }
             isLoading = false
         }
+    }
+
+    override fun onCleared() {
+        updateJob?.cancel()
+        super.onCleared()
     }
 }

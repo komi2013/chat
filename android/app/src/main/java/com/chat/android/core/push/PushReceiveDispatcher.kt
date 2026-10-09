@@ -55,7 +55,11 @@ class PushReceiveDispatcher(
         "timestampCode" to TimestampCodeHandler(context),
         "timestampReport" to TimestampReportHandler(context),
         "timestampRevert" to TimestampRevertHandler(context),
-        "receptionOrder" to ReceptionOrderHandler(context),
+        "receptionOrder" to ReceptionOrderHandler(
+            context,
+            com.chat.android.feature.reception.ReceptionDbHelper(context),
+            dbHelper
+        ),
         // ... add other handlers here later
     )
 

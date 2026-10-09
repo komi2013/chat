@@ -12,8 +12,17 @@ import javax.inject.Inject
 @HiltViewModel
 class ReceptionThreadViewModel @Inject constructor(
     private val repository: ReceptionRepository,
-    private val threadViewModel: ThreadViewModel
+    private val threadRepository: com.chat.android.feature.thread.ThreadRepository,
+    private val pushDispatcher: com.chat.android.core.push.PushReceiveDispatcher,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
+
+    private val threadViewModel = com.chat.android.feature.thread.ThreadViewModel(
+        context,
+        threadRepository,
+        pushDispatcher
+    )
+
 
     private val _reception = MutableStateFlow<Reception?>(null)
     val reception: StateFlow<Reception?> = _reception

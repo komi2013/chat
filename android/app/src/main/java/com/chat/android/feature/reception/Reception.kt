@@ -62,7 +62,9 @@ data class Ask(
 data class Facility(
     val facilityName: String = "",
     val capacity: Int = 0,
-    val bookable: Boolean = false
+    val bookable: Boolean = false,
+    val currentCode: String? = null,
+    val currentGuests: Int? = null
 )
 
 data class OpenTime(

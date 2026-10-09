@@ -2,16 +2,12 @@ package com.chat.android.feature.reception
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chat.android.feature.channel.DbAlias
-import com.chat.android.feature.channel.DbGroup
-import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 data class ScheduleSlot(
@@ -185,11 +181,6 @@ class ReceptionBookViewModel @Inject constructor(
             blocks = nextBlocks
         }
         return blocks.filter { it.free > 0 }
-    }
-    
-    // For unavailable facility time, we treat them as books with capacity 1
-    private fun splitBlock(start: LocalDateTime, end: LocalDateTime, unavailable: List<Book>, capacity: Int): List<Block> {
-        return splitBlock(start, end, unavailable, 1) 
     }
 
     private fun isOverlapping(startA: LocalDateTime, endA: LocalDateTime, startBStr: String, endBStr: String): Boolean {

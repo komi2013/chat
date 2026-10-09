@@ -27,25 +27,33 @@ fun ThreadCallScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions[Manifest.permission.CAMERA] == true &&
-            permissions[Manifest.permission.RECORD_AUDIO] == true
-        ) viewModel.start(code)
-        else viewModel.permissionDenied()
+        if (permissions[Manifest.permission.RECORD_AUDIO] == true) {
+            // Camera is optional so people can still join an audio call when they
+            // decline camera access or their device has no camera.
+            viewModel.start(code, withVideo = permissions[Manifest.permission.CAMERA] == true)
+        } else {
+            viewModel.permissionDenied()
+        }
     }
 
     LaunchedEffect(code) {
-        permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+        permissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA))
     }
     DisposableEffect(Unit) { onDispose { viewModel.leave() } }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         state.remoteVideo?.let { stream ->
-            SkyWayVideo(stream, Modifier.fillMaxSize())
+            SkyWayVideo(stream, Modifier.fillMaxSize(), isMediaOverlay = false)
         }
         state.localVideo?.let { stream ->
             SkyWayVideo(
                 stream,
-                Modifier.align(Alignment.TopEnd).padding(16.dp).size(width = 112.dp, height = 160.dp)
+                modifier = if (state.remoteVideo == null) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier.align(Alignment.TopEnd).padding(16.dp).size(width = 112.dp, height = 160.dp)
+                },
+                isMediaOverlay = state.remoteVideo != null
             )
         }
         Column(
@@ -55,6 +63,10 @@ fun ThreadCallScreen(
             when {
                 state.error != null -> Text(state.error.orEmpty(), color = Color.White)
                 state.connecting -> CircularProgressIndicator(color = Color.White)
+                state.remoteVideoError != null -> Text("相手の映像エラー: ${state.remoteVideoError}", color = Color.White)
+                state.localVideoError != null -> Text("カメラエラー: ${state.localVideoError}", color = Color.White)
+                state.remoteAudioConnected && !state.remoteVideoPublicationSeen ->
+                    Text("音声は接続済みです。相手から映像が届いていません。", color = Color.White)
                 state.remoteVideo == null -> Text("相手の参加を待っています…", color = Color.White)
             }
             Spacer(Modifier.height(16.dp))
@@ -66,11 +78,19 @@ fun ThreadCallScreen(
 }
 
 @Composable
-private fun SkyWayVideo(stream: Any, modifier: Modifier) {
+private fun SkyWayVideo(stream: Any, modifier: Modifier, isMediaOverlay: Boolean) {
     var renderer by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
     AndroidView(
         modifier = modifier,
-        factory = { context -> SurfaceViewRenderer(context).also { it.setup(); renderer = it } },
+        factory = { context ->
+            SurfaceViewRenderer(context).also {
+                it.setup()
+                // Keep a lone preview on the normal surface layer. Only lift the
+                // local thumbnail above the remote surface when both are present.
+                it.setZOrderMediaOverlay(isMediaOverlay)
+                renderer = it
+            }
+        },
         update = { view ->
             when (stream) {
                 is LocalVideoStream -> { stream.removeRenderer(view); stream.addRenderer(view) }

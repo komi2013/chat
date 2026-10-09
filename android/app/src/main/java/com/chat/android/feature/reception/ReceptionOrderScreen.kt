@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceptionOrderScreen(
     id: String,
@@ -37,7 +38,7 @@ fun ReceptionOrderScreen(
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(title = { Text("注文履歴") })
+            TopAppBar(title = { Text("注文履歴") })
         }
     ) { padding ->
         Column(

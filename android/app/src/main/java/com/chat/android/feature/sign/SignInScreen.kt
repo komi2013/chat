@@ -11,14 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
-import com.chat.android.navigation.UserRoute
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun SignInScreen(
-    navController: NavController,
+    onSignedIn: () -> Unit = {},
     viewModel: SignInViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -38,9 +36,7 @@ fun SignInScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is SignInUiState.Success) {
-            navController.navigate(UserRoute) {
-                popUpTo("login") { inclusive = true }
-            }
+            onSignedIn()
         }
     }
 

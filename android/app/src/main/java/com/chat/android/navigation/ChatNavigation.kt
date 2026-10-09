@@ -17,6 +17,7 @@ import com.chat.android.feature.entryform.EntryFormListScreen
 import com.chat.android.feature.entryform.EntryFormEditScreen
 import com.chat.android.feature.entryform.EntryFormAnswerScreen
 import com.chat.android.InviteRequest
+import com.chat.android.IncomingCallRequest
 import com.chat.android.feature.channel.ChannelScreen
 import com.chat.android.feature.group.GroupScreen
 import com.chat.android.feature.people.PeopleScreen
@@ -35,7 +36,12 @@ import kotlinx.serialization.Serializable
  *   LaunchedEffect のキーに使ぁE��め、同じURLでめEtoken が変われ�E再�E移する、E
  */
 @Composable
-fun ChatNavigation(inviteRequest: InviteRequest? = null) {
+fun ChatNavigation(
+    inviteRequest: InviteRequest? = null,
+    callRequest: IncomingCallRequest? = null,
+    isSignedIn: Boolean = false,
+    initialChannelID: String? = null
+) {
     val navController = rememberNavController()
     // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する！Ectivity スコープ）、E
     val drawerViewModel: DrawerViewModel = hiltViewModel()
@@ -54,14 +60,36 @@ fun ChatNavigation(inviteRequest: InviteRequest? = null) {
         }
     }
 
+    LaunchedEffect(callRequest) {
+        val request = callRequest ?: return@LaunchedEffect
+        if (isSignedIn) {
+            navController.navigate(ThreadCallRoute(request.code)) { launchSingleTop = true }
+        } else {
+            navController.navigate("login") { launchSingleTop = true }
+        }
+    }
+
     DrawerLayout(
         navController = navController,
         viewModel = drawerViewModel
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
-            NavHost(navController = navController, startDestination = "login") {
+            val startDestination: Any = when {
+                !isSignedIn -> "login"
+                !initialChannelID.isNullOrBlank() -> ChannelRoute(initialChannelID)
+                else -> HomeRoute
+            }
+            NavHost(navController = navController, startDestination = startDestination) {
                 composable("login") {
-                    SignInScreen(navController = navController)
+                    SignInScreen(onSignedIn = {
+                        val route: Any = callRequest?.let { ThreadCallRoute(it.code) }
+                            ?: initialChannelID?.takeIf(String::isNotBlank)?.let { ChannelRoute(it) }
+                            ?: HomeRoute
+                        navController.navigate(route) {
+                            popUpTo("login") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    })
                 }
                 
                 composable<HomeRoute> {

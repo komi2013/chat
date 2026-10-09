@@ -30,6 +30,10 @@ data class ThreadCallState(
     val connecting: Boolean = true,
     val localVideo: LocalVideoStream? = null,
     val remoteVideo: RemoteVideoStream? = null,
+    val remoteAudioConnected: Boolean = false,
+    val remoteVideoPublicationSeen: Boolean = false,
+    val localVideoError: String? = null,
+    val remoteVideoError: String? = null,
     val error: String? = null,
     val ended: Boolean = false
 )
@@ -46,9 +50,11 @@ class ThreadCallViewModel @Inject constructor(
     private var room: Room? = null
     private var member: LocalRoomMember? = null
     private var audio: LocalAudioStream? = null
+    private var video: LocalVideoStream? = null
+    private val subscribingPublicationIds = mutableSetOf<String>()
     private var started = false
 
-    fun start(code: String) {
+    fun start(code: String, withVideo: Boolean = true) {
         if (started) return
         started = true
         viewModelScope.launch {
@@ -63,19 +69,33 @@ class ThreadCallViewModel @Inject constructor(
 
                 check(SkyWayContext.setup(context, token)) { "SkyWay に接続できません" }
 
-                val camera = CameraSource.getFrontCameras(context).firstOrNull()
-                    ?: error("カメラが見つかりません")
-                CameraSource.startCapturing(context, camera, CameraSource.CapturingOptions(800, 800))
-                val video = CameraSource.createStream()
                 AudioSource.start()
                 audio = AudioSource.createStream()
-                _state.value = _state.value.copy(localVideo = video)
+                if (withVideo) {
+                    runCatching {
+                        val camera = CameraSource.getFrontCameras(context).firstOrNull()
+                            ?: error("カメラが見つかりません")
+                        CameraSource.startCapturing(context, camera, CameraSource.CapturingOptions(800, 800))
+                        CameraSource.createStream()
+                    }.onSuccess { localVideo ->
+                        video = localVideo
+                        _state.value = _state.value.copy(localVideo = localVideo)
+                    }.onFailure { cameraError ->
+                        val reason = cameraError.message ?: cameraError.javaClass.simpleName
+                        android.util.Log.e(TAG, "Camera initialization failed", cameraError)
+                        _state.value = _state.value.copy(localVideoError = reason)
+                    }
+                } else {
+                    _state.value = _state.value.copy(localVideoError = "カメラの権限が許可されていません")
+                }
 
                 room = Room.findOrCreate(name = code)
                 member = room?.join(RoomMember.Init(name = "android_${UUID.randomUUID()}"))
                     ?: error("通話ルームに参加できません")
                 val localMember = member ?: error("通話ルームに参加できません")
 
+                // Install the listener before inspecting existing publications so
+                // a stream published during join cannot be missed.
                 room?.onStreamPublishedHandler = published@{ publication ->
                     if (publication.publisher?.id == localMember.id) return@published
                     subscribe(publication)
@@ -84,7 +104,8 @@ class ThreadCallViewModel @Inject constructor(
                     if (publication.publisher?.id != localMember.id) subscribe(publication)
                 }
                 val sfu = RoomPublication.Options(type = RoomPublication.Type.SFU)
-                localMember.publish(video, sfu)
+                android.util.Log.d(TAG, "Publishing local video=${video != null} and microphone=${audio != null}")
+                video?.let { localMember.publish(it, sfu) }
                 audio?.let { localMember.publish(it, sfu) }
                 _state.value = _state.value.copy(connecting = false)
             } catch (error: Exception) {
@@ -98,13 +119,44 @@ class ThreadCallViewModel @Inject constructor(
     }
 
     private fun subscribe(publication: RoomPublication) {
+        android.util.Log.d(
+            TAG,
+            "Remote publication received id=${publication.id} content=${publication.contentType}"
+        )
+        synchronized(subscribingPublicationIds) {
+            if (!subscribingPublicationIds.add(publication.id)) return
+        }
+        if (publication.contentType == Stream.ContentType.VIDEO) {
+            _state.value = _state.value.copy(remoteVideoPublicationSeen = true)
+        }
         viewModelScope.launch {
-            runCatching { member?.subscribe(publication) }
-                .getOrNull()?.stream?.let { stream ->
-                    if (stream.contentType == Stream.ContentType.VIDEO) {
-                        _state.value = _state.value.copy(remoteVideo = stream as RemoteVideoStream)
-                    }
+            val result = runCatching {
+                member?.subscribe(publication) ?: error("通話メンバーが未接続です")
+            }
+            result.onSuccess { subscription ->
+                val stream = subscription.stream
+                android.util.Log.d(TAG, "Subscribed publication=${publication.id} content=${stream?.contentType}")
+                if (stream == null && publication.contentType == Stream.ContentType.VIDEO) {
+                    _state.value = _state.value.copy(remoteVideoError = "相手の映像ストリームが空です")
+                } else if (stream?.contentType == Stream.ContentType.AUDIO) {
+                    _state.value = _state.value.copy(remoteAudioConnected = true)
+                } else if (stream?.contentType == Stream.ContentType.VIDEO) {
+                    val remoteVideo = stream as? RemoteVideoStream
+                    _state.value = _state.value.copy(
+                        remoteVideo = remoteVideo,
+                        remoteVideoError = if (remoteVideo == null) "相手の映像を読み込めません" else null
+                    )
+                } else if (publication.contentType == Stream.ContentType.VIDEO) {
+                    _state.value = _state.value.copy(remoteVideoError = "購読した映像の形式が不正です")
                 }
+            }.onFailure { subscriptionError ->
+                android.util.Log.e(TAG, "Subscribe failed publication=${publication.id}", subscriptionError)
+                if (publication.contentType == Stream.ContentType.VIDEO) {
+                    _state.value = _state.value.copy(
+                        remoteVideoError = subscriptionError.message ?: "相手の映像を購読できません"
+                    )
+                }
+            }
         }
     }
 
@@ -121,6 +173,8 @@ class ThreadCallViewModel @Inject constructor(
                 member = null
                 room = null
                 audio = null
+                video = null
+                subscribingPublicationIds.clear()
             }
         }
     }
@@ -128,12 +182,16 @@ class ThreadCallViewModel @Inject constructor(
     fun permissionDenied() {
         _state.value = _state.value.copy(
             connecting = false,
-            error = "ビデオ通話にはカメラとマイクの許可が必要です"
+            error = "音声通話にはマイクの許可が必要です"
         )
     }
 
     override fun onCleared() {
         leave()
         super.onCleared()
+    }
+
+    private companion object {
+        const val TAG = "ThreadCall"
     }
 }

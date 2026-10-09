@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.navigation.ProfileRoute
+import com.chat.android.firebase.PushNotificationManager
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -30,6 +31,7 @@ class MainActivity : ComponentActivity() {
     // 通常の var にすると onNewIntent で更新しても再コンポジションが起きず、
     // 起動済みのアプリに-drop した招待リンクが無視される。
     private var inviteRequest by mutableStateOf<InviteRequest?>(null)
+    private var callRequest by mutableStateOf<IncomingCallRequest?>(null)
 
     @Inject
     lateinit var userRepository: UserRepository
@@ -46,6 +48,7 @@ class MainActivity : ComponentActivity() {
 
         // 招待URL（chat://profile/{id}?code=...）で起動された場合
         handleInviteIntent(intent)
+        handleCallIntent(intent)
 
         setContent {
             ChatAndroidTheme {
@@ -53,7 +56,12 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ChatNavigation(inviteRequest = inviteRequest)
+                    ChatNavigation(
+                        inviteRequest = inviteRequest,
+                        callRequest = callRequest,
+                        isSignedIn = userRepository.isSignedIn(),
+                        initialChannelID = userRepository.getCurrentChannelId()
+                    )
                 }
             }
         }
@@ -68,12 +76,19 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleInviteIntent(intent)
+        handleCallIntent(intent)
+    }
+
+    private fun handleCallIntent(intent: Intent?) {
+        val code = intent?.getStringExtra(PushNotificationManager.EXTRA_CALL_CODE)
+            ?.takeIf(String::isNotBlank) ?: return
+        callRequest = IncomingCallRequest(code, System.nanoTime())
     }
 
     private fun handleInviteIntent(intent: Intent?) {
         val route = parseInviteLink(intent) ?: return
         // ChannelJoin に渡せる csrf があるか（＝サインイン済みか）を先に判定する
-        val hasSession = !userRepository.getCsrfToken().isNullOrBlank()
+        val hasSession = userRepository.isSignedIn()
         // 同じURLを2回叩いても遷移できるよう token を付けて毎回別値にする
         inviteRequest = InviteRequest(route, System.nanoTime(), hasSession)
         // 未サインインなら参加できないので、Vue の Profile.vue と同じく
@@ -121,6 +136,8 @@ data class InviteRequest(
     val token: Long,
     val hasSession: Boolean
 )
+
+data class IncomingCallRequest(val code: String, val token: Long)
 
 /**
  * 招待URLを ProfileRoute に分解する。

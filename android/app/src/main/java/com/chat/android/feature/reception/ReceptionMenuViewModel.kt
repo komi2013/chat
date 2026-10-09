@@ -67,8 +67,8 @@ class ReceptionMenuViewModel @Inject constructor(
                 val items = response.menu?.itemDetails ?: r.itemDetails
                 
                 reception = r.copy(menus = menus, itemDetails = items)
-                seatName = response.reception.facilities.firstOrNull()?.facilityName ?: "" // Vue uses res.facilityName, assuming it's in response
-                // nickname = response.nickname // Need to add nickname to ReceptionGetResponse if it exists
+                seatName = response.facilityName ?: ""
+                nickname = response.nickname ?: ""
                 
                 initSelections(menus, items)
             }.onFailure {

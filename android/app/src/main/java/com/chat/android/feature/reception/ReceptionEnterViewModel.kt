@@ -110,9 +110,9 @@ class ReceptionEnterViewModel @Inject constructor(
                 }
                 if (conflicts) return@filter false
 
-                // Simplified currentGuests check as we don't have it in the model directly from Vue's local mutation
-                // In Vue it's f.currentGuests || 0. Let's assume 0 for now or add it if needed.
-                val available = f.capacity // - (f.currentGuests ?: 0)
+                if (!f.currentCode.isNullOrEmpty()) return@filter false
+
+                val available = f.capacity - (f.currentGuests ?: 0)
                 available > 0
             }
 

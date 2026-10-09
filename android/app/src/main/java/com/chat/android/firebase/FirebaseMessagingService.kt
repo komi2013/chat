@@ -1,6 +1,7 @@
 package com.chat.android.firebase
 
 import android.util.Log
+import android.net.Uri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.chat.android.core.push.PushReceiveDispatcher
@@ -79,6 +80,22 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     private fun notifyForPayload(payload: String) {
         val push = runCatching { JSONArray(payload) }.getOrNull() ?: return
         if (push.optString(1) != "thread") return
+        val extra = push.opt(push.length() - 1) as? org.json.JSONObject
+        val callUrl = extra?.optString("url")?.takeIf { !it.isNullOrBlank() } ?: run {
+            notifyForMention(push)
+            return
+        }
+        val segments = Uri.parse(callUrl).pathSegments
+        val callPathIndex = segments.indexOfLast { it == "threadCall" }
+        val callCode = segments.getOrNull(callPathIndex + 1).orEmpty()
+        if (callCode.isNotBlank()) {
+            // The push notification only names the caller; the web domain and URL
+            // are used internally to find the shared SkyWay room.
+            pushNotificationManager.showIncomingCall(push.optString(3), callCode)
+        }
+    }
+
+    private fun notifyForMention(push: JSONArray) {
         val channelID = push.optString(2)
         val contents = push.optJSONArray(4) ?: return
         val messageID = contents.optString(1)

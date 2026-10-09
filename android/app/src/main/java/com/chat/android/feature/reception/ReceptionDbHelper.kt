@@ -45,6 +45,10 @@ class ReceptionDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_N
         writableDatabase.insertWithOnConflict("receptionOrder", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    fun deleteOrder(orderID: String) {
+        writableDatabase.delete("receptionOrder", "receptionOrderID = ?", arrayOf(orderID))
+    }
+
     fun getAllOrders(): List<ReceptionOrder> {
         val orders = mutableListOf<ReceptionOrder>()
         val cursor = readableDatabase.query("receptionOrder", null, null, null, null, null, null)
