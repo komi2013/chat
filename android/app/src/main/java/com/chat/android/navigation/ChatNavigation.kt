@@ -26,14 +26,17 @@ import com.chat.android.feature.call.ThreadCallScreen
 import com.chat.android.feature.profile.ProfileScreen
 import com.chat.android.feature.home.HomeScreen
 import com.chat.android.feature.calendar.CalendarScreen
+import com.chat.android.navigation.LoginRoute
+import com.chat.android.navigation.HomeRoute
+import com.chat.android.navigation.CalendarRoute
 import com.chat.android.feature.calendar.CalendarEditScreen
 import com.chat.android.feature.settings.SettingsScreen
 import com.chat.android.feature.reception.ReceptionScreen
 import kotlinx.serialization.Serializable
 
 /**
- * @param inviteRequest 招征ERLで起勁E復帰したとき�E遷移持E��、E
- *   LaunchedEffect のキーに使ぁE��め、同じURLでめEtoken が変われ�E再�E移する、E
+ * @param inviteRequest 招待URLで起動・復帰したときの遷移持越し。
+ *   LaunchedEffect のキーに使うため、同じURLでも token が変われば再遷移する。
  */
 @Composable
 fun ChatNavigation(
@@ -43,20 +46,20 @@ fun ChatNavigation(
     initialChannelID: String? = null
 ) {
     val navController = rememberNavController()
-    // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する！Ectivity スコープ）、E
+    // ドロワーのヘッダー表示と「現在のチャネル」追跡で共有する（Activity スコープ）。
     val drawerViewModel: DrawerViewModel = hiltViewModel()
 
-    // 招征ERLで起動された場合、その参加画面へ遷移する、E
-    // キーに inviteRequest を使ぁE��とで、起動後にさらに招征E��ンクめE
-    // 叩ぁE��場合も�E�EnNewIntent ↁEstate 更新 ↁE再コンポジション�E��E移する、E
+    // 招待URLで起動された場合、その参加画面へ遷移する。
+    // キーに inviteRequest を使うことで、起動後にさらに招待リンクを
+    // 叩いた場合も onNewIntent -> state 更新 -> 再コンポジションで遷移する。
     LaunchedEffect(inviteRequest) {
         val request = inviteRequest ?: return@LaunchedEffect
-        // 未サインインなめEcsrf が無ぁE��めEChannelJoin を呼べなぁE��E
-        // Vue の Profile.vue と同じくサインイン画面へ送り、TO から再開する、E
+        // 未サインインなら csrf が無いため ChannelJoin を呼べない。
+        // Vue の Profile.vue と同じくサインイン画面へ送り、TO から再開する。
         if (request.hasSession) {
             navController.navigate(request.route)
         } else {
-            navController.navigate("login")
+            navController.navigate(LoginRoute)
         }
     }
 
@@ -65,7 +68,7 @@ fun ChatNavigation(
         if (isSignedIn) {
             navController.navigate(ThreadCallRoute(request.code)) { launchSingleTop = true }
         } else {
-            navController.navigate("login") { launchSingleTop = true }
+            navController.navigate(LoginRoute) { launchSingleTop = true }
         }
     }
 
@@ -75,18 +78,18 @@ fun ChatNavigation(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             val startDestination: Any = when {
-                !isSignedIn -> "login"
+                !isSignedIn -> LoginRoute
                 !initialChannelID.isNullOrBlank() -> ChannelRoute(initialChannelID)
                 else -> HomeRoute
             }
             NavHost(navController = navController, startDestination = startDestination) {
-                composable("login") {
+                composable<LoginRoute> {
                     SignInScreen(onSignedIn = {
                         val route: Any = callRequest?.let { ThreadCallRoute(it.code) }
                             ?: initialChannelID?.takeIf(String::isNotBlank)?.let { ChannelRoute(it) }
                             ?: HomeRoute
                         navController.navigate(route) {
-                            popUpTo("login") { inclusive = true }
+                            popUpTo(LoginRoute) { inclusive = true }
                             launchSingleTop = true
                         }
                     })
@@ -282,4 +285,3 @@ fun ChatNavigation(
         }
     }
 }
-

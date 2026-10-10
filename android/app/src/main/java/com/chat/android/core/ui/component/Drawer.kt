@@ -19,13 +19,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.feature.channel.ChannelRepository
-import com.chat.android.feature.channel.DbChannel
 import com.chat.android.navigation.UserRoute
 import com.chat.android.navigation.SettingsRoute
 import com.chat.android.navigation.EntryFormListRoute
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.HomeRoute
 import com.chat.android.navigation.CalendarRoute
+import com.chat.android.navigation.TimestampCodeRoute
+import com.chat.android.navigation.ReceptionRoute
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,6 +136,8 @@ fun AppDrawer(
                         when (item.route) {
                             "home" -> navController.navigate(HomeRoute)
                             "calendar" -> navController.navigate(CalendarRoute())
+                            "timestamp" -> navController.navigate(TimestampCodeRoute)
+                            "reception" -> navController.navigate(ReceptionRoute())
                             "user" -> navController.navigate(UserRoute)
                             "settings" -> navController.navigate(SettingsRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
@@ -233,11 +236,23 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
     // チャネル登録はチャネルを作る導線なので、チャネルが無くても表示する。
     items.add(DrawerItem(title = "ホーム", route = "home", icon = Icons.Default.Home))
     items.add(DrawerItem(title = "ユーザー設定", route = "user", icon = Icons.Default.Person))
-    items.add(DrawerItem(title = "設定・SQLite", route = "settings", icon = Icons.Default.Storage))
+    items.add(DrawerItem(title = "システム設定", route = "settings", icon = Icons.Default.Storage))
     items.add(DrawerItem(
         title = "カレンダー",
         route = "calendar",
         icon = Icons.Default.CalendarMonth,
+        requiresChannel = true
+    ))
+    items.add(DrawerItem(
+        title = "打刻",
+        route = "timestamp",
+        icon = Icons.Default.Schedule,
+        requiresChannel = true
+    ))
+    items.add(DrawerItem(
+        title = "受付",
+        route = "reception",
+        icon = Icons.Default.MeetingRoom,
         requiresChannel = true
     ))
     items.add(DrawerItem(
