@@ -230,10 +230,17 @@ fun MessageOptionsModal(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onBookmark: () -> Unit,
+    onProfile: () -> Unit,
     isBookmarked: Boolean,
     onClose: () -> Unit
 ) {
     EditOptionModal(show = show, onClose = onClose) {
+        TextButton(
+            onClick = { onProfile(); onClose() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("プロフィールを見る")
+        }
         if (replyable) {
             TextButton(
                 onClick = { onReply(); onClose() },

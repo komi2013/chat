@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,13 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-private data class TableData(val name: String, val rows: List<String>)
+private data class TableData(val name: String, val rows: List<String>, val query: String)
 private data class DatabaseData(val name: String, val tables: List<TableData>)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +51,8 @@ fun SettingsScreen() {
     var selectedTable by remember { mutableStateOf<TableData?>(null) }
     var databaseMenu by remember { mutableStateOf(false) }
     var tableMenu by remember { mutableStateOf(false) }
+    var limit by remember { mutableStateOf(100) }
+    var limitMenu by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -57,7 +61,7 @@ fun SettingsScreen() {
             loading = true
             error = null
             try {
-                databases = withContext(Dispatchers.IO) { readDatabases(context) }
+                databases = withContext(Dispatchers.IO) { readDatabases(context, limit) }
                 selectedDatabase = databases.firstOrNull { it.name == selectedDatabase?.name } ?: databases.firstOrNull()
                 selectedTable = selectedDatabase?.tables?.firstOrNull { it.name == selectedTable?.name }
                     ?: selectedDatabase?.tables?.firstOrNull()
@@ -112,6 +116,38 @@ fun SettingsScreen() {
             }
         }
 
+        val limits = listOf(10, 50, 100, 500, 1000)
+        ExposedDropdownMenuBox(expanded = limitMenu, onExpandedChange = { limitMenu = it }) {
+            OutlinedButton(onClick = { limitMenu = true }, modifier = Modifier.menuAnchor().fillMaxWidth()) {
+                Text("表示件数制限: $limit", modifier = Modifier.weight(1f))
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = limitMenu)
+            }
+            ExposedDropdownMenu(expanded = limitMenu, onDismissRequest = { limitMenu = false }) {
+                limits.forEach { l ->
+                    DropdownMenuItem(text = { Text(l.toString()) }, onClick = {
+                        limit = l
+                        limitMenu = false
+                        refresh()
+                    })
+                }
+            }
+        }
+
+        selectedTable?.let { table ->
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.extraSmall,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    table.query,
+                    modifier = Modifier.padding(8.dp),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         when {
             loading -> CircularProgressIndicator()
             error != null -> Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
@@ -135,7 +171,7 @@ fun SettingsScreen() {
 
 
 /** Read existing app database files without creating or modifying any database. */
-private fun readDatabases(context: Context): List<DatabaseData> = context.databaseList()
+private fun readDatabases(context: Context, limit: Int): List<DatabaseData> = context.databaseList()
     .filter { !it.endsWith("-wal") && !it.endsWith("-shm") }
     .sorted()
     .mapNotNull { name ->
@@ -149,7 +185,8 @@ private fun readDatabases(context: Context): List<DatabaseData> = context.databa
                     val tableName = cursor.getString(0)
                     val rows = mutableListOf<String>()
                     val quoted = "\"${tableName.replace("\"", "\"\"")}\""
-                    db.rawQuery("SELECT * FROM $quoted", null).use { rowCursor ->
+                    val sql = "SELECT * FROM $quoted LIMIT $limit"
+                    db.rawQuery(sql, null).use { rowCursor ->
                         while (rowCursor.moveToNext()) {
                             val row = JSONObject()
                             for (i in 0 until rowCursor.columnCount) {
@@ -165,7 +202,7 @@ private fun readDatabases(context: Context): List<DatabaseData> = context.databa
                             rows += row.toString(2)
                         }
                     }
-                    tables += TableData(tableName, rows)
+                    tables += TableData(tableName, rows, sql)
                 }
             }
             DatabaseData(name, tables)

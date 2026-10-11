@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
+import com.chat.android.BuildConfig
 
 @Composable
 fun SignInScreen(
@@ -83,22 +84,25 @@ fun SignInScreen(
             Text("Sign in with Google")
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Test username") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
-            modifier = Modifier.fillMaxWidth(),
-            enabled = uiState !is SignInUiState.Loading
-        )
-        Button(
-            onClick = { viewModel.signInWithTestUsername(username) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = uiState !is SignInUiState.Loading
-        ) {
-            Text("Sign in with test username")
+        // Only show test sign-in in development builds
+        if (BuildConfig.SHOW_TEST_SIGNIN) {
+            Spacer(modifier = Modifier.height(24.dp))
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Test username (Dev only)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState !is SignInUiState.Loading
+            )
+            Button(
+                onClick = { viewModel.signInWithTestUsername(username) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState !is SignInUiState.Loading
+            ) {
+                Text("Sign in with test username")
+            }
         }
     }
 }

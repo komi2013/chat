@@ -77,21 +77,40 @@ fun CalendarScreen(
         gesturesEnabled = drawerState.isOpen // Prevent drawer from being dragged open if it interferes with main navigation
     ) {
         Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
-            // Calendar controls
-            Column(Modifier.background(MaterialTheme.colorScheme.surface)) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconButton(onClick = { firstDay = firstDay.minusDays(30) }) { Icon(Icons.Default.ChevronLeft, "前の30日") }
-                    Text("${firstDay.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))} から30日", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = { firstDay = firstDay.plusDays(30) }) { Icon(Icons.Default.ChevronRight, "次の30日") }
-                }
-                if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
-                state.notice?.let { Text(it, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.primary) }
-            }
-
             if (state.channelID.isNotBlank()) {
                 Box(Modifier.weight(1f)) {
                     LazyColumn(Modifier.fillMaxSize()) {
+                        item {
+                            // Calendar range controls (scrollable header)
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        IconButton(onClick = { firstDay = firstDay.minusDays(30) }) {
+                                            Icon(Icons.Default.ChevronLeft, "前の30日")
+                                        }
+                                        Text(
+                                            "< ${firstDay.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}から30日 >",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        IconButton(onClick = { firstDay = firstDay.plusDays(30) }) {
+                                            Icon(Icons.Default.ChevronRight, "次の30日")
+                                        }
+                                    }
+                                    if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                                }
+                            }
+                            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(8.dp)) }
+                            state.notice?.let { Text(it, Modifier.fillMaxWidth().padding(8.dp), color = MaterialTheme.colorScheme.primary) }
+                        }
                         item {
                             CalendarDateHeader(days = days, dayScroll = dayScroll, isBottom = false, onMenuClick = {
                                 scope.launch { drawerState.open() }

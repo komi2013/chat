@@ -118,7 +118,10 @@ fun ThreadScreen(
                                 viewModel.postEmoji(head.parentID, emoji, state.parentID)
                             },
                             onLongClickEmoji = { emoji -> emojiedTarget = head.parentID to emoji },
-                            onLongClickMessage = { optionsTarget = head.parentID }
+                            onLongClickMessage = { optionsTarget = head.parentID },
+                            onAliasClick = {
+                                navController.navigate(com.chat.android.navigation.PeopleRoute(id = channelID, name = head.aliasName))
+                            }
                         ) {
                             if (isEditing) {
                                 EditBox(
@@ -174,7 +177,10 @@ fun ThreadScreen(
                             viewModel.postEmoji(message.messageID, emoji, state.parentID)
                         },
                         onLongClickEmoji = { emoji -> emojiedTarget = message.messageID to emoji },
-                        onLongClickMessage = { optionsTarget = message.messageID }
+                        onLongClickMessage = { optionsTarget = message.messageID },
+                        onAliasClick = {
+                            navController.navigate(com.chat.android.navigation.PeopleRoute(id = channelID, name = message.aliasName))
+                        }
                     ) {
                         if (isEditing) {
                             EditBox(
@@ -329,6 +335,9 @@ fun ThreadScreen(
             onBookmark = {
                 viewModel.toggleBookmark(messageID)
             },
+            onProfile = {
+                navController.navigate(com.chat.android.navigation.PeopleRoute(id = channelID, name = msgAliasName))
+            },
             isBookmarked = isBookmarked,
             onClose = { optionsTarget = null }
         )
@@ -348,6 +357,7 @@ private fun MessageRow(
     onEmojiToggle: (String) -> Unit,
     onLongClickEmoji: (String) -> Unit,
     onLongClickMessage: () -> Unit,
+    onAliasClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
     val displayTime = remember(createdAt) {
@@ -371,7 +381,10 @@ private fun MessageRow(
                     .padding(vertical = 6.dp)
             }
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onAliasClick() }
+            ) {
                 AliasAvatar(aliasImg = aliasImg, modifier = Modifier.size(32.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(aliasName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)

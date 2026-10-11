@@ -9,16 +9,6 @@ plugins {
     id 'com.google.firebase.firebase-perf'
 }
 
-def appProperties = new Properties()
-def appPropertiesFile = rootProject.file('local.properties')
-if (appPropertiesFile.exists()) {
-    appPropertiesFile.withInputStream { appProperties.load(it) }
-}
-def configuredBaseUrl = appProperties.getProperty('CHAT_BASE_URL', 'https://chat.quigen.info/').trim()
-if (!configuredBaseUrl.endsWith('/')) {
-    configuredBaseUrl += '/'
-}
-
 android {
     namespace 'com.chat.android'
     compileSdk 34
@@ -30,41 +20,41 @@ android {
         versionCode 2
         versionName "1.1"
 
-        buildConfigField "String", "BASE_URL", "\"${configuredBaseUrl}\""
-
-        // ビルド時刻を焼き込み、Home画面で確認できるようにする。
-        // 端末にインストール済みのAPKがどのビルドかを判別するために使う。
-        // 秒単位で、同日中の再ビルドでも値が変わる。
-        def builtAt = new Date().format("yyyy-MM-dd HH:mm:ss")
-        buildConfigField "String", "BUILD_TIME", "\"${builtAt}\""
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
         }
 
-        // Priority: 1. gradle.properties  2. infrastructure/.env
-        def webClientId = ""
-        if (project.hasProperty("GOOGLE_WEB_CLIENT_ID")) {
-            webClientId = project.getProperty("GOOGLE_WEB_CLIENT_ID")
+        def builtAt = new Date().format("yyyy-MM-dd HH:mm:ss")
+        buildConfigField "String", "BUILD_TIME", "\"${builtAt}\""
+    }
+
+    flavorDimensions "env"
+    productFlavors {
+        dev {
+            dimension "env"
+            // matchingFallbacks is needed because SkyWay library uses the "env" dimension
+            matchingFallbacks = ['prod']
+            buildConfigField "String", "BASE_URL", "\"https://chat.quigen.info/\""
+            // Use same Google Client ID as prod to match google-services.json
+            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com\""
+            buildConfigField "boolean", "SHOW_TEST_SIGNIN", "false"
+            manifestPlaceholders = [appName: "Chat"]
         }
-        
-        if (webClientId == "" || webClientId == "your-google-web-client-id-here") {
-            def envFile = rootProject.file("../infrastructure/.env")
-            if (envFile.exists()) {
-                envFile.eachLine { line ->
-                    if (line.trim().startsWith("GOOGLE_CLIENT_ID=")) {
-                        def value = line.tokenize("=")[1].trim()
-                        webClientId = value.replace("\"", "").replace("'", "")
-                    }
-                }
-            }
+        prod {
+            dimension "env"
+            buildConfigField "String", "BASE_URL", "\"https://chat.quigen.info/\""
+            // Production Google Client ID
+            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com\""
+            buildConfigField "boolean", "SHOW_TEST_SIGNIN", "false"
+            manifestPlaceholders = [appName: "Chat"]
         }
-        
-        buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${webClientId}\""
     }
 
     buildTypes {
+        debug {
+            // Keep debug settings
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -94,14 +84,12 @@ android {
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
-    // Core Android
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.activity:activity-compose:1.8.2'
 
-    // Compose BOM
     implementation platform('androidx.compose:compose-bom:2023.10.01')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
@@ -111,42 +99,31 @@ dependencies {
     implementation 'androidx.compose.material:material-icons-extended'
     implementation 'com.ntt.skyway:room:4.0.0'
 
-    // Navigation
     implementation 'androidx.navigation:navigation-compose:2.8.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2'
 
-    // Dependency Injection
     implementation 'com.google.dagger:hilt-android:2.48'
     implementation 'androidx.hilt:hilt-navigation-compose:1.1.0'
     kapt 'com.google.dagger:hilt-compiler:2.48'
 
-    // Network
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.retrofit2:converter-scalars:2.9.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
     implementation 'com.squareup.okhttp3:okhttp-urlconnection:4.12.0'
 
-    // ViewModel
     implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
-
-    // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-
-    // Image Loading
     implementation 'io.coil-kt:coil-compose:2.5.0'
 
-    // Firebase
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
     implementation 'com.google.firebase:firebase-messaging-ktx'
     implementation 'com.google.firebase:firebase-analytics-ktx'
     implementation 'com.google.firebase:firebase-perf-ktx'
 
-    // Google Sign-In
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
     implementation 'com.google.android.gms:play-services-location:21.2.0'
 
-    // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
