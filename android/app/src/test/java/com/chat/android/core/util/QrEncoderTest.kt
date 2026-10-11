@@ -7,8 +7,8 @@ import org.junit.Test
 
 /**
  * QrEncoder の構造検証。
- * adb install -r app\build\outputs\apk\debug\app-debug.apk
- * \gradlew.bat assembleDebug
+ * gradlew.bat assembleDevDebug
+ * adb install -r app\build\outputs\apk\dev\debug\app-dev-debug.apk
  * 第三者ライブラリを使わずにQRの正しさを確認するため、
  * 「構造が仕様どおりか」と「データビットを読み戻せるか」を検証する。
  */
