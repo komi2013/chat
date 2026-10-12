@@ -23,6 +23,7 @@ fun DrawerLayout(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = false,
         drawerContent = {
             AppDrawer(
                 navController = navController,
