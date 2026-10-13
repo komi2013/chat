@@ -305,6 +305,13 @@ func ChannelEdit(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else if r.FormValue("admin") != "" {
+		// Alias image uploads arrive as data:image/... values. Store the file and
+		// persist only its public path, matching ChannelAdd and ChannelJoin.
+		admin.AliasImg, err = common.ImgSave(admin.AliasImg, session.UserID, admin.AliasName, channelID, 3, 1)
+		if err != nil {
+			common.WriteResponseWithSession(w, session, err.Error()+";aliasImg", http.StatusOK)
+			return
+		}
 		copy(aliasUpdateAdmins, channel.Aliases)
 		updated := false
 		for i, a := range aliasUpdateAdmins {
