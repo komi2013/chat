@@ -541,13 +541,14 @@ interface ApiService {
 
 
     // Contents just push
-    // こちらも controller/ContentsJustPush.go:37 が ParseMultipartForm を無条件に呼ぶため
-    // @Multipart 必須（現状 Android 側からの呼び出しは無い）。
     @Headers("Accept: application/json")
     @Multipart
     @POST("ContentsJustPush/")
     suspend fun contentsJustPush(
         @Part("csrf") csrf: RequestBody,
+        @Part("channelID") channelID: RequestBody? = null,
+        @Part("updatedBy") updatedBy: RequestBody? = null,
+        @Part("pushNames") pushNames: RequestBody? = null,
         @Part("contents") contents: RequestBody,
         @Part("pushTitle") pushTitle: RequestBody? = null
     ): Response<ApiResponse<Any>>

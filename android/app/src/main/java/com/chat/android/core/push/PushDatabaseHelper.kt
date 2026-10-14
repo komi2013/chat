@@ -92,6 +92,18 @@ class PushDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_
         writableDatabase.delete("chunks", "chunkPass = ?", arrayOf(chunkPass))
     }
 
+    fun saveLog(logID: String, pushID: String, pushTitle: String, channelID: String, updatedBy: String) {
+        val values = android.content.ContentValues().apply {
+            put("logID", logID)
+            put("pushID", pushID)
+            put("pushTitle", pushTitle)
+            put("channelID", channelID)
+            put("updatedBy", updatedBy)
+            put("updatedAt", System.currentTimeMillis())
+        }
+        writableDatabase.insertWithOnConflict("log", null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
     companion object {
         private const val DATABASE_NAME = "push_receive.db"
         private const val DATABASE_VERSION = 2

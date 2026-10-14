@@ -21,7 +21,7 @@ import com.chat.android.core.push.handlers.GroupHandler
 import com.chat.android.core.push.handlers.ThreadHandler
 import com.chat.android.core.push.handlers.ThreadHeadHandler
 import com.chat.android.core.push.handlers.ReceptionOrderHandler
-import com.chat.android.core.push.handlers.StoreHandler
+import com.chat.android.core.push.handlers.StoreSelectHandler
 import com.chat.android.core.push.handlers.ShiftStaffHandler
 import com.chat.android.core.network.SessionManager
 import com.chat.android.core.network.ApiService
@@ -77,8 +77,8 @@ class PushReceiveDispatcher(
                 sessionManager
             ),
             "answer" to AnswerHandler(context),
-            "storeSelect" to StoreHandler(context, apiService, sessionManager),
-            "storeShare" to StoreHandler(context, apiService, sessionManager),
+            "storeSelect" to StoreSelectHandler(context, apiService, sessionManager),
+            "storeShare" to StoreSelectHandler(context, apiService, sessionManager),
             "chunk" to ChunkHandler(this, dbHelper as PushDatabaseHelper),
         )
     }
