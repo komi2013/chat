@@ -29,7 +29,8 @@ export async function storeSelect(pd) {
       return {
         calendarID: event.calendarID,
         timeStart: event.timeStart,
-        timeEnd: event.timeEnd
+        timeEnd: event.timeEnd,
+        read: 1
       };
     });
 
@@ -39,7 +40,7 @@ export async function storeSelect(pd) {
   fd.append('updatedBy', channel.myname);
   const contents = ['calendar', 0, calendarData];
   fd.append('contents', JSON.stringify(contents));
-  fd.append('pushTitle', 'storeShare');
+  fd.append('pushTitle', 'calendar');
   fd.append('csrf', localStorage.getItem("csrf"));
   const res = await sendRequest('/ContentsJustPush/', fd);
   res.csrf && localStorage.setItem('csrf', res.csrf);

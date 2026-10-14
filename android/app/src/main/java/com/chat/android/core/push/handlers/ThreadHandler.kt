@@ -37,6 +37,8 @@ class ThreadHandler(private val context: Context) : PushHandler {
             if (dbHelper.getThread(messageID) != null) return
 
             val messageTxt = array.optString(2, "") + imageAwareFileLinks(pd.rawJson.optJSONArray(5))
+            val incomingUpdatedUnixAt = array.optLong(8, 0L)
+
             dbHelper.saveThread(
                 DbThread(
                     messageID = messageID,
@@ -49,55 +51,83 @@ class ThreadHandler(private val context: Context) : PushHandler {
                     backID = array.optString(5, ""),
                     emojisJson = array.optJSONArray(6)?.toString() ?: "[]",
                     createdAt = createdAtOf(messageID),
-                    isBookmarked = array.optBoolean(8, false)
+                    isBookmarked = false,
+                    updatedUnixAt = incomingUpdatedUnixAt
                 )
             )
             Log.i("ThreadHandler", "Upserted thread $messageID")
 
-            // 新着なので親スレッドを「未読」にする（vue の thread.js と同じ）。
-            // メンションされた場合は 2、それ以外は 1。
-            // なお displayStatus を 0 にする処理はここではなく、
-            // ユーザーがスレッドを開いたときの readStatus()（Thread.vue）が行う。
+            // メンション判定と displayStatus 更新 (thread.js と同様)
             val mention = PushMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper)
             val displayStatus = if (mention) 2 else 1
             dbHelper.getThreadHead(parentID)?.let { head ->
                 dbHelper.saveThreadHead(head.copy(displayStatus = displayStatus))
             }
+
+            // 自動ブックマーク (メンションかつ絵文字がある場合)
+            if (mention) {
+                val emojis = array.optJSONArray(6)
+                if (emojis != null && emojis.length() > 0) {
+                    dbHelper.getThread(messageID)?.let {
+                        dbHelper.saveThread(it.copy(isBookmarked = true))
+                    }
+                }
+            }
         } else if (pd.title == "threadEdit") {
             val existing = dbHelper.getThread(messageID)
             val messageTxt = array.optString(2, "")
+            val incomingUpdatedUnixAt = array.optLong(8, 0L)
+
             // messageTxt が空なら削除（vue と同じ）
             if (messageTxt.isEmpty()) {
                 dbHelper.deleteThread(messageID)
                 return
             }
+
             if (existing == null) return
 
+            // 順序制御: 既存データの updatedUnixAt の方が新しい場合は更新しない（vue と同じ）
+            if (existing.updatedUnixAt >= incomingUpdatedUnixAt && incomingUpdatedUnixAt != 0L) {
+                return
+            }
+
+            val newTxt = messageTxt + imageAwareFileLinks(pd.rawJson.optJSONArray(5))
             dbHelper.saveThread(
                 existing.copy(
                     // Keep image attachments renderable when an edited message is received.
-                    messageTxt = messageTxt + plainFileLinks(pd.rawJson.optJSONArray(5)),
+                    messageTxt = newTxt,
                     aliasImg = array.optString(3, "").ifBlank { existing.aliasImg },
                     aliasNamesJson = array.optJSONArray(4)?.toString() ?: existing.aliasNamesJson,
                     emojisJson = mergeEmojis(existing.emojisJson, array.optJSONArray(6)),
-                    isBookmarked = array.optBoolean(8, existing.isBookmarked)
+                    isBookmarked = array.optBoolean(8, existing.isBookmarked), // Note: array index might vary between thread and threadEdit, verifying...
+                    updatedUnixAt = incomingUpdatedUnixAt
                 )
             )
             Log.i("ThreadHandler", "Edited thread $messageID")
+
+            // メンションチェックとブックマーク自動登録 (vue/src/pushReceive/threadEdit.js の後半部分)
+            val isMention = PushMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper)
+            if (isMention) {
+                // displayStatus を 2 (メンション) に更新
+                dbHelper.getThreadHead(parentID)?.let { head ->
+                    dbHelper.saveThreadHead(head.copy(displayStatus = 2))
+                }
+                
+                // ブックマーク自動登録 (emojis がある場合)
+                val incomingEmojis = array.optJSONArray(6)
+                if (incomingEmojis != null && incomingEmojis.length() > 0) {
+                    dbHelper.getThread(messageID)?.let {
+                        dbHelper.saveThread(it.copy(isBookmarked = true))
+                    }
+                }
+            }
         }
     }
 
     /**
      * 添付ファイルリンク。vue の thread.js と同じで、画像は ＊img＊、それ以外は ＊f＊。
      */
-    private fun imageAwareFileLinks(files: JSONArray?): String = buildLinks(files) { link ->
-        if (isImageFile(link)) "img" else "f"
-    }
-
-    /** Mark image attachments in edits the same way as images on a new message. */
-    private fun plainFileLinks(files: JSONArray?): String = buildLinks(files) { link ->
-        if (isImageFile(link)) "img" else "f"
-    }
+    private fun imageAwareFileLinks(files: JSONArray?): String = buildLinks(files)
 
     private fun isImageFile(link: String): Boolean {
         val path = link.substringBefore('?').lowercase()
@@ -105,13 +135,13 @@ class ThreadHandler(private val context: Context) : PushHandler {
             .any { path.endsWith(it) }
     }
 
-    private fun buildLinks(files: JSONArray?, marker: (String) -> String): String {
+    private fun buildLinks(files: JSONArray?): String {
         if (files == null) return ""
         var out = ""
         for (i in 0 until files.length()) {
             val link = files.optString(i, "")
             if (link.isEmpty()) continue
-            val m = marker(link)
+            val m = if (isImageFile(link)) "img" else "f"
             out += "＊${m}＊${link}・＊${m}＊ "
         }
         return out

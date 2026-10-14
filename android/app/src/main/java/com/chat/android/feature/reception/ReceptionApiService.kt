@@ -86,6 +86,14 @@ interface ReceptionApiService {
         @Field("aliasName") aliasName: String,
         @Field("updatedShifts") updatedShiftsJson: String
     ): Response<ReceptionShiftResponse>
+
+    @Headers("Accept: application/json")
+    @FormUrlEncoded
+    @POST("PushResponse/")
+    suspend fun pushResponse(
+        @Field("csrf") csrf: String,
+        @Field("pushID") pushID: String
+    ): Response<PushResponse>
 }
 
 data class ReceptionShiftResponse(
@@ -136,5 +144,11 @@ data class MenuPayload(
 data class ReceptionEditResponse(
     val csrf: String? = null,
     val error: String? = null,
+    val pushContents: List<String>? = null
+)
+
+data class PushResponse(
+    val error: String? = null,
+    val csrf: String? = null,
     val pushContents: List<String>? = null
 )

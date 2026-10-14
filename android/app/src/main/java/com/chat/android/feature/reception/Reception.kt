@@ -107,6 +107,14 @@ data class StaffSkill(
     val skills: List<String> = emptyList()
 )
 
+data class ShiftStaff(
+    val aliasName: String,
+    val shiftStart: String,
+    val shiftEnd: String,
+    val skill: String,
+    val type: String // "upsert" or "delete"
+)
+
 data class ItemDetail(
     val itemID: Int = 0,
     val itemName: String = "",

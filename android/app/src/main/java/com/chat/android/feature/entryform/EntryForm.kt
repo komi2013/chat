@@ -43,3 +43,13 @@ data class EntryForm(
     val title: String,
     val questions: List<Question>
 )
+
+data class Answer(
+    val answerID: String,
+    val channelID: String,
+    val from: String, // "1" for entryForm, "2" for reception
+    val askID: String,
+    val answerBy: String,
+    val answers: String, // JSON string of [{sequence: int, answer: any}, ...]
+    val updatedAt: Long = System.currentTimeMillis()
+)

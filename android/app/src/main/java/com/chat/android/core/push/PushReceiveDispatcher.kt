@@ -5,6 +5,8 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
+import com.chat.android.core.push.handlers.AnswerHandler
+import com.chat.android.core.push.handlers.ChunkHandler
 import com.chat.android.core.push.handlers.AliasHandler
 import com.chat.android.core.push.handlers.BookmarkHandler
 import com.chat.android.core.push.handlers.CalendarHandler
@@ -19,6 +21,11 @@ import com.chat.android.core.push.handlers.GroupHandler
 import com.chat.android.core.push.handlers.ThreadHandler
 import com.chat.android.core.push.handlers.ThreadHeadHandler
 import com.chat.android.core.push.handlers.ReceptionOrderHandler
+import com.chat.android.core.push.handlers.StoreHandler
+import com.chat.android.core.push.handlers.ShiftStaffHandler
+import com.chat.android.core.network.SessionManager
+import com.chat.android.core.network.ApiService
+import com.chat.android.feature.reception.ReceptionApiService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +37,10 @@ import org.json.JSONArray
 
 class PushReceiveDispatcher(
     private val context: Context,
-    private val dbHelper: SQLiteOpenHelper
+    private val dbHelper: SQLiteOpenHelper,
+    private val sessionManager: SessionManager,
+    private val apiService: ApiService,
+    private val receptionApiService: ReceptionApiService
 ) {
     // Application-scoped Coroutine guarantees background SQLite execution completes
     // even if the FCM service starts shutting down.
@@ -40,28 +50,38 @@ class PushReceiveDispatcher(
     val onUpdated: SharedFlow<String> = _onUpdated.asSharedFlow()
 
     // Registry of available handlers
-    private val actions: Map<String, PushHandler> = mapOf(
-        "entryForm" to EntryFormHandler(context, dbHelper),
-        "channelEdit" to ChannelEditHandler(context),
-        "alias" to AliasHandler(context),
-        "group" to GroupHandler(context),
-        "thread" to ThreadHandler(context),
-        "threadEdit" to ThreadHandler(context),
-        "threadHead" to ThreadHeadHandler(context),
-        "emoji" to EmojiHandler(context),
-        "bookmark" to BookmarkHandler(context),
-        "calendar" to CalendarHandler(context, dbHelper),
-        "timestamp" to TimestampHandler(context, dbHelper),
-        "timestampCode" to TimestampCodeHandler(context),
-        "timestampReport" to TimestampReportHandler(context),
-        "timestampRevert" to TimestampRevertHandler(context),
-        "receptionOrder" to ReceptionOrderHandler(
-            context,
-            com.chat.android.feature.reception.ReceptionDbHelper(context),
-            dbHelper
-        ),
-        // ... add other handlers here later
-    )
+    private val actions: Map<String, PushHandler> by lazy {
+        mapOf(
+            "entryForm" to EntryFormHandler(context, dbHelper),
+            "channelEdit" to ChannelEditHandler(context),
+            "alias" to AliasHandler(context),
+            "group" to GroupHandler(context),
+            "thread" to ThreadHandler(context),
+            "threadEdit" to ThreadHandler(context),
+            "threadHead" to ThreadHeadHandler(context),
+            "emoji" to EmojiHandler(context),
+            "bookmark" to BookmarkHandler(context),
+            "calendar" to CalendarHandler(context, dbHelper),
+            "timestamp" to TimestampHandler(context, dbHelper),
+            "timestampCode" to TimestampCodeHandler(context),
+            "timestampReport" to TimestampReportHandler(context),
+            "timestampRevert" to TimestampRevertHandler(context),
+            "receptionOrder" to ReceptionOrderHandler(
+                context,
+                com.chat.android.feature.reception.ReceptionDbHelper(context),
+                dbHelper
+            ),
+            "shiftStaffEdit" to ShiftStaffHandler(
+                context,
+                receptionApiService,
+                sessionManager
+            ),
+            "answer" to AnswerHandler(context),
+            "storeSelect" to StoreHandler(context, apiService, sessionManager),
+            "storeShare" to StoreHandler(context, apiService, sessionManager),
+            "chunk" to ChunkHandler(this, dbHelper as PushDatabaseHelper),
+        )
+    }
 
     fun receive(notificationData: String, fromPush: Boolean = false) {
         // Parse the wire array

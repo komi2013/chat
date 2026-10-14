@@ -25,8 +25,11 @@ object PushModule {
     @Singleton
     fun providePushReceiveDispatcher(
         @ApplicationContext context: Context,
-        dbHelper: SQLiteOpenHelper
+        dbHelper: SQLiteOpenHelper,
+        sessionManager: com.chat.android.core.network.SessionManager,
+        apiService: com.chat.android.core.network.ApiService,
+        receptionApiService: com.chat.android.feature.reception.ReceptionApiService
     ): PushReceiveDispatcher {
-        return PushReceiveDispatcher(context, dbHelper)
+        return PushReceiveDispatcher(context, dbHelper, sessionManager, apiService, receptionApiService)
     }
 }

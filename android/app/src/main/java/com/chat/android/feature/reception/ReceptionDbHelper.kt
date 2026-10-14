@@ -25,9 +25,30 @@ class ReceptionDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_N
                 items TEXT
             )
         """.trimIndent())
+        db.execSQL("""
+            CREATE TABLE shiftStaff (
+                aliasName TEXT,
+                shiftStart TEXT,
+                shiftEnd TEXT,
+                skill TEXT,
+                PRIMARY KEY (aliasName, shiftStart, skill)
+            )
+        """.trimIndent())
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS shiftStaff (
+                    aliasName TEXT,
+                    shiftStart TEXT,
+                    shiftEnd TEXT,
+                    skill TEXT,
+                    PRIMARY KEY (aliasName, shiftStart, skill)
+                )
+            """.trimIndent())
+        }
+    }
 
     fun saveOrder(order: ReceptionOrder) {
         val values = ContentValues().apply {
@@ -80,8 +101,26 @@ class ReceptionDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_N
         writableDatabase.delete("receptionOrder", "seatName = ?", arrayOf(seatName))
     }
 
+    fun saveShiftStaff(staff: ShiftStaff) {
+        val values = ContentValues().apply {
+            put("aliasName", staff.aliasName)
+            put("shiftStart", staff.shiftStart)
+            put("shiftEnd", staff.shiftEnd)
+            put("skill", staff.skill)
+        }
+        writableDatabase.insertWithOnConflict("shiftStaff", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun deleteShiftStaff(staff: ShiftStaff) {
+        writableDatabase.delete(
+            "shiftStaff",
+            "aliasName = ? AND shiftStart = ? AND skill = ?",
+            arrayOf(staff.aliasName, staff.shiftStart, staff.skill)
+        )
+    }
+
     companion object {
         private const val DATABASE_NAME = "ReceptionDB.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }

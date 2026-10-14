@@ -19,10 +19,49 @@ class EntryFormDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_N
                 "form_json TEXT NOT NULL, " +
                 "updated_at INTEGER NOT NULL)"
         )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS answers (" +
+                "answerID TEXT PRIMARY KEY, " +
+                "channelID TEXT NOT NULL, " +
+                "formType TEXT NOT NULL, " +
+                "askID TEXT NOT NULL, " +
+                "answerBy TEXT NOT NULL, " +
+                "answers_json TEXT NOT NULL, " +
+                "updated_at INTEGER NOT NULL)"
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 1) onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS answers (" +
+                    "answerID TEXT PRIMARY KEY, " +
+                    "channelID TEXT NOT NULL, " +
+                    "formType TEXT NOT NULL, " +
+                    "askID TEXT NOT NULL, " +
+                    "answerBy TEXT NOT NULL, " +
+                    "answers_json TEXT NOT NULL, " +
+                    "updated_at INTEGER NOT NULL)"
+            )
+        }
+    }
+
+    fun saveAnswer(answer: Answer): Long {
+        val values = ContentValues().apply {
+            put("answerID", answer.answerID)
+            put("channelID", answer.channelID)
+            put("formType", answer.from)
+            put("askID", answer.askID)
+            put("answerBy", answer.answerBy)
+            put("answers_json", answer.answers)
+            put("updated_at", answer.updatedAt)
+        }
+        return writableDatabase.insertWithOnConflict(
+            "answers",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
     }
 
     fun saveEntryForm(form: EntryForm): Long {
@@ -81,7 +120,7 @@ class EntryFormDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_N
 
     companion object {
         private const val DATABASE_NAME = "EntryFormDB.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         private const val TABLE_NAME = "entry_forms"
     }
 }

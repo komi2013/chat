@@ -53,7 +53,8 @@ data class DbThread(
     val backID: String,
     val emojisJson: String,
     val createdAt: String,
-    val isBookmarked: Boolean = false
+    val isBookmarked: Boolean = false,
+    val updatedUnixAt: Long = 0L
 )
 
 data class DbThreadHead(
@@ -242,6 +243,11 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             dbHelperAddColumn(db, "threadHead", "isBookmarked", "INTEGER NOT NULL DEFAULT 0")
             dbHelperAddColumn(db, "thread", "isBookmarked", "INTEGER NOT NULL DEFAULT 0")
         }
+
+        // v8 で thread に updatedUnixAt を追加（threadEdit の順序制御用）。
+        if (oldVersion < 8) {
+            dbHelperAddColumn(db, "thread", "updatedUnixAt", "INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     private fun dbHelperAddColumn(db: SQLiteDatabase, table: String, column: String, type: String) {
@@ -304,6 +310,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             put("emojis", thread.emojisJson)
             put("createdAt", thread.createdAt)
             put("isBookmarked", if (thread.isBookmarked) 1 else 0)
+            put("updatedUnixAt", thread.updatedUnixAt)
         }
         writableDatabase.insertWithOnConflict("thread", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -382,7 +389,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
         backID = getString(getColumnIndexOrThrow("backID")),
         emojisJson = getString(getColumnIndexOrThrow("emojis")),
         createdAt = getString(getColumnIndexOrThrow("createdAt")),
-        isBookmarked = getInt(getColumnIndexOrThrow("isBookmarked")) != 0
+        isBookmarked = getInt(getColumnIndexOrThrow("isBookmarked")) != 0,
+        updatedUnixAt = getLong(getColumnIndexOrThrow("updatedUnixAt"))
     )
 
     fun saveChannel(channel: DbChannel) {
@@ -525,7 +533,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 7
+        private const val DATABASE_VERSION = 8
 
 /** スレッド見出し。vue の threadHead IndexedDB ストアの項目に揃えている。 */
 private val THREAD_HEAD_TABLE = """
@@ -560,7 +568,8 @@ private val THREAD_TABLE = """
             backID TEXT,
             emojis TEXT,
             createdAt TEXT,
-            isBookmarked INTEGER NOT NULL DEFAULT 0
+            isBookmarked INTEGER NOT NULL DEFAULT 0,
+            updatedUnixAt INTEGER NOT NULL DEFAULT 0
         )
     """.trimIndent()
     }
