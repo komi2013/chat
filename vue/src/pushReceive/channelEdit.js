@@ -26,13 +26,10 @@ export async function channelEdit(pd) {
     } else {
       channel = {
         channelID: channelID,
-        myname: updatedBy,
         channelName: channelName,
         channelDescription: channelDescription
       }
     }
-    localStorage.setItem('channelID', channelID)
-    localStorage.setItem('myname', updatedBy)
     upsertIDB(channel, 'channel', 'channelID', channel.channelID);
   }
 

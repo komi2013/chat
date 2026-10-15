@@ -26,6 +26,7 @@ class ChannelRepository @Inject constructor(
     private val pushDispatcher: PushReceiveDispatcher
 ) {
     private val dbHelper = ChannelDbHelper(context)
+    private val profileStore = ChannelProfileStore(context)
     
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -40,8 +41,13 @@ class ChannelRepository @Inject constructor(
         }
     }
 
-    suspend fun getChannel(channelID: String): DbChannel? = dbHelper.getChannel(channelID)
-    suspend fun getAllChannels(): List<DbChannel> = dbHelper.getAllChannels()
+    suspend fun getChannel(channelID: String): DbChannel? = dbHelper.getChannel(channelID)?.withLocalProfile()
+    suspend fun getAllChannels(): List<DbChannel> = dbHelper.getAllChannels().map { it.withLocalProfile() }
+
+    private suspend fun DbChannel.withLocalProfile(): DbChannel {
+        val (name, image) = profileStore.profile(channelID)
+        return copy(myname = name, myimg = image)
+    }
     suspend fun getAliases(channelID: String): List<DbAlias> = dbHelper.getAliasesForChannel(channelID)
     suspend fun getGroups(channelID: String): List<DbGroup> = dbHelper.getGroupsForChannel(channelID)
 
@@ -90,6 +96,7 @@ class ChannelRepository @Inject constructor(
                 myimg = myimg
             )
         )
+        profileStore.save(channelID, name = myname, image = myimg)
 
         _dbUpdateFlow.emit(Unit)
         return Result.success(channelID)
@@ -214,6 +221,7 @@ class ChannelRepository @Inject constructor(
         }
 
         body.pushContents?.forEach { pushDispatcher.receive(it) }
+        profileStore.save(channelID, name = myname, image = myimg)
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
     }
@@ -269,6 +277,8 @@ class ChannelRepository @Inject constructor(
             return Result.failure(Exception(body.error))
         }
         body.pushContents?.forEach { pushDispatcher.receive(it) }
+
+        profileStore.save(channelID, image = aliasImg)
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
     }
@@ -281,8 +291,8 @@ class ChannelRepository @Inject constructor(
      * サーバーAPIは呼んでいないため、Web版と同じ挙動になる。
      */
     suspend fun switchChannelMyname(channelID: String, aliasName: String) {
-        val existing = dbHelper.getChannel(channelID) ?: return
-        dbHelper.saveChannel(existing.copy(myname = aliasName))
+        if (dbHelper.getChannel(channelID) == null) return
+        profileStore.save(channelID, name = aliasName)
         _dbUpdateFlow.emit(Unit)
     }
 

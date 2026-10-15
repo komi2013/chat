@@ -3,6 +3,7 @@ package com.chat.android.di
 import android.content.Context
 import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.reception.ReceptionDbHelper
+import com.chat.android.feature.ticket.TicketDbHelper
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,5 +25,11 @@ object DatabaseModule {
     @Singleton
     fun provideReceptionDbHelper(@ApplicationContext context: Context): ReceptionDbHelper {
         return ReceptionDbHelper(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTicketDbHelper(@ApplicationContext context: Context): TicketDbHelper {
+        return TicketDbHelper(context)
     }
 }

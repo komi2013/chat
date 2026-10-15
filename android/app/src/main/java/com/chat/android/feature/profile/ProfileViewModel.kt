@@ -106,6 +106,7 @@ class ProfileViewModel @Inject constructor(
                 joinGroups = joinGroups,
                 sameUserAliases = sameUserAliases,
                 aliasName = if (state.isJoinMode) _uiState.value.aliasName else myName,
+                aliasImg = if (state.isJoinMode) _uiState.value.aliasImg else myAlias?.aliasImg.orEmpty(),
                 aliasBio = if (state.isJoinMode) "" else myAlias?.aliasBio.orEmpty()
             )
         }

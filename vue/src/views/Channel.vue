@@ -61,7 +61,8 @@ onMounted(async () => {
   } else {
     document.title = '組織・チャネル設定'
   }
-  myname.value = channel.value.myname
+  myname.value = localStorage.getItem('myname') || channel.value.myname || ''
+  myimg.value = localStorage.getItem('myimg') || channel.value.myimg || null
   userID = aliases.value.find((d) => d.aliasName === myname.value)?.userID
   adminNames.value = aliases.value
     .filter(alias => alias.accessRight === "admin")
@@ -131,7 +132,12 @@ async function channelAdd () {
     }
   }
   if (res.error) errorMessage.value = res.error
-  if (res.channelID) location.href = `/channel/${res.channelID}/`
+  if (res.channelID) {
+    localStorage.setItem('channelID', res.channelID)
+    localStorage.setItem('myname', myname.value || '')
+    localStorage.setItem('myimg', myimg.value || '')
+    location.href = `/channel/${res.channelID}/`
+  }
 }
 
 const invite = async () => {

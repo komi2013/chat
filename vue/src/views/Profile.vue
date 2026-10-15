@@ -128,10 +128,9 @@ async function join () {
 }
 
 async function switchAlias (aliasName) {
-  const newChannel = JSON.parse(JSON.stringify(channel.value));
-  newChannel.myname = aliasName;
-  console.log(newChannel);
-  upsertIDB(newChannel, 'channel', 'channelID', props.id);
+  localStorage.setItem('myname', aliasName)
+  localStorage.setItem('myimg', aliases.find(item => item.aliasName === aliasName)?.aliasImg || '')
+  localStorage.setItem('channelID', props.id)
   location.href = '/profile/' + props.id + '/';
 }
 

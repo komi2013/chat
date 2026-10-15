@@ -27,6 +27,7 @@ import com.chat.android.navigation.HomeRoute
 import com.chat.android.navigation.CalendarRoute
 import com.chat.android.navigation.TimestampCodeRoute
 import com.chat.android.navigation.ReceptionRoute
+import com.chat.android.navigation.TicketListRoute
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,6 +142,7 @@ fun AppDrawer(
                             "user" -> navController.navigate(UserRoute)
                             "settings" -> navController.navigate(SettingsRoute)
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
+                            "tickets" -> navController.navigate(TicketListRoute)
                             "channelCreate" -> navController.navigate(ChannelRoute(id = null))
                             else -> navController.navigate(item.route)
                         }
@@ -264,6 +266,12 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
         title = "フォーム編集",
         route = "entryFormEdit",
         icon = Icons.Default.EditNote,
+        requiresChannel = true
+    ))
+    items.add(DrawerItem(
+        title = "チケット",
+        route = "tickets",
+        icon = Icons.Default.ConfirmationNumber,
         requiresChannel = true
     ))
 

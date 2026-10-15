@@ -23,8 +23,11 @@ import com.chat.android.core.push.handlers.ThreadHeadHandler
 import com.chat.android.core.push.handlers.ReceptionOrderHandler
 import com.chat.android.core.push.handlers.StoreSelectHandler
 import com.chat.android.core.push.handlers.ShiftStaffHandler
+import com.chat.android.core.push.handlers.TopEditHandler
+import com.chat.android.core.push.handlers.TicketHandler
 import com.chat.android.core.network.SessionManager
 import com.chat.android.core.network.ApiService
+import com.chat.android.core.repository.UserRepository
 import com.chat.android.feature.reception.ReceptionApiService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +43,8 @@ class PushReceiveDispatcher(
     private val dbHelper: SQLiteOpenHelper,
     private val sessionManager: SessionManager,
     private val apiService: ApiService,
-    private val receptionApiService: ReceptionApiService
+    private val receptionApiService: ReceptionApiService,
+    private val userRepository: UserRepository
 ) {
     // Application-scoped Coroutine guarantees background SQLite execution completes
     // even if the FCM service starts shutting down.
@@ -80,6 +84,8 @@ class PushReceiveDispatcher(
             "storeSelect" to StoreSelectHandler(context, apiService, sessionManager),
             "storeShare" to StoreSelectHandler(context, apiService, sessionManager),
             "chunk" to ChunkHandler(this, dbHelper as PushDatabaseHelper),
+            "topEdit" to TopEditHandler(userRepository),
+            "ticket" to TicketHandler(context),
         )
     }
 

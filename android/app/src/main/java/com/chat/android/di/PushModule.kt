@@ -28,8 +28,16 @@ object PushModule {
         dbHelper: SQLiteOpenHelper,
         sessionManager: com.chat.android.core.network.SessionManager,
         apiService: com.chat.android.core.network.ApiService,
-        receptionApiService: com.chat.android.feature.reception.ReceptionApiService
+        receptionApiService: com.chat.android.feature.reception.ReceptionApiService,
+        userRepository: com.chat.android.core.repository.UserRepository
     ): PushReceiveDispatcher {
-        return PushReceiveDispatcher(context, dbHelper, sessionManager, apiService, receptionApiService)
+        return PushReceiveDispatcher(
+            context,
+            dbHelper,
+            sessionManager,
+            apiService,
+            receptionApiService,
+            userRepository
+        )
     }
 }

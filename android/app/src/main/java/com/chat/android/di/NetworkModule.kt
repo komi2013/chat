@@ -43,4 +43,10 @@ object NetworkModule {
     fun provideReceptionApiService(): com.chat.android.feature.reception.ReceptionApiService {
         return RetrofitClient.createService(com.chat.android.feature.reception.ReceptionApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideTicketApiService(): com.chat.android.feature.ticket.TicketApiService {
+        return RetrofitClient.createService(com.chat.android.feature.ticket.TicketApiService::class.java)
+    }
 }

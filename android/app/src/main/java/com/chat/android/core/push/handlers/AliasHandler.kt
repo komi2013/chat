@@ -60,13 +60,5 @@ class AliasHandler(
         )
         Log.i("AliasHandler", "Upserted alias $aliasID")
 
-        // Also update the 'channel' table if this alias is the current user's active profile.
-        // This ensures large Base64 data (if any) is replaced by the new image URL.
-        dbHelper.getChannel(channelID)?.let { channel ->
-            if (channel.myname == "$atMark$aliasName") {
-                dbHelper.saveChannel(channel.copy(myimg = aliasImg))
-                Log.i("AliasHandler", "Synced new image URL to channel table for $channelID")
-            }
-        }
     }
 }

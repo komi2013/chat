@@ -78,15 +78,14 @@ data class DbThreadHead(
 )
 
 class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+    private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE channel (
                 channelID TEXT PRIMARY KEY,
                 channelName TEXT,
-                channelDescription TEXT,
-                myname TEXT,
-                myimg TEXT
+                channelDescription TEXT
             )
         """.trimIndent())
 
@@ -248,6 +247,23 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
         if (oldVersion < 8) {
             dbHelperAddColumn(db, "thread", "updatedUnixAt", "INTEGER NOT NULL DEFAULT 0")
         }
+
+        // v9 moves current-user profile values out of the shared channel table.
+        if (oldVersion < 9) {
+            val legacyProfiles = appContext.getSharedPreferences("channel_profiles_migration", Context.MODE_PRIVATE).edit()
+            db.rawQuery("SELECT channelID, myname, myimg FROM channel", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0)
+                    legacyProfiles.putString("${id}_name", cursor.getString(1).orEmpty())
+                    legacyProfiles.putString("${id}_image", cursor.getString(2).orEmpty())
+                }
+            }
+            legacyProfiles.commit()
+            db.execSQL("CREATE TABLE channel_new (channelID TEXT PRIMARY KEY, channelName TEXT, channelDescription TEXT)")
+            db.execSQL("INSERT INTO channel_new (channelID, channelName, channelDescription) SELECT channelID, channelName, channelDescription FROM channel")
+            db.execSQL("DROP TABLE channel")
+            db.execSQL("ALTER TABLE channel_new RENAME TO channel")
+        }
     }
 
     private fun dbHelperAddColumn(db: SQLiteDatabase, table: String, column: String, type: String) {
@@ -398,8 +414,6 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             put("channelID", channel.channelID)
             put("channelName", channel.channelName)
             put("channelDescription", channel.channelDescription)
-            put("myname", channel.myname)
-            put("myimg", channel.myimg)
         }
         writableDatabase.insertWithOnConflict("channel", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -414,8 +428,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                     channelID = it.getString(it.getColumnIndexOrThrow("channelID")),
                     channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                     channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
-                    myname = it.getString(it.getColumnIndexOrThrow("myname")),
-                    myimg = it.getString(it.getColumnIndexOrThrow("myimg"))
+                    myname = "",
+                    myimg = ""
                 )
             } else null
         }
@@ -431,8 +445,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                         channelID = it.getString(it.getColumnIndexOrThrow("channelID")),
                         channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                         channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
-                        myname = it.getString(it.getColumnIndexOrThrow("myname")),
-                        myimg = it.getString(it.getColumnIndexOrThrow("myimg"))
+                        myname = "",
+                        myimg = ""
                     )
                 )
             }
@@ -533,7 +547,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 8
+        private const val DATABASE_VERSION = 9
 
 /** スレッド見出し。vue の threadHead IndexedDB ストアの項目に揃えている。 */
 private val THREAD_HEAD_TABLE = """

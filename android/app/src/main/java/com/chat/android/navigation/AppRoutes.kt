@@ -15,6 +15,12 @@ data object UserRoute
 data object SettingsRoute
 
 @Serializable
+data object TicketListRoute
+
+@Serializable
+data class TicketEditRoute(val ticketID: String?)
+
+@Serializable
 data object EntryFormListRoute
 
 @Serializable

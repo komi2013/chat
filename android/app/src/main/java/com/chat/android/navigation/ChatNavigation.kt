@@ -32,6 +32,8 @@ import com.chat.android.navigation.CalendarRoute
 import com.chat.android.feature.calendar.CalendarEditScreen
 import com.chat.android.feature.settings.SettingsScreen
 import com.chat.android.feature.reception.ReceptionScreen
+import com.chat.android.feature.ticket.TicketsScreen
+import com.chat.android.feature.ticket.TicketEditScreen
 import kotlinx.serialization.Serializable
 
 /**
@@ -279,6 +281,18 @@ fun ChatNavigation(
                         channelID = route.channelID,
                         code = route.code,
                         backID = route.backID
+                    )
+                }
+
+                composable<TicketListRoute> {
+                    TicketsScreen(navController = navController)
+                }
+
+                composable<TicketEditRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<TicketEditRoute>()
+                    TicketEditScreen(
+                        navController = navController,
+                        ticketID = route.ticketID
                     )
                 }
             }
