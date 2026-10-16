@@ -11,6 +11,12 @@ const validInvitation = computed(() => isValid(props.id) && isValid(props.code))
 
 // This package name matches the Android app declared in public/.well-known/assetlinks.json.
 const packageName = 'com.chat.android'
+const appUrl = computed(() => {
+  if (!validInvitation.value) return ''
+  const url = new URL(`chat://profile/${props.id}`)
+  url.searchParams.set('code', props.code)
+  return url.toString()
+})
 const installUrl = computed(() => {
   if (!validInvitation.value) return ''
 
@@ -31,6 +37,9 @@ document.title = 'Join Chat'
 
     <template v-if="validInvitation">
       <p>Invitation: {{ id }}</p>
+      <div class="app-open">
+        <a :href="appUrl">📱 アプリで開く</a>
+      </div>
       <a class="install-link" :href="installUrl">Install from Google Play</a>
     </template>
     <p v-else class="error" role="alert">
@@ -58,6 +67,17 @@ document.title = 'Join Chat'
   background: #087f5b;
   color: #fff;
   text-decoration: none;
+}
+
+.app-open {
+  margin: 8px 0;
+}
+
+.app-open a {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #888;
+  border-radius: 6px;
 }
 
 .error {
