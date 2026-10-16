@@ -83,6 +83,9 @@ class ChannelViewModel @Inject constructor(
             invitationGuestCode = "",
             isLoading = true
         )
+        viewModelScope.launch {
+            repository.saveLastChannelID(channelID)
+        }
         observeDbUpdates(channelID)
         loadChannelData(channelID)
     }
@@ -90,23 +93,26 @@ class ChannelViewModel @Inject constructor(
     /** 一覧の「+ 新規」から登録モードへ戻る。 */
     fun startCreateMode() {
         observeJob?.cancel()
-        _uiState.value = _uiState.value.copy(
-            channelID = null,
-            isCreateMode = true,
-            channelName = "",
-            channelDescription = "",
-            myName = "",
-            myImg = "",
-            aliases = emptyList(),
-            groups = emptyList(),
-            invitationCode = "",
-            invitationGuestCode = "",
-            iamAdmin = false,
-            iamGuest = false,
-            error = null,
-            successMessage = null,
-            isLoading = false
-        )
+        viewModelScope.launch {
+            val (latestName, latestImg) = repository.getLatestProfile()
+            _uiState.value = _uiState.value.copy(
+                channelID = null,
+                isCreateMode = true,
+                channelName = "",
+                channelDescription = "",
+                myName = latestName,
+                myImg = latestImg,
+                aliases = emptyList(),
+                groups = emptyList(),
+                invitationCode = "",
+                invitationGuestCode = "",
+                iamAdmin = false,
+                iamGuest = false,
+                error = null,
+                successMessage = null,
+                isLoading = false
+            )
+        }
     }
 
     private fun loadChannelData(id: String) {

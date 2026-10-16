@@ -57,6 +57,16 @@ class ChannelRepository @Inject constructor(
 
     suspend fun getThreadHead(parentID: String): DbThreadHead? = dbHelper.getThreadHead(parentID)
 
+    suspend fun getLatestProfile(): Triple<String, String, String> {
+        val userId = sessionManager.getUserId() ?: return Triple("", "", "")
+        return profileStore.getLastProfile(userId)
+    }
+
+    suspend fun saveLastProfile(channelID: String, name: String, image: String) {
+        val userId = sessionManager.getUserId() ?: return
+        profileStore.saveLastProfile(userId, channelID, name, image)
+    }
+
     private fun toPart(value: String): RequestBody = value.toRequestBody("text/plain".toMediaTypeOrNull())
 
     suspend fun createChannel(name: String, description: String, myname: String, myimg: String): Result<String> {
@@ -97,6 +107,9 @@ class ChannelRepository @Inject constructor(
             )
         )
         profileStore.save(channelID, name = myname, image = myimg)
+        sessionManager.getUserId()?.let { userId ->
+            profileStore.saveLastProfile(userId, channelID, myname, myimg)
+        }
 
         _dbUpdateFlow.emit(Unit)
         return Result.success(channelID)
@@ -222,6 +235,9 @@ class ChannelRepository @Inject constructor(
 
         body.pushContents?.forEach { pushDispatcher.receive(it) }
         profileStore.save(channelID, name = myname, image = myimg)
+        sessionManager.getUserId()?.let { userId ->
+            profileStore.saveLastProfile(userId, channelID, myname, myimg)
+        }
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
     }
@@ -279,6 +295,9 @@ class ChannelRepository @Inject constructor(
         body.pushContents?.forEach { pushDispatcher.receive(it) }
 
         profileStore.save(channelID, image = aliasImg)
+        sessionManager.getUserId()?.let { userId ->
+            profileStore.saveLastProfile(userId, channelID, aliasName, aliasImg)
+        }
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
     }
@@ -291,8 +310,12 @@ class ChannelRepository @Inject constructor(
      * サーバーAPIは呼んでいないため、Web版と同じ挙動になる。
      */
     suspend fun switchChannelMyname(channelID: String, aliasName: String) {
-        if (dbHelper.getChannel(channelID) == null) return
+        val channel = dbHelper.getChannel(channelID) ?: return
         profileStore.save(channelID, name = aliasName)
+        sessionManager.getUserId()?.let { userId ->
+            val profile = profileStore.profile(channelID)
+            profileStore.saveLastProfile(userId, channelID, aliasName, profile.second)
+        }
         _dbUpdateFlow.emit(Unit)
     }
 
