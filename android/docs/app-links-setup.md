@@ -31,8 +31,8 @@ To enable automatic verification for `https://chat.quigen.info`, you must host a
 ## 2. Supported URL Formats
 
 The app handles the following URL patterns:
-- `https://chat.quigen.info/invitation/{M}/?code={invitationCode}`
-- `https://chat.quigen.info/profile/{M}/?code={invitationCode}`
+- `https://chat.quigen.info/invitation/{M}/?code={invitationCode}` (Primary)
+- `https://chat.quigen.info/profile/{M}/?code={invitationCode}` (Legacy)
 - `chat://profile/{M}?code={invitationCode}`
 
 ## 3. Deferred Invitations (Install Referrer)

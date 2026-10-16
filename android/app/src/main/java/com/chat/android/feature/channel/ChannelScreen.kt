@@ -474,7 +474,7 @@ private fun InvitationCard(
  *  未インストールならWeb版（vueのProfile.vue）が開く。
  */
 private fun invitationUrl(channelID: String?, code: String): String =
-    BuildConfig.BASE_URL.trimEnd('/') + "/profile/${channelID.orEmpty()}/?code=$code"
+    BuildConfig.BASE_URL.trimEnd('/') + "/invitation/${channelID.orEmpty()}/?code=$code"
 
 /** メンバー一覧。 */
 private fun LazyListScope.MemberSection(

@@ -53,7 +53,7 @@
             </intent-filter>
 
             <!--
-                Web版URL（https://chat.quigen.info/profile/{channelID}/?code=...）を
+                Web版URL（https://chat.quigen.info/invitation/{channelID}/?code=...）を
                 開いたとき、このアプリを直接起動する（App Links / Digital Asset Links）。
 
                 autoVerify が有成効になる条件は

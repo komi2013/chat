@@ -73,7 +73,7 @@ fun QrCodeImage(
 @Composable
 private fun QrCodeImagePreview() {
     QrCodeImage(
-        content = "https://chat.quigen.info/profile/J/?code=DtG9LRpT39W7Xcd9",
+        content = "https://chat.quigen.info/invitation/J/?code=DtG9LRpT39W7Xcd9",
         size = 220.dp,
         modifier = Modifier.background(Color.White)
     )

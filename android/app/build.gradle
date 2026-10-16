@@ -37,7 +37,7 @@ android {
             matchingFallbacks = ['prod']
             buildConfigField "String", "BASE_URL", "\"https://chat.quigen.info/\""
             // Use same Google Client ID as prod to match google-services.json
-            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com\""
+            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"422063987497-hnk2attpfgmf1ad9jmak9ososme7npds.apps.googleusercontent.com\""
             buildConfigField "boolean", "SHOW_TEST_SIGNIN", "false"
             manifestPlaceholders = [appName: "Chat"]
         }
@@ -45,7 +45,7 @@ android {
             dimension "env"
             buildConfigField "String", "BASE_URL", "\"https://chat.quigen.info/\""
             // Production Google Client ID
-            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"289998193190-89qham3o7rb0ijmo55ra7aq3gms22n0p.apps.googleusercontent.com\""
+            buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"422063987497-hnk2attpfgmf1ad9jmak9ososme7npds.apps.googleusercontent.com\""
             buildConfigField "boolean", "SHOW_TEST_SIGNIN", "false"
             manifestPlaceholders = [appName: "Chat"]
         }

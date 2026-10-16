@@ -56,7 +56,7 @@ class QrEncoderTest {
     @Test
     fun `Round trips data bits back to original text`() {
         val texts = listOf(
-            "https://chat.quigen.info/profile/J/?code=DtG9LRpT39W7Xcd9",
+            "https://chat.quigen.info/invitation/J/?code=DtG9LRpT39W7Xcd9",
             "https://chat.quigen.info/",
             "a",
             "0123456789"
