@@ -62,6 +62,14 @@ const router = createRouter({
       })
     },
     {
+      path: '/invitation/:id/',
+      component: () => import('../views/Invitation.vue'),
+      props: route => ({
+        id: route.params.id,
+        code: route.query.code
+      })
+    },
+    {
       path: '/nickname/:name/',
       component: () => import('../views/Nickname.vue'),
       props: route => ({

@@ -22,6 +22,9 @@ import androidx.compose.runtime.setValue
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.navigation.ProfileRoute
 import com.chat.android.firebase.PushNotificationManager
+import com.chat.android.core.util.InvitationMapper
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -32,6 +35,8 @@ class MainActivity : ComponentActivity() {
     // 起動済みのアプリに-drop した招待リンクが無視される。
     private var inviteRequest by mutableStateOf<InviteRequest?>(null)
     private var callRequest by mutableStateOf<IncomingCallRequest?>(null)
+
+    private var referrerHandled = false
 
     @Inject
     lateinit var userRepository: UserRepository
@@ -47,8 +52,12 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
 
         // 招待URL（chat://profile/{id}?code=...）で起動された場合
-        handleInviteIntent(intent)
+        val directInviteHandled = handleInviteIntent(intent)
         handleCallIntent(intent)
+
+        if (!directInviteHandled) {
+            checkInstallReferrer()
+        }
 
         setContent {
             ChatAndroidTheme {
@@ -85,17 +94,61 @@ class MainActivity : ComponentActivity() {
         callRequest = IncomingCallRequest(code, System.nanoTime())
     }
 
-    private fun handleInviteIntent(intent: Intent?) {
-        val route = parseInviteLink(intent) ?: return
-        // ChannelJoin に渡せる csrf があるか（＝サインイン済みか）を先に判定する
-        val hasSession = userRepository.isSignedIn()
+    private fun handleInviteIntent(intent: Intent?): Boolean {
+        val data = intent?.data ?: return false
+        val route = InvitationMapper.parseUri(data) ?: return false
+        
         // 同じURLを2回叩いても遷移できるよう token を付けて毎回別値にする
+        val hasSession = userRepository.isSignedIn()
         inviteRequest = InviteRequest(route, System.nanoTime(), hasSession)
+        
         // 未サインインなら参加できないので、Vue の Profile.vue と同じく
         // TO へ保存し、サインイン後に再開できるようにする。
         if (!hasSession) {
             userRepository.setTO(inviteUrlString(route))
         }
+        return true
+    }
+
+    private fun checkInstallReferrer() {
+        if (referrerHandled) return
+        
+        val referrerClient = InstallReferrerClient.newBuilder(this).build()
+        referrerClient.startConnection(object : InstallReferrerStateListener {
+            override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                when (responseCode) {
+                    InstallReferrerClient.InstallReferrerResponse.OK -> {
+                        try {
+                            val response = referrerClient.installReferrer
+                            val referrerUrl = response.installReferrer
+                            Log.d(TAG, "Install referrer: $referrerUrl")
+                            
+                            val route = InvitationMapper.parseReferrer(referrerUrl)
+                            if (route != null) {
+                                val hasSession = userRepository.isSignedIn()
+                                inviteRequest = InviteRequest(route, System.nanoTime(), hasSession)
+                                referrerHandled = true
+                                if (!hasSession) {
+                                    userRepository.setTO(inviteUrlString(route))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to get install referrer", e)
+                        } finally {
+                            referrerClient.endConnection()
+                        }
+                    }
+                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED -> {
+                        Log.w(TAG, "Install Referrer not supported")
+                    }
+                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE -> {
+                        Log.w(TAG, "Install Referrer service unavailable")
+                    }
+                }
+            }
+
+            override fun onInstallReferrerServiceDisconnected() {}
+        })
     }
 
     /** TO に保存する、復元用のURL文字列。 */
@@ -138,28 +191,3 @@ data class InviteRequest(
 )
 
 data class IncomingCallRequest(val code: String, val token: Long)
-
-/**
- * 招待URLを ProfileRoute に分解する。
- */
-private fun parseInviteLink(intent: Intent?): ProfileRoute? {
-    val data = intent?.data ?: return null
-
-    // カスタムスキーム: chat://profile/{channelID}?code=XXX
-    //   host = "profile", pathSegments = [channelID]
-    if (data.scheme == "chat") {
-        if (data.host != "profile") return null
-        val channelID = data.pathSegments?.firstOrNull().orEmpty()
-        if (channelID.isBlank()) return null
-        return ProfileRoute(id = channelID, code = data.getQueryParameter("code"))
-    }
-
-    // Web版URL: https://chat.quigen.info/profile/{channelID}/?code=XXX
-    //   host = ドメイン, pathSegments = ["profile", channelID]
-    if (data.scheme != "https" && data.scheme != "http") return null
-    val segments = data.pathSegments ?: return null
-    if (segments.size < 2 || segments[0] != "profile") return null
-    val channelID = segments[1]
-    if (channelID.isBlank()) return null
-    return ProfileRoute(id = channelID, code = data.getQueryParameter("code"))
-}

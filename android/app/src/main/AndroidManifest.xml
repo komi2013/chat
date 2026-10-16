@@ -71,7 +71,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="chat.quigen.info" android:pathPrefix="/profile" />
+                <data android:scheme="https" />
+                <data android:host="chat.quigen.info" />
+                <data android:pathPrefix="/profile" />
+                <data android:pathPrefix="/invitation/" />
             </intent-filter>
         </activity>
 
