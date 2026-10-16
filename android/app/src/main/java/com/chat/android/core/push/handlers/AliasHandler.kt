@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.chat.android.core.push.PushData
 import com.chat.android.core.push.PushHandler
+import com.chat.android.core.network.SessionManager
 import com.chat.android.feature.channel.ChannelDbHelper
+import com.chat.android.feature.channel.ChannelProfileStore
 import com.chat.android.feature.channel.DbAlias
 
 /**
@@ -13,12 +15,11 @@ import com.chat.android.feature.channel.DbAlias
  * サーバーが送るワイヤ形式は **位置配列**（vue/src/pushReceive/alias.js と同一）:
  *   pd = [pushID, "alias", channelID, updatedBy,
  *         [userID, aliasName, aliasBio, accessRight], aliasImg]
- *
- * 旧実装は contents を JSONObject として読んでいたため、配列が常に null 扱いになり
- * alias がローカルDBへ一切保存されていなかった（= PUSHでDB同期する仕様が動かない原因）。
  */
 class AliasHandler(
-    private val context: Context
+    private val context: Context,
+    private val sessionManager: SessionManager,
+    private val profileStore: ChannelProfileStore
 ) : PushHandler {
 
     override suspend fun handle(pd: PushData) {
@@ -60,6 +61,11 @@ class AliasHandler(
         )
         Log.i("AliasHandler", "Upserted alias $aliasID")
 
-        // Real-time Sync: dont do this (Automatic Synchronization is wrong)
+        // Step 2 Sync: If this alias belongs to the current user, update the local profile store
+        // so that Step 3 (Display) and Step 4 (Requests) use the new name immediately.
+        if (userID.isNotBlank() && userID == sessionManager.getUserId()) {
+            profileStore.save(channelID, aliasName, aliasImg)
+            Log.i("AliasHandler", "Updated local profileStore for current user in channel $channelID")
+        }
     }
 }

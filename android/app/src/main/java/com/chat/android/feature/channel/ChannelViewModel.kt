@@ -196,7 +196,7 @@ class ChannelViewModel @Inject constructor(
             } else {
                 repository.editChannel(
                     channelID = state.channelID!!,
-                    updatedBy = state.myName,
+                    providedUpdatedBy = state.myName,
                     // サーバーは pushNames から通知先の userID を解決する。
                     pushNamesJson = jsonArrayOfStrings(pushTargetNames(state.aliases)),
                     channelName = state.channelName,

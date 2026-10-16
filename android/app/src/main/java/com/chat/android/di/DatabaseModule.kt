@@ -32,4 +32,10 @@ object DatabaseModule {
     fun provideTicketDbHelper(@ApplicationContext context: Context): TicketDbHelper {
         return TicketDbHelper(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideChannelProfileStore(sessionManager: com.chat.android.core.network.SessionManager): com.chat.android.feature.channel.ChannelProfileStore {
+        return com.chat.android.feature.channel.ChannelProfileStore(sessionManager)
+    }
 }

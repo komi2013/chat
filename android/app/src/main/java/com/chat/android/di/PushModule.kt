@@ -29,7 +29,8 @@ object PushModule {
         sessionManager: com.chat.android.core.network.SessionManager,
         apiService: com.chat.android.core.network.ApiService,
         receptionApiService: com.chat.android.feature.reception.ReceptionApiService,
-        userRepository: com.chat.android.core.repository.UserRepository
+        userRepository: com.chat.android.core.repository.UserRepository,
+        profileStore: com.chat.android.feature.channel.ChannelProfileStore
     ): PushReceiveDispatcher {
         return PushReceiveDispatcher(
             context,
@@ -37,7 +38,8 @@ object PushModule {
             sessionManager,
             apiService,
             receptionApiService,
-            userRepository
+            userRepository,
+            profileStore
         )
     }
 }

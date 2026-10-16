@@ -39,7 +39,8 @@ internal fun randomCode(length: Int): String {
 class ThreadRepository @Inject constructor(
     private val apiService: ApiService,
     private val sessionManager: SessionManager,
-    private val pushDispatcher: PushReceiveDispatcher
+    private val pushDispatcher: PushReceiveDispatcher,
+    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore
 ) {
 
     private suspend fun push(
@@ -268,12 +269,10 @@ class ThreadRepository @Inject constructor(
 
     suspend fun saveLocalProfile(channelID: String, name: String, image: String) {
         val userId = sessionManager.getUserId() ?: return
-        val profileStore = com.chat.android.feature.channel.ChannelProfileStore(sessionManager.context)
         profileStore.saveLastProfile(userId, channelID, name, image)
     }
 
     suspend fun getEffectiveProfile(channelID: String): Pair<String, String> {
-        val profileStore = com.chat.android.feature.channel.ChannelProfileStore(sessionManager.context)
         val (name, img) = profileStore.profile(channelID)
         if (name.isNotBlank()) return name to img
         

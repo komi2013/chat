@@ -282,7 +282,7 @@ class ThreadViewModel @Inject constructor(
 
             val result = repository.postMessage(
                 channelID = state.channelID,
-                myname = state.myname,
+                providedMyname = state.myname,
                 parentID = state.parentID,
                 messageTxt = body,
                 aliasImg = aliasImg,
@@ -315,7 +315,7 @@ class ThreadViewModel @Inject constructor(
             val aliasNames = state.head?.aliasNamesJson?.toNameList() ?: listOf(state.myname)
             val result = repository.postBookmark(
                 channelID = state.channelID,
-                myname = state.myname,
+                providedMyname = state.myname,
                 pushNames = (aliasNames + state.myname).distinct(),
                 messageID = messageID,
                 parentID = state.parentID,
@@ -350,7 +350,7 @@ class ThreadViewModel @Inject constructor(
                 state.aliases.firstOrNull { it.aliasName == state.myname }?.aliasImg.orEmpty()
             val result = repository.postCall(
                 channelID = state.channelID,
-                myname = state.myname,
+                providedMyname = state.myname,
                 parentID = state.parentID,
                 opponent = opponent,
                 aliasImg = aliasImg,
@@ -424,7 +424,7 @@ class ThreadViewModel @Inject constructor(
 
             val result = repository.postEmoji(
                 channelID = state.channelID,
-                myname = state.myname,
+                providedMyname = state.myname,
                 pushNames = (aliasNames + state.myname).distinct(),
                 messageID = messageID,
                 emoji = emoji,

@@ -164,7 +164,7 @@ class ProfileViewModel @Inject constructor(
             } else {
                 repository.editAlias(
                     channelID = id,
-                    updatedBy = state.channel?.myname.orEmpty(),
+                    providedUpdatedBy = state.channel?.myname.orEmpty(),
                     aliasName = state.aliasName,
                     aliasBio = state.aliasBio,
                     aliasImg = state.aliasImg

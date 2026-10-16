@@ -1,11 +1,19 @@
 package com.chat.android.core.network
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
@@ -16,107 +24,245 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private val Context.sessionDataStore by preferencesDataStore(name = "session_prefs")
+
 @Singleton
 class SessionManager @Inject constructor(
     @ApplicationContext val context: Context
 ) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("chat_prefs", Context.MODE_PRIVATE)
+    private val dataStore = context.sessionDataStore
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
-        private const val KEY_CSRF = "csrf"
-        private const val KEY_USER_ID = "user_id"
-        private const val KEY_NICKNAME = "nickname"
-        private const val KEY_SESSION_ID = "session_id"
-        private const val KEY_DEVICE_ID = "device_id"
+        private val KEY_CSRF = stringPreferencesKey("csrf")
+        private val KEY_USER_ID = stringPreferencesKey("user_id")
+        private val KEY_NICKNAME = stringPreferencesKey("nickname")
+        private val KEY_SESSION_ID = stringPreferencesKey("session_id")
+        private val KEY_DEVICE_ID = stringPreferencesKey("device_id")
+        private val KEY_TO = stringPreferencesKey("to_token")
+        private val KEY_LAST_CHANNEL_ID = stringPreferencesKey("last_channel_id")
+        
+        // Channel Profile keys
+        private fun nameKey(channelID: String) = stringPreferencesKey("${channelID}_name")
+        private fun imageKey(channelID: String) = stringPreferencesKey("${channelID}_image")
+        private fun topLinksKey(channelID: String) = stringPreferencesKey("topLinks_$channelID")
+        private fun lastChannelKey(userId: String) = stringPreferencesKey("${userId}_last_channel_id")
+        private fun lastNameKey(userId: String) = stringPreferencesKey("${userId}_last_name")
+        private fun lastImageKey(userId: String) = stringPreferencesKey("${userId}_last_image")
+        
         private const val SESSION_KEY_ALIAS = "chat_session_id"
         private const val ENCRYPTED_PREFIX = "enc:"
         private const val GCM_IV_SIZE = 12
     }
 
-    fun saveSession(csrf: String, userId: String?, nickname: String?, sessionId: String? = null) {
-        val encryptedSessionId = sessionId?.let { ENCRYPTED_PREFIX + encryptSessionId(it) }
-        prefs.edit().apply {
-            putString(KEY_CSRF, csrf)
-            putString(KEY_USER_ID, userId)
-            putString(KEY_NICKNAME, nickname)
-            if (encryptedSessionId != null) {
-                putString(KEY_SESSION_ID, encryptedSessionId)
+    @Volatile private var cachedCsrf: String? = null
+    @Volatile private var cachedUserId: String? = null
+    @Volatile private var cachedNickname: String? = null
+    @Volatile private var cachedSessionId: String? = null
+    @Volatile private var cachedDeviceId: String? = null
+    @Volatile private var cachedTo: String? = null
+    @Volatile private var cachedLastChannelId: String? = null
+
+    init {
+        // We use runBlocking here because SessionManager is a Singleton initialized once at app start,
+        // and we need these values available synchronously for Interceptors and initial UI state.
+        runBlocking {
+            val prefs = dataStore.data.first()
+            cachedCsrf = prefs[KEY_CSRF]
+            cachedUserId = prefs[KEY_USER_ID]
+            cachedNickname = prefs[KEY_NICKNAME]
+            cachedSessionId = prefs[KEY_SESSION_ID]?.let { decryptSafe(it) }
+            cachedDeviceId = prefs[KEY_DEVICE_ID]
+            cachedTo = prefs[KEY_TO]
+            cachedLastChannelId = prefs[KEY_LAST_CHANNEL_ID]
+
+            // Migration from legacy SharedPreferences if DataStore is empty
+            if (cachedCsrf == null && cachedUserId == null && cachedSessionId == null) {
+                migrateFromPrefs()
             }
-            apply()
+            
+            // Generate Device ID if not exists
+            if (cachedDeviceId == null) {
+                cachedDeviceId = java.util.UUID.randomUUID().toString()
+                scope.launch { dataStore.edit { it[KEY_DEVICE_ID] = cachedDeviceId!! } }
+            }
         }
     }
 
-    fun getSessionId(): String? {
-        val storedValue = prefs.getString(KEY_SESSION_ID, null) ?: return null
-        if (!storedValue.startsWith(ENCRYPTED_PREFIX)) {
-            setSessionId(storedValue)
-            return storedValue
-        }
+    private suspend fun migrateFromPrefs() {
+        val chatPrefs = context.getSharedPreferences("chat_prefs", Context.MODE_PRIVATE)
+        val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+        
+        val csrf = chatPrefs.getString("csrf", null)
+        val userId = chatPrefs.getString("user_id", null)
+        val nickname = chatPrefs.getString("nickname", null)
+        val sessionId = chatPrefs.getString("session_id", null)
+        val deviceId = chatPrefs.getString("device_id", null)
+        val toToken = userPrefs.getString("TO", null)
+        val channelId = userPrefs.getString("channelID", null)
 
+        if (csrf != null || userId != null || sessionId != null) {
+            cachedCsrf = csrf
+            cachedUserId = userId
+            cachedNickname = nickname
+            cachedSessionId = sessionId?.let { decryptSafe(it) }
+            cachedDeviceId = deviceId
+            cachedTo = toToken
+            cachedLastChannelId = channelId
+            
+            dataStore.edit { prefs ->
+                if (csrf != null) prefs[KEY_CSRF] = csrf
+                if (userId != null) prefs[KEY_USER_ID] = userId
+                if (nickname != null) prefs[KEY_NICKNAME] = nickname
+                if (sessionId != null) prefs[KEY_SESSION_ID] = sessionId
+                if (deviceId != null) prefs[KEY_DEVICE_ID] = deviceId
+                if (toToken != null) prefs[KEY_TO] = toToken
+                if (channelId != null) prefs[KEY_LAST_CHANNEL_ID] = channelId
+            }
+        }
+    }
+
+    private fun decryptSafe(storedValue: String): String? {
+        if (!storedValue.startsWith(ENCRYPTED_PREFIX)) return storedValue
         return try {
             decryptSessionId(storedValue.removePrefix(ENCRYPTED_PREFIX))
         } catch (_: Exception) {
-            prefs.edit().remove(KEY_SESSION_ID).apply()
             null
         }
     }
 
+    fun saveSession(csrf: String, userId: String?, nickname: String?, sessionId: String? = null) {
+        cachedCsrf = csrf
+        cachedUserId = userId
+        cachedNickname = nickname
+        
+        val encryptedSessionId = sessionId?.let { ENCRYPTED_PREFIX + encryptSessionId(it) }
+        if (sessionId != null) {
+            cachedSessionId = sessionId
+        }
+
+        scope.launch {
+            dataStore.edit { prefs ->
+                prefs[KEY_CSRF] = csrf
+                if (userId != null) prefs[KEY_USER_ID] = userId
+                if (nickname != null) prefs[KEY_NICKNAME] = nickname
+                if (encryptedSessionId != null) {
+                    prefs[KEY_SESSION_ID] = encryptedSessionId
+                }
+            }
+        }
+    }
+
+    fun getSessionId(): String? = cachedSessionId
+
     fun setSessionId(sessionId: String) {
-        val encryptedValue = ENCRYPTED_PREFIX + encryptSessionId(sessionId)
-        prefs.edit().putString(KEY_SESSION_ID, encryptedValue).apply()
+        cachedSessionId = sessionId
+        scope.launch {
+            val encryptedValue = ENCRYPTED_PREFIX + encryptSessionId(sessionId)
+            dataStore.edit { it[KEY_SESSION_ID] = encryptedValue }
+        }
     }
 
-    fun getCsrf(): String? = prefs.getString(KEY_CSRF, null)
-
-    /**
-     * 端末（アプリインストール）固有の UUIDv4 を返す。初回呼び出し時に生成して永続化する。
-     *
-     * 認証情報ではない（認証はサーバー生成の sessionId のみで行う）。サーバー側はこれを
-     * ログイン時の「同一端末の古いセッション削除」と、push通知の1端末1通の判定に使う。
-     * アプリの再インストール時に新しい UUID になるため、サーバー上の旧セッションは
-     * ログイン時に削除される。
-     */
-    fun getDeviceId(): String {
-        prefs.getString(KEY_DEVICE_ID, null)?.takeIf(String::isNotBlank)?.let { return it }
-        val deviceId = java.util.UUID.randomUUID().toString()
-        prefs.edit().putString(KEY_DEVICE_ID, deviceId).apply()
-        return deviceId
-    }
+    fun getCsrf(): String? = cachedCsrf
 
     fun setCsrf(csrf: String) {
-        prefs.edit().putString(KEY_CSRF, csrf).apply()
+        cachedCsrf = csrf
+        scope.launch {
+            dataStore.edit { it[KEY_CSRF] = csrf }
+        }
     }
 
-    /**
-     * サーバーの応答に含まれる CSRF を保存する。
-     *
-     * サーバーはセッション確認に成功したリクエストごとに CSRF を新しい値へ回転させ、
-     * MongoDB 側だけを更新する（common/session.go の CSRFcheckMake → CSRFReGenerate）。
-     * クライアントが回転後の値を保存し忘れると、以降のリクエストがすべて
-     * "SessionCheckTake token error" で失敗し続ける。
-     * 一方、セッション確認に失敗した応答は送信した CSRF をそのまま返す
-     * （common/response.go の WriteResponseWithoutSession）ので保存は不要。
-     * 並列リクエストで古い値へ巻き戻るのを避けるため、送信値と同じ場合は無視する。
-     *
-     * @return 回転後の値を保存した場合はその値、保存不要（エコー・空値）なら null
-     */
     fun applyResponseCsrf(sentCsrf: String?, receivedCsrf: String?): String? {
         val received = receivedCsrf?.takeIf(String::isNotBlank) ?: return null
         if (received == sentCsrf) return null
         setCsrf(received)
         return received
     }
-    
-    fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
 
-    fun getNickname(): String? = prefs.getString(KEY_NICKNAME, null)
+    fun getUserId(): String? = cachedUserId
+    fun getNickname(): String? = cachedNickname
 
     fun setNickname(nickname: String) {
-        prefs.edit().putString(KEY_NICKNAME, nickname).apply()
+        cachedNickname = nickname
+        scope.launch {
+            dataStore.edit { it[KEY_NICKNAME] = nickname }
+        }
+    }
+
+    fun getDeviceId(): String = cachedDeviceId ?: run {
+        val id = java.util.UUID.randomUUID().toString()
+        cachedDeviceId = id
+        scope.launch { dataStore.edit { it[KEY_DEVICE_ID] = id } }
+        id
+    }
+
+    fun getTO(): String? = cachedTo
+    fun setTO(to: String) {
+        cachedTo = to
+        scope.launch { dataStore.edit { it[KEY_TO] = to } }
+    }
+
+    fun getLastChannelId(): String? = cachedLastChannelId
+    fun setCurrentChannelId(channelId: String) {
+        cachedLastChannelId = channelId
+        scope.launch { dataStore.edit { it[KEY_LAST_CHANNEL_ID] = channelId } }
+    }
+
+    fun getStoredTopLinks(channelID: String): String? {
+        return runBlocking { dataStore.data.first()[topLinksKey(channelID)] }
+    }
+
+    fun setStoredTopLinks(channelID: String, json: String) {
+        scope.launch { dataStore.edit { it[topLinksKey(channelID)] = json } }
+    }
+
+    suspend fun getChannelProfile(channelID: String): Pair<String, String> {
+        val prefs = dataStore.data.first()
+        return (prefs[nameKey(channelID)] ?: "") to (prefs[imageKey(channelID)] ?: "")
+    }
+
+    suspend fun saveChannelProfile(channelID: String, name: String? = null, image: String? = null) {
+        dataStore.edit { prefs ->
+            if (name != null) prefs[nameKey(channelID)] = name
+            if (image != null) prefs[imageKey(channelID)] = image
+        }
+    }
+
+    suspend fun saveLastProfile(userId: String, channelID: String, name: String, image: String) {
+        dataStore.edit { prefs ->
+            prefs[lastChannelKey(userId)] = channelID
+            prefs[lastNameKey(userId)] = name
+            prefs[lastImageKey(userId)] = image
+            
+            // Also update the per-channel one
+            prefs[nameKey(channelID)] = name
+            prefs[imageKey(channelID)] = image
+        }
+    }
+
+    suspend fun getLastProfile(userId: String): Triple<String, String, String> {
+        val prefs = dataStore.data.first()
+        return Triple(
+            prefs[lastChannelKey(userId)].orEmpty(),
+            prefs[lastNameKey(userId)].orEmpty(),
+            prefs[lastImageKey(userId)].orEmpty()
+        )
     }
 
     fun clearSession() {
-        prefs.edit().clear().apply()
+        cachedCsrf = null
+        cachedUserId = null
+        cachedNickname = null
+        cachedSessionId = null
+        cachedTo = null
+        cachedLastChannelId = null
+        scope.launch {
+            dataStore.edit { prefs ->
+                val deviceId = prefs[KEY_DEVICE_ID]
+                prefs.clear()
+                if (deviceId != null) prefs[KEY_DEVICE_ID] = deviceId
+            }
+        }
     }
 
     private fun encryptSessionId(sessionId: String): String {

@@ -19,8 +19,10 @@ data class DbChannel(
     val channelID: String,
     val channelName: String,
     val channelDescription: String,
-    val myname: String,
-    val myimg: String
+    val updatedBy: String,
+    val updatedAt: String,
+    val myname: String = "",
+    val myimg: String = ""
 )
 
 data class DbAlias(
@@ -85,7 +87,9 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             CREATE TABLE channel (
                 channelID TEXT PRIMARY KEY,
                 channelName TEXT,
-                channelDescription TEXT
+                channelDescription TEXT,
+                updatedBy TEXT,
+                updatedAt TEXT
             )
         """.trimIndent())
 
@@ -259,8 +263,36 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 }
             }
             legacyProfiles.commit()
-            db.execSQL("CREATE TABLE channel_new (channelID TEXT PRIMARY KEY, channelName TEXT, channelDescription TEXT)")
-            db.execSQL("INSERT INTO channel_new (channelID, channelName, channelDescription) SELECT channelID, channelName, channelDescription FROM channel")
+            // In v9, we temporarily moved these to prefs, but in v10 we want them back for offline cache.
+            // So we don't drop columns here if we can avoid it, but since we are already at 9, we must handle the recovery.
+        }
+
+        // v10 ensures myname and myimg exist in the channel table.
+        if (oldVersion < 10) {
+            dbHelperAddColumn(db, "channel", "myname", "TEXT")
+            dbHelperAddColumn(db, "channel", "myimg", "TEXT")
+        }
+
+        // v11: Remove myname/myimg from channel table, add updatedBy/updatedAt.
+        if (oldVersion < 11) {
+            db.execSQL(
+                """
+                CREATE TABLE channel_new (
+                    channelID TEXT PRIMARY KEY,
+                    channelName TEXT,
+                    channelDescription TEXT,
+                    updatedBy TEXT,
+                    updatedAt TEXT
+                )
+                """.trimIndent()
+            )
+            // Migrate existing data if possible
+            db.execSQL(
+                """
+                INSERT INTO channel_new (channelID, channelName, channelDescription, updatedBy, updatedAt)
+                SELECT channelID, channelName, channelDescription, '', '' FROM channel
+                """.trimIndent()
+            )
             db.execSQL("DROP TABLE channel")
             db.execSQL("ALTER TABLE channel_new RENAME TO channel")
         }
@@ -414,6 +446,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
             put("channelID", channel.channelID)
             put("channelName", channel.channelName)
             put("channelDescription", channel.channelDescription)
+            put("updatedBy", channel.updatedBy)
+            put("updatedAt", channel.updatedAt)
         }
         writableDatabase.insertWithOnConflict("channel", null, values, SQLiteDatabase.CONFLICT_REPLACE)
     }
@@ -428,8 +462,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                     channelID = it.getString(it.getColumnIndexOrThrow("channelID")),
                     channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                     channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
-                    myname = "",
-                    myimg = ""
+                    updatedBy = it.getString(it.getColumnIndexOrThrow("updatedBy")).orEmpty(),
+                    updatedAt = it.getString(it.getColumnIndexOrThrow("updatedAt")).orEmpty()
                 )
             } else null
         }
@@ -445,8 +479,8 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                         channelID = it.getString(it.getColumnIndexOrThrow("channelID")),
                         channelName = it.getString(it.getColumnIndexOrThrow("channelName")),
                         channelDescription = it.getString(it.getColumnIndexOrThrow("channelDescription")),
-                        myname = "",
-                        myimg = ""
+                        updatedBy = it.getString(it.getColumnIndexOrThrow("updatedBy")).orEmpty(),
+                        updatedAt = it.getString(it.getColumnIndexOrThrow("updatedAt")).orEmpty()
                     )
                 )
             }
@@ -547,7 +581,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 9
+        private const val DATABASE_VERSION = 11
 
 /** スレッド見出し。vue の threadHead IndexedDB ストアの項目に揃えている。 */
 private val THREAD_HEAD_TABLE = """

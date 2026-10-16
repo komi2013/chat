@@ -44,7 +44,8 @@ class PushReceiveDispatcher(
     private val sessionManager: SessionManager,
     private val apiService: ApiService,
     private val receptionApiService: ReceptionApiService,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore
 ) {
     // Application-scoped Coroutine guarantees background SQLite execution completes
     // even if the FCM service starts shutting down.
@@ -58,7 +59,7 @@ class PushReceiveDispatcher(
         mapOf(
             "entryForm" to EntryFormHandler(context, dbHelper),
             "channelEdit" to ChannelEditHandler(context),
-            "alias" to AliasHandler(context),
+            "alias" to AliasHandler(context, sessionManager, profileStore),
             "group" to GroupHandler(context),
             "thread" to ThreadHandler(context),
             "threadEdit" to ThreadHandler(context),

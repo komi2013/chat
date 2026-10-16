@@ -33,8 +33,6 @@ class UserRepository @Inject constructor(
 ) {
     // 生SQLite: ChannelFeatureDB.db を user_profile / user_nickname の保存先として共有する。
     private val dbHelper: ChannelDbHelper = ChannelDbHelper(context)
-    private val sharedPreferences: SharedPreferences = 
-        context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
     
     private val gson = Gson()
 
@@ -280,66 +278,51 @@ class UserRepository @Inject constructor(
     )
 
     companion object {
-        private const val CSRF_TOKEN_KEY = "csrf"
-        private const val NICKNAME_KEY = "nickname"
-        private const val CHANNEL_ID_KEY = "channelID"
-        private const val TO_KEY = "TO"
         private const val TOP_LINKS_PREFIX = "topLinks"
     }
 
     fun getCsrfToken(): String? {
-        return sessionManager.getCsrf() ?: sharedPreferences.getString(CSRF_TOKEN_KEY, null)
+        return sessionManager.getCsrf()
     }
 
     fun setCsrfToken(token: String) {
         sessionManager.setCsrf(token)
-        sharedPreferences.edit()
-            .putString(CSRF_TOKEN_KEY, token)
-            .apply()
         _signInState.value = token.isNotEmpty()
     }
 
     fun getNickname(): String? {
-        return sessionManager.getNickname() ?: sharedPreferences.getString(NICKNAME_KEY, null)
+        return sessionManager.getNickname()
     }
 
     fun setNickname(nickname: String) {
         sessionManager.setNickname(nickname)
-        sharedPreferences.edit()
-            .putString(NICKNAME_KEY, nickname)
-            .apply()
     }
 
     fun getCurrentChannelId(): String? {
-        return sharedPreferences.getString(CHANNEL_ID_KEY, null)
+        return sessionManager.getLastChannelId()
     }
 
     fun setCurrentChannelId(channelId: String) {
-        sharedPreferences.edit()
-            .putString(CHANNEL_ID_KEY, channelId)
-            .apply()
+        sessionManager.setCurrentChannelId(channelId)
         _currentChannelId.value = channelId
     }
 
     fun getTO(): String? {
-        return sharedPreferences.getString(TO_KEY, null)
+        return sessionManager.getTO()
     }
 
     fun setTO(to: String) {
-        sharedPreferences.edit()
-            .putString(TO_KEY, to)
-            .apply()
+        sessionManager.setTO(to)
     }
 
     fun clearTO() {
-        sharedPreferences.edit()
-            .remove(TO_KEY)
-            .apply()
+        // DataStore logic for clearing is handled via clearSession or a specific clear if needed.
+        // For now, setting to empty to mimic clear behavior.
+        sessionManager.setTO("")
     }
 
     fun getStoredTopLinks(channelId: String): List<TopLink>? {
-        val key = "$TOP_LINKS_PREFIX$channelId"
-        val json = sharedPreferences.getString(key, null)
+        val json = sessionManager.getStoredTopLinks(channelId)
         return if (json != null) {
             val type = object : TypeToken<List<TopLink>>() {}.type
             gson.fromJson(json, type)
@@ -347,20 +330,12 @@ class UserRepository @Inject constructor(
     }
 
     fun setStoredTopLinks(channelId: String, topLinks: List<TopLink>) {
-        val key = "$TOP_LINKS_PREFIX$channelId"
         val json = gson.toJson(topLinks)
-        sharedPreferences.edit()
-            .putString(key, json)
-            .apply()
+        sessionManager.setStoredTopLinks(channelId, json)
     }
 
     fun clearUserData() {
-        sharedPreferences.edit()
-            .remove(CSRF_TOKEN_KEY)
-            .remove(NICKNAME_KEY)
-            .remove(CHANNEL_ID_KEY)
-            .remove(TO_KEY)
-            .apply()
+        sessionManager.clearSession()
         _signInState.value = false
         _currentChannelId.value = null
     }
