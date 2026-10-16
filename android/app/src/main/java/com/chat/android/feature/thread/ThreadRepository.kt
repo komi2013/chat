@@ -98,7 +98,7 @@ class ThreadRepository @Inject constructor(
      */
     suspend fun postMessage(
         channelID: String,
-        myname: String,
+        providedMyname: String,
         parentID: String,
         messageTxt: String,
         aliasImg: String,
@@ -109,6 +109,10 @@ class ThreadRepository @Inject constructor(
         editingMessageID: String? = null,
         files: List<ThreadFile> = emptyList()
     ): Result<Unit> {
+        val (effectiveName, effectiveImg) = getEffectiveProfile(channelID)
+        val myname = providedMyname.ifBlank { effectiveName }
+        val finalAliasImg = aliasImg.ifBlank { effectiveImg }
+        
         val pushTitle = if (editingMessageID != null) "threadEdit" else "thread"
         val messageID = editingMessageID ?: newMessageID()
 
@@ -116,7 +120,7 @@ class ThreadRepository @Inject constructor(
             put(parentID)
             put(messageID)
             put(messageTxt)
-            put(aliasImg)
+            put(finalAliasImg)
             put(JSONArray(totalNames))
             put(backID)
             put(JSONArray(yets.map { JSONArray().apply { put(it.first); put(it.second) } }))
@@ -141,13 +145,17 @@ class ThreadRepository @Inject constructor(
      */
     suspend fun postCall(
         channelID: String,
-        myname: String,
+        providedMyname: String,
         parentID: String,
         opponent: String,
         aliasImg: String,
         backID: String,
         callUrl: String
     ): Result<Unit> {
+        val (effectiveName, effectiveImg) = getEffectiveProfile(channelID)
+        val myname = providedMyname.ifBlank { effectiveName }
+        val finalAliasImg = aliasImg.ifBlank { effectiveImg }
+
         val messageData = "＠＠${opponent}・＠＠ 「calling」（${callUrl}）"
         val pushNames = listOf(myname, opponent)
         val messageID = newMessageID()
@@ -155,7 +163,7 @@ class ThreadRepository @Inject constructor(
             put(parentID)
             put(messageID)
             put(messageData)
-            put(aliasImg)
+            put(finalAliasImg)
             put(JSONArray(pushNames))
             put(backID)
             put(JSONArray())
@@ -170,20 +178,23 @@ class ThreadRepository @Inject constructor(
             contentsJson = contents.toString(),
             notifyUrl = callUrl,
             notifyMessage = "$myname is calling",
-            notifyIcon = aliasImg
+            notifyIcon = finalAliasImg
         )
     }
 
     /** 絵文字リアクションを付ける／外す（vue/src/components/EmojiModal.vue と同じ）。 */
     suspend fun postEmoji(
         channelID: String,
-        myname: String,
+        providedMyname: String,
         pushNames: List<String>,
         messageID: String,
         emoji: String,
         parentID: String,
         delete: Boolean
     ): Result<Unit> {
+        val (effectiveName, _) = getEffectiveProfile(channelID)
+        val myname = providedMyname.ifBlank { effectiveName }
+
         val contents = JSONArray().apply {
             put(messageID)
             put(emoji)
@@ -199,10 +210,13 @@ class ThreadRepository @Inject constructor(
      */
     suspend fun postThreadHead(
         channelID: String,
-        myname: String,
+        providedMyname: String,
         head: DbThreadHead,
         files: List<ThreadFile> = emptyList()
     ): Result<Unit> {
+        val (effectiveName, _) = getEffectiveProfile(channelID)
+        val myname = providedMyname.ifBlank { effectiveName }
+
         val obj = org.json.JSONObject().apply {
             put("parentID", head.parentID)
             put("channelID", channelID)
@@ -225,12 +239,15 @@ class ThreadRepository @Inject constructor(
     /** ブックマークを付ける／外す（vue/src/pushReceive/bookmark.js と同じ）。 */
     suspend fun postBookmark(
         channelID: String,
-        myname: String,
+        providedMyname: String,
         pushNames: List<String>,
         messageID: String,
         parentID: String,
         isBookmarked: Boolean
     ): Result<Unit> {
+        val (effectiveName, _) = getEffectiveProfile(channelID)
+        val myname = providedMyname.ifBlank { effectiveName }
+
         val contents = JSONArray().apply {
             put(messageID)
             put(parentID)
@@ -248,4 +265,20 @@ class ThreadRepository @Inject constructor(
 
     private fun String.toPart(): RequestBody =
         toRequestBody("text/plain".toMediaTypeOrNull())
+
+    suspend fun saveLocalProfile(channelID: String, name: String, image: String) {
+        val userId = sessionManager.getUserId() ?: return
+        val profileStore = com.chat.android.feature.channel.ChannelProfileStore(sessionManager.context)
+        profileStore.saveLastProfile(userId, channelID, name, image)
+    }
+
+    suspend fun getEffectiveProfile(channelID: String): Pair<String, String> {
+        val profileStore = com.chat.android.feature.channel.ChannelProfileStore(sessionManager.context)
+        val (name, img) = profileStore.profile(channelID)
+        if (name.isNotBlank()) return name to img
+        
+        val userId = sessionManager.getUserId() ?: return "" to ""
+        val last = profileStore.getLastProfile(userId)
+        return last.second to last.third
+    }
 }

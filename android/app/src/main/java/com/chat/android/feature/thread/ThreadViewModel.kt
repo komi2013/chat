@@ -91,6 +91,12 @@ class ThreadViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = withContext(Dispatchers.IO) { load(id, parent, backID.orEmpty()) }
             markRead()
+            
+            // Save local dataStore when coming to thread screen
+            val currentState = _uiState.value
+            if (currentState.myname.isNotBlank()) {
+                repository.saveLocalProfile(id, currentState.myname, currentState.aliases.find { it.aliasName == currentState.myname }?.aliasImg.orEmpty())
+            }
         }
 
         updateJob = viewModelScope.launch {

@@ -67,12 +67,34 @@ class ChannelRepository @Inject constructor(
         profileStore.saveLastProfile(userId, channelID, name, image)
     }
 
+    suspend fun saveLastChannelID(channelID: String) {
+        val userId = sessionManager.getUserId() ?: return
+        val profile = profileStore.profile(channelID)
+        profileStore.saveLastProfile(userId, channelID, profile.first, profile.second)
+    }
+
+    private suspend fun getEffectiveName(channelID: String?, providedName: String): String {
+        if (providedName.isNotBlank()) return providedName
+        val name = channelID?.let { profileStore.profile(it).first }
+        if (!name.isNullOrBlank()) return name
+        return getLatestProfile().second
+    }
+
+    private suspend fun getEffectiveImage(channelID: String?, providedImage: String): String {
+        if (providedImage.isNotBlank()) return providedImage
+        val img = channelID?.let { profileStore.profile(it).second }
+        if (!img.isNullOrBlank()) return img
+        return getLatestProfile().third
+    }
+
     private fun toPart(value: String): RequestBody = value.toRequestBody("text/plain".toMediaTypeOrNull())
 
     suspend fun createChannel(name: String, description: String, myname: String, myimg: String): Result<String> {
+        val effectiveName = getEffectiveName(null, myname)
+        val effectiveImg = getEffectiveImage(null, myimg)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelAdd(
-            toPart(name), toPart(description), toPart(myname), toPart(myimg), toPart(csrf)
+            toPart(name), toPart(description), toPart(effectiveName), toPart(effectiveImg), toPart(csrf)
         )
 
         if (!response.isSuccessful) {
@@ -102,13 +124,14 @@ class ChannelRepository @Inject constructor(
                 channelID = channelID,
                 channelName = name,
                 channelDescription = description,
-                myname = myname,
-                myimg = myimg
+                myname = effectiveName,
+                myimg = effectiveImg
             )
         )
-        profileStore.save(channelID, name = myname, image = myimg)
+        // profileStore is device-local, we save it here for auto-filling and authorized requests
+        profileStore.save(channelID, name = effectiveName, image = effectiveImg)
         sessionManager.getUserId()?.let { userId ->
-            profileStore.saveLastProfile(userId, channelID, myname, myimg)
+            profileStore.saveLastProfile(userId, channelID, effectiveName, effectiveImg)
         }
 
         _dbUpdateFlow.emit(Unit)
@@ -123,10 +146,11 @@ class ChannelRepository @Inject constructor(
         groupsJson: String? = null,
         description: String? = null
     ): Result<Unit> {
+        val effectiveName = getEffectiveName(channelID, updatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
             toPart(channelID),
-            toPart(updatedBy),
+            toPart(effectiveName),
             toPart(pushNamesJson),
             channelName?.let { toPart(it) },
             groupsJson?.let { toPart(it) },
@@ -160,10 +184,11 @@ class ChannelRepository @Inject constructor(
      * 反映されないので、応答の channel を使ってここで DB を更新する。
      */
     suspend fun generateInvitation(channelID: String, updatedBy: String, guest: Boolean): Result<String> {
+        val effectiveName = getEffectiveName(channelID, updatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
             toPart(channelID),
-            toPart(updatedBy),
+            toPart(effectiveName),
             toPart("[]"),
             null,
             null,
@@ -212,12 +237,14 @@ class ChannelRepository @Inject constructor(
         myname: String,
         myimg: String
     ): Result<Unit> {
+        val effectiveName = getEffectiveName(null, myname)
+        val effectiveImg = getEffectiveImage(null, myimg)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelJoin(
             toPart(channelID),
             toPart(code),
-            toPart(myname),
-            toPart(myimg),
+            toPart(effectiveName),
+            toPart(effectiveImg),
             toPart(csrf)
         )
         if (!response.isSuccessful) {
@@ -234,9 +261,9 @@ class ChannelRepository @Inject constructor(
         }
 
         body.pushContents?.forEach { pushDispatcher.receive(it) }
-        profileStore.save(channelID, name = myname, image = myimg)
+        profileStore.save(channelID, name = effectiveName, image = effectiveImg)
         sessionManager.getUserId()?.let { userId ->
-            profileStore.saveLastProfile(userId, channelID, myname, myimg)
+            profileStore.saveLastProfile(userId, channelID, effectiveName, effectiveImg)
         }
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
@@ -258,15 +285,18 @@ class ChannelRepository @Inject constructor(
         aliasBio: String,
         aliasImg: String
     ): Result<Unit> {
+        val effectiveUpdatedBy = getEffectiveName(channelID, updatedBy)
+        val effectiveAliasName = if (aliasName.isNotBlank()) aliasName else effectiveUpdatedBy
+        val effectiveAliasImg = getEffectiveImage(channelID, aliasImg)
         val csrf = sessionManager.getCsrf() ?: ""
         val aliases = dbHelper.getAliasesForChannel(channelID)
-        val existing = aliases.find { it.aliasName == updatedBy }
+        val existing = aliases.find { it.aliasName == effectiveUpdatedBy }
 
         val adminJson = JSONObject().apply {
-            put("aliasID", existing?.aliasID ?: (channelID + aliasName))
+            put("aliasID", existing?.aliasID ?: (channelID + effectiveAliasName))
             put("channelID", channelID)
-            put("aliasName", aliasName)
-            put("aliasImg", aliasImg)
+            put("aliasName", effectiveAliasName)
+            put("aliasImg", effectiveAliasImg)
             put("userID", existing?.userID.orEmpty())
             put("aliasBio", aliasBio)
             put("accessRight", existing?.accessRight.orEmpty())
@@ -274,7 +304,7 @@ class ChannelRepository @Inject constructor(
 
         val response = apiService.channelEdit(
             toPart(channelID),
-            toPart(updatedBy),
+            toPart(effectiveUpdatedBy),
             toPart("[]"),
             null,
             null,
@@ -294,9 +324,9 @@ class ChannelRepository @Inject constructor(
         }
         body.pushContents?.forEach { pushDispatcher.receive(it) }
 
-        profileStore.save(channelID, image = aliasImg)
+        profileStore.save(channelID, name = effectiveAliasName, image = effectiveAliasImg)
         sessionManager.getUserId()?.let { userId ->
-            profileStore.saveLastProfile(userId, channelID, aliasName, aliasImg)
+            profileStore.saveLastProfile(userId, channelID, effectiveAliasName, effectiveAliasImg)
         }
         _dbUpdateFlow.emit(Unit)
         return Result.success(Unit)
@@ -333,10 +363,11 @@ class ChannelRepository @Inject constructor(
         groupsJson: String,
         pushNamesJson: String
     ): Result<Unit> {
+        val effectiveName = getEffectiveName(channelID, updatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
             toPart(channelID),
-            toPart(updatedBy),
+            toPart(effectiveName),
             toPart(pushNamesJson),
             null,
             toPart(groupsJson),
@@ -401,10 +432,11 @@ class ChannelRepository @Inject constructor(
     }
 
     suspend fun deleteChannel(channelID: String, updatedBy: String): Result<Unit> {
+        val effectiveName = getEffectiveName(channelID, updatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelDelete(
             toPart(channelID),
-            toPart(updatedBy),
+            toPart(effectiveName),
             toPart("1"),
             toPart(csrf)
         )

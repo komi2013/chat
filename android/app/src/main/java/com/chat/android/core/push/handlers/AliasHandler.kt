@@ -60,5 +60,6 @@ class AliasHandler(
         )
         Log.i("AliasHandler", "Upserted alias $aliasID")
 
+        // Real-time Sync: dont do this (Automatic Synchronization is wrong)
     }
 }

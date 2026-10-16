@@ -85,6 +85,11 @@ class ChannelViewModel @Inject constructor(
         )
         viewModelScope.launch {
             repository.saveLastChannelID(channelID)
+            // Save local dataStore when coming to channel screen
+            val channel = repository.getChannel(channelID)
+            if (channel != null && channel.myname.isNotBlank()) {
+                repository.saveLastProfile(channelID, channel.myname, channel.myimg)
+            }
         }
         observeDbUpdates(channelID)
         loadChannelData(channelID)
@@ -94,7 +99,7 @@ class ChannelViewModel @Inject constructor(
     fun startCreateMode() {
         observeJob?.cancel()
         viewModelScope.launch {
-            val (latestName, latestImg) = repository.getLatestProfile()
+            val (_, latestName, latestImg) = repository.getLatestProfile()
             _uiState.value = _uiState.value.copy(
                 channelID = null,
                 isCreateMode = true,
