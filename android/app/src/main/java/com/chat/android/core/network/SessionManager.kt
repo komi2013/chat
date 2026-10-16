@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -136,7 +137,15 @@ class SessionManager @Inject constructor(
         cachedUserId = userId
         cachedNickname = nickname
         
-        val encryptedSessionId = sessionId?.let { ENCRYPTED_PREFIX + encryptSessionId(it) }
+        val storedSessionId = sessionId?.let {
+            try {
+                ENCRYPTED_PREFIX + encryptSessionId(it)
+            } catch (e: Exception) {
+                Log.e("SessionManager", "Failed to encrypt session ID, storing as plain text", e)
+                it
+            }
+        }
+
         if (sessionId != null) {
             cachedSessionId = sessionId
         }
@@ -146,8 +155,8 @@ class SessionManager @Inject constructor(
                 prefs[KEY_CSRF] = csrf
                 if (userId != null) prefs[KEY_USER_ID] = userId
                 if (nickname != null) prefs[KEY_NICKNAME] = nickname
-                if (encryptedSessionId != null) {
-                    prefs[KEY_SESSION_ID] = encryptedSessionId
+                if (storedSessionId != null) {
+                    prefs[KEY_SESSION_ID] = storedSessionId
                 }
             }
         }
@@ -158,8 +167,13 @@ class SessionManager @Inject constructor(
     fun setSessionId(sessionId: String) {
         cachedSessionId = sessionId
         scope.launch {
-            val encryptedValue = ENCRYPTED_PREFIX + encryptSessionId(sessionId)
-            dataStore.edit { it[KEY_SESSION_ID] = encryptedValue }
+            val storedValue = try {
+                ENCRYPTED_PREFIX + encryptSessionId(sessionId)
+            } catch (e: Exception) {
+                Log.e("SessionManager", "Failed to encrypt session ID, storing as plain text", e)
+                sessionId
+            }
+            dataStore.edit { it[KEY_SESSION_ID] = storedValue }
         }
     }
 
@@ -288,7 +302,15 @@ class SessionManager @Inject constructor(
 
     private fun getOrCreateSessionKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(SESSION_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        
+        try {
+            (keyStore.getKey(SESSION_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        } catch (e: Exception) {
+            Log.w("SessionManager", "Failed to get session key from Keystore, attempting to recreate", e)
+            try {
+                keyStore.deleteEntry(SESSION_KEY_ALIAS)
+            } catch (_: Exception) {}
+        }
 
         val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         keyGenerator.init(

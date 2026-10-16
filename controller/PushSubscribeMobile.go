@@ -146,7 +146,7 @@ func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
 			channelAliasMap[ca.ChannelID] = ca
 		}
 		for _, ch := range channels {
-			safeChannels = append(safeChannels, sanitizeMyChannel(ch, channelAliasMap))
+			safeChannels = append(safeChannels, sanitizeMyChannel(ch, channelAliasMap, true))
 		}
 	}
 

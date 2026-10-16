@@ -47,30 +47,36 @@ class ChannelRepository @Inject constructor(
     private suspend fun resolveIdentity(channelID: String?): Pair<String, String> {
         if (channelID == null) return "" to ""
 
+        // 1. DataStore (Channel-specific Cache)
         var (name, image) = profileStore.profile(channelID)
-        if (name.isBlank()) {
-            val myUserId = sessionManager.getUserId()
-            val myAlias = if (myUserId != null) {
-                dbHelper.getAliasesForChannel(channelID).find { it.userID == myUserId }
-            } else null
+        if (name.isNotBlank()) return name to image
 
-            name = myAlias?.aliasName.orEmpty()
-            image = myAlias?.aliasImg.orEmpty()
+        // 2. Alias Table (Join by current userID)
+        val myUserId = sessionManager.getUserId()
+        if (myUserId != null) {
+            val myAlias = dbHelper.getAliasesForChannel(channelID).find { it.userID == myUserId }
+            if (myAlias != null) {
+                name = myAlias.aliasName
+                image = myAlias.aliasImg
+                if (name.isNotBlank()) {
+                    profileStore.save(channelID, name, image)
+                }
+                return name to image
+            }
 
-            if (name.isNotBlank()) {
-                profileStore.save(channelID, name, image)
+            // 3. Fallback to Last Used Profile (Cross-channel Cache)
+            val last = profileStore.getLastProfile(myUserId)
+            if (last.second.isNotBlank()) {
+                return last.second to last.third
             }
         }
-        return name to image
+
+        // 4. Global Fallback (Session nickname)
+        return sessionManager.getNickname().orEmpty() to ""
     }
 
     private suspend fun DbChannel.withLocalProfile(): DbChannel {
-        var (name, image) = resolveIdentity(channelID)
-
-        if (name.isBlank()) {
-            name = sessionManager.getNickname().orEmpty()
-        }
-
+        val (name, image) = resolveIdentity(channelID)
         return copy(myname = name, myimg = image)
     }
     suspend fun getAliases(channelID: String): List<DbAlias> = dbHelper.getAliasesForChannel(channelID)
@@ -329,12 +335,13 @@ class ChannelRepository @Inject constructor(
         val aliases = dbHelper.getAliasesForChannel(channelID)
         val existing = aliases.find { it.aliasName == effectiveUpdatedBy }
 
+        val myUserId = sessionManager.getUserId().orEmpty()
         val adminJson = JSONObject().apply {
             put("aliasID", existing?.aliasID ?: (channelID + effectiveAliasName))
             put("channelID", channelID)
             put("aliasName", effectiveAliasName)
             put("aliasImg", effectiveAliasImg)
-            put("userID", existing?.userID.orEmpty())
+            put("userID", existing?.userID?.takeIf { it.isNotBlank() } ?: myUserId)
             put("aliasBio", aliasBio)
             put("accessRight", existing?.accessRight.orEmpty())
         }.toString()

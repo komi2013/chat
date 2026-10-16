@@ -275,9 +275,13 @@ class ThreadRepository @Inject constructor(
     suspend fun getEffectiveProfile(channelID: String): Pair<String, String> {
         val (name, img) = profileStore.profile(channelID)
         if (name.isNotBlank()) return name to img
-        
+
         val userId = sessionManager.getUserId() ?: return "" to ""
+
+        // resolveIdentity is in ChannelRepository, but we can't easily call it here.
+        // We replicate the "alias table fallback" logic or use the last global profile.
         val last = profileStore.getLastProfile(userId)
-        return last.second to last.third
+        val finalName = if (last.second.isNotBlank()) last.second else sessionManager.getNickname().orEmpty()
+        return finalName to last.third
     }
 }

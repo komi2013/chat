@@ -1,5 +1,6 @@
 package com.chat.android.feature.channel
 
+import com.google.gson.annotations.SerializedName
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Multipart
@@ -15,12 +16,12 @@ import retrofit2.http.Part
  * クライアントはこの応答からローカルDBを更新する必要がある。
  */
 data class AliasPayload(
-    val aliasID: String? = null,
-    val aliasName: String? = null,
-    val aliasImg: String? = null,
-    val userID: String? = null,
-    val aliasBio: String? = null,
-    val accessRight: String? = null
+    @SerializedName("aliasID") val aliasID: String? = null,
+    @SerializedName("aliasName") val aliasName: String? = null,
+    @SerializedName("aliasImg") val aliasImg: String? = null,
+    @SerializedName("userID") val userID: String? = null,
+    @SerializedName("aliasBio") val aliasBio: String? = null,
+    @SerializedName("accessRight") val accessRight: String? = null
 )
 
 data class GroupPayload(

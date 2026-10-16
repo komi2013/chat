@@ -91,7 +91,7 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 	for _, ch := range channels {
 		safeChannels = append(
 			safeChannels,
-			sanitizeMyChannel(ch, channelAliasMap),
+			sanitizeMyChannel(ch, channelAliasMap, false),
 		)
 	}
 
@@ -136,6 +136,7 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 func sanitizeMyChannel(
 	channel collection.ChannelStruct,
 	channelAliasMap map[string]collection.ChannelAlias,
+	includeAliasUserID bool,
 ) collection.ChannelStruct {
 
 	safe := channel
@@ -145,10 +146,12 @@ func sanitizeMyChannel(
 		safe.Myname = ca.Alias
 	}
 
-	// 🔒 sanitize aliases (remove UserID)
+	// Sanitize aliases unless the caller needs alias ownership identifiers.
 	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
 	for _, a := range channel.Aliases {
-		a.UserID = "" // ★ UserIDはレスポンスでは返さない
+		if !includeAliasUserID {
+			a.UserID = ""
+		}
 		safeAliases = append(safeAliases, a)
 	}
 	safe.Aliases = safeAliases

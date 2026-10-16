@@ -46,13 +46,17 @@ class ChannelEditHandler(
         val channel = if (existing != null) {
             existing.copy(
                 channelName = channelName,
-                channelDescription = channelDescription
+                channelDescription = channelDescription,
+                updatedBy = pd.updatedBy,
+                updatedAt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
             )
         } else {
             DbChannel(
                 channelID = channelID,
                 channelName = channelName,
                 channelDescription = channelDescription,
+                updatedBy = pd.updatedBy,
+                updatedAt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
                 myname = pd.updatedBy,
                 myimg = ""
             )

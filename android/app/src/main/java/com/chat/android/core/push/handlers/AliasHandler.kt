@@ -36,6 +36,7 @@ class AliasHandler(
         val aliasName = contents.optString(1, "")
         val aliasBio = contents.optString(2, "")
         val accessRight = contents.optString(3, "")
+        // aliasImg is at index 5 in the top-level pd array
         val aliasImg = pd.rawJson.optString(5, "")
 
         // aliasID = channelID + (accessRight=='inquirer'?'@':'') + aliasName
@@ -52,7 +53,7 @@ class AliasHandler(
             DbAlias(
                 aliasID = aliasID,
                 channelID = channelID,
-                aliasName = "$atMark$aliasName",
+                aliasName = aliasName, // Don't prepend @ here if it's already used in ID
                 aliasImg = aliasImg,
                 userID = userID,
                 aliasBio = aliasBio,

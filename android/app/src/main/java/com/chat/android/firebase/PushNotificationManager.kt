@@ -119,23 +119,29 @@ class PushNotificationManager @Inject constructor(
                         channelID = id,
                         channelName = c.channelName ?: existing?.channelName.orEmpty(),
                         channelDescription = c.channelDescription ?: existing?.channelDescription.orEmpty(),
-                        // Keep the alias chosen on this device when refreshing the
-                        // server's channel snapshot after a later sign-in.
-                        myname = existing?.myname?.takeIf { it.isNotBlank() } ?: c.myname.orEmpty(),
-                        myimg = existing?.myimg.orEmpty()
+                        updatedBy = existing?.updatedBy ?: "system",
+                        updatedAt = existing?.updatedAt ?: java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
                     )
                 )
 
-                // エイリアス（UserID はサーバー側の sanitizeMyChannel で除去されている）
+                // Save aliases for this channel.
+                val currentUserId = sessionManager.getUserId()
                 c.aliases?.forEach aliasLoop@{ alias ->
                     val aliasID = alias.aliasID?.takeIf { it.isNotBlank() } ?: return@aliasLoop
+                    
+                    // Identity Resolution Heuristic:
+                    // Server sometimes omits UserID in the full aliases list in the snapshot,
+                    // but provides the current user's name in c.myname.
+                    val resolvedUserId = alias.userID?.takeIf { it.isNotBlank() }
+                        ?: if (alias.aliasName == c.myname && !c.myname.isNullOrBlank()) currentUserId.orEmpty() else ""
+
                     dbHelper.saveAlias(
                         DbAlias(
                             aliasID = aliasID,
                             channelID = id,
                             aliasName = alias.aliasName.orEmpty(),
                             aliasImg = alias.aliasImg.orEmpty(),
-                            userID = alias.userID.orEmpty(),
+                            userID = resolvedUserId,
                             aliasBio = alias.aliasBio.orEmpty(),
                             accessRight = alias.accessRight.orEmpty()
                         )
