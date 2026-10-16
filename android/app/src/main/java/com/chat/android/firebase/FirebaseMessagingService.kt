@@ -46,6 +46,7 @@ class FirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
 
         Log.d(TAG, "From: ${remoteMessage.from}")
+        Log.d(TAG, "Message data payload: ${remoteMessage.data}")
 
         // Data-only pass-through: "payload" is the exact JSON array the web
         // client receives via VAPID. Dispatch on pd[1] like vue pushReceive.js —

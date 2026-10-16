@@ -87,7 +87,8 @@ class ThreadHandler(private val context: Context) : PushHandler {
             if (existing == null) return
 
             // 順序制御: 既存データの updatedUnixAt の方が新しい場合は更新しない（vue と同じ）
-            if (existing.updatedUnixAt >= incomingUpdatedUnixAt && incomingUpdatedUnixAt != 0L) {
+            // 同時刻または incoming が 0 の場合は更新を許可する
+            if (existing.updatedUnixAt > incomingUpdatedUnixAt && incomingUpdatedUnixAt != 0L) {
                 return
             }
 

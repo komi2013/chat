@@ -11,24 +11,13 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.chat.android.MainActivity
 import com.chat.android.R
-import com.chat.android.core.network.ApiService
-import com.chat.android.core.network.SessionManager
-import com.chat.android.feature.channel.ChannelDbHelper
-import com.chat.android.feature.channel.ChannelPayload
-import com.chat.android.feature.channel.DbAlias
-import com.chat.android.feature.channel.DbChannel
-import com.chat.android.feature.channel.DbGroup
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class PushNotificationManager @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val apiService: ApiService,
-    private val sessionManager: SessionManager
+    @ApplicationContext private val context: Context
 ) {
     
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -65,104 +54,6 @@ class PushNotificationManager @Inject constructor(
                 )
             }
             notificationManager.createNotificationChannel(callChannel)
-        }
-    }
-    
-    // ChannelDbHelper は Hilt の提供定義が無いので、他の組む場所と同じく
-    // context から直接組み立てる（ChannelRepository / 各PushHandler と同じ方式）。
-    private val dbHelper by lazy { ChannelDbHelper(context) }
-
-    suspend fun sendTokenToBackend(token: String, csrf: String) {
-        try {
-            val response = apiService.subscribeMobilePush(token, csrf)
-            if (response.isSuccessful) {
-                // PushSubscribeMobile はセッション確認の一部として CSRF を回転させ、
-                // 新しい値を応答へ返す（common/session.go の CSRFcheckMake）。
-                // ここで保存しないと、以降の API がすべて
-                // "SessionCheckTake token error" で失敗し続ける。
-                val body = response.body()
-                sessionManager.applyResponseCsrf(csrf, body?.csrf)
-
-                // 所属チャネルをローカルSQLiteへUpsertする。
-                // アプリはローカルDBを唯一のデータ源にしており、再インストールで
-                // DBが消えるとドロワーのチャネルが戻らないため、サインイン時に
-                // サーバーから復元しておく必要がある（Web版のPushSubscribeと同じ）。
-                syncChannels(body?.channels)
-            } else {
-                throw Exception("Server returned error: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            throw Exception("Failed to send FCM token: ${e.message}")
-        }
-    }
-
-    /**
-     * 応答に含まれる channels をローカルSQLiteへ保存する。
-     *
-     * vue/view/pushSubscription.html と同じく、channel だけでなく
-     * その channel に含まれる aliases と groups もまとめて upsert する。
-     * これを省略すると、サインイン直後にエイリアスとグループが空のままになる。
-     *
-     * myimg は応答に含まれない（sanitizeMyChannel は UserID と一緒に落とす）が、
-     * 既にローカルにmyimg がある場合は上書きしない。
-     */
-    private suspend fun syncChannels(channels: List<ChannelPayload>?) {
-        val list = channels.orEmpty()
-        if (list.isEmpty()) return
-
-        withContext(Dispatchers.IO) {
-            list.forEach channelLoop@{ c ->
-                val id = c.channelID?.takeIf { it.isNotBlank() } ?: return@channelLoop
-                val existing = dbHelper.getChannel(id)
-                dbHelper.saveChannel(
-                    DbChannel(
-                        channelID = id,
-                        channelName = c.channelName ?: existing?.channelName.orEmpty(),
-                        channelDescription = c.channelDescription ?: existing?.channelDescription.orEmpty(),
-                        updatedBy = existing?.updatedBy ?: "system",
-                        updatedAt = existing?.updatedAt ?: java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
-                    )
-                )
-
-                // Save aliases for this channel.
-                val currentUserId = sessionManager.getUserId()
-                c.aliases?.forEach aliasLoop@{ alias ->
-                    val aliasID = alias.aliasID?.takeIf { it.isNotBlank() } ?: return@aliasLoop
-                    
-                    // Identity Resolution Heuristic:
-                    // Server sometimes omits UserID in the full aliases list in the snapshot,
-                    // but provides the current user's name in c.myname.
-                    val resolvedUserId = alias.userID?.takeIf { it.isNotBlank() }
-                        ?: if (alias.aliasName == c.myname && !c.myname.isNullOrBlank()) currentUserId.orEmpty() else ""
-
-                    dbHelper.saveAlias(
-                        DbAlias(
-                            aliasID = aliasID,
-                            channelID = id,
-                            aliasName = alias.aliasName.orEmpty(),
-                            aliasImg = alias.aliasImg.orEmpty(),
-                            userID = resolvedUserId,
-                            aliasBio = alias.aliasBio.orEmpty(),
-                            accessRight = alias.accessRight.orEmpty()
-                        )
-                    )
-                }
-
-                // グループ
-                c.groups?.forEach groupLoop@{ group ->
-                    val groupID = group.groupID?.takeIf { it.isNotBlank() } ?: return@groupLoop
-                    dbHelper.saveGroup(
-                        DbGroup(
-                            groupID = groupID,
-                            channelID = id,
-                            groupName = group.groupName.orEmpty(),
-                            groupImg = group.groupImg.orEmpty(),
-                            aliasNamesJson = group.aliasNames?.toString() ?: "[]",
-                            groupBio = group.groupBio.orEmpty()
-                        )
-                    )
-                }
-            }
         }
     }
     

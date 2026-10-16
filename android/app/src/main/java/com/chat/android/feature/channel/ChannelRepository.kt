@@ -1,6 +1,7 @@
 package com.chat.android.feature.channel
 
 import android.content.Context
+import com.chat.android.core.network.ApiService
 import com.chat.android.core.network.SessionManager
 import com.chat.android.core.push.PushReceiveDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -8,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -22,6 +24,7 @@ import javax.inject.Singleton
 class ChannelRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val apiService: ChannelApiService,
+    private val generalApiService: ApiService,
     private val sessionManager: SessionManager,
     private val pushDispatcher: PushReceiveDispatcher,
     private val profileStore: ChannelProfileStore
@@ -498,5 +501,80 @@ class ChannelRepository @Inject constructor(
             return Result.failure(Exception(body.error))
         }
         return Result.success(Unit)
+    }
+
+    /**
+     * FCM トークンをサーバーへ登録し、所属チャネル一覧を同期する。
+     * サインイン直後またはトークン更新時に呼ばれる。
+     */
+    suspend fun registerPushToken(token: String, csrf: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = generalApiService.subscribeMobilePush(token, csrf)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    sessionManager.applyResponseCsrf(csrf, body?.csrf)
+                    syncChannels(body?.channels)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(Exception("Server returned error: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(Exception("Failed to send FCM token: ${e.message}"))
+            }
+        }
+    }
+
+    private suspend fun syncChannels(channels: List<ChannelPayload>?) {
+        val list = channels.orEmpty()
+        if (list.isEmpty()) return
+
+        list.forEach { c ->
+            val id = c.channelID?.takeIf { it.isNotBlank() } ?: return@forEach
+            val existing = dbHelper.getChannel(id)
+            dbHelper.saveChannel(
+                DbChannel(
+                    channelID = id,
+                    channelName = c.channelName ?: existing?.channelName.orEmpty(),
+                    channelDescription = c.channelDescription ?: existing?.channelDescription.orEmpty(),
+                    updatedBy = existing?.updatedBy ?: "system",
+                    updatedAt = existing?.updatedAt ?: java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                )
+            )
+
+            val currentUserId = sessionManager.getUserId()
+            c.aliases?.forEach { alias ->
+                val aliasID = alias.aliasID?.takeIf { it.isNotBlank() } ?: return@forEach
+                val resolvedUserId = alias.userID?.takeIf { it.isNotBlank() }
+                    ?: if (alias.aliasName == c.myname && !c.myname.isNullOrBlank()) currentUserId.orEmpty() else ""
+
+                dbHelper.saveAlias(
+                    DbAlias(
+                        aliasID = aliasID,
+                        channelID = id,
+                        aliasName = alias.aliasName.orEmpty(),
+                        aliasImg = alias.aliasImg.orEmpty(),
+                        userID = resolvedUserId,
+                        aliasBio = alias.aliasBio.orEmpty(),
+                        accessRight = alias.accessRight.orEmpty()
+                    )
+                )
+            }
+
+            c.groups?.forEach { group ->
+                val groupID = group.groupID?.takeIf { it.isNotBlank() } ?: return@forEach
+                dbHelper.saveGroup(
+                    DbGroup(
+                        groupID = groupID,
+                        channelID = id,
+                        groupName = group.groupName.orEmpty(),
+                        groupImg = group.groupImg.orEmpty(),
+                        aliasNamesJson = group.aliasNames?.toString() ?: "[]",
+                        groupBio = group.groupBio.orEmpty()
+                    )
+                )
+            }
+        }
+        _dbUpdateFlow.emit(Unit)
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chat.android.core.network.GoogleSignInResponse
 import com.chat.android.core.network.SessionManager
+import com.chat.android.feature.channel.ChannelRepository
 import com.chat.android.firebase.PushNotificationManager
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +19,8 @@ import kotlin.coroutines.resume
 class SignInViewModel @Inject constructor(
     private val googleSignInManager: GoogleSignInManager,
     private val sessionManager: SessionManager,
-    private val pushNotificationManager: PushNotificationManager
+    private val pushNotificationManager: PushNotificationManager,
+    private val channelRepository: ChannelRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignInUiState>(SignInUiState.Idle)
@@ -97,7 +99,7 @@ class SignInViewModel @Inject constructor(
     private suspend fun registerPushToken(csrf: String?) {
         val token = fetchFcmToken() ?: return
         val effectiveCsrf = csrf?.takeIf { it.isNotBlank() } ?: sessionManager.getCsrf() ?: return
-        runCatching { pushNotificationManager.sendTokenToBackend(token, effectiveCsrf) }
+        channelRepository.registerPushToken(token, effectiveCsrf)
             .onFailure { android.util.Log.w("SignInViewModel", "FCM token registration failed", it) }
     }
 

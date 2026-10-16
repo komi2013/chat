@@ -25,10 +25,35 @@ data class PushData(
 
     // contents can be a String, JSONObject, or JSONArray. Handlers cast it as needed.
     val contents: Any?
-        get() = rawJson.opt(4)
+        get() {
+            val raw = rawJson.opt(4)
+            if (raw is String && (raw.trim().startsWith("{") || raw.trim().startsWith("["))) {
+                return try {
+                    val trimmed = raw.trim()
+                    if (trimmed.startsWith("{")) JSONObject(trimmed) else JSONArray(trimmed)
+                } catch (e: Exception) {
+                    raw
+                }
+            }
+            return raw
+        }
         
     val extra: Any?
-        get() = rawJson.opt(5)
+        get() {
+            if (rawJson.length() > 5) {
+                val raw = rawJson.opt(rawJson.length() - 1)
+                if (raw is String && (raw.trim().startsWith("{") || raw.trim().startsWith("["))) {
+                    return try {
+                        val trimmed = raw.trim()
+                        if (trimmed.startsWith("{")) JSONObject(trimmed) else JSONArray(trimmed)
+                    } catch (e: Exception) {
+                        raw
+                    }
+                }
+                return raw
+            }
+            return null
+        }
 
     // Helper utilities for handlers
     fun getContentsAsObject(): JSONObject? = contents as? JSONObject

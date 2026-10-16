@@ -91,6 +91,7 @@ class PushReceiveDispatcher(
     }
 
     fun receive(notificationData: String, fromPush: Boolean = false) {
+        Log.d("PushDispatcher", "Received push data (fromPush=$fromPush): $notificationData")
         // Parse the wire array
         val pd = try {
             PushData.parse(notificationData, fromPush)
@@ -100,15 +101,15 @@ class PushReceiveDispatcher(
         }
 
         // Toggle Deduplication Logic
-        // 重褁E��定�E vue/src/pushReceive/pushReceive.js と同じトグル方弁E
-        //   1回目 = 適用してマ�Eカー保孁E/ 2回目 = マ�Eカー削除して破棁E���E同期用�E�E
+        // 重複判定: vue/src/pushReceive/pushReceive.js と同じトグル方式
+        // 1回目 = 適用してマーカー保存 / 2回目 = マーカー削除して破棄（他同期用）
         val pushDuplicationID = "${pd.title}${pd.channelID}${pd.updatedBy}${pd.pushID}"
 
         applicationScope.launch {
             try {
                 // 1. Check if marker exists
-                // FCM の onMessageReceived�E�メインスレチE���E�からも呼ばれるため、E
-                // DB オープンは忁E�� IO 側のこ�E位置で行う、E
+                // FCM の onMessageReceived はメインスレッドからも呼ばれるため、
+                // DB オープンは必ず IO 側のこの位置で行う。
                 val db = dbHelper.writableDatabase
                 val cursor = db.query(
                     "pushDuplication",
@@ -121,9 +122,8 @@ class PushReceiveDispatcher(
                 val isDuplicate = cursor.use { it.moveToFirst() }
 
                 if (isDuplicate) {
-                    // 2. TOGGLE SEMANTICS: Delete the marker and drop the payload
+                    Log.d("PushDispatcher", "Duplicate detected for ID: $pushDuplicationID. Dropping payload and removing marker.")
                     db.delete("pushDuplication", "pushDuplicationID = ?", arrayOf(pushDuplicationID))
-                    Log.d("PushDispatcher", "Duplicate dropped, marker deleted for re-sync: $pushDuplicationID")
                     return@launch
                 }
 
@@ -145,9 +145,10 @@ class PushReceiveDispatcher(
 
                 // 5. Dispatch to Handler
                 val action = actions[pd.title]
-                Log.d("PushDispatcher", "Dispatching action: ${pd.title} for channel: ${pd.channelID}")
+                Log.d("PushDispatcher", "Dispatching action: ${pd.title} for channel: ${pd.channelID} (pushID: ${pd.pushID})")
                 if (action != null) {
                     action.handle(pd)
+                    Log.d("PushDispatcher", "Action ${pd.title} handled. Emitting update for channel: ${pd.channelID}")
                     _onUpdated.emit(pd.channelID)
                 } else if (pd.title == "pushCheck") {
                     Log.i("PushDispatcher", "Health check ping received for channel: ${pd.channelID}")
@@ -161,5 +162,3 @@ class PushReceiveDispatcher(
         }
     }
 }
-
-
