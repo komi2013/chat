@@ -16,6 +16,7 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -65,11 +66,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val isSignedIn by userRepository.signInState.collectAsState()
+                    val currentChannelId by userRepository.currentChannelId.collectAsState()
+
                     ChatNavigation(
                         inviteRequest = inviteRequest,
                         callRequest = callRequest,
-                        isSignedIn = userRepository.isSignedIn(),
-                        initialChannelID = userRepository.getCurrentChannelId()
+                        isSignedIn = isSignedIn,
+                        initialChannelID = currentChannelId
                     )
                 }
             }

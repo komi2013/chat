@@ -22,6 +22,8 @@ data class CalendarUiState(
     val events: List<CalendarItem> = emptyList(),
     val aliases: List<com.chat.android.feature.channel.DbAlias> = emptyList(),
     val groups: List<com.chat.android.feature.channel.DbGroup> = emptyList(),
+    /** ドロワーでチェック済み（表示対象）のエイリアス名。既定ではチャネル内の全エイリアス。 */
+    val selectedAliases: List<String> = emptyList(),
     val error: String? = null,
     val notice: String? = null
 )
@@ -47,9 +49,33 @@ class CalendarViewModel @Inject constructor(
             initializedChannel = id
             mutableState.value = CalendarUiState(loading = true, channelID = id)
             runCatching {
-                CalendarUiState(false, id, repository.currentAlias(id), repository.events(id), repository.aliases(id), repository.groups(id))
-            }.onSuccess { mutableState.value = it }.onFailure { mutableState.value = CalendarUiState(false, id, error = it.message ?: "カレンダーを読み込めませんでした") }
+                val aliases = repository.aliases(id)
+                CalendarUiState(
+                    loading = false,
+                    channelID = id,
+                    aliasName = repository.currentAlias(id),
+                    events = repository.events(id),
+                    aliases = aliases,
+                    groups = repository.groups(id),
+                    selectedAliases = aliases.map { it.aliasName }.filter { it.isNotBlank() }
+                )
+            }.onSuccess { mutableState.value = it }.onFailure { mutableState.value = CalendarUiState(loading = false, channelID = id, error = it.message ?: "カレンダーを読み込めませんでした") }
         }
+    }
+
+    /** 表示対象（既定はチャネル内の全エイリアス）のカレンダーを storeSelect でまとめて取得する。 */
+    fun requestSelectedCalendars(date: String) {
+        val aliasNames = mutableState.value.selectedAliases
+        if (aliasNames.isEmpty()) return
+        viewModelScope.launch { requestCalendars(aliasNames, date) }
+    }
+
+    /** 対象エイリアスのカレンダーをサーバーへ要求する（結果は push で受信）。 */
+    private suspend fun requestCalendars(aliasNames: List<String>, date: String) {
+        val id = initializedChannel
+        if (id.isBlank() || aliasNames.isEmpty()) return
+        val error = repository.requestUserCalendars(id, aliasNames, date)
+        mutableState.value = mutableState.value.copy(error = error)
     }
 
     fun refresh() {
@@ -81,25 +107,23 @@ class CalendarViewModel @Inject constructor(
 
     fun clearNotice() { mutableState.value = mutableState.value.copy(notice = null) }
 
-    fun searchCalendar(aliasName: String, date: String) {
-        val id = initializedChannel
-        if (id.isBlank()) return
-        viewModelScope.launch {
-            val error = repository.requestUserCalendar(id, aliasName, date)
-            mutableState.value = mutableState.value.copy(
-                error = error,
-                notice = if (error == null) "検索ユーザーのカレンダーを取得しました" else error
-            )
-        }
+    /** ドロワーのチェックを入れる（表示対象に追加してサーバーへ取得要求）。 */
+    fun selectAlias(aliasName: String, date: String) {
+        if (aliasName.isBlank() || aliasName in mutableState.value.selectedAliases) return
+        mutableState.value = mutableState.value.copy(selectedAliases = mutableState.value.selectedAliases + aliasName)
+        viewModelScope.launch { requestCalendars(listOf(aliasName), date) }
     }
 
-    fun removeSearchedCalendar(aliasName: String) {
+    /** ドロワーのチェックを外す（表示対象から削除してローカルのカレンダーを消す）。 */
+    fun deselectAlias(aliasName: String) {
+        if (aliasName !in mutableState.value.selectedAliases) return
         val id = initializedChannel
         if (id.isBlank()) return
+        mutableState.value = mutableState.value.copy(selectedAliases = mutableState.value.selectedAliases - aliasName)
         viewModelScope.launch {
             repository.removeUserCalendar(id, aliasName)
             refresh()
-            mutableState.value = mutableState.value.copy(notice = "検索ユーザーが変更されました")
+            mutableState.value = mutableState.value.copy(notice = "表示するカレンダーを変更しました")
         }
     }
 

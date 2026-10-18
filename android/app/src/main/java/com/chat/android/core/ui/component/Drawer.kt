@@ -19,6 +19,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.navigation.NavController
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.feature.channel.ChannelRepository
+import com.chat.android.navigation.LoginRoute
 import com.chat.android.navigation.UserRoute
 import com.chat.android.navigation.SettingsRoute
 import com.chat.android.navigation.EntryFormListRoute
@@ -32,13 +33,15 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class DrawerUiState(
     val hasChannel: Boolean = false,
     val channelName: String = "",
-    val myAlias: String = ""
+    val myAlias: String = "",
+    val isSignedIn: Boolean = false
 )
 
 /**
@@ -60,17 +63,32 @@ class DrawerViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        // サインイン有無では出し分けない（Android は必ずサインイン画面を通る）。
+        // サインイン状態の変更を監視
+        viewModelScope.launch {
+            userRepository.signInState.collect { signedIn ->
+                _uiState.update { it.copy(isSignedIn = signedIn) }
+            }
+        }
         // チャネル選択の変化だけ追って、ヘッダー表示を更新する。
         viewModelScope.launch {
             userRepository.currentChannelId.collect { channelId ->
-                _uiState.value = loadInto(_uiState.value, channelId)
+                val loaded = loadInto(_uiState.value, channelId)
+                _uiState.update { it.copy(
+                    hasChannel = loaded.hasChannel,
+                    channelName = loaded.channelName,
+                    myAlias = loaded.myAlias
+                ) }
             }
         }
         // エイリアス切替・チャネル編集はローカルDBを書き換えるので、ヘッダー表示も更新する。
         viewModelScope.launch {
             channelRepository.dbUpdateFlow.collect {
-                _uiState.value = loadInto(_uiState.value, userRepository.currentChannelId.value)
+                val loaded = loadInto(_uiState.value, userRepository.currentChannelId.value)
+                _uiState.update { it.copy(
+                    hasChannel = loaded.hasChannel,
+                    channelName = loaded.channelName,
+                    myAlias = loaded.myAlias
+                ) }
             }
         }
     }
@@ -126,9 +144,11 @@ fun AppDrawer(
         
         Divider()
         
-        // Navigation items
+        // Navigation items (Takes remaining space and pushes rest to bottom)
         LazyColumn(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
         ) {
             items(getDrawerItems(uiState)) { item ->
                 DrawerItemRow(
@@ -148,17 +168,18 @@ fun AppDrawer(
                         }
                         onClose()
                     }
-
                 )
             }
         }
+
+        // Bottom section - Always visible
+        Divider()
         
         // Advertisement section (like in Vue)
-        Divider()
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -167,6 +188,20 @@ fun AppDrawer(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+
+        Divider()
+
+        // Sign In - Always at the very bottom as requested
+        // "you never known session is correct or not"
+        DrawerItemRow(
+            item = DrawerItem(title = "Sign In", route = "login", icon = Icons.Default.Login),
+            onClick = {
+                navController.navigate(LoginRoute) { launchSingleTop = true }
+                onClose()
+            }
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 

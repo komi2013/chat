@@ -36,14 +36,16 @@ class CalendarRepository @Inject constructor(
     suspend fun events(channelID: String): List<CalendarItem> = withContext(Dispatchers.IO) { db.all().filter { it.channelID == channelID } }
     suspend fun event(id: String): CalendarItem? = withContext(Dispatchers.IO) { db.get(id) }
 
-    suspend fun requestUserCalendar(channelID: String, aliasName: String, date: String): String? {
+    /** storeSelect で対象エイリアスを POST し、返ってきたカレンダーを push 経由で取り込む。 */
+    suspend fun requestUserCalendars(channelID: String, aliasNames: List<String>, date: String): String? {
+        if (aliasNames.isEmpty()) return null
         val csrf = session.getCsrf()?.takeIf(String::isNotBlank) ?: return "サインインが必要です"
         val updatedBy = currentAlias(channelID).ifBlank { session.getNickname().orEmpty() }
         if (updatedBy.isBlank()) return "送信者名が設定されていません"
         return try {
             val contents = JSONArray().put("calendar").put(JSONObject().put("date", date)).toString()
             val response = api.requestCalendars(
-                JSONArray().put(aliasName).toString().part(), channelID.part(), updatedBy.part(), csrf.part(),
+                JSONArray(aliasNames).toString().part(), channelID.part(), updatedBy.part(), csrf.part(),
                 contents.part(), "storeSelect".part()
             )
             if (!response.isSuccessful) return "データ取得に失敗しました (${response.code()})"

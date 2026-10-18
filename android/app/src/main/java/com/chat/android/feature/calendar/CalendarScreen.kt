@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -27,9 +28,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.chat.android.navigation.CalendarEditRoute
+import com.chat.android.navigation.HomeRoute
 import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.text.style.TextAlign
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -42,11 +48,18 @@ fun CalendarScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var firstDay by remember(date) { mutableStateOf(runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())) }
     val dayScroll = rememberScrollState()
-    var searchedUsers by remember { mutableStateOf(emptyList<String>()) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { viewModel.load() }
+    // エイリアスが読み込まれたら、既定で選択済みの全エイリアスのカレンダーを一度だけ取得する。
+    var initialFetchDone by remember { mutableStateOf(false) }
+    LaunchedEffect(state.selectedAliases) {
+        if (!initialFetchDone && state.selectedAliases.isNotEmpty()) {
+            initialFetchDone = true
+            viewModel.requestSelectedCalendars(firstDay.toString())
+        }
+    }
     LaunchedEffect(state.notice) {
         if (state.notice != null) { kotlinx.coroutines.delay(2400); viewModel.clearNotice() }
     }
@@ -62,14 +75,13 @@ fun CalendarScreen(
         drawerContent = {
             CalendarDrawer(
                 state = state,
-                searchedUsers = searchedUsers,
-                onSearch = { aliasName ->
-                    searchedUsers = searchedUsers + aliasName
-                    viewModel.searchCalendar(aliasName, firstDay.toString())
+                onToggle = { aliasName, checked ->
+                    if (checked) viewModel.selectAlias(aliasName, firstDay.toString())
+                    else viewModel.deselectAlias(aliasName)
                 },
-                onRemove = { aliasName ->
-                    searchedUsers = searchedUsers - aliasName
-                    viewModel.removeSearchedCalendar(aliasName)
+                onHome = {
+                    scope.launch { drawerState.close() }
+                    navController.navigate(HomeRoute) { launchSingleTop = true }
                 },
                 onClose = { scope.launch { drawerState.close() } }
             )
@@ -266,8 +278,16 @@ fun CalendarEditScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth()) else {
-                OutlinedTextField(start, { start = it }, label = { Text("開始 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(end, { end = it }, label = { Text("終了 (YYYY-MM-DDTHH:mm)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                DateTimePickerField(
+                    label = "開始",
+                    value = start,
+                    onChange = { start = it }
+                )
+                DateTimePickerField(
+                    label = "終了",
+                    value = end,
+                    onChange = { end = it }
+                )
                 OutlinedTextField(todo, { todo = it }, label = { Text("Todo") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
                 Text("参加ユーザー", style = MaterialTheme.typography.titleSmall)
                 OutlinedTextField(search, { search = it }, label = { Text("ユーザーまたはグループを検索") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -319,6 +339,85 @@ fun CalendarEditScreen(
                 }
             }) { Text("実行") } },
             dismissButton = { TextButton(onClick = { confirmAction = null }) { Text("キャンセル") } }
+        )
+    }
+}
+
+/**
+ * Read-only field that opens the standard Android Material date picker followed by the time picker.
+ * The underlying value is kept in the API format "yyyy-MM-dd'T'HH:mm".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateTimePickerField(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val current = remember(value) {
+        calendarDateTime(value) ?: LocalDateTime.now().withMinute(0).withSecond(0).withNano(0)
+    }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var pickedDate by remember { mutableStateOf(current.toLocalDate()) }
+    val displayFormat = remember { DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm") }
+
+    Box(modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = current.format(displayFormat),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { Icon(Icons.Default.DateRange, contentDescription = "日時を選択") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        // Transparent overlay: a read-only text field still consumes taps, so the picker opens from here.
+        Box(Modifier.matchParentSize().clickable {
+            pickedDate = current.toLocalDate()
+            showDatePicker = true
+        })
+    }
+
+    if (showDatePicker) {
+        val dateState = rememberDatePickerState(
+            initialSelectedDateMillis = pickedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dateState.selectedDateMillis?.let {
+                        pickedDate = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showDatePicker = false
+                    showTimePicker = true
+                }) { Text("次へ") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("キャンセル") } }
+        ) {
+            DatePicker(state = dateState)
+        }
+    }
+
+    if (showTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = current.hour,
+            initialMinute = current.minute,
+            is24Hour = true
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("${label}の時刻") },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = LocalDateTime.of(pickedDate, LocalTime.of(timeState.hour, timeState.minute))
+                    onChange(result.format(CalendarViewModel.FORMAT))
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("キャンセル") } }
         )
     }
 }

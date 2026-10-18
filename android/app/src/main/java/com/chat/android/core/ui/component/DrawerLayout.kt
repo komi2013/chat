@@ -7,8 +7,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.chat.android.navigation.CalendarRoute
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,6 +24,15 @@ fun DrawerLayout(
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // カレンダー画面は専用ドロワー（日付ヘッダーの≡）を使うため、
+    // 共通のメニュードロワーと上部バーは表示しない。
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val isCalendarScreen = backStackEntry?.destination?.hasRoute(CalendarRoute::class) == true
+    if (isCalendarScreen) {
+        content(PaddingValues(0.dp))
+        return
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,

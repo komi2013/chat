@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,12 +18,17 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun CalendarDrawer(
     state: CalendarUiState,
-    searchedUsers: List<String>,
-    onSearch: (String) -> Unit,
-    onRemove: (String) -> Unit,
+    onToggle: (String, Boolean) -> Unit,
+    onHome: () -> Unit,
     onClose: () -> Unit
 ) {
     var userSearch by remember { mutableStateOf("") }
+    val aliasNames = remember(state.aliases, userSearch) {
+        state.aliases.map { it.aliasName }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .filter { userSearch.isBlank() || it.contains(userSearch, true) }
+    }
 
     ModalDrawerSheet(modifier = Modifier.width(300.dp)) {
         Column(Modifier.fillMaxSize()) {
@@ -40,54 +46,46 @@ fun CalendarDrawer(
 
             Divider()
 
-            // Search section
+            // ホームへの導線（共通ドロワーを出さない代わりにここへ置く）
+            NavigationDrawerItem(
+                label = { Text("ホーム") },
+                icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                selected = false,
+                onClick = onHome,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+
+            Divider()
+
+            // Search section (filters the alias list below)
             Column(Modifier.padding(16.dp)) {
                 OutlinedTextField(
                     value = userSearch,
                     onValueChange = { userSearch = it },
-                    label = { Text("ユーザー・グループ検索") },
+                    label = { Text("エイリアスを絞り込み") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Search, null) }
                 )
-
-                if (userSearch.isNotBlank()) {
-                    val matches = (state.aliases.filter { it.aliasName.contains(userSearch, true) }.map { it.aliasName } +
-                            state.groups.filter { it.groupName.contains(userSearch, true) }.flatMap { parseCalendarNames(it.aliasNamesJson) })
-                        .distinct().filterNot { it in searchedUsers }
-
-                    matches.take(6).forEach { aliasName ->
-                        ListItem(
-                            headlineContent = { Text(aliasName) },
-                            modifier = Modifier.clickable {
-                                onSearch(aliasName)
-                                userSearch = ""
-                            },
-                            leadingContent = { Text("＋", color = MaterialTheme.colorScheme.primary) }
-                        )
-                    }
-                }
             }
 
             Divider()
 
-            // Selected users section
+            // Alias checklist: all channel aliases, checked (shown) by default
             Text(
-                "表示中のカレンダー",
+                "カレンダー表示中",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.secondary
             )
 
             LazyColumn(Modifier.weight(1f)) {
-                items(searchedUsers) { aliasName ->
+                items(aliasNames) { aliasName ->
+                    val checked = aliasName in state.selectedAliases
                     ListItem(
                         headlineContent = { Text(aliasName) },
-                        trailingContent = {
-                            IconButton(onClick = { onRemove(aliasName) }) {
-                                Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
-                            }
-                        }
+                        leadingContent = { Checkbox(checked = checked, onCheckedChange = null) },
+                        modifier = Modifier.clickable { onToggle(aliasName, !checked) }
                     )
                 }
             }

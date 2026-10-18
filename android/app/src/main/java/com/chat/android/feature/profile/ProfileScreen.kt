@@ -29,6 +29,7 @@ import androidx.navigation.NavController
 import com.chat.android.core.util.RandomAvatar
 import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
+import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.PeopleRoute
 
 /**
@@ -56,6 +57,17 @@ fun ProfileScreen(
         if (!initialized) {
             initialized = true
             viewModel.init(id, code)
+        }
+    }
+
+    // 参加に成功したら、参加したチャネル画面へ遷移する（招待画面は戻れないよう消す）。
+    // プロフィール編集（code なし）の保存時は遷移しない。
+    LaunchedEffect(state.joined, state.isJoinMode) {
+        if (!state.joined || !state.isJoinMode) return@LaunchedEffect
+        val channelID = id ?: state.channelID ?: return@LaunchedEffect
+        navController.navigate(ChannelRoute(channelID)) {
+            popUpTo<ProfileRoute> { inclusive = true }
+            launchSingleTop = true
         }
     }
 
