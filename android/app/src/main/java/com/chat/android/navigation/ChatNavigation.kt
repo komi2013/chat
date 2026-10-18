@@ -110,6 +110,14 @@ fun ChatNavigation(
                     val route = backStackEntry.toRoute<CalendarEditRoute>()
                     CalendarEditScreen(navController = navController, id = route.id, dateTime = route.dateTime)
                 }
+
+                composable<CalendarImportRoute> { backStackEntry ->
+                    val route = backStackEntry.toRoute<CalendarImportRoute>()
+                    com.chat.android.feature.calendar.ScheduleImportScreen(
+                        navController = navController,
+                        uriString = route.uri
+                    )
+                }
                 
                 composable<UserRoute> {
                     UserScreen(navController = navController)

@@ -52,6 +52,13 @@
                 <data android:scheme="chat" android:host="profile" />
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chat" android:host="import" />
+            </intent-filter>
+
             <!--
                 Web版URL（https://chat.quigen.info/invitation/{channelID}/?code=...）を
                 開いたとき、このアプリを直接起動する（App Links / Digital Asset Links）。

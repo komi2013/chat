@@ -1,21 +1,26 @@
 package com.chat.android.core.util
 
 import android.net.Uri
+import com.chat.android.navigation.CalendarImportRoute
 import com.chat.android.navigation.ProfileRoute
 
 object InvitationMapper {
 
     /**
-     * Parses a direct App Link or custom scheme URL into a ProfileRoute.
+     * Parses a direct App Link or custom scheme URL into a route.
      * Supported formats:
      * - https://chat.quigen.info/invitation/{M}/?code={code}
      * - https://chat.quigen.info/profile/{id}/?code=...
      * - chat://profile/{id}?code=...
+     * - chat://import?text[0]=...
      */
-    fun parseUri(uri: Uri?): ProfileRoute? {
+    fun parseUri(uri: Uri?): Any? {
         if (uri == null) return null
 
         if (uri.scheme == "chat") {
+            if (uri.host == "import") {
+                return CalendarImportRoute(uri.toString())
+            }
             if (uri.host != "profile") return null
             val channelID = uri.pathSegments?.firstOrNull()?.takeIf { it.isNotBlank() } ?: return null
             return ProfileRoute(id = channelID, code = uri.getQueryParameter("code"))

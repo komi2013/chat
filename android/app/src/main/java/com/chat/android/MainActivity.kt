@@ -109,7 +109,8 @@ class MainActivity : ComponentActivity() {
         // 未サインインなら参加できないので、Vue の Profile.vue と同じく
         // TO へ保存し、サインイン後に再開できるようにする。
         if (!hasSession) {
-            userRepository.setTO(inviteUrlString(route))
+            val url = inviteUrlString(route)
+            if (url.isNotBlank()) userRepository.setTO(url)
         }
         return true
     }
@@ -156,10 +157,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /** TO に保存する、復元用のURL文字列。 */
-    private fun inviteUrlString(route: ProfileRoute): String = buildString {
-        append("chat://profile/")
-        append(route.id.orEmpty())
-        route.code?.takeIf { it.isNotBlank() }?.let { append("?code=").append(it) }
+    private fun inviteUrlString(route: Any): String = when (route) {
+        is ProfileRoute -> buildString {
+            append("chat://profile/")
+            append(route.id.orEmpty())
+            route.code?.takeIf { it.isNotBlank() }?.let { append("?code=").append(it) }
+        }
+        is com.chat.android.navigation.CalendarImportRoute -> route.uri
+        else -> ""
     }
 
     private fun requestNotificationPermission() {
@@ -189,7 +194,7 @@ class MainActivity : ComponentActivity() {
  *   TO（UserRepository）に保存したURLから参加を再開する。
  */
 data class InviteRequest(
-    val route: ProfileRoute,
+    val route: Any,
     val token: Long,
     val hasSession: Boolean
 )

@@ -36,6 +36,9 @@ data class CalendarRoute(val date: String? = null)
 data class CalendarEditRoute(val id: String? = null, val dateTime: String? = null)
 
 @Serializable
+data class CalendarImportRoute(val uri: String)
+
+@Serializable
 data class ChannelRoute(val id: String? = null)
 
 /** /profile/{id}/?code=... に対応するルート。 */
