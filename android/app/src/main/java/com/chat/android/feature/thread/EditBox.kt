@@ -13,15 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,22 +51,23 @@ private val NO_GROUP = DbGroup(
 )
 
 /** 装飾ツールバーのボタン（Vue の Quill ツールバー相当）。
- * emoji は表示アイコン、open/close は挿入する記号（markdown.js と同じ）。
+ * icon は表示アイコン、open/close は挿入する記号（markdown.js と同じ）。
  * 引用だけは選択行の先頭に「> 」を付ける専用処理にするため isQuote で区別する。
  * リンクだけは選択文字列を「」で挟み、（）内にURLを書かせるため特別扱いする。 */
 private data class FormatButton(
-    val emoji: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val open: String,
     val close: String,
     val isQuote: Boolean = false
 )
 
 private val FORMAT_BUTTONS = listOf(
-    FormatButton("🅱️", "**", "**"),
-    FormatButton("🆂", "~~", "~~"),
-    FormatButton("💬", "> ", "\n", isQuote = true),
-    FormatButton("💻", "```\n", "\n```"),
-    FormatButton("🔴", "色＊赤", "赤＊色")
+    FormatButton(Icons.Default.FormatBold, "**", "**"),
+    FormatButton(Icons.Default.FormatItalic, "_", "_"),
+    FormatButton(Icons.Default.FormatUnderlined, "<u>", "</u>"),
+    FormatButton(Icons.Default.FormatStrikethrough, "~~", "~~"),
+    FormatButton(Icons.Default.FormatQuote, "> ", "\n", isQuote = true),
+    FormatButton(Icons.Default.Code, "```\n", "\n```")
 )
 
 /**
@@ -119,6 +115,14 @@ fun EditBox(
     var mentionQuery by remember { mutableStateOf("") }
     var wasPosting by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    val selectionBackgroundColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+    val customTextSelectionColors = remember(selectionBackgroundColor) {
+        TextSelectionColors(
+            handleColor = androidx.compose.ui.graphics.Color.Transparent,
+            backgroundColor = selectionBackgroundColor
+        )
+    }
 
     LaunchedEffect(isPosting, postError) {
         if (wasPosting && !isPosting && postError == null) {
@@ -214,74 +218,6 @@ fun EditBox(
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        // ツールバー（vue の EditBox toolbar 相当）
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 投稿ボタンは右端ではなく左端に置く（横スクロールで隠れないように）。
-            Button(
-                onClick = {
-                    editMode = false
-                    onPost(field.text, editingMessageId, false, task, selectedGroup, files)
-                },
-                enabled = !isPosting &&
-                    (field.text.isNotBlank() || editMode || files.isNotEmpty())
-            ) {
-                if (isPosting) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Send, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (editMode) "更新" else "投稿")
-                }
-            }
-            FORMAT_BUTTONS.forEach { button ->
-                OutlinedButton(
-                    onClick = { field = if (button.isQuote) quoteSelection(field) else wrapSelection(field, button.open, button.close) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                ) { Text(button.emoji, style = MaterialTheme.typography.labelSmall) }
-            }
-            // リンクは「選択文字列」（URL）の形（markdown.js の applyLinks の逆）にする。
-            // 選択なしのときはカーソル位置に「」（）を挿入し、（）の中にカーソルを置く。
-            OutlinedButton(
-                onClick = { field = wrapLink(field) },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) { Text("🔗", style = MaterialTheme.typography.labelSmall) }
-            IconButton(onClick = { filePicker.launch("*/*") }) {
-                Icon(Icons.Default.AttachFile, contentDescription = "添付")
-            }
-            if (editMode) {
-                IconButton(onClick = {
-                    editMode = false
-                    onPost("", editingMessageId, true, false, null, emptyList())
-                }) {
-                    Icon(Icons.Default.Delete, contentDescription = "削除")
-                }
-            }
-            IconButton(onClick = { task = !task }) {
-                Icon(
-                    imageVector = if (task) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    contentDescription = "タスク",
-                    tint = if (task) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                )
-            }
-            IconButton(onClick = { showGroupModal = true }) {
-                Icon(
-                    imageVector = Icons.Default.Groups,
-                    contentDescription = "グループ",
-                    tint = if (selectedGroup != null) MaterialTheme.colorScheme.primary
-                    else LocalContentColor.current
-                )
-            }
-            if (isDm && !isNewThread) {
-                IconButton(onClick = onCall) {
-                    Icon(Icons.Default.Call, contentDescription = "通話")
-                }
-            }
-        }
-
         if (showMentions && mentionSuggestions.isNotEmpty()) {
             LazyColumn(
                 modifier = Modifier
@@ -315,75 +251,197 @@ fun EditBox(
                     }
                 }
             }
+            Spacer(Modifier.height(4.dp))
         }
 
-        OutlinedTextField(
-            value = field,
-            onValueChange = { newValue ->
-                val oldText = field.text
-                field = MarkdownFormatRepair.repair(newValue)
-                val newText = field.text
-
-                // 「＠」が入力されたとき、または「＠」以降で入力中のときにメンションを表示
-                if (newText.length > oldText.length) {
-                    val cursor = field.selection.start
-                    if (cursor > 0) {
-                        val added = newText.substring(cursor - 1, cursor)
-                        if (added == "＠" || added == "@") {
-                            // @ も ＠ に変換して扱う（vue parity）
-                            if (added == "@") {
-                                field = field.copy(text = newText.replaceRange(cursor - 1, cursor, "＠"))
-                            }
-                            showMentions = true
-                        }
-                    }
-                }
-                refreshMentionState(field)
-            },
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-            placeholder = { Text(if (editMode) "メッセージを編集" else "メッセージを入力") },
-            visualTransformation = { text -> MarkdownCodec.editorText(text.text) }
-        )
-        if (editMode) {
-            TextButton(onClick = onCancelEdit) { Text("編集をやめる") }
-        }
+            shape = RoundedCornerShape(8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column {
+                CompositionLocalProvider(LocalTextSelectionColors provides customTextSelectionColors) {
+                    TextField(
+                        value = field,
+                        onValueChange = { newValue ->
+                            val oldText = field.text
+                            field = MarkdownFormatRepair.repair(newValue)
+                            val newText = field.text
 
-        if (files.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                files.forEachIndexed { index, uri ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            IconButton(
-                                onClick = {
-                                    files = files.filterIndexed { i, _ -> i != index }
-                                    fileNames = fileNames.filterIndexed { i, _ -> i != index }
-                                },
-                                modifier = Modifier.size(18.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "添付を削除",
-                                    modifier = Modifier.size(14.dp)
+                            if (newText.length > oldText.length) {
+                                val cursor = field.selection.start
+                                if (cursor > 0) {
+                                    val added = newText.substring(cursor - 1, cursor)
+                                    if (added == "＠" || added == "@") {
+                                        if (added == "@") {
+                                            field = field.copy(text = newText.replaceRange(cursor - 1, cursor, "＠"))
+                                        }
+                                        showMentions = true
+                                    }
+                                }
+                            }
+                            refreshMentionState(field)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        placeholder = { Text(if (editMode) "メッセージを編集" else "メッセージを入力") },
+                        visualTransformation = { text -> MarkdownCodec.editorText(text.text) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                        )
+                    )
+                }
+
+                if (files.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        files.forEachIndexed { index, uri ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box {
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            files = files.filterIndexed { i, _ -> i != index }
+                                            fileNames = fileNames.filterIndexed { i, _ -> i != index }
+                                        },
+                                        modifier = Modifier.size(18.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "添付を削除",
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    fileNames.getOrNull(index).orEmpty(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
                                 )
                             }
                         }
-                        Text(
-                            fileNames.getOrNull(index).orEmpty(),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
-                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FORMAT_BUTTONS.forEach { button ->
+                            IconButton(
+                                onClick = {
+                                    field = if (button.isQuote) quoteSelection(field)
+                                    else wrapSelection(field, button.open, button.close)
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = button.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { field = wrapLink(field) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Link,
+                                contentDescription = "リンク",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(Modifier.width(8.dp))
+                        Box(modifier = Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                        Spacer(Modifier.width(8.dp))
+
+                        IconButton(onClick = { filePicker.launch("*/*") }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.AttachFile, contentDescription = "添付", modifier = Modifier.size(20.dp))
+                        }
+                        if (editMode) {
+                            IconButton(onClick = {
+                                editMode = false
+                                onPost("", editingMessageId, true, false, null, emptyList())
+                            }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "削除", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        IconButton(onClick = { task = !task }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = if (task) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = "タスク",
+                                tint = if (task) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(onClick = { showGroupModal = true }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Groups,
+                                contentDescription = "グループ",
+                                tint = if (selectedGroup != null) MaterialTheme.colorScheme.primary
+                                else LocalContentColor.current,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        if (isDm && !isNewThread) {
+                            IconButton(onClick = onCall, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Call, contentDescription = "通話", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            editMode = false
+                            onPost(field.text, editingMessageId, false, task, selectedGroup, files)
+                        },
+                        enabled = !isPosting && (field.text.isNotBlank() || editMode || files.isNotEmpty()),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        if (isPosting) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "送信",
+                                tint = if (field.text.isNotBlank() || files.isNotEmpty()) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        if (editMode) {
+            TextButton(onClick = onCancelEdit) { Text("編集をやめる") }
         }
     }
 

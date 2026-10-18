@@ -29,7 +29,7 @@ object MarkdownCodec {
         return buildAnnotatedString {
             var currentPos = 0
             // 非強欲マッチで各タグを抽出
-            val pattern = "(＊太＊.*?・＊太＊|〜〜.*?・〜〜|＜quote＞.*?＜・quote＞|｀｀｀.*?・｀｀｀|色＊赤.*?赤＊色|＠＠.*?・＠＠|「.*?」（.*?）)"
+            val pattern = "(＊太＊.*?・＊太＊|＊斜＊.*?・＊斜＊|＊下＊.*?・＊下＊|〜〜.*?・〜〜|＜quote＞.*?＜・quote＞|｀｀｀.*?・｀｀｀|色＊赤.*?赤＊色|＠＠.*?・＠＠|「.*?」（.*?）)"
             val regex = Regex(pattern, RegexOption.DOT_MATCHES_ALL)
 
             regex.findAll(result).forEach { match ->
@@ -41,6 +41,14 @@ object MarkdownCodec {
                     tag.startsWith("＊太＊") -> {
                         val content = tag.substring(3, tag.length - 4)
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(content) }
+                    }
+                    tag.startsWith("＊斜＊") -> {
+                        val content = tag.substring(3, tag.length - 4)
+                        withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(content) }
+                    }
+                    tag.startsWith("＊下＊") -> {
+                        val content = tag.substring(3, tag.length - 4)
+                        withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { append(content) }
                     }
                     tag.startsWith("〜〜") -> {
                         val content = tag.substring(2, tag.length - 3)
@@ -94,6 +102,8 @@ object MarkdownCodec {
         var decoded = text
         decoded = Regex("(?s)```([^`]*?)```").replace(decoded) { "｀｀｀${it.groupValues[1]}・｀｀｀" }
         decoded = Regex("\\*\\*([^*]+?)\\*\\*").replace(decoded) { "＊太＊${it.groupValues[1]}・＊太＊" }
+        decoded = Regex("_([^_]+?)_").replace(decoded) { "＊斜＊${it.groupValues[1]}・＊斜＊" }
+        decoded = Regex("<u>(.*?)</u>").replace(decoded) { "＊下＊${it.groupValues[1]}・＊下＊" }
         decoded = Regex("~~(.*?)~~").replace(decoded) { "〜〜${it.groupValues[1]}・〜〜" }
         decoded = Regex("(?m)^#{1,6}[ \\t]+(.+?)#*[ \\t]*$").replace(decoded) { "＊太＊${it.groupValues[1]}・＊太＊" }
         decoded = Regex("(?m)^\\s*[-*+][ \\t]+(.+)$").replace(decoded) { "• ${it.groupValues[1]}" }
@@ -124,6 +134,16 @@ object MarkdownCodec {
                 addStyle(tagStyle, match.range.first, match.range.first + 2)
                 addStyle(SpanStyle(fontWeight = FontWeight.Bold), match.range.first + 2, match.range.last - 1)
                 addStyle(tagStyle, match.range.last - 1, match.range.last + 1)
+            }
+            Regex("_(.+?)_", RegexOption.DOT_MATCHES_ALL).findAll(text).forEach { match ->
+                addStyle(tagStyle, match.range.first, match.range.first + 1)
+                addStyle(SpanStyle(fontStyle = FontStyle.Italic), match.range.first + 1, match.range.last)
+                addStyle(tagStyle, match.range.last, match.range.last + 1)
+            }
+            Regex("<u>(.+?)</u>", RegexOption.DOT_MATCHES_ALL).findAll(text).forEach { match ->
+                addStyle(tagStyle, match.range.first, match.range.first + 3)
+                addStyle(SpanStyle(textDecoration = TextDecoration.Underline), match.range.first + 3, match.range.last - 3)
+                addStyle(tagStyle, match.range.last - 3, match.range.last + 1)
             }
             Regex("~~(.+?)~~", RegexOption.DOT_MATCHES_ALL).findAll(text).forEach { match ->
                 addStyle(tagStyle, match.range.first, match.range.first + 2)
@@ -159,6 +179,20 @@ object MarkdownCodec {
             Regex("＊太＊(.*?)・＊太＊").findAll(text).forEach { match ->
                 addStyle(tagStyle, match.range.first, match.range.first + 3)
                 addStyle(SpanStyle(fontWeight = FontWeight.Bold), match.range.first + 3, match.range.last - 3)
+                addStyle(tagStyle, match.range.last - 3, match.range.last + 1)
+            }
+
+            // Italic: ＊斜＊...・＊斜＊
+            Regex("＊斜＊(.*?)・＊斜＊").findAll(text).forEach { match ->
+                addStyle(tagStyle, match.range.first, match.range.first + 3)
+                addStyle(SpanStyle(fontStyle = FontStyle.Italic), match.range.first + 3, match.range.last - 3)
+                addStyle(tagStyle, match.range.last - 3, match.range.last + 1)
+            }
+
+            // Underline: ＊下＊...・＊下＊
+            Regex("＊下＊(.*?)・＊下＊").findAll(text).forEach { match ->
+                addStyle(tagStyle, match.range.first, match.range.first + 3)
+                addStyle(SpanStyle(textDecoration = TextDecoration.Underline), match.range.first + 3, match.range.last - 3)
                 addStyle(tagStyle, match.range.last - 3, match.range.last + 1)
             }
 
@@ -216,21 +250,21 @@ object MarkdownCodec {
      * back to the editable Markdown value.
      */
     fun editorText(text: String): TransformedText {
-        data class BoldRange(
+        data class StyledRange(
             val start: Int,
             val contentStart: Int,
             val contentEnd: Int,
             val end: Int
         )
 
-        val boldRanges = Regex(
-            "(?s)\\*\\*(.+?)\\*\\*|＊太＊(.*?)・＊太＊"
+        val styledRanges = Regex(
+            "(?s)\\*\\*(.+?)\\*\\*|＊太＊(.*?)・＊太＊|_(.+?)_|＊斜＊(.*?)・＊斜＊|<u>(.+?)</u>|＊下＊(.*?)・＊下＊"
         ).findAll(text).map { match ->
-            val content = match.groups[1] ?: match.groups[2]!!
-            BoldRange(match.range.first, content.range.first, content.range.last + 1, match.range.last + 1)
+            val content = match.groups[1] ?: match.groups[2] ?: match.groups[3] ?: match.groups[4] ?: match.groups[5] ?: match.groups[6]!!
+            StyledRange(match.range.first, content.range.first, content.range.last + 1, match.range.last + 1)
         }.toList()
 
-        if (boldRanges.isEmpty()) {
+        if (styledRanges.isEmpty()) {
             return TransformedText(styleTags(text), OffsetMapping.Identity)
         }
 
@@ -239,7 +273,7 @@ object MarkdownCodec {
         val visibleSourceOffsets = ArrayList<Int>(text.length)
         val transformed = buildAnnotatedString {
             var sourceIndex = 0
-            for (range in boldRanges) {
+            for (range in styledRanges) {
                 append(styledSource.subSequence(sourceIndex, range.start))
                 append(styledSource.subSequence(range.contentStart, range.contentEnd))
                 for (index in range.start until range.contentStart) hidden[index] = true
@@ -265,7 +299,7 @@ object MarkdownCodec {
         for (offset in 1..visibleCount) {
             transformedToOriginal[offset] = visibleSourceOffsets[offset - 1] + 1
         }
-        for (range in boldRanges) {
+        for (range in styledRanges) {
             val start = originalToTransformed[range.contentStart]
             val end = originalToTransformed[range.contentEnd]
             transformedToOriginal[start] = range.contentStart
