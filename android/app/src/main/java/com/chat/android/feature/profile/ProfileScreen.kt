@@ -31,6 +31,7 @@ import com.chat.android.core.util.toAbsoluteImageUrl
 import com.chat.android.feature.channel.AliasAvatar
 import com.chat.android.navigation.ChannelRoute
 import com.chat.android.navigation.PeopleRoute
+import com.chat.android.navigation.ProfileRoute
 
 /**
  * チャネル参加 / プロフィール編集画面（vue/src/views/Profile.vue に対応）。

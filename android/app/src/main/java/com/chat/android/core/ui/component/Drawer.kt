@@ -144,11 +144,9 @@ fun AppDrawer(
         
         Divider()
         
-        // Navigation items (Takes remaining space and pushes rest to bottom)
+        // Navigation items
         LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+            modifier = Modifier.fillMaxWidth()
         ) {
             items(getDrawerItems(uiState)) { item ->
                 DrawerItemRow(
@@ -164,6 +162,7 @@ fun AppDrawer(
                             "entryFormEdit" -> navController.navigate(EntryFormListRoute)
                             "tickets" -> navController.navigate(TicketListRoute)
                             "channelCreate" -> navController.navigate(ChannelRoute(id = null))
+                            "login" -> navController.navigate(LoginRoute) { launchSingleTop = true }
                             else -> navController.navigate(item.route)
                         }
                         onClose()
@@ -171,37 +170,6 @@ fun AppDrawer(
                 )
             }
         }
-
-        // Bottom section - Always visible
-        Divider()
-        
-        // Advertisement section (like in Vue)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Advertisement",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Divider()
-
-        // Sign In - Always at the very bottom as requested
-        // "you never known session is correct or not"
-        DrawerItemRow(
-            item = DrawerItem(title = "Sign In", route = "login", icon = Icons.Default.Login),
-            onClick = {
-                navController.navigate(LoginRoute) { launchSingleTop = true }
-                onClose()
-            }
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -309,6 +277,7 @@ private fun getDrawerItems(uiState: DrawerUiState): List<DrawerItem> {
         icon = Icons.Default.ConfirmationNumber,
         requiresChannel = true
     ))
+    items.add(DrawerItem(title = "Sign In", route = "login", icon = Icons.Default.Login))
 
     // チャネルIDが必要な画面（カレンダー・フォーム編集など）は、チャネルが無ければ一覧に出さない。
     return items.filter { !it.requiresChannel || uiState.hasChannel }
