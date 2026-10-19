@@ -1,190 +1,322 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/lib/pq"
 
 	"chat/collection"
 	"chat/common"
 )
 
 func ChannelAdd(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	myname := r.FormValue("myname")
 	myimg := r.FormValue("myimg")
 	channelName := r.FormValue("channelName")
-	channelDescription := r.FormValue("channelDescription")
-	channelDescription = common.SanitizeRichText(channelDescription)
+	channelDescription := common.SanitizeRichText(
+		r.FormValue("channelDescription"),
+	)
 
-	// === セッション確認 ===
-	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+	// 1. Check session.
+	session, err := common.SessionCheckTake(
+		w,
+		r,
+		r.FormValue("csrf"),
+	)
 	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+" session check some error", http.StatusOK)
+		common.WriteResponseWithoutSession(
+			w,
+			r.FormValue("csrf"),
+			err.Error()+" session check some error",
+			http.StatusOK,
+		)
 		return
 	}
 
-	collUser := common.DB.UserDB.Collection("user")
-	filterUser := bson.M{"_id": session.UserID}
-
-	// === ① すべての Find を最初に行う ===
-
-	// 🧩 ユーザー情報取得
-	var user collection.UserStruct
-	err = collUser.FindOne(context.TODO(), filterUser).Decode(&user)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" user FindOne", http.StatusOK)
+	// 2. Ensure required database connections are initialized.
+	if common.DB == nil ||
+		common.DB.ChannelDB == nil ||
+		common.DB.AliasDB == nil ||
+		common.DB.SessionDB == nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"database is not initialized",
+			http.StatusOK,
+		)
 		return
 	}
 
-	// チャンネル作成上限チェック
-	uniqueChannels := make(map[string]struct{})
-	for _, alias := range user.ChannelAliases {
-		uniqueChannels[alias.ChannelID] = struct{}{}
-	}
-	if len(uniqueChannels) >= 10 {
-		common.WriteResponseWithSession(w, session, "すでにチャネル作成の上限です", http.StatusOK)
+	// 3. Check channel creation limit using the alias table.
+	var channelCount int64
+
+	err = common.DB.AliasDB.QueryRowContext(
+		ctx,
+		`
+		SELECT COUNT(DISTINCT channel_id)
+		FROM alias
+		WHERE user_id = $1
+		`,
+		session.UserID,
+	).Scan(&channelCount)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" alias channel count error",
+			http.StatusOK,
+		)
 		return
 	}
 
-	// 🧩 ユーザーの全セッション情報取得
-	collSession := common.DB.SessionDB.Collection("session")
-	filter := bson.M{"userID": session.UserID}
-	project := bson.D{{"updatedAt", 0}}
-	opts := options.Find().SetProjection(project)
+	if channelCount >= 10 {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"すでにチャネル作成の上限です",
+			http.StatusOK,
+		)
+		return
+	}
 
-	cursor, err := collSession.Find(context.TODO(), filter, opts)
+	// 4. Fetch all of this user's sessions.
+	// Used to queue notifications and send pushes to the user's devices.
+	rows, err := common.DB.SessionDB.QueryContext(
+		ctx,
+		`
+		SELECT
+			session_id,
+			user_id,
+			COALESCE(device_id, ''),
+			COALESCE(created_at, NOW()),
+			COALESCE(updated_at, NOW()),
+			COALESCE(push_token, ''),
+			COALESCE(device_type, 0),
+			COALESCE(csrf, ''),
+			COALESCE(push_contents, ARRAY[]::TEXT[]),
+			COALESCE(mail, ''),
+			COALESCE(telephone, '')
+		FROM "session"
+		WHERE user_id = $1
+		ORDER BY updated_at ASC
+		`,
+		session.UserID,
+	)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" session Find", http.StatusOK)
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" session query error",
+			http.StatusOK,
+		)
 		return
 	}
 
 	var mySessions []collection.SessionStruct
-	if err = cursor.All(context.TODO(), &mySessions); err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" session cursor.All", http.StatusOK)
-		return
-	}
 
-	// === ② 登録・更新処理 ===
+	for rows.Next() {
+		var s collection.SessionStruct
+		var pushContents pq.StringArray
 
-	// チャンネルID採番
-	channelID, err := common.CountUpID("channelID")
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" CountUpID error", http.StatusOK)
-		return
-	}
-
-	// アイコン画像保存
-	aliasImg, err := common.ImgSave(myimg, session.UserID, myname, channelID, 0, 1)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" image save error", http.StatusOK)
-		return
-	}
-
-	// === 🧩 新しいチャンネル構造体作成 ===
-	newChannel := collection.ChannelStruct{
-		ChannelID:          channelID,
-		ChannelName:        channelName,
-		ChannelDescription: channelDescription,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
-		InvitedAt:          time.Now(),
-		UpdatedBy:          session.UserID,
-		Aliases: []collection.Alias{
-			{
-				AliasID:   channelID + myname,
-				ChannelID:   channelID,
-				UserID:   session.UserID,
-				AliasName:    myname,
-				AliasImg: aliasImg,
-				AccessRight:     "admin",
-			},
-		},
-		Groups:              []collection.Group{},
-		InvitationCode:      common.StringRand(6),
-		InvitationGuestCode: common.StringRand(8),
-	}
-
-	// 🧩 Channel登録
-	collChannel := common.DB.ChannelDB.Collection("channel")
-	_, err = collChannel.InsertOne(context.TODO(), newChannel)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" channel InsertOne", http.StatusOK)
-		return
-	}
-
-	// 🧩 User更新
-	newAliasChannel := collection.ChannelAlias{
-		ChannelID: channelID,
-		Alias:     myname,
-	}
-	userUpdate := bson.M{
-		"$set": bson.M{
-			"channelAliases": append(user.ChannelAliases, newAliasChannel),
-			"updatedAt":      time.Now(),
-		},
-	}
-	_, err = collUser.UpdateOne(context.TODO(), filterUser, userUpdate)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+" UpdateOne user", http.StatusOK)
-		return
-	}
-
-	// 🧩 Session更新
-	for _, d := range mySessions {
-		update := bson.M{
-			"$set": bson.M{
-				"channelAliases": append(d.ChannelAliases, newAliasChannel),
-				"updatedAt":      time.Now(),
-			},
-		}
-		_, err = collSession.UpdateOne(context.TODO(), bson.M{"_id": d.SessionID}, update)
+		err := rows.Scan(
+			&s.SessionID,
+			&s.UserID,
+			&s.DeviceID,
+			&s.CreatedAt,
+			&s.UpdatedAt,
+			&s.PushToken,
+			&s.DeviceType,
+			&s.Csrf,
+			&pushContents,
+			&s.Mail,
+			&s.Telephone,
+		)
 		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+" UpdateOne session", http.StatusOK)
+			_ = rows.Close()
+			common.WriteResponseWithSession(
+				w,
+				session,
+				err.Error()+" session scan error",
+				http.StatusOK,
+			)
 			return
 		}
+
+		s.PushContents = []string(pushContents)
+		mySessions = append(mySessions, s)
 	}
 
-	// === ③ DB更新完了後 → Push通知・ChunkPush ===
+	rowsErr := rows.Err()
+	_ = rows.Close()
 
-	// 📦 ChunkPush
+	if rowsErr != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			rowsErr.Error()+" session rows error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 5. Insert the channel.
+	// PostgreSQL generates channel_id using the identity column.
+	now := time.Now()
+
+	invitationCode := common.StringRand(6)
+	invitationGuestCode := common.StringRand(8)
+
+	var channelID int64
+
+	err = common.DB.ChannelDB.QueryRowContext(
+		ctx,
+		`
+		INSERT INTO channel (
+			channel_name,
+			channel_description,
+			created_at,
+			updated_at,
+			updated_by,
+			invitation_code,
+			invitation_guest_code,
+			invited_at
+		)
+		VALUES ($1, $2, $3, $3, $4, $5, $6, $3)
+		RETURNING channel_id
+		`,
+		channelName,
+		channelDescription,
+		now,
+		myname,
+		invitationCode,
+		invitationGuestCode,
+	).Scan(&channelID)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" channel insert error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 6. Save the alias image.
+	// channelID is now available for the image path and file metadata.
+	aliasImg, err := common.ImgSave(
+		myimg,
+		session.UserID,
+		myname,
+		channelID,
+		0,
+		1,
+	)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" image save error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 7. Insert the initial alias.
+	// alias_id is generated automatically by PostgreSQL.
+	_, err = common.DB.AliasDB.ExecContext(
+		ctx,
+		`
+		INSERT INTO alias (
+			channel_id,
+			user_id,
+			alias_name,
+			alias_img,
+			access_right
+		)
+		VALUES ($1, $2, $3, $4, $5)
+		`,
+		channelID,
+		session.UserID,
+		myname,
+		aliasImg,
+		"admin",
+	)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" alias insert error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 8. Queue the channel update for all sessions.
+	// ChunkPush saves all notification content before dispatching pushes.
 	contents := []string{channelName, channelDescription}
-	var arr []interface{}
-	arr = append(arr, "channelEdit")
-	arr = append(arr, channelID)
-	arr = append(arr, myname)
-	arr = append(arr, contents)
-	common.ChunkPush(mySessions, arr)
 
-	// 📬 SendWebPushNotification
+	arr := []interface{}{
+		"channelEdit",
+		channelID,
+		myname,
+		contents,
+	}
+
+	if err := common.ChunkPush(mySessions, arr); err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" ChunkPush error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 9. Queue and send the new-alias notification.
 	for _, d := range mySessions {
 		pushID := common.StringRand(1)
+
 		pushArr := []interface{}{
 			pushID,
 			"alias",
 			channelID,
 			myname,
-			[]string{session.UserID, myname, "", "admin"},
+			[]interface{}{
+				session.UserID,
+				myname,
+				"",
+				"admin",
+			},
 			aliasImg,
 		}
 
-		resp, err := common.SendWebPushNotification(pushArr, pushID, d)
+		resp, err := common.SendWebPushNotification(
+			pushArr,
+			pushID,
+			d,
+		)
 		if err != nil {
-			log.Println("SendWebPushNotification error:", err)
-			continue
+			common.WriteResponseWithSession(
+				w,
+				session,
+				err.Error()+" alias push content save error",
+				http.StatusOK,
+			)
+			return
 		}
-		if resp != nil {
-			defer resp.Body.Close()
+
+		if resp != nil && resp.Body != nil {
+			_ = resp.Body.Close()
 		}
 	}
 
-	// === レスポンス ===
+	// 10. Return the newly created channel.
 	responseData := struct {
-		ChannelID    string   `json:"channelID"`
+		ChannelID    int64    `json:"channelID"`
 		Csrf         string   `json:"csrf"`
 		PushContents []string `json:"pushContents"`
 	}{
@@ -194,5 +326,5 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
+	_ = json.NewEncoder(w).Encode(responseData)
 }

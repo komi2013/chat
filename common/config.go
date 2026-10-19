@@ -11,17 +11,16 @@ import (
 type Config struct {
 	GoPort          string
 	CacheV          string
-	MongoAd         string
-	MongoAdPrice    string
-	MongoChannel    string
-	MongoFile       string
-	MongoInvoice    string
-	MongoNickname   string
-	MongoReception  string
-	MongoSequence   string
-	MongoSession    string
-	MongoTweet      string
-	MongoUser       string
+
+  PgChannel  string
+  PgAlias   string
+  PgGroup   string
+  PgFile     string
+  PgInvoice  string
+  PgReception string
+  PgSession  string
+  PgUser     string
+
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
 	OSImgDir        string
@@ -80,17 +79,25 @@ func loadFromEnv() *Config {
 	return &Config{
 		GoPort:          os.Getenv("GO_PORT"),
 		CacheV:          fixCache(),
-		MongoAd:         os.Getenv("MONGO_AD"),
-		MongoAdPrice:    os.Getenv("MONGO_AD_PRICE"),
-		MongoChannel:    os.Getenv("MONGO_CHANNEL"),
-		MongoFile:       os.Getenv("MONGO_FILE"),
-		MongoInvoice:    os.Getenv("MONGO_INVOICE"),
-		MongoNickname:   os.Getenv("MONGO_NICKNAME"),
-		MongoReception:  os.Getenv("MONGO_RECEPTION"),
-		MongoSequence:   os.Getenv("MONGO_SEQUENCE"),
-		MongoSession:    os.Getenv("MONGO_SESSION"),
-		MongoTweet:      os.Getenv("MONGO_TWEET"),
-		MongoUser:       os.Getenv("MONGO_USER"),
+
+		PgChannel   string
+		PgAlias     string
+		PgGroup     string
+		PgFile      string
+		PgInvoice   string
+		PgReception string
+		PgSession   string
+		PgUser      string
+
+// PG_CHANNEL="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_ALIAS="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_GROUP="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_FILE="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_INVOICE="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_RECEPTION="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_SESSION="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+// PG_USER="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
+		
 		VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
 		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
 		OSImgDir:        os.Getenv("OS_IMG_DIR"),

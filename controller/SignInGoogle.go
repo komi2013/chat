@@ -2,251 +2,325 @@ package controller
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/lib/pq"
 
-	"chat/collection"
 	"chat/common"
 )
 
-func getGooglePublicKey(kid string) (*rsa.PublicKey, error) {
-	ctx := context.Background()
-	set, err := jwk.Fetch(ctx, "https://www.googleapis.com/oauth2/v3/certs")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch Google's certs: %v", err)
-	}
-
-	key, found := set.LookupKeyID(kid)
-	if !found {
-		return nil, fmt.Errorf("unable to find key %q", kid)
-	}
-
-	var pubkey rsa.PublicKey
-	if err := key.Raw(&pubkey); err != nil {
-		return nil, fmt.Errorf("failed to create public key: %v", err)
-	}
-	return &pubkey, nil
-}
-
 func SignInGoogle(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("DEBUG: SignInGoogle called from %s\n", r.RemoteAddr)
+	ctx := r.Context()
 
+	userDB := common.DB.UserDB
+	sessionDB := common.DB.SessionDB
+
+	// Validate CSRF.
 	cookie, err := r.Cookie("g_csrf_token")
-	if err != nil {
-		fmt.Printf("DEBUG: Missing CSRF cookie\n")
-		http.Error(w, "missing csrf cookie", http.StatusServiceUnavailable)
-		return
-	}
-
-	formCsrf := r.FormValue("g_csrf_token")
-	if formCsrf != cookie.Value {
-		fmt.Printf("DEBUG: CSRF mismatch. Cookie: %s, Form: %s\n", cookie.Value, formCsrf)
-		http.Error(w, "csrf mismatch", http.StatusServiceUnavailable)
+	if err != nil || cookie.Value != r.FormValue("g_csrf_token") {
+		http.Error(w, "invalid csrf token", http.StatusBadRequest)
 		return
 	}
 
 	credential := r.FormValue("credential")
-	fmt.Printf("DEBUG: Received credential (first 20 chars): %s...\n", credential[:20])
+	if credential == "" {
+		http.Error(w, "missing credential", http.StatusBadRequest)
+		return
+	}
 
+	// Verify Google ID token.
 	token, err := jwt.Parse(credential, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+
 		kid, _ := token.Header["kid"].(string)
+		if kid == "" {
+			return nil, fmt.Errorf("missing key ID")
+		}
+
 		return getGooglePublicKey(kid)
 	})
-	if err != nil {
-		http.Error(w, "invalid token", http.StatusServiceUnavailable)
+	if err != nil || token == nil || !token.Valid {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
 
-	claims, _ := token.Claims.(jwt.MapClaims)
-	googleSub := claims["sub"]
-
-	collUser := common.DB.UserDB.Collection("user")
-	collSession := common.DB.SessionDB.Collection("session")
-
-	var user collection.UserStruct
-	err = collUser.FindOne(context.TODO(), bson.M{"googleJWTSub": googleSub}).Decode(&user)
-	if err != nil && err != mongo.ErrNoDocuments {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "invalid token claims", http.StatusUnauthorized)
 		return
 	}
 
-	userID := user.UserID
-	// DeviceType doubles as the web-vs-native session marker: native app / API
-	// logins start at 2, web logins stay at 0 until PushSubscribe stores VAPID (1).
-	isAPI := strings.Contains(r.Header.Get("Accept"), "application/json") || r.Header.Get("X-Requested-With") == "XMLHttpRequest"
-	loginDeviceType := 0
+	googleSub, ok := claims["sub"].(string)
+	if !ok || googleSub == "" {
+		http.Error(w, "missing Google subject", http.StatusUnauthorized)
+		return
+	}
+
+	now := time.Now()
+
+	// 0 = web, 1 = web push registered, 2 = native/API
+	isAPI := strings.Contains(r.Header.Get("Accept"), "application/json") ||
+		r.Header.Get("X-Requested-With") == "XMLHttpRequest"
+
+	deviceType := 0
 	if common.IsMobile(r.Header.Get("User-Agent")) || isAPI {
-		loginDeviceType = 2
+		deviceType = 2
 	}
 
-	if userID == "" {
-		userID, err = common.CountUpID("userID")
-		if err != nil {
-			http.Error(w, "cannot create user", http.StatusInternalServerError)
-			return
-		}
-	}
+	// PostgreSQL generates user_id through its identity column.
+	var userID int64
+	var mail, telephone string
 
-	_, err = collUser.UpdateOne(
-		context.TODO(),
-		bson.M{"googleJWTSub": googleSub},
-		bson.M{
-			"$set": bson.M{
-				"_id":          userID,
-				"googleJWTSub": googleSub,
-				"signedAt":     time.Now(),
-			},
-		},
-		options.Update().SetUpsert(true),
-	)
+	err = userDB.QueryRowContext(ctx, `
+		INSERT INTO "user" (google_jwt_sub, signed_at)
+		VALUES ($1, $2)
+		ON CONFLICT (google_jwt_sub)
+		DO UPDATE SET signed_at = EXCLUDED.signed_at
+		RETURNING user_id, COALESCE(mail, ''), COALESCE(telephone, '')
+	`, googleSub, now).Scan(&userID, &mail, &telephone)
 	if err != nil {
+		log.Printf("user upsert failed: %v", err)
 		http.Error(w, "user update fail", http.StatusInternalServerError)
 		return
 	}
 
-	var currentSessionID string
-	cookieSS, cookieErr := r.Cookie("ss")
-	if cookieErr == nil {
-		currentSessionID = cookieSS.Value
+	// Find the current browser's session, if any.
+	currentSessionID := ""
+	if c, err := r.Cookie("ss"); err == nil {
+		currentSessionID = c.Value
 	}
 
-	cursor, err := collSession.Find(context.TODO(), bson.M{"userID": userID})
+	type session struct {
+		id           string
+		deviceType   int
+		pushContents []string
+		pushToken    string
+		createdAt    time.Time
+		updatedAt    time.Time
+	}
+
+	var sessions []session
+	var previous session
+	sameBrowser := false
+
+	rows, err := sessionDB.QueryContext(ctx, `
+		SELECT
+			session_id,
+			COALESCE(device_type, 0),
+			COALESCE(push_contents, ARRAY[]::TEXT[]),
+			COALESCE(push_token, ''),
+			COALESCE(created_at, NOW()),
+			COALESCE(updated_at, NOW())
+		FROM "session"
+		WHERE user_id = $1
+		ORDER BY updated_at ASC NULLS FIRST
+	`, userID)
 	if err != nil {
+		log.Printf("session lookup failed: %v", err)
 		http.Error(w, "session lookup fail", http.StatusInternalServerError)
 		return
 	}
 
-	var sessions []collection.SessionStruct
-	if err := cursor.All(context.TODO(), &sessions); err != nil {
-		http.Error(w, "session decode fail", http.StatusInternalServerError)
+	for rows.Next() {
+		var s session
+		var pushContents pq.StringArray
+
+		if err := rows.Scan(
+			&s.id,
+			&s.deviceType,
+			&pushContents,
+			&s.pushToken,
+			&s.createdAt,
+			&s.updatedAt,
+		); err != nil {
+			rows.Close()
+			log.Printf("session scan failed: %v", err)
+			http.Error(w, "session lookup fail", http.StatusInternalServerError)
+			return
+		}
+
+		s.pushContents = []string(pushContents)
+
+		if currentSessionID != "" && s.id == currentSessionID {
+			previous = s
+			sameBrowser = true
+		}
+
+		sessions = append(sessions, s)
+	}
+
+	rowsErr := rows.Err()
+	rows.Close()
+	if rowsErr != nil {
+		log.Printf("session rows failed: %v", rowsErr)
+		http.Error(w, "session lookup fail", http.StatusInternalServerError)
 		return
 	}
 
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
-	})
-
-	sameBrowser := false
-	var previousSession collection.SessionStruct
-	var tweetPosts []collection.TweetPost
-	postMap := make(map[string]collection.TweetPost) // Use ParentID as key
-
-	for _, s := range sessions {
-		if s.SessionID == currentSessionID && currentSessionID != "" {
-			previousSession = s
-			sameBrowser = true
-		}
-		// Add all posts to map, duplicates will be overwritten
-		for _, post := range s.TweetPosts {
-			postMap[post.ParentID] = post
-		}
+	// Generate a secure session ID and CSRF token.
+	sessionID, err := randomToken()
+	if err != nil {
+		http.Error(w, "cannot create session", http.StatusInternalServerError)
+		return
 	}
 
-	// Convert map back to slice
-	for _, post := range postMap {
-		tweetPosts = append(tweetPosts, post)
+	csrf, err := randomToken()
+	if err != nil {
+		http.Error(w, "cannot create session", http.StatusInternalServerError)
+		return
 	}
 
-	newSession := collection.SessionStruct{
-		SessionID:      common.StringRand(16),
-		Csrf:           common.StringRand(16),
-		UserID:         userID,
-		// New web sessions start unregistered (deviceType 0) unless the
-		// same-browser previous session already carries a registration.
-		DeviceType:     loginDeviceType,
-		PushContents:   previousSession.PushContents,
-		// Carry the push registration over to the new session (same browser).
-		PushToken:    previousSession.PushToken,
-		Nickname:       previousSession.Nickname,
-		NickImg:        previousSession.NickImg,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-		ChannelAliases: user.ChannelAliases,
-		Mail: user.Mail,
-		Telephone: user.Telephone,
-		TweetPosts: tweetPosts,
-	}
-	if previousSession.PushToken != "" {
-		newSession.DeviceType = previousSession.DeviceType
+	// Keep push registration and display settings for the same browser.
+	if previous.pushToken != "" {
+		deviceType = previous.deviceType
 	}
 
-	// Cookie 更新（ブラウザ側に新しい ss をセット）
+	pushContents := previous.pushContents
+	if pushContents == nil {
+		pushContents = []string{}
+	}
+
+	_, err = sessionDB.ExecContext(ctx, `
+		INSERT INTO "session" (
+			session_id,
+			user_id,
+			device_id,
+			created_at,
+			updated_at,
+			push_token,
+			device_type,
+			csrf,
+			push_contents,
+			mail,
+			telephone
+		)
+		VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	`,
+		sessionID,
+		userID,
+		"",
+		now,
+		previous.pushToken,
+		deviceType,
+		csrf,
+		pq.Array(pushContents),
+		mail,
+		telephone,
+	)
+	if err != nil {
+		log.Printf("session insert failed: %v", err)
+		http.Error(w, "cannot create session", http.StatusInternalServerError)
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
-		Value:    newSession.SessionID,
+		Value:    sessionID,
 		MaxAge:   2592000,
 		Secure:   true,
 		HttpOnly: true,
 		Path:     "/",
 	})
 
-	// DB に新規セッションを追加
-	_, err = collSession.InsertOne(context.TODO(), newSession)
-	if err != nil {
-		http.Error(w, "cannot create session", http.StatusInternalServerError)
-		return
-	}
-
-	// =====================================================================
-	// 挙動分岐
-	//  - sameBrowser: 既存のこのブラウザの古い session を削除して終了
-	//  - not sameBrowser: 別ブラウザなので最新 3 個まで保持（4 個目で古いものから削除）
-	// =====================================================================
-
+	// Same browser: replace the previous session and redirect.
 	if sameBrowser && currentSessionID != "" {
-		// 同ブラウザ：古い自分のセッションを削除
-		_, _ = collSession.DeleteOne(context.TODO(), bson.M{
-			"_id": currentSessionID,
-		})
-		// 終了してリダイレクト
+		_, err := sessionDB.ExecContext(ctx, `
+			DELETE FROM "session"
+			WHERE session_id = $1 AND user_id = $2
+		`, currentSessionID, userID)
+		if err != nil {
+			log.Printf("old session deletion failed: %v", err)
+		}
+
 		http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
 		return
 	}
 
-	// 別ブラウザ：新しい session を一覧に加えて最大 3 個を維持
-	sessions = append(sessions, newSession)
-
-	// =====================================================================
-	// DELETE SESSIONS OLDER THAN 1 MONTH
-	// =====================================================================
-	oneMonthAgo := time.Now().AddDate(0, -1, 0) // 1 ヶ月前
-
-	for _, s := range sessions {
-	    if s.UpdatedAt.Before(oneMonthAgo) {
-	        // 古いセッションは削除
-	        _, _ = collSession.DeleteOne(context.TODO(), bson.M{
-	            "_id": s.SessionID,
-	        })
-	    }
+	// Delete sessions older than one month.
+	_, err = sessionDB.ExecContext(ctx, `
+		DELETE FROM "session"
+		WHERE user_id = $1 AND updated_at < $2
+	`, userID, now.AddDate(0, -1, 0))
+	if err != nil {
+		log.Printf("expired session cleanup failed: %v", err)
 	}
 
-	if len(sessions) > 5 {
-		deleteCount := len(sessions) - 5
-		for i := 0; i < deleteCount; i++ {
-			_, _ = collSession.DeleteOne(context.TODO(), bson.M{
-				"_id": sessions[i].SessionID,
-			})
-		}
+	// Keep at most the five most recently updated sessions.
+	_, err = sessionDB.ExecContext(ctx, `
+		DELETE FROM "session"
+		WHERE user_id = $1
+		  AND session_id NOT IN (
+			  SELECT session_id
+			  FROM "session"
+			  WHERE user_id = $1
+			  ORDER BY updated_at DESC NULLS LAST,
+			           created_at DESC NULLS LAST
+			  LIMIT 5
+		  )
+	`, userID)
+	if err != nil {
+		log.Printf("session retention cleanup failed: %v", err)
 	}
 
-	if loginDeviceType == 2 {
+	if deviceType == 2 {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"success": true, "csrf": "%s", "userId": "%s", "nickname": "%s", "message": "Success"}`, newSession.Csrf, userID, newSession.Nickname)
+
+		_ = json.NewEncoder(w).Encode(struct {
+			Success  bool   `json:"success"`
+			CSRF     string `json:"csrf"`
+			UserID   int64  `json:"userId"`
+			Message  string `json:"message"`
+		}{
+			Success:  true,
+			CSRF:     csrf,
+			UserID:   userID,
+			Message:  "Success",
+		})
 		return
 	}
 
 	http.Redirect(w, r, "/pushSubscription/", http.StatusSeeOther)
+}
+
+func getGooglePublicKey(kid string) (*rsa.PublicKey, error) {
+	set, err := jwk.Fetch(
+		context.Background(),
+		"https://www.googleapis.com/oauth2/v3/certs",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("fetch Google certificates: %w", err)
+	}
+
+	key, found := set.LookupKeyID(kid)
+	if !found {
+		return nil, fmt.Errorf("Google key not found: %s", kid)
+	}
+
+	var publicKey rsa.PublicKey
+	if err := key.Raw(&publicKey); err != nil {
+		return nil, fmt.Errorf("read Google public key: %w", err)
+	}
+
+	return &publicKey, nil
+}
+
+func randomToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

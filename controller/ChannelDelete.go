@@ -1,166 +1,338 @@
 package controller
 
 import (
-  "context"
-  "encoding/json"
-  // "fmt"
-  // "log"
-  "net/http"
-  "time"
+	"context"
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
 
-  // "go.mongodb.org/mongo-driver/mongo"
-  "go.mongodb.org/mongo-driver/bson"
-  // "go.mongodb.org/mongo-driver/mongo/options"
-  // "go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/lib/pq"
 
-  "chat/collection"
-  "chat/common"
+	"chat/collection"
+	"chat/common"
 )
 
 func ChannelDelete(w http.ResponseWriter, r *http.Request) {
-	channelID := r.FormValue("channelID")
-	updatedBy := r.FormValue("updatedBy")
-
-	// === セッションチェック ===
-	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
-	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Session Error", http.StatusOK)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// === チャンネル取得 ===
-	collChannel := common.DB.ChannelDB.Collection("channel")
-	var channelData collection.ChannelStruct
-	if err := collChannel.FindOne(ctx, bson.M{"_id": channelID}).Decode(&channelData); err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":Channel not found", http.StatusOK)
+	channelID, err := strconv.ParseInt(r.FormValue("channelID"), 10, 64)
+	if err != nil || channelID <= 0 {
+		http.Error(w, "invalid channelID", http.StatusBadRequest)
 		return
 	}
 
-	// === updatedBy の権限確認 ===
-	admin := false
-	for _, alias := range channelData.Aliases {
-		if alias.AliasName == updatedBy && alias.AccessRight == "admin" {
-			admin = true
-			break
-		}
-	}
-	if !admin {
-		common.WriteResponseWithSession(w, session, "No admin access right", http.StatusOK)
-		return
-	}
+	updatedBy := r.FormValue("updatedBy")
 
-	// === すべての userID 抽出 ===
-	userIDs := make([]string, 0)
-	unique := make(map[string]struct{})
-	for _, alias := range channelData.Aliases {
-		if _, ok := unique[alias.UserID]; !ok {
-			unique[alias.UserID] = struct{}{}
-			userIDs = append(userIDs, alias.UserID)
-		}
-	}
-
-	// === セッション取得 ===
-	collSession := common.DB.SessionDB.Collection("session")
-	cursor, err := collSession.Find(ctx, bson.M{"userID": bson.M{"$in": userIDs}})
+	// 1. Session check.
+	session, err := common.SessionCheckTake(
+		w,
+		r,
+		r.FormValue("csrf"),
+	)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":Session find error", http.StatusOK)
+		common.WriteResponseWithoutSession(
+			w,
+			r.FormValue("csrf"),
+			"Session Error",
+			http.StatusOK,
+		)
+		return
 	}
+
+	// 2. Check database connections.
+	if common.DB == nil ||
+		common.DB.ChannelDB == nil ||
+		common.DB.AliasDB == nil ||
+		common.DB.SessionDB == nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"database is not initialized",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 3. Confirm that the channel exists.
+	var channelExists bool
+
+	err = common.DB.ChannelDB.QueryRowContext(
+		ctx,
+		`SELECT EXISTS (
+			SELECT 1 FROM channel WHERE channel_id = $1
+		)`,
+		channelID,
+	).Scan(&channelExists)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" channel lookup error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	if !channelExists {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"Channel not found",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 4. Verify that the requesting user owns this admin alias.
+	var isAdmin bool
+
+	err = common.DB.AliasDB.QueryRowContext(
+		ctx,
+		`
+		SELECT EXISTS (
+			SELECT 1
+			FROM alias
+			WHERE channel_id = $1
+			  AND user_id = $2
+			  AND alias_name = $3
+			  AND access_right = 'admin'
+		)
+		`,
+		channelID,
+		session.UserID,
+		updatedBy,
+	).Scan(&isAdmin)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" admin check error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	if !isAdmin {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"No admin access right",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 5. Get the distinct users who have aliases in this channel.
+	// These users' sessions need the deletion notification.
+	userRows, err := common.DB.AliasDB.QueryContext(
+		ctx,
+		`
+		SELECT DISTINCT user_id
+		FROM alias
+		WHERE channel_id = $1
+		  AND user_id IS NOT NULL
+		`,
+		channelID,
+	)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" alias user lookup error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	var userIDs []int64
+
+	for userRows.Next() {
+		var userID int64
+
+		if err := userRows.Scan(&userID); err != nil {
+			_ = userRows.Close()
+			common.WriteResponseWithSession(
+				w,
+				session,
+				err.Error()+" alias user scan error",
+				http.StatusOK,
+			)
+			return
+		}
+
+		userIDs = append(userIDs, userID)
+	}
+
+	rowsErr := userRows.Err()
+	_ = userRows.Close()
+
+	if rowsErr != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			rowsErr.Error()+" alias user rows error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 6. Fetch the sessions belonging to those users.
 	var sessions []collection.SessionStruct
-	if err := cursor.All(ctx, &sessions); err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":Session decode error", http.StatusOK)
-	}
 
-	for _, s := range sessions {
-	    // === ChannelAliases から削除対象以外を残す ===
-	    filteredAliases := make([]collection.ChannelAlias, 0)
-	    for _, alias := range s.ChannelAliases {
-	        if alias.ChannelID != channelID {
-	            filteredAliases = append(filteredAliases, alias)
-	        }
-	    }
-
-	    // === DB 更新 ===
-	    _, err := collSession.UpdateOne(
-	        ctx,
-	        bson.M{"_id": s.SessionID},
-	        bson.M{
-	            "$set": bson.M{
-	                "channelAliases": filteredAliases,
-	                "updatedAt":      time.Now(),
-	            },
-	        },
-	    )
-	    if err != nil {
-	        common.WriteResponseWithSession(w, session, err.Error()+":Session update error", http.StatusOK)
-	        return
-	    }
-	}
-
-	// === userコレクションから対象ユーザー取得 ===
-	collUser := common.DB.UserDB.Collection("user")
-
-	cursor, err = collUser.Find(ctx, bson.M{"_id": bson.M{"$in": userIDs}})
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":User find error", http.StatusOK)
-		return
-	}
-
-	var users []collection.UserStruct
-	if err := cursor.All(ctx, &users); err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":User decode error", http.StatusOK)
-		return
-	}
-
-	// === 各ユーザーのChannelAliasesを更新（ループ版） ===
-	for _, u := range users {
-		// 削除対象のchannelID以外を残す
-		filteredAliases := make([]collection.ChannelAlias, 0)
-		for _, alias := range u.ChannelAliases {
-			if alias.ChannelID != channelID {
-				filteredAliases = append(filteredAliases, alias)
-			}
-		}
-
-		// === UpdateOne実行 ===
-		update := bson.M{
-			"$set": bson.M{
-				"channelAliases": filteredAliases,
-				"updatedAt":      time.Now(),
-			},
-		}
-
-		_, err := collUser.UpdateOne(
+	if len(userIDs) > 0 {
+		rows, err := common.DB.SessionDB.QueryContext(
 			ctx,
-			bson.M{"_id": u.UserID},
-			update,
+			`
+			SELECT
+				session_id,
+				user_id,
+				COALESCE(device_id, ''),
+				COALESCE(created_at, NOW()),
+				COALESCE(updated_at, NOW()),
+				COALESCE(push_token, ''),
+				COALESCE(device_type, 0),
+				COALESCE(csrf, ''),
+				COALESCE(push_contents, ARRAY[]::TEXT[]),
+				COALESCE(mail, ''),
+				COALESCE(telephone, '')
+			FROM "session"
+			WHERE user_id = ANY($1::BIGINT[])
+			ORDER BY updated_at ASC
+			`,
+			pq.Array(userIDs),
 		)
 		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+":User update error", http.StatusOK)
+			common.WriteResponseWithSession(
+				w,
+				session,
+				err.Error()+" session query error",
+				http.StatusOK,
+			)
+			return
+		}
+
+		for rows.Next() {
+			var s collection.SessionStruct
+			var pushContents pq.StringArray
+
+			if err := rows.Scan(
+				&s.SessionID,
+				&s.UserID,
+				&s.DeviceID,
+				&s.CreatedAt,
+				&s.UpdatedAt,
+				&s.PushToken,
+				&s.DeviceType,
+				&s.Csrf,
+				&pushContents,
+				&s.Mail,
+				&s.Telephone,
+			); err != nil {
+				_ = rows.Close()
+				common.WriteResponseWithSession(
+					w,
+					session,
+					err.Error()+" session scan error",
+					http.StatusOK,
+				)
+				return
+			}
+
+			s.PushContents = []string(pushContents)
+			sessions = append(sessions, s)
+		}
+
+		rowsErr := rows.Err()
+		_ = rows.Close()
+
+		if rowsErr != nil {
+			common.WriteResponseWithSession(
+				w,
+				session,
+				rowsErr.Error()+" session rows error",
+				http.StatusOK,
+			)
 			return
 		}
 	}
 
-	// === チャンネルをDBから削除 ===
-	_, err = collChannel.DeleteOne(ctx, bson.M{"_id": channelID})
+	// 7. Delete the channel.
+	// Cross-database operations cannot share one PostgreSQL transaction.
+	result, err := common.DB.ChannelDB.ExecContext(
+		ctx,
+		`DELETE FROM channel WHERE channel_id = $1`,
+		channelID,
+	)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+":Failed to delete channel", http.StatusOK)
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" channel delete error",
+			http.StatusOK,
+		)
 		return
 	}
 
-	// === チャンネル削除通知 push ===
-	channelPushArray := []interface{}{
-		"channelEdit", // pushTitle
-		channelID,       // channelID
-		updatedBy,       // updatedBy
-		"delete",             // contents
-		// nil,             // imgPath or files
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" channel delete result error",
+			http.StatusOK,
+		)
+		return
 	}
-	common.ChunkPush(sessions, channelPushArray)
 
-	// === レスポンス ===
+	if deleted == 0 {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			"Channel not found",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 8. Delete the channel's aliases explicitly because there is no FK cascade.
+	_, err = common.DB.AliasDB.ExecContext(
+		ctx,
+		`DELETE FROM alias WHERE channel_id = $1`,
+		channelID,
+	)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" alias delete error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 10. Queue the channel deletion notification.
+	// ChunkPush writes notification content first. If the DB write fails,
+	// it returns an error and does not send the pushes.
+	channelPushArray := []interface{}{
+		"channelEdit",
+		channelID,
+		updatedBy,
+		"delete",
+	}
+
+	if err := common.ChunkPush(sessions, channelPushArray); err != nil {
+		common.WriteResponseWithSession(
+			w,
+			session,
+			err.Error()+" ChunkPush error",
+			http.StatusOK,
+		)
+		return
+	}
+
+	// 11. Return the response.
 	responseData := struct {
 		Csrf         string   `json:"csrf"`
 		PushContents []string `json:"pushContents"`
@@ -168,6 +340,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
+	_ = json.NewEncoder(w).Encode(responseData)
 }

@@ -39,8 +39,3 @@ type Group struct {
 	GroupBio   string   `bson:"groupBio,omitempty" json:"groupBio,omitempty"`
 }
 
-type Invitation struct {
-	Code      string    `bson:"code" json:"code,omitempty"`
-	GuestCode string    `bson:"guestCode,omitempty" json:"guestCode,omitempty"`
-	InvitedAt time.Time `bson:"invitedAt" json:"invitedAt,omitempty"`
-}

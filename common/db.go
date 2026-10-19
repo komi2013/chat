@@ -1,103 +1,109 @@
+
 package common
 
 import (
-    "context"
-    "log"
-    "time"
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"time"
 
-    "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+	_ "github.com/lib/pq"
 )
 
 type DBs struct {
-  AdDB *mongo.Database
-  AdPriceDB *mongo.Database
-  ChannelDB *mongo.Database
-  FileDB *mongo.Database
-  InvoiceDB *mongo.Database
-  NicknameDB *mongo.Database
-  ReceptionDB *mongo.Database
-  SequenceDB *mongo.Database
-  SessionDB *mongo.Database
-  TweetDB *mongo.Database
-  UserDB    *mongo.Database
-
+	ChannelDB   *sql.DB
+	AliasDB     *sql.DB
+	GroupDB     *sql.DB
+	FileDB      *sql.DB
+	InvoiceDB   *sql.DB
+	ReceptionDB *sql.DB
+	SessionDB   *sql.DB
+	UserDB      *sql.DB
 }
 
 var DB *DBs
 
-func InitMongo(cfg *Config) {
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  // cfg := LoadConfig()
+func InitPostgres(cfg *Config) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer cancel()
 
-  adClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoAd))
-  if err != nil {
-    log.Fatalf("Mongo adClient connect error: %v", err)
-  }
+	connect := func(name, dsn string) *sql.DB {
+		if dsn == "" {
+			log.Fatalf("PostgreSQL %s connection string is empty", name)
+		}
 
-  adPriceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoAdPrice))
-  if err != nil {
-    log.Fatalf("Mongo adPriceClient connect error: %v", err)
-  }
+		db, err := sql.Open("postgres", dsn)
+		if err != nil {
+			log.Fatalf("PostgreSQL %s open error: %v", name, err)
+		}
 
-  channelClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoChannel))
-  if err != nil {
-    log.Fatalf("Mongo channelClient connect error: %v", err)
-  }
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(2)
+		db.SetConnMaxLifetime(30 * time.Minute)
+		db.SetConnMaxIdleTime(5 * time.Minute)
 
-  fileClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoFile))
-  if err != nil {
-    log.Fatalf("Mongo fileClient connect error: %v", err)
-  }
+		if err := db.PingContext(ctx); err != nil {
+			_ = db.Close()
+			log.Fatalf("PostgreSQL %s connection error: %v", name, err)
+		}
 
-  invoiceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoInvoice))
-  if err != nil {
-    log.Fatalf("Mongo invoiceClient connect error: %v", err)
-  }
+		log.Printf("PostgreSQL %s connected successfully", name)
+		return db
+	}
 
-  nicknameClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoNickname))
-  if err != nil {
-    log.Fatalf("Mongo nicknameClient connect error: %v", err)
-  }
+	DB = &DBs{
+		ChannelDB:   connect("channel", cfg.PgChannel),
+		AliasDB:     connect("alias", cfg.PgAlias),
+		GroupDB:     connect("group", cfg.PgGroup),
+		FileDB:      connect("file", cfg.PgFile),
+		InvoiceDB:   connect("invoice", cfg.PgInvoice),
+		ReceptionDB: connect("reception", cfg.PgReception),
+		SessionDB:   connect("session", cfg.PgSession),
+		UserDB:      connect("user", cfg.PgUser),
+	}
+}
 
-  receptionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoReception))
-  if err != nil {
-    log.Fatalf("Mongo receptionClient connect error: %v", err)
-  }
+// ClosePostgres closes all PostgreSQL connection pools.
+func ClosePostgres() error {
+	if DB == nil {
+		return nil
+	}
 
-  sequenceClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoSequence))
-  if err != nil {
-    log.Fatalf("Mongo sequenceClient connect error: %v", err)
-  }
+	var firstErr error
 
-  sessionClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoSession))
-  if err != nil {
-    log.Fatalf("Mongo sessionClient connect error: %v", err)
-  }
+	connections := []struct {
+		name string
+		db   *sql.DB
+	}{
+		{"channel", DB.ChannelDB},
+		{"alias", DB.AliasDB},
+		{"group", DB.GroupDB},
+		{"file", DB.FileDB},
+		{"invoice", DB.InvoiceDB},
+		{"reception", DB.ReceptionDB},
+		{"session", DB.SessionDB},
+		{"user", DB.UserDB},
+	}
 
-  tweetClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoTweet))
-  if err != nil {
-    log.Fatalf("Mongo sessionClient connect error: %v", err)
-  }
+	for _, conn := range connections {
+		if conn.db == nil {
+			continue
+		}
 
-  userClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoUser))
-  if err != nil {
-    log.Fatalf("Mongo userClient connect error: %v", err)
-  }
+		if err := conn.db.Close(); err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf(
+					"close PostgreSQL %s connection: %w",
+					conn.name,
+					err,
+				)
+			}
+		}
+	}
 
-  DB = &DBs{
-    AdDB: adClient.Database("chatAd"),
-    AdPriceDB: adPriceClient.Database("chatAdPrice"),
-    ChannelDB: channelClient.Database("chatChannel"),
-    FileDB: fileClient.Database("chatFile"),
-    InvoiceDB: invoiceClient.Database("chatInvoice"),
-    NicknameDB: nicknameClient.Database("chatNickname"),
-    ReceptionDB: receptionClient.Database("chatReception"),
-    SequenceDB: sequenceClient.Database("chatSequence"),
-    SessionDB: sessionClient.Database("chatSession"),
-    TweetDB: tweetClient.Database("chatTweet"),
-    UserDB:    userClient.Database("chatUser"),
-
-  }
+	return firstErr
 }
