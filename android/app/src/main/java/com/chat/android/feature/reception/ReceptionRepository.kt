@@ -35,9 +35,9 @@ class ReceptionRepository @Inject constructor(
         dbHelper.getGroupsForChannel(channelID)
     }
 
-    suspend fun getReception(id: String, code: String?): Result<ReceptionGetResponse> = withContext(Dispatchers.IO) {
+    suspend fun getReception(id: String, code: String?): Result<ReceptionGetResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val channelID = getChannelId()
             val aliasName = getAliasName()
             
@@ -62,9 +62,9 @@ class ReceptionRepository @Inject constructor(
         }
     }
 
-    suspend fun editReception(reception: Reception, menus: List<Menu>, itemDetails: List<ItemDetail>): Result<ReceptionEditResponse> = withContext(Dispatchers.IO) {
+    suspend fun editReception(reception: Reception, menus: List<Menu>, itemDetails: List<ItemDetail>): Result<ReceptionEditResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val channelID = getChannelId()
             val aliasName = getAliasName()
 
@@ -107,9 +107,9 @@ class ReceptionRepository @Inject constructor(
         bookEnd: String,
         menuID: Int,
         answers: List<String>
-    ): Result<ReceptionBookResponse> = withContext(Dispatchers.IO) {
+    ): Result<ReceptionBookResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val response = apiService.bookReception(
                 csrf,
                 aliasName,
@@ -143,9 +143,9 @@ class ReceptionRepository @Inject constructor(
         receptionID: String,
         orders: List<ReceptionOrder>,
         code: String?
-    ): Result<ReceptionOrderResponse> = withContext(Dispatchers.IO) {
+    ): Result<ReceptionOrderResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val response = apiService.orderReception(
                 csrf,
                 receptionID,
@@ -175,9 +175,9 @@ class ReceptionRepository @Inject constructor(
     suspend fun deleteOrder(
         receptionID: String,
         code: String
-    ): Result<ReceptionOrderDeleteResponse> = withContext(Dispatchers.IO) {
+    ): Result<ReceptionOrderDeleteResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val channelID = getChannelId()
             val aliasName = getAliasName()
             
@@ -214,9 +214,9 @@ class ReceptionRepository @Inject constructor(
         guestCount: Int?,
         queueName: String?,
         editType: Int
-    ): Result<ReceptionQueueEditResponse> = withContext(Dispatchers.IO) {
+    ): Result<ReceptionQueueEditResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val channelID = getChannelId()
             val aliasName = getAliasName()
             
@@ -255,9 +255,9 @@ class ReceptionRepository @Inject constructor(
     suspend fun submitShift(
         receptionID: String,
         updatedShifts: List<Shift>
-    ): Result<ReceptionShiftResponse> = withContext(Dispatchers.IO) {
+    ): Result<ReceptionShiftResponse> = sessionManager.serializeAuthenticatedRequest {
         try {
-            val csrf = sessionManager.getCsrf() ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
             val channelID = getChannelId()
             val aliasName = getAliasName()
             

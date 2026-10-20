@@ -25,9 +25,9 @@ class TicketRepository @Inject constructor(
     private val _dbUpdateFlow = MutableSharedFlow<Unit>(replay = 0)
     val dbUpdateFlow = _dbUpdateFlow.asSharedFlow()
 
-    suspend fun fetchTickets(): Result<List<Ticket>> {
+    suspend fun fetchTickets(): Result<List<Ticket>> = sessionManager.serializeAuthenticatedRequest {
         val csrf = sessionManager.getCsrf() ?: ""
-        return try {
+        return@serializeAuthenticatedRequest try {
             val response = apiService.getTickets(csrf)
             if (response.isSuccessful) {
                 val tickets = response.body() ?: emptyList()
@@ -55,7 +55,7 @@ class TicketRepository @Inject constructor(
         description: String,
         status: String,
         priority: String
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val csrf = sessionManager.getCsrf() ?: ""
         val response = ticketApiService.ticketPost(
             csrf = toPart(csrf),
@@ -67,7 +67,7 @@ class TicketRepository @Inject constructor(
             status = toPart(status),
             priority = toPart(priority)
         )
-        return handleResponse(response, csrf)
+        return@serializeAuthenticatedRequest handleResponse(response, csrf)
     }
 
     suspend fun updateTicket(
@@ -78,7 +78,7 @@ class TicketRepository @Inject constructor(
         description: String?,
         status: String?,
         priority: String?
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val csrf = sessionManager.getCsrf() ?: ""
         val response = ticketApiService.ticketEdit(
             csrf = toPart(csrf),
@@ -91,14 +91,14 @@ class TicketRepository @Inject constructor(
             status = status?.let { toPart(it) },
             priority = priority?.let { toPart(it) }
         )
-        return handleResponse(response, csrf)
+        return@serializeAuthenticatedRequest handleResponse(response, csrf)
     }
 
     suspend fun deleteTicket(
         channelID: String,
         updatedBy: String,
         ticketID: String
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val csrf = sessionManager.getCsrf() ?: ""
         val response = ticketApiService.ticketDelete(
             csrf = toPart(csrf),
@@ -107,7 +107,7 @@ class TicketRepository @Inject constructor(
             pushNames = toPart("[]"),
             ticketID = toPart(ticketID)
         )
-        return handleResponse(response, csrf)
+        return@serializeAuthenticatedRequest handleResponse(response, csrf)
     }
 
     private suspend fun handleResponse(response: retrofit2.Response<com.chat.android.core.network.ApiResponse<Any>>, sentCsrf: String): Result<Unit> {

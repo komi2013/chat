@@ -145,7 +145,8 @@ fun EditBox(
     val mentionTargets = remember(aliases, groups) {
         val aliasItems = aliases.map { MentionTarget(it.aliasName, it.aliasImg, isGroup = false) }
         val groupItems = groups.map { MentionTarget(it.groupName, it.groupImg, isGroup = true) }
-        aliasItems + groupItems
+        val specialItems = listOf(MentionTarget("channel", "", isGroup = false))
+        specialItems + aliasItems + groupItems
     }
     val mentionSuggestions = remember(mentionQuery, mentionTargets) {
         if (mentionQuery.isBlank()) mentionTargets

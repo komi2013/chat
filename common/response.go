@@ -58,6 +58,13 @@ func WriteResponseWithSession(w http.ResponseWriter, session collection.SessionS
 }
 
 func WriteResponseWithoutSession(w http.ResponseWriter, csrf string, errMsg string, status int) {
+    // A stale csrf was rejected by SessionCheckTake, which recorded the session's
+    // current token. Echo that instead of the value the client sent (which is no
+    // longer valid) so a desynced client can resync without a full re-login.
+    if current := w.Header().Get(csrfRefreshHeader); current != "" {
+      w.Header().Del(csrfRefreshHeader)
+      csrf = current
+    }
     w.Header().Set("Content-Type", "application/json")
     if status != http.StatusOK {
       w.WriteHeader(status)

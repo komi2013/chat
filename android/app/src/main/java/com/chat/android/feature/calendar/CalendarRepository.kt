@@ -37,22 +37,22 @@ class CalendarRepository @Inject constructor(
     suspend fun event(id: String): CalendarItem? = withContext(Dispatchers.IO) { db.get(id) }
 
     /** storeSelect で対象エイリアスを POST し、返ってきたカレンダーを push 経由で取り込む。 */
-    suspend fun requestUserCalendars(channelID: String, aliasNames: List<String>, date: String): String? {
-        if (aliasNames.isEmpty()) return null
-        val csrf = session.getCsrf()?.takeIf(String::isNotBlank) ?: return "サインインが必要です"
+    suspend fun requestUserCalendars(channelID: String, aliasNames: List<String>, date: String): String? = session.serializeAuthenticatedRequest {
+        if (aliasNames.isEmpty()) return@serializeAuthenticatedRequest null
+        val csrf = session.getCsrf()?.takeIf(String::isNotBlank) ?: return@serializeAuthenticatedRequest "サインインが必要です"
         val updatedBy = currentAlias(channelID).ifBlank { session.getNickname().orEmpty() }
-        if (updatedBy.isBlank()) return "送信者名が設定されていません"
-        return try {
+        if (updatedBy.isBlank()) return@serializeAuthenticatedRequest "送信者名が設定されていません"
+        try {
             val contents = JSONArray().put("calendar").put(JSONObject().put("date", date)).toString()
             val response = api.requestCalendars(
                 JSONArray(aliasNames).toString().part(), channelID.part(), updatedBy.part(), csrf.part(),
                 contents.part(), "storeSelect".part()
             )
-            if (!response.isSuccessful) return "データ取得に失敗しました (${response.code()})"
-            val body = response.body() ?: return "サーバーから空の応答が返されました"
+            if (!response.isSuccessful) return@serializeAuthenticatedRequest "データ取得に失敗しました (${response.code()})"
+            val body = response.body() ?: return@serializeAuthenticatedRequest "サーバーから空の応答が返されました"
             session.applyResponseCsrf(csrf, body.csrf)
-            if (body.csrf.isNullOrBlank()) return "データ取得に失敗しました。サインイン状態を確認してください"
-            if (!body.error.isNullOrBlank()) return body.error
+            if (body.csrf.isNullOrBlank()) return@serializeAuthenticatedRequest "データ取得に失敗しました。サインイン状態を確認してください"
+            if (!body.error.isNullOrBlank()) return@serializeAuthenticatedRequest body.error
             body.pushContents.orEmpty().forEach { dispatcher.receive(it) }
             null
         } catch (e: Exception) { e.message ?: "データ取得に失敗しました" }
@@ -62,10 +62,10 @@ class CalendarRepository @Inject constructor(
         db.deleteByAlias(channelID, aliasName)
     }
 
-    suspend fun send(item: CalendarItem, attendees: List<String>, events: List<CalendarItem>, delete: Boolean = false): String? {
-        val csrf = session.getCsrf()?.takeIf(String::isNotBlank) ?: return "サインインが必要です"
+    suspend fun send(item: CalendarItem, attendees: List<String>, events: List<CalendarItem>, delete: Boolean = false): String? = session.serializeAuthenticatedRequest {
+        val csrf = session.getCsrf()?.takeIf(String::isNotBlank) ?: return@serializeAuthenticatedRequest "サインインが必要です"
         val alias = currentAlias(item.channelID).ifBlank { session.getNickname().orEmpty() }
-        if (alias.isBlank()) return "送信者名が設定されていません"
+        if (alias.isBlank()) return@serializeAuthenticatedRequest "送信者名が設定されていません"
         for (event in events) {
             val id = event.calendarID.ifBlank { java.util.UUID.randomUUID().toString().replace("-", "").take(8) }
             val outgoing = event.copy(calendarID = id, channelID = item.channelID, aliasName = alias, aliasNamesJson = JSONArray(attendees).toString())
@@ -74,16 +74,16 @@ class CalendarRepository @Inject constructor(
                 val response = api.pushCalendar(
                     JSONArray(attendees).toString().part(), item.channelID.part(), alias.part(), csrf.part(), json.part(), "calendar".part()
                 )
-                if (!response.isSuccessful) return "送信に失敗しました (${response.code()})"
-                val body = response.body() ?: return "サーバーから空の応答が返されました"
+                if (!response.isSuccessful) return@serializeAuthenticatedRequest "送信に失敗しました (${response.code()})"
+                val body = response.body() ?: return@serializeAuthenticatedRequest "サーバーから空の応答が返されました"
                 session.applyResponseCsrf(csrf, body.csrf)
-                if (!body.error.isNullOrBlank()) return body.error
-                if (body.csrf.isNullOrBlank()) return "CSRFトークンを更新できませんでした"
+                if (!body.error.isNullOrBlank()) return@serializeAuthenticatedRequest body.error
+                if (body.csrf.isNullOrBlank()) return@serializeAuthenticatedRequest "CSRFトークンを更新できませんでした"
                 body.pushContents.orEmpty().forEach { dispatcher.receive(it) }
                 withContext(Dispatchers.IO) { if (delete) db.delete(id) else db.save(outgoing) }
-            } catch (e: Exception) { return e.message ?: "送信に失敗しました" }
+            } catch (e: Exception) { return@serializeAuthenticatedRequest e.message ?: "送信に失敗しました" }
         }
-        return null
+        null
     }
     private fun String.part() = toRequestBody("text/plain".toMediaType())
 }

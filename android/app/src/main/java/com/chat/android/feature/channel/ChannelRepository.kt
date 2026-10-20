@@ -133,7 +133,7 @@ class ChannelRepository @Inject constructor(
 
     private fun toPart(value: String): RequestBody = value.toRequestBody("text/plain".toMediaTypeOrNull())
 
-    suspend fun createChannel(name: String, description: String, myname: String, myimg: String): Result<String> {
+    suspend fun createChannel(name: String, description: String, myname: String, myimg: String): Result<String> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(null, myname)
         val effectiveImg = getEffectiveImage(null, myimg)
         val csrf = sessionManager.getCsrf() ?: ""
@@ -142,10 +142,10 @@ class ChannelRepository @Inject constructor(
         )
 
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         // CSRF は成功・エラーどちらの応答でも回転しているので必ず反映する。
         sessionManager.applyResponseCsrf(csrf, body.csrf)
@@ -154,11 +154,11 @@ class ChannelRepository @Inject constructor(
         // 「すでにチャネル作成の上限です」等は HTTP 200 + error で返る。
         // csrf の有無で成功判定するとエラーを握りつぶしてしまう。
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
 
         val channelID = body.channelID?.takeIf(String::isNotBlank)
-            ?: return Result.failure(Exception("サーバーからチャネルIDが返されませんでした"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーからチャネルIDが返されませんでした"))
 
         // ChannelAdd の応答は channelID のみなので、作成直後に画面を開いても
         // "Channel not found" にならないよう送信値でローカルを先に埋めておく。
@@ -181,7 +181,7 @@ class ChannelRepository @Inject constructor(
         }
 
         _dbUpdateFlow.emit(Unit)
-        return Result.success(channelID)
+        return@serializeAuthenticatedRequest Result.success(channelID)
     }
 
     suspend fun editChannel(
@@ -191,7 +191,7 @@ class ChannelRepository @Inject constructor(
         channelName: String? = null,
         groupsJson: String? = null,
         description: String? = null
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(channelID, providedUpdatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
@@ -205,10 +205,10 @@ class ChannelRepository @Inject constructor(
         )
 
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
         body.pushContents?.forEach { pushDispatcher.receive(it) }
@@ -216,9 +216,9 @@ class ChannelRepository @Inject constructor(
 
         // 権限エラー等は HTTP 200 + error で返る
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
-        return Result.success(Unit)
+        return@serializeAuthenticatedRequest Result.success(Unit)
     }
 
     /**
@@ -229,7 +229,7 @@ class ChannelRepository @Inject constructor(
      * （controller/ChannelEdit.go:337）。そのため push 経由ではローカルDBに新しいコードが
      * 反映されないので、応答の channel を使ってここで DB を更新する。
      */
-    suspend fun generateInvitation(channelID: String, providedUpdatedBy: String, guest: Boolean): Result<String> {
+    suspend fun generateInvitation(channelID: String, providedUpdatedBy: String, guest: Boolean): Result<String> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(channelID, providedUpdatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
@@ -245,15 +245,15 @@ class ChannelRepository @Inject constructor(
         )
 
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
 
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
 
         body.pushContents?.forEach { pushDispatcher.receive(it) }
@@ -261,10 +261,10 @@ class ChannelRepository @Inject constructor(
         // コードは保存せず、呼び出し元へ返すだけにする。
         val code = body.channel?.let { if (guest) it.invitationGuestCode else it.invitationCode }
         if (code.isNullOrBlank()) {
-            return Result.failure(Exception("招待コードが返されませんでした"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("招待コードが返されませんでした"))
         }
         _dbUpdateFlow.emit(Unit)
-        return Result.success(code)
+        return@serializeAuthenticatedRequest Result.success(code)
     }
 
     /**
@@ -282,7 +282,7 @@ class ChannelRepository @Inject constructor(
         code: String,
         myname: String,
         myimg: String
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(null, myname)
         val effectiveImg = getEffectiveImage(null, myimg)
         val csrf = sessionManager.getCsrf() ?: ""
@@ -294,16 +294,16 @@ class ChannelRepository @Inject constructor(
             toPart(csrf)
         )
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
 
         // エラー応答には pushContents が含まれないので先に判定する
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
 
         body.pushContents?.forEach { pushDispatcher.receive(it) }
@@ -312,7 +312,7 @@ class ChannelRepository @Inject constructor(
             profileStore.saveLastProfile(userId, channelID, effectiveName, effectiveImg)
         }
         _dbUpdateFlow.emit(Unit)
-        return Result.success(Unit)
+        return@serializeAuthenticatedRequest Result.success(Unit)
     }
 
     /**
@@ -330,7 +330,7 @@ class ChannelRepository @Inject constructor(
         aliasName: String,
         aliasBio: String,
         aliasImg: String
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val effectiveUpdatedBy = getEffectiveName(channelID, providedUpdatedBy)
         val effectiveAliasName = if (aliasName.isNotBlank()) aliasName else effectiveUpdatedBy
         val effectiveAliasImg = getEffectiveImage(channelID, aliasImg)
@@ -360,14 +360,14 @@ class ChannelRepository @Inject constructor(
             csrf = toPart(csrf)
         )
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
         body.pushContents?.forEach { pushDispatcher.receive(it) }
 
@@ -376,7 +376,7 @@ class ChannelRepository @Inject constructor(
             profileStore.saveLastProfile(userId, channelID, effectiveAliasName, effectiveAliasImg)
         }
         _dbUpdateFlow.emit(Unit)
-        return Result.success(Unit)
+        return@serializeAuthenticatedRequest Result.success(Unit)
     }
 
     /**
@@ -409,7 +409,7 @@ class ChannelRepository @Inject constructor(
         providedUpdatedBy: String,
         groupsJson: String,
         pushNamesJson: String
-    ): Result<Unit> {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(channelID, providedUpdatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelEdit(
@@ -422,14 +422,14 @@ class ChannelRepository @Inject constructor(
             csrf = toPart(csrf)
         )
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
         body.pushContents?.forEach { pushDispatcher.receive(it) }
 
@@ -441,7 +441,7 @@ class ChannelRepository @Inject constructor(
         // ローカルSQLiteへ直接反映する。
         applyGroupsLocally(channelID, groupsJson)
         _dbUpdateFlow.emit(Unit)
-        return Result.success(Unit)
+        return@serializeAuthenticatedRequest Result.success(Unit)
     }
 
     /**
@@ -478,7 +478,7 @@ class ChannelRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteChannel(channelID: String, providedUpdatedBy: String): Result<Unit> {
+    suspend fun deleteChannel(channelID: String, providedUpdatedBy: String): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val effectiveName = getEffectiveName(channelID, providedUpdatedBy)
         val csrf = sessionManager.getCsrf() ?: ""
         val response = apiService.channelDelete(
@@ -488,27 +488,27 @@ class ChannelRepository @Inject constructor(
             toPart(csrf)
         )
         if (!response.isSuccessful) {
-            return Result.failure(Exception("Network error: ${response.code()}"))
+            return@serializeAuthenticatedRequest Result.failure(Exception("Network error: ${response.code()}"))
         }
         val body = response.body()
-            ?: return Result.failure(Exception("サーバーから空の応答が返されました"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サーバーから空の応答が返されました"))
 
         sessionManager.applyResponseCsrf(csrf, body.csrf)
         body.pushContents?.forEach { pushDispatcher.receive(it) }
         _dbUpdateFlow.emit(Unit)
 
         if (!body.error.isNullOrBlank()) {
-            return Result.failure(Exception(body.error))
+            return@serializeAuthenticatedRequest Result.failure(Exception(body.error))
         }
-        return Result.success(Unit)
+        return@serializeAuthenticatedRequest Result.success(Unit)
     }
 
     /**
      * FCM トークンをサーバーへ登録し、所属チャネル一覧を同期する。
      * サインイン直後またはトークン更新時に呼ばれる。
      */
-    suspend fun registerPushToken(token: String, csrf: String): Result<Unit> {
-        return withContext(Dispatchers.IO) {
+    suspend fun registerPushToken(token: String, csrf: String): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
+        withContext(Dispatchers.IO) {
             try {
                 val response = generalApiService.subscribeMobilePush(token, csrf)
                 if (response.isSuccessful) {

@@ -14,6 +14,11 @@ import (
   "chat/collection"
 )
 
+// csrfRefreshHeader carries the session's current csrf into the error response
+// when a request is rejected for a stale token (see SessionCheckTake). It is read
+// and removed by WriteResponseWithoutSession, so it is never sent to clients.
+const csrfRefreshHeader = "X-Csrf-Refresh"
+
 func SessionGet(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
   var session collection.SessionStruct
 	sessionID, _, err := sessionIDFromRequest(r)
@@ -59,6 +64,12 @@ func SessionCheckTake(w http.ResponseWriter, r *http.Request, token string) (col
   }
 	if session.Csrf != token {
 		LogError("session.Csrf != token", nil)
+		// The client's csrf is stale (the server already rotated it). Record the
+		// session's current value so the error response can hand it back, letting
+		// the client resync instead of being stuck with a dead token. Native
+		// (Android) clients send requests concurrently and can race on the
+		// single-use, rotating csrf, so this is where they usually get stranded.
+		w.Header().Set(csrfRefreshHeader, session.Csrf)
 		return session, errors.New("SessionCheckTake token error")
 	}
 

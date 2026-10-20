@@ -9,6 +9,7 @@ object PushMentionMatcher {
         val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
         if (myname.isBlank()) return false
         if (message.contains("＠＠$myname・＠＠")) return true
+        if (message.contains("＠＠channel・＠＠")) return true
 
         return dbHelper.getGroupsForChannel(channelID).any { group ->
             val mentioned = message.contains("＠＠${group.groupName}・＠＠")

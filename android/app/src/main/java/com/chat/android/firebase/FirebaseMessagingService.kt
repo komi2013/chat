@@ -99,20 +99,36 @@ class FirebaseMessagingService : FirebaseMessagingService() {
     private fun notifyForMention(push: JSONArray) {
         val channelID = push.optString(2)
         val contents = push.optJSONArray(4) ?: return
+        val parentID = contents.optString(0)
         val messageID = contents.optString(1)
         val message = contents.optString(2)
+        val updatedBy = push.optString(3)
         if (channelID.isBlank() || messageID.isBlank()) return
 
         val db = ChannelDbHelper(this)
-        if (!PushMentionMatcher.mentionsCurrentUser(message, channelID, db)) return
+        val myname = db.getChannel(channelID)?.myname.orEmpty()
 
-        val author = contents.optString(7).ifBlank { push.optString(3) }
+        // DM 判定: parentID に @ が含まれ、自分がその一人であり、かつ自分が送信者でない場合
+        val isDm = parentID.contains('@')
+        val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
+
+        if (!isDmTarget && !PushMentionMatcher.mentionsCurrentUser(message, channelID, db)) return
+
+        val author = contents.optString(7).ifBlank { updatedBy }
+        val title = if (isDmTarget) "DM from $author" else "$author mentioned you"
         val body = message
             .replace(Regex("＠＠[^・＠]+・＠＠"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
             .take(120)
-            .ifBlank { "You were mentioned in a group" }
+            .ifBlank { if (isDmTarget) "New direct message" else "You were mentioned in a group" }
+        pushNotificationManager.showNotification(
+            title = title,
+            body = body,
+            channelId = channelID,
+            collapseKey = "mention|$messageID"
+        )
+    }
         pushNotificationManager.showNotification(
             title = "$author mentioned you",
             body = body,

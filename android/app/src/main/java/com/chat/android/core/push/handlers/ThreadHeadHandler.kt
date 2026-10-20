@@ -45,8 +45,13 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
         }
 
         var displayStatus = obj.optInt("displayStatus", 0)
+        val isDm = parentID.contains('@')
+        val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
+
         if (myname.isNotEmpty() && myname == updatedBy) {
             displayStatus = 1
+        } else if (isDmTarget) {
+            displayStatus = 2
         }
 
         val messageTxt = obj.optString("messageTxt", "") + imageAwareFileLinks(pd.rawJson.optJSONArray(5))

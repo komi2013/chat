@@ -118,6 +118,14 @@ class ThreadViewModel @Inject constructor(
         val existing = db.getThreadHead(parentID)
 
         if (existing != null) {
+            // DM の場合はタイトルを相手の名前に固定する（既存の保存タイトルより優先）
+            val displayTitle = if (isDm) {
+                val parts = parentID.split('@')
+                if (parts.size == 2) {
+                    if (parts[0] == myname) parts[1] else parts[0]
+                } else existing.title
+            } else existing.title
+
             // vue の EditBox: broadcastFlag が立っていれば管理者のみ投稿可
             val canPost = existing.broadcastFlag == 0 ||
                 existing.adminNamesJson.toNameList().contains(myname)
@@ -126,7 +134,7 @@ class ThreadViewModel @Inject constructor(
                 channelID = channelID,
                 parentID = parentID,
                 myname = myname,
-                title = existing.title,
+                title = displayTitle,
                 head = existing,
                 messages = db.getThreads(parentID),
                 canPost = canPost,

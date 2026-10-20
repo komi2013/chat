@@ -43,12 +43,12 @@ class ShiftStaffHandler(
             }
 
             // Acknowledge the push
-            val csrf = sessionManager.getCsrf()
-            if (csrf != null) {
-                val response = apiService.pushResponse(csrf, pd.pushID)
-                if (response.isSuccessful) {
-                    response.body()?.csrf?.let { newCsrf ->
-                        sessionManager.applyResponseCsrf(csrf, newCsrf)
+            sessionManager.serializeAuthenticatedRequest {
+                val csrf = sessionManager.getCsrf()
+                if (csrf != null) {
+                    val response = apiService.pushResponse(csrf, pd.pushID)
+                    if (response.isSuccessful) {
+                        sessionManager.applyResponseCsrf(csrf, response.body()?.csrf)
                     }
                 }
             }

@@ -80,48 +80,51 @@ class StoreSelectHandler(
             val channelDb = ChannelDbHelper(context)
             val channel = channelDb.getChannel(pd.channelID) ?: return
             val myname = channel.myname ?: "Unknown"
-            val csrf = sessionManager.getCsrf() ?: return
+            sessionManager.serializeAuthenticatedRequest {
+                val csrf = sessionManager.getCsrf() ?: return@serializeAuthenticatedRequest
 
-            val contents = JSONArray().apply {
-                put("calendar")
-                put(0) // save flag
-                put(calendarData)
-            }
-
-            val requestBody = contents.toString().toRequestBody("application/json".toMediaTypeOrNull())
-            val csrfBody = csrf.toRequestBody("text/plain".toMediaTypeOrNull())
-            val pushTitleBody = "storeShare".toRequestBody("text/plain".toMediaTypeOrNull())
-            val channelIDBody = pd.channelID.toRequestBody("text/plain".toMediaTypeOrNull())
-            val updatedByBody = myname.toRequestBody("text/plain".toMediaTypeOrNull())
-            val pushNamesBody = JSONArray().put(pd.updatedBy).toString().toRequestBody("application/json".toMediaTypeOrNull())
-
-            try {
-                val response = apiService.contentsJustPush(
-                    csrf = csrfBody,
-                    channelID = channelIDBody,
-                    updatedBy = updatedByBody,
-                    pushNames = pushNamesBody,
-                    contents = requestBody,
-                    pushTitle = pushTitleBody
-                )
-                if (response.isSuccessful) {
-                    Log.i("StoreSelectHandler", "Successfully sent storeShare to ${pd.updatedBy}")
-                    
-                    // Save log like Vue version
-                    val pushDb = com.chat.android.core.push.PushDatabaseHelper(context)
-                    val logID = pd.title + pd.channelID + pd.updatedBy + pd.contents.toString() + pd.pushID
-                    pushDb.saveLog(
-                        logID = logID,
-                        pushID = pd.pushID,
-                        pushTitle = pd.title,
-                        channelID = pd.channelID,
-                        updatedBy = pd.updatedBy
-                    )
-                } else {
-                    Log.e("StoreSelectHandler", "Failed to send storeShare: ${response.code()}")
+                val contents = JSONArray().apply {
+                    put("calendar")
+                    put(0) // save flag
+                    put(calendarData)
                 }
-            } catch (e: Exception) {
-                Log.e("StoreSelectHandler", "Error sending storeShare", e)
+
+                val requestBody = contents.toString().toRequestBody("application/json".toMediaTypeOrNull())
+                val csrfBody = csrf.toRequestBody("text/plain".toMediaTypeOrNull())
+                val pushTitleBody = "storeShare".toRequestBody("text/plain".toMediaTypeOrNull())
+                val channelIDBody = pd.channelID.toRequestBody("text/plain".toMediaTypeOrNull())
+                val updatedByBody = myname.toRequestBody("text/plain".toMediaTypeOrNull())
+                val pushNamesBody = JSONArray().put(pd.updatedBy).toString().toRequestBody("application/json".toMediaTypeOrNull())
+
+                try {
+                    val response = apiService.contentsJustPush(
+                        csrf = csrfBody,
+                        channelID = channelIDBody,
+                        updatedBy = updatedByBody,
+                        pushNames = pushNamesBody,
+                        contents = requestBody,
+                        pushTitle = pushTitleBody
+                    )
+                    if (response.isSuccessful) {
+                        sessionManager.applyResponseCsrf(csrf, response.body()?.csrf)
+                        Log.i("StoreSelectHandler", "Successfully sent storeShare to ${pd.updatedBy}")
+
+                        // Save log like Vue version
+                        val pushDb = com.chat.android.core.push.PushDatabaseHelper(context)
+                        val logID = pd.title + pd.channelID + pd.updatedBy + pd.contents.toString() + pd.pushID
+                        pushDb.saveLog(
+                            logID = logID,
+                            pushID = pd.pushID,
+                            pushTitle = pd.title,
+                            channelID = pd.channelID,
+                            updatedBy = pd.updatedBy
+                        )
+                    } else {
+                        Log.e("StoreSelectHandler", "Failed to send storeShare: ${response.code()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("StoreSelectHandler", "Error sending storeShare", e)
+                }
             }
         }
     }

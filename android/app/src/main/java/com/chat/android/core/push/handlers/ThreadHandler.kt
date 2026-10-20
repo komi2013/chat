@@ -58,7 +58,12 @@ class ThreadHandler(private val context: Context) : PushHandler {
             Log.i("ThreadHandler", "Upserted thread $messageID")
 
             // メンション判定と displayStatus 更新 (thread.js と同様)
-            val mention = PushMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper)
+            // DM の場合は自分以外からの投稿ならメンション扱いで displayStatus=2 とする。
+            val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
+            val isDm = parentID.contains('@')
+            val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
+
+            val mention = PushMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper) || isDmTarget
             val displayStatus = if (mention) 2 else 1
             dbHelper.getThreadHead(parentID)?.let { head ->
                 dbHelper.saveThreadHead(head.copy(displayStatus = displayStatus))
@@ -107,7 +112,10 @@ class ThreadHandler(private val context: Context) : PushHandler {
             Log.i("ThreadHandler", "Edited thread $messageID")
 
             // メンションチェックとブックマーク自動登録 (vue/src/pushReceive/threadEdit.js の後半部分)
-            val isMention = PushMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper)
+            val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
+            val isDm = parentID.contains('@')
+            val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
+            val isMention = PushMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper) || isDmTarget
             if (isMention) {
                 // displayStatus を 2 (メンション) に更新
                 dbHelper.getThreadHead(parentID)?.let { head ->

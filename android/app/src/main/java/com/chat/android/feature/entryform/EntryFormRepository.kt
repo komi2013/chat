@@ -94,21 +94,21 @@ class EntryFormRepository @Inject constructor(
         }.fold({ it to null }, { null to (it.message ?: "フォームJSONを読み込めませんでした") })
     }
 
-    private suspend fun sendPush(contents: String, pushTitle: String): String? {
+    private suspend fun sendPush(contents: String, pushTitle: String): String? = sessionManager.serializeAuthenticatedRequest {
         val csrf = (sessionManager.getCsrf() ?: preferences.getString("csrf", null))
             ?.takeIf(String::isNotBlank)
-            ?: return "サインインが必要です"
+            ?: return@serializeAuthenticatedRequest "サインインが必要です"
         val channelID = preferences.getString("channelID", null)
             ?.takeIf(String::isNotBlank)
-            ?: return "送信先チャネルが設定されていません"
+            ?: return@serializeAuthenticatedRequest "送信先チャネルが設定されていません"
         val updatedBy = (preferences.getString("entryFormUpdatedBy", null)
             ?: sessionManager.getNickname() ?: preferences.getString("nickname", null))
             ?.takeIf(String::isNotBlank)
-            ?: return "送信者名が設定されていません"
+            ?: return@serializeAuthenticatedRequest "送信者名が設定されていません"
         val pushNames = getPushNames().split(',').map(String::trim).filter(String::isNotBlank)
             .ifEmpty { listOf(updatedBy) }
 
-        return try {
+        try {
             val response = entryFormApiService.sendEntryFormPush(
                 pushNames = gson.toJson(pushNames).part(),
                 channelID = channelID.part(),
@@ -117,16 +117,16 @@ class EntryFormRepository @Inject constructor(
                 contents = contents.part(),
                 pushTitle = pushTitle.part()
             )
-            if (!response.isSuccessful) return "送信に失敗しました (${response.code()})"
-            val body = response.body() ?: return "サーバーから空の応答が返されました"
+            if (!response.isSuccessful) return@serializeAuthenticatedRequest "送信に失敗しました (${response.code()})"
+            val body = response.body() ?: return@serializeAuthenticatedRequest "サーバーから空の応答が返されました"
             // ContentsPush はセッション確認に成功していればエラー応答でも CSRF を回転させて
             // 返す（common/response.go の WriteResponseWithSession）。エラーで早期 return
             // する前に保存しないと、回転後の値を取りこぼして以降の API が失敗し続ける。
             sessionManager.applyResponseCsrf(csrf, body.csrf)?.let { rotatedCsrf ->
                 preferences.edit().putString("csrf", rotatedCsrf).apply()
             }
-            if (!body.error.isNullOrBlank()) return body.error
-            if (body.csrf.isNullOrBlank()) return "CSRFトークンを更新できませんでした"
+            if (!body.error.isNullOrBlank()) return@serializeAuthenticatedRequest body.error
+            if (body.csrf.isNullOrBlank()) return@serializeAuthenticatedRequest "CSRFトークンを更新できませんでした"
             null
         } catch (error: Exception) {
             error.message ?: "送信に失敗しました"

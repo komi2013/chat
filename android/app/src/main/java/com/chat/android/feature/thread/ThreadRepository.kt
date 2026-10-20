@@ -5,8 +5,6 @@ import com.chat.android.core.network.SessionManager
 import com.chat.android.core.push.PushReceiveDispatcher
 import com.chat.android.core.util.Base62
 import com.chat.android.feature.channel.DbThreadHead
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -53,9 +51,9 @@ class ThreadRepository @Inject constructor(
         notifyMessage: String? = null,
         notifyIcon: String? = null,
         files: List<ThreadFile> = emptyList()
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<Unit> = sessionManager.serializeAuthenticatedRequest {
         val csrf = sessionManager.getCsrf()?.takeIf { it.isNotBlank() }
-            ?: return@withContext Result.failure(Exception("サインインが必要です"))
+            ?: return@serializeAuthenticatedRequest Result.failure(Exception("サインインが必要です"))
 
         runCatching {
             // 添付は multipart の files[] として ContentsPush に同梱する（vue と同じ）
@@ -82,8 +80,9 @@ class ThreadRepository @Inject constructor(
             if (!response.isSuccessful) {
                 throw Exception("送信に失敗しました (${response.code()})")
             }
-            // CSRF は必ず回転するので保存する
-            body?.csrf?.takeIf { it.isNotBlank() }?.let { sessionManager.setCsrf(it) }
+            // CSRF は成功・エラーどちらの応答でも回転するが、送信値と異なる場合だけ反映する。
+            // 無条件に上書きすると、並行要求で更新された新しい値を古い値で潰してしまう。
+            sessionManager.applyResponseCsrf(csrf, body?.csrf)
             body?.error?.takeIf { it.isNotBlank() }?.let { throw Exception(it) }
             // 自分の投稿も push 経由でローカルへ反映する
             body?.pushContents?.forEach { pushDispatcher.receive(it) }

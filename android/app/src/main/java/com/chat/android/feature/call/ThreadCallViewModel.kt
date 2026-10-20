@@ -59,13 +59,16 @@ class ThreadCallViewModel @Inject constructor(
         started = true
         viewModelScope.launch {
             try {
-                val csrf = sessionManager.getCsrf()?.takeIf { it.isNotBlank() }
-                    ?: error("サインインが必要です")
-                val response = api.getWebRTCToken(csrf)
-                val body = response.body()
-                if (!response.isSuccessful) error("通話トークンを取得できません (${response.code()})")
-                val token = body?.token?.takeIf { it.isNotBlank() }
-                    ?: error(body?.error ?: "通話トークンを取得できません")
+                val token = sessionManager.serializeAuthenticatedRequest {
+                    val csrf = sessionManager.getCsrf()?.takeIf { it.isNotBlank() }
+                        ?: error("サインインが必要です")
+                    val response = api.getWebRTCToken(csrf)
+                    val body = response.body()
+                    if (!response.isSuccessful) error("通話トークンを取得できません (${response.code()})")
+                    sessionManager.applyResponseCsrf(csrf, body?.csrf)
+                    body?.token?.takeIf { it.isNotBlank() }
+                        ?: error(body?.error ?: "通話トークンを取得できません")
+                }
 
                 check(SkyWayContext.setup(context, token)) { "SkyWay に接続できません" }
 

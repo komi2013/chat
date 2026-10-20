@@ -15,6 +15,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
@@ -63,6 +66,23 @@ class SessionManager @Inject constructor(
     @Volatile private var cachedDeviceId: String? = null
     @Volatile private var cachedTo: String? = null
     @Volatile private var cachedLastChannelId: String? = null
+
+    // Guards the read-modify-write cycle of the rotating csrf across concurrent requests.
+    private val requestMutex = Mutex()
+
+    /**
+     * Runs an authenticated API call under a shared lock, on the IO dispatcher.
+     *
+     * The server rotates the csrf on every authenticated request (it is single-use),
+     * so "read csrf -> send -> adopt the csrf from the response" must not overlap.
+     * Native clients issue concurrent requests (UI actions plus background push
+     * handlers), which race on that token and surface as "SessionCheckTake token
+     * error". Routing every authenticated call through this mutex keeps them
+     * strictly sequential. Use `return@serializeAuthenticatedRequest` to bail out
+     * early from the block.
+     */
+    suspend fun <T> serializeAuthenticatedRequest(block: suspend () -> T): T =
+        requestMutex.withLock { withContext(Dispatchers.IO) { block() } }
 
     init {
         // We use runBlocking here because SessionManager is a Singleton initialized once at app start,
