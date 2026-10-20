@@ -28,6 +28,7 @@ type Config struct {
 	UploadDir       string
 	Domain          string
 	GoogleClientID  string
+	GoogleClientMobileID  string
 	EtherscanApiKey string
 	WebRTC          string
 	FirebaseProjectID      string
@@ -105,6 +106,7 @@ func loadFromEnv() *Config {
 		UploadDir:       os.Getenv("UPLOAD_DIR"),
 		Domain:          os.Getenv("DOMAIN"),
 		GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientMobileID:  os.Getenv("GOOGLE_CLIENT_MOBILE_ID"),
 		EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
 		WebRTC:          os.Getenv("WEB_RTC"),
 		FirebaseProjectID:      os.Getenv("FIREBASE_PROJECT_ID"),

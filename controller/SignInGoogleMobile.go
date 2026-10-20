@@ -4,204 +4,296 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"sort"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"chat/collection"
 	"chat/common"
 )
 
 func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("DEBUG: SignInGoogleMobile called from %s\n", r.RemoteAddr)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 
-	// In mobile, we trust the csrf form value.
+	userDB := common.DB.UserDB
+	sessionDB := common.DB.SessionDB
+
+	// Mobile CSRF form value.
 	formCsrf := r.FormValue("csrf")
 	if formCsrf == "" {
-		fmt.Printf("DEBUG: Missing CSRF in form\n")
 		http.Error(w, "missing csrf", http.StatusBadRequest)
 		return
 	}
 
-	// 端末識別子。クライアントが生成する UUIDv4 で、認証情報ではない
-	// （認証はサーバー生成の SessionID のみ）。同じ端末からの再ログイン時に
-	// 古いセッションを削除し、1端末1セッションに保つために使う。
-	deviceID := r.FormValue("deviceID")
+	// Device identifier is used only for session counting.
+	// It is not an authentication credential and does not cause
+	// any other sessions to be deleted.
+	deviceID := strings.TrimSpace(r.FormValue("deviceID"))
+	if len(deviceID) > 255 {
+		http.Error(w, "invalid deviceID", http.StatusBadRequest)
+		return
+	}
 
 	credential := r.FormValue("credential")
 	if credential == "" {
-		fmt.Printf("DEBUG: Missing credential in form\n")
 		http.Error(w, "missing credential", http.StatusBadRequest)
 		return
 	}
 
-	token, err := jwt.Parse(credential, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		kid, _ := token.Header["kid"].(string)
-		return getGooglePublicKey(kid)
-	})
-	if err != nil {
-		fmt.Printf("DEBUG: Token validation failed: %v\n", err)
+	// Validate using the MOBILE Google OAuth client ID.
+	expectedClientID := strings.TrimSpace(
+		os.Getenv("GOOGLE_CLIENT_MOBILE_ID"),
+	)
+	if expectedClientID == "" {
+		log.Printf("GOOGLE_CLIENT_MOBILE_ID is not configured")
+		http.Error(
+			w,
+			"Google mobile OAuth is not configured",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	// Verify Google ID token signature.
+	token, err := jwt.Parse(
+		credential,
+		func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, fmt.Errorf(
+					"unexpected signing method: %v",
+					token.Header["alg"],
+				)
+			}
+
+			kid, _ := token.Header["kid"].(string)
+			if kid == "" {
+				return nil, fmt.Errorf("missing key ID")
+			}
+
+			return getGooglePublicKey(kid)
+		},
+	)
+	if err != nil || token == nil || !token.Valid {
+		log.Printf("Google mobile token validation failed: %v", err)
 		http.Error(w, "invalid token", http.StatusUnauthorized)
 		return
 	}
 
-	claims, _ := token.Claims.(jwt.MapClaims)
-	googleSub := claims["sub"]
-	fmt.Printf("DEBUG: Google Sub: %v\n", googleSub)
-
-	collUser := common.DB.UserDB.Collection("user")
-	collSession := common.DB.SessionDB.Collection("session")
-
-	var user collection.UserStruct
-	err = collUser.FindOne(context.TODO(), bson.M{"googleJWTSub": googleSub}).Decode(&user)
-	if err != nil && err != mongo.ErrNoDocuments {
-		fmt.Printf("DEBUG: User lookup failed: %v\n", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "invalid token claims", http.StatusUnauthorized)
 		return
 	}
 
-	userID := user.UserID
-	if userID == "" {
-		userID, err = common.CountUpID("userID")
-		if err != nil {
-			fmt.Printf("DEBUG: CountUpID failed: %v\n", err)
-			http.Error(w, "cannot create user", http.StatusInternalServerError)
-			return
-		}
-		fmt.Printf("DEBUG: Generated new userID: %s\n", userID)
-	} else {
-		fmt.Printf("DEBUG: Found existing user: %s\n", userID)
+	// Require expiration.
+	if _, exists := claims["exp"]; !exists {
+		http.Error(
+			w,
+			"missing token expiration",
+			http.StatusUnauthorized,
+		)
+		return
 	}
 
-	_, err = collUser.UpdateOne(
-		context.TODO(),
-		bson.M{"googleJWTSub": googleSub},
-		bson.M{
-			"$set": bson.M{
-				"_id":          userID,
-				"googleJWTSub": googleSub,
-				"signedAt":     time.Now(),
-			},
-		},
-		options.Update().SetUpsert(true),
-	)
+	// Validate Google issuer.
+	issuer, _ := claims["iss"].(string)
+	if issuer != "https://accounts.google.com" &&
+		issuer != "accounts.google.com" {
+		http.Error(w, "invalid token issuer", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate the mobile OAuth audience.
+	if !googleMobileAudienceMatches(claims, expectedClientID) {
+		http.Error(
+			w,
+			"invalid Google mobile client ID",
+			http.StatusUnauthorized,
+		)
+		return
+	}
+
+	googleSub, ok := claims["sub"].(string)
+	if !ok || googleSub == "" {
+		http.Error(
+			w,
+			"missing Google subject",
+			http.StatusUnauthorized,
+		)
+		return
+	}
+
+	now := time.Now()
+
+	// Create a user or update the existing user's signed_at.
+	// PostgreSQL generates user_id through its identity column.
+	var userID int64
+	var mail, telephone string
+
+	err = userDB.QueryRowContext(ctx, `
+		INSERT INTO "user" (
+			google_jwt_sub,
+			signed_at
+		)
+		VALUES ($1, $2)
+		ON CONFLICT (google_jwt_sub)
+		DO UPDATE SET
+			signed_at = EXCLUDED.signed_at
+		RETURNING
+			user_id,
+			COALESCE(mail, ''),
+			COALESCE(telephone, '')
+	`,
+		googleSub,
+		now,
+	).Scan(&userID, &mail, &telephone)
 	if err != nil {
-		fmt.Printf("DEBUG: collUser.UpdateOne failed: %v\n", err)
+		log.Printf("Google mobile user upsert failed: %v", err)
 		http.Error(w, "user update fail", http.StatusInternalServerError)
 		return
 	}
 
-	// Fetch existing sessions
-	cursor, err := collSession.Find(context.TODO(), bson.M{"userID": userID})
-	var sessions []collection.SessionStruct
-	var tweetPosts []collection.TweetPost
-	var previousSession collection.SessionStruct
-	if err == nil {
-		if err := cursor.All(context.TODO(), &sessions); err == nil {
-			fmt.Printf("DEBUG: Found %d existing sessions for user %s\n", len(sessions), userID)
-			for _, s := range sessions {
-				tweetPosts = append(tweetPosts, s.TweetPosts...)
-			}
-			if len(sessions) > 0 {
-				sort.Slice(sessions, func(i, j int) bool {
-					return sessions[i].UpdatedAt.After(sessions[j].UpdatedAt)
-				})
-				previousSession = sessions[0]
-			}
-		}
-	} else {
-		fmt.Printf("DEBUG: collSession.Find error (non-fatal): %v\n", err)
+	// Create a new server-generated session ID and CSRF token.
+	sessionID, err := randomToken()
+	if err != nil {
+		log.Printf("session ID generation failed: %v", err)
+		http.Error(
+			w,
+			"cannot create session",
+			http.StatusInternalServerError,
+		)
+		return
 	}
 
-	newSession := collection.SessionStruct{
-		SessionID:      common.StringRand(16),
-		Csrf:           common.StringRand(16),
-		UserID:         userID,
-		DeviceID:       deviceID,
-		// Native app login. The FCM token is registered right after sign-in
-		// via PushSubscribeMobile, which sets deviceType 2.
-		DeviceType:     2,
-		Nickname:       previousSession.Nickname,
-		NickImg:        previousSession.NickImg,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-		ChannelAliases: user.ChannelAliases,
-		Mail:           user.Mail,
-		Telephone:      user.Telephone,
-		TweetPosts:     tweetPosts,
-		PushContents:   []string{},
+	csrf, err := randomToken()
+	if err != nil {
+		log.Printf("session CSRF generation failed: %v", err)
+		http.Error(
+			w,
+			"cannot create session",
+			http.StatusInternalServerError,
+		)
+		return
 	}
 
-	fmt.Printf("DEBUG: Attempting to insert new session ID: %s\n", newSession.SessionID)
-
-	// 同じ端末（deviceID）の古いセッションを削除する。1端末1セッションに保つことで、
-	// 同一FCMトークンが複数セッションに残って同一端末へ重複PUSHが届くのを防ぐ。
+	// Native app login.
+	// PushSubscribeMobile registers the FCM token separately after login.
+	// Do not copy a push token from another session or device.
 	//
-	// 注意: この削除は **新セッションの InsertOne より前** に実行すること。
-	// 従来は InsertOne の後に実行しており、フィルタ {userID, deviceID} が
-	// たった今 Insert した新セッションにも一致してしまいます。その結果、
-	// サーバーが発行直後に自分のセッションを削除し、クライアントが保持する
-	// sessionId が Mongo に存在しない状態になっていた。
-	// そのため続く UserGet が SessionCheckTake で
-	// "mongo: no documents in result;Session Check" になり、
-	// モバイルのログインが常に壊れていた（Web はこの削除を行わないため正常）。
-	if deviceID != "" {
-		result, err := collSession.DeleteMany(context.TODO(), bson.M{
-			"userID":   userID,
-			"deviceID": deviceID,
-		})
-		if err != nil {
-			fmt.Printf("DEBUG: Failed to delete previous sessions of device %s: %v\n", deviceID, err)
-		} else {
-			fmt.Printf("DEBUG: Deleted %d previous session(s) of device %s\n", result.DeletedCount, deviceID)
-		}
+	// device_id is stored only as a session-counting identifier.
+	// An empty deviceID is stored as NULL.
+	_, err = sessionDB.ExecContext(ctx, `
+		INSERT INTO "session" (
+			session_id,
+			user_id,
+			device_id,
+			created_at,
+			updated_at,
+			push_token,
+			device_type,
+			csrf,
+			push_contents,
+			mail,
+			telephone
+		)
+		VALUES (
+			$1,
+			$2,
+			NULLIF($3::VARCHAR, ''),
+			$4,
+			$4,
+			NULL,
+			2,
+			$5,
+			ARRAY[]::TEXT[],
+			$6,
+			$7
+		)
+	`,
+		sessionID,
+		userID,
+		deviceID,
+		now,
+		csrf,
+		mail,
+		telephone,
+	)
+	if err != nil {
+		log.Printf("Google mobile session insert failed: %v", err)
+		http.Error(
+			w,
+			"cannot create session",
+			http.StatusInternalServerError,
+		)
+		return
 	}
 
-	// Preserve cookie authentication for clients that still use it.
+	// Keep cookie authentication for clients that still use it.
+	// This cookie is separate from deviceID.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "ss",
-		Value:    newSession.SessionID,
+		Value:    sessionID,
 		MaxAge:   2592000,
 		Secure:   true,
 		HttpOnly: true,
 		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
 	})
 
-	_, err = collSession.InsertOne(context.TODO(), newSession)
+	// Remove sessions older than one month.
+	// Cleanup errors are logged but do not invalidate the new session.
+	_, err = sessionDB.ExecContext(ctx, `
+		DELETE FROM "session"
+		WHERE user_id = $1
+		  AND updated_at < $2
+	`,
+		userID,
+		now.AddDate(0, -1, 0),
+	)
 	if err != nil {
-		errorMsg := fmt.Sprintf("cannot create session: %v", err)
-		fmt.Printf("DEBUG: CRITICAL - %s\n", errorMsg)
-		http.Error(w, errorMsg, http.StatusInternalServerError)
-		return
+		log.Printf("expired session cleanup failed: %v", err)
 	}
 
-	fmt.Printf("DEBUG: Session created successfully for user %s\n", userID)
-
-	// Clean up old sessions
-	if len(sessions) >= 5 {
-		sort.Slice(sessions, func(i, j int) bool {
-			return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
-		})
-		deleteCount := len(sessions) - 4
-		for i := 0; i < deleteCount; i++ {
-			_, err := collSession.DeleteOne(context.TODO(), bson.M{"_id": sessions[i].SessionID})
-			if err != nil {
-				fmt.Printf("DEBUG: Failed to delete old session %s: %v\n", sessions[i].SessionID, err)
-			}
-		}
+	// Keep at most five sessions per user.
+	// Always retain the newly created session.
+	// This limit is per user, not per device.
+	_, err = sessionDB.ExecContext(ctx, `
+		DELETE FROM "session"
+		WHERE user_id = $1
+		  AND session_id NOT IN (
+			  SELECT session_id
+			  FROM "session"
+			  WHERE user_id = $1
+			  ORDER BY
+				  (session_id = $2) DESC,
+				  updated_at DESC NULLS LAST,
+				  created_at DESC NULLS LAST
+			  LIMIT 5
+		  )
+	`,
+		userID,
+		sessionID,
+	)
+	if err != nil {
+		log.Printf("session retention cleanup failed: %v", err)
 	}
+
+	log.Printf(
+		"Google mobile session created: user_id=%d",
+		userID,
+	)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Session-Token", newSession.SessionID)
-	json.NewEncoder(w).Encode(struct {
+	w.Header().Set("X-Session-Token", sessionID)
+
+	// Keep userId as a string and nickname as an empty string for
+	// compatibility with clients expecting the previous JSON fields.
+	// The database user_id itself is numeric.
+	response := struct {
 		Success   bool   `json:"success"`
 		Csrf      string `json:"csrf"`
 		SessionID string `json:"sessionId"`
@@ -210,10 +302,47 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		Message   string `json:"message"`
 	}{
 		Success:   true,
-		Csrf:      newSession.Csrf,
-		SessionID: newSession.SessionID,
-		UserID:    userID,
-		Nickname:  newSession.Nickname,
+		Csrf:      csrf,
+		SessionID: sessionID,
+		UserID:    fmt.Sprintf("%d", userID),
+		Nickname:  "",
 		Message:   "Success",
-	})
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Google mobile response encoding failed: %v", err)
+	}
+}
+
+// Validate the mobile Google OAuth audience.
+// Google JWT aud can be either a string or an array.
+func googleMobileAudienceMatches(
+	claims jwt.MapClaims,
+	expectedClientID string,
+) bool {
+	if expectedClientID == "" {
+		return false
+	}
+
+	switch aud := claims["aud"].(type) {
+	case string:
+		return aud == expectedClientID
+
+	case []interface{}:
+		for _, item := range aud {
+			if value, ok := item.(string); ok &&
+				value == expectedClientID {
+				return true
+			}
+		}
+
+	case []string:
+		for _, value := range aud {
+			if value == expectedClientID {
+				return true
+			}
+		}
+	}
+
+	return false
 }

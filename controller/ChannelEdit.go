@@ -2,433 +2,370 @@ package controller
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	// "log"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/lib/pq"
 
-	"chat/common"
 	"chat/collection"
+	"chat/common"
 )
 
 func ChannelEdit(w http.ResponseWriter, r *http.Request) {
-	var (
-		pushNames     []string
-		contents      interface{}
-		deleteAliases []string
-	)
-
-	if err := json.Unmarshal([]byte(r.FormValue("pushNames")), &pushNames); r.FormValue("pushNames") != "" && err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "pushNames JSON Unmarshal Error", http.StatusOK)
-		return
-	}
-	if err := json.Unmarshal([]byte(r.FormValue("contents")), &contents); r.FormValue("contents") != "" && err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "contents JSON Unmarshal Error", http.StatusOK)
-		return
-	}
-	if err := json.Unmarshal([]byte(r.FormValue("deleteAliases")), &deleteAliases); r.FormValue("deleteAliases") != "" && err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "deleteAliases JSON Unmarshal Error", http.StatusOK)
-		return
-	}
-
-	var admin collection.Alias
-	if err := json.Unmarshal([]byte(r.FormValue("admin")), &admin); r.FormValue("admin") != "" && err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "admin JSON Unmarshal Error", http.StatusOK)
-		return
-	}
-
-	var diffGroups []collection.Group
-	if err := json.Unmarshal([]byte(r.FormValue("groups")), &diffGroups); r.FormValue("groups") != "" && err != nil {
-    common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "groups JSON Unmarshal Error", http.StatusOK)
-    return
-	}
-
-
-	channelID := r.FormValue("channelID")
-	channelName := r.FormValue("channelName")
-	channelDescription := r.FormValue("channelDescription")
-	channelDescription = common.SanitizeRichText(channelDescription)
-	updatedBy := r.FormValue("updatedBy")
-	guest := r.FormValue("guest") != ""
-	csrf := r.FormValue("csrf")
-	generateInvitation := r.FormValue("generateInvitation") != ""
-
-	session, err := common.SessionCheckTake(w, r, csrf)
-	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+"session check some error", http.StatusOK)
-		return
-	}
-
-	trueAccess := false
-	for _, d := range session.ChannelAliases {
-		if d.Alias == updatedBy && d.ChannelID == channelID && !d.GuestFlag {
-			trueAccess = true
-			break
-		}
-	}
-	if !trueAccess {
-		common.WriteResponseWithSession(w, session, "ChannelAliases !trueAccess", http.StatusOK)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	coll := common.DB.ChannelDB.Collection("channel")
-	filter := bson.M{"_id": channelID}
-	var channel collection.ChannelStruct
-	err = coll.FindOne(ctx, filter).Decode(&channel)
+	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+"Channel not found", http.StatusOK)
+		common.WriteResponseWithoutSession(
+			w, r.FormValue("csrf"), "Session Error", http.StatusOK,
+		)
 		return
 	}
 
-	// ======== PushNamesからPush対象ユーザーを抽出 ========
-	uniqueIDs := make(map[string]struct{})
-	var pushUserIDs []string
-	pushNameSet := make(map[string]struct{}, len(pushNames))
-	for _, name := range pushNames {
-		pushNameSet[name] = struct{}{}
-	}
-	for _, alias := range channel.Aliases {
-		if _, ok := pushNameSet[alias.AliasName]; ok {
-			if _, exists := uniqueIDs[alias.UserID]; !exists {
-				uniqueIDs[alias.UserID] = struct{}{}
-				pushUserIDs = append(pushUserIDs, alias.UserID)
-			}
-		}
+	channelID, err := parseChannelID(r)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		return
 	}
 
-	// ======== collSession.Find() はここで1回のみ実行 ========
-	var allSessions []collection.SessionStruct
-	if len(pushUserIDs) > 0 {
-		collSession := common.DB.SessionDB.Collection("session")
-		cursor, err := collSession.Find(ctx, bson.M{"userID": bson.M{"$in": pushUserIDs}})
-		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+"Push session fetch error", http.StatusOK)
-			return
-		}
-		if err := cursor.All(ctx, &allSessions); err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+"Session decode error", http.StatusOK)
-			return
-		}
+	updatedBy := r.FormValue("updatedBy")
+	channelName := r.FormValue("channelName")
+	channelDescription := common.SanitizeRichText(
+		r.FormValue("channelDescription"),
+	)
+	generateInvitation := r.FormValue("generateInvitation") != ""
+	guest := r.FormValue("guest") != ""
+
+	if common.DB == nil ||
+		common.DB.ChannelDB == nil ||
+		common.DB.AliasDB == nil ||
+		common.DB.SessionDB == nil {
+		common.WriteResponseWithSession(
+			w, session, "database is not initialized", http.StatusOK,
+		)
+		return
 	}
 
-	aliasUpdateAdmins := make([]collection.Alias, len(channel.Aliases))
-	updateFields := bson.M{}
+	// Channel metadata and invitation codes require an admin alias.
+	accessRight, err := channelActorAccess(
+		ctx, channelID, session.UserID, updatedBy,
+	)
+	if err != nil {
+		common.WriteResponseWithSession(
+			w, session, err.Error()+"; alias authorization error", http.StatusOK,
+		)
+		return
+	}
+	if accessRight != 1 {
+		common.WriteResponseWithSession(
+			w, session, "Admin access required", http.StatusOK,
+		)
+		return
+	}
 
-	if channelName != "" {
-		updateFields["channelName"] = channelName
+	pushNames, err := parsePushNames(r)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
+		return
 	}
-	if channelDescription != "" {
-		updateFields["channelDescription"] = channelDescription
-	}
+
+	now := time.Now()
+	invitationCode := ""
+	invitationGuestCode := ""
 
 	if generateInvitation {
 		if guest {
-			channel.InvitationGuestCode = common.StringRand(20)
-			updateFields["invitationGuestCode"] = channel.InvitationGuestCode
+			invitationGuestCode = common.StringRand(20)
 		} else {
-			channel.InvitationCode = common.StringRand(16)
-			updateFields["invitationCode"] = channel.InvitationCode
+			invitationCode = common.StringRand(16)
 		}
-		updateFields["invitedAt"] = time.Now()
 	}
 
-	// existing := channel.Groups
-	groupMap := make(map[string]collection.Group)
-	for _, g := range channel.Groups {
-		groupMap[g.GroupName] = g
-	}
-
-	for i := range diffGroups {
-    g := &diffGroups[i]
-    if g.AliasNames == nil {
-      delete(groupMap, g.GroupName)
-      continue
-    }
-    imgPath, err := common.ImgSave(g.GroupImg, session.UserID, updatedBy, channelID, 4, 2)
-    if err != nil {
-      common.WriteResponseWithSession(w, session, err.Error()+";imgPath", http.StatusOK)
-      return
-    }
-    g.GroupImg = imgPath
-    groupMap[g.GroupName] = *g
-	}
-
-	newGroups := make([]collection.Group, 0, len(groupMap))
-	for _, g := range groupMap {
-		newGroups = append(newGroups, g)
-	}
-
-	updateFields["groups"] = newGroups
-
-	// if len(groups) > 0 {
- //    updateFields["groups"] = groups
-	// }
-
-	// ======== deleteAliases処理（別UserIDリストを使う） ========
-	if len(deleteAliases) > 0 {
-		newAliases := make([]collection.Alias, 0, len(channel.Aliases))
-		deleteUserIDs := make([]string, 0)
-
-		// 削除対象エイリアスのUserID収集と新しいAliases作成
-		for _, a := range channel.Aliases {
-			shouldDelete := false
-			for _, del := range deleteAliases {
-				if a.AliasName == del {
-					shouldDelete = true
-					deleteUserIDs = append(deleteUserIDs, a.UserID)
-					break
-				}
-			}
-			if !shouldDelete {
-				newAliases = append(newAliases, a)
-			}
-		}
-		updateFields["aliases"] = newAliases
-
-		// ======== remove empty groups after alias deletion ========
-		if len(channel.Groups) > 0 {
-		    updatedGroups := make([]collection.Group, 0, len(channel.Groups))
-		    for _, g := range channel.Groups {
-		        // remove deleted aliases from each group
-		        filteredMembers := []string{}
-		        for _, aliasName := range g.AliasNames {
-		            remove := false
-		            for _, del := range deleteAliases {
-		                if aliasName == del {
-		                    remove = true
-		                    break
-		                }
-		            }
-		            if !remove {
-		                filteredMembers = append(filteredMembers, aliasName)
-		            }
-		        }
-		        // if group has no members left, skip (delete group)
-		        if len(filteredMembers) == 0 {
-		            continue
-		        }
-		        g.AliasNames = filteredMembers
-		        updatedGroups = append(updatedGroups, g)
-		    }
-		    updateFields["groups"] = updatedGroups
-		}
-
-		// ======== すでに取得したallSessionsから対象ユーザーを抽出 ========
-		deleteSessions := make([]collection.SessionStruct, 0)
-		for _, s := range allSessions {
-			for _, id := range deleteUserIDs {
-				if s.UserID == id {
-					deleteSessions = append(deleteSessions, s)
-					break
-				}
-			}
-		}
-
-		collSession := common.DB.SessionDB.Collection("session")
-		for _, s := range deleteSessions {
-			newChannelAliases := make([]collection.ChannelAlias, 0)
-			channelAliasCount := 0
-			for _, ca := range s.ChannelAliases {
-				if ca.ChannelID == channelID {
-					channelAliasCount++
-				}
-			}
-
-			for _, ca := range s.ChannelAliases {
-				if ca.ChannelID != channelID {
-					newChannelAliases = append(newChannelAliases, ca)
-					continue
-				}
-				if channelAliasCount > 1 {
-					shouldDelete := false
-					for _, del := range deleteAliases {
-						if ca.Alias == del {
-							shouldDelete = true
-							break
-						}
-					}
-					if !shouldDelete {
-						newChannelAliases = append(newChannelAliases, ca)
-					}
-				}
-			}
-
-			_, err := collSession.UpdateOne(
-				ctx,
-				bson.M{"_id": s.SessionID},
-				bson.M{"$set": bson.M{
-					"channelAliases": newChannelAliases,
-					"updatedAt":      time.Now(),
-				}},
-			)
-			if err != nil {
-				common.WriteResponseWithSession(w, session, err.Error()+": Session update error", http.StatusOK)
-				return
-			}
-		}
-
-		// ======== ユーザー削除も同様に更新 ========
-		collUser := common.DB.UserDB.Collection("user")
-		cursor, err := collUser.Find(ctx, bson.M{"_id": bson.M{"$in": deleteUserIDs}})
-		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+":User find error", http.StatusOK)
-			return
-		}
-		var users []collection.UserStruct
-		if err := cursor.All(ctx, &users); err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+":User decode error", http.StatusOK)
-			return
-		}
-		for _, u := range users {
-			filteredAliases := make([]collection.ChannelAlias, 0)
-			for _, alias := range u.ChannelAliases {
-				if alias.ChannelID != channelID {
-					filteredAliases = append(filteredAliases, alias)
-				}
-			}
-			update := bson.M{
-				"$set": bson.M{
-					"channelAliases": filteredAliases,
-					"updatedAt":      time.Now(),
-				},
-			}
-			_, err := collUser.UpdateOne(ctx, bson.M{"_id": u.UserID}, update)
-			if err != nil {
-				common.WriteResponseWithSession(w, session, err.Error()+":User update error", http.StatusOK)
-				return
-			}
-		}
-	} else if r.FormValue("admin") != "" {
-		// Alias image uploads arrive as data:image/... values. Store the file and
-		// persist only its public path, matching ChannelAdd and ChannelJoin.
-		admin.AliasImg, err = common.ImgSave(admin.AliasImg, session.UserID, admin.AliasName, channelID, 3, 1)
-		if err != nil {
-			common.WriteResponseWithSession(w, session, err.Error()+";aliasImg", http.StatusOK)
-			return
-		}
-		copy(aliasUpdateAdmins, channel.Aliases)
-		updated := false
-		for i, a := range aliasUpdateAdmins {
-			if a.AliasName == admin.AliasName {
-				aliasUpdateAdmins[i] = admin
-				updated = true
-				break
-			}
-		}
-		if !updated {
-			aliasUpdateAdmins = append(aliasUpdateAdmins, admin)
-		}
-		updateFields["aliases"] = aliasUpdateAdmins
-	}
-
-	update := bson.M{"$set": updateFields}
-	opts := options.Update().SetUpsert(false)
-	_, err = coll.UpdateOne(ctx, filter, update, opts)
+	// channel.updated_by stores the alias name. invited_by stores user_id.
+	result, err := common.DB.ChannelDB.ExecContext(
+		ctx,
+		`
+		UPDATE channel
+		SET
+			channel_name = CASE
+				WHEN $2 <> '' THEN $2 ELSE channel_name
+			END,
+			channel_description = CASE
+				WHEN $3 <> '' THEN $3 ELSE channel_description
+			END,
+			updated_by = $4,
+			updated_at = $5,
+			invitation_code = CASE
+				WHEN $6 AND NOT $7 THEN $8 ELSE invitation_code
+			END,
+			invitation_guest_code = CASE
+				WHEN $6 AND $7 THEN $9 ELSE invitation_guest_code
+			END,
+			invited_at = CASE
+				WHEN $6 THEN $5 ELSE invited_at
+			END,
+			invited_by = CASE
+				WHEN $6 THEN $10 ELSE invited_by
+			END
+		WHERE channel_id = $1
+		`,
+		channelID,
+		channelName,
+		channelDescription,
+		updatedBy,
+		now,
+		generateInvitation,
+		guest,
+		invitationCode,
+		invitationGuestCode,
+		session.UserID,
+	)
 	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error()+"Failed to update channel", http.StatusOK)
+		common.WriteResponseWithSession(
+			w, session, err.Error()+"; channel update error", http.StatusOK,
+		)
 		return
 	}
 
-	// ======== Push通知処理 ========
-	channelArr := []interface{}{
-		"channelEdit",
-		channelID,
-		updatedBy,
-		[]string{channelName, channelDescription},
-	}
-	if channelName != "" {
-		common.ChunkPush(allSessions, channelArr)
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		common.WriteResponseWithSession(
+			w, session, "Channel not found or not updated", http.StatusOK,
+		)
+		return
 	}
 
-	for _, aliasName := range deleteAliases {
-		aliasData := []interface{}{"", aliasName, "", "delete"}
-		aliasPushArray := []interface{}{"alias", channelID, updatedBy, aliasData, ""}
-		common.ChunkPush(allSessions, aliasPushArray)
-		for _, s := range allSessions {
-			aliasCount := 0
-			hasDeletingAlias := false
-			for _, chAlias := range s.ChannelAliases {
-				if chAlias.ChannelID == channelID {
-					aliasCount++
-					if chAlias.Alias == aliasName {
-						hasDeletingAlias = true
-					}
-				}
-			}
-			if aliasCount == 1 && hasDeletingAlias {
-				channelPushArray := []interface{}{
-					"channelEdit", // pushTitle
-					channelID,     // channelID
-					updatedBy,     // updatedBy
-					"delete",      // contents
-				}
-				common.ChunkPush([]collection.SessionStruct{s}, channelPushArray)
-			}
+	// Notify clients only when channel metadata changed.
+	if channelName != "" || channelDescription != "" {
+		sessions, err := loadSessionsForAliasNames(ctx, channelID, pushNames)
+		if err != nil {
+			common.WriteResponseWithSession(
+				w, session, err.Error()+"; session lookup error", http.StatusOK,
+			)
+			return
 		}
-	}
 
-	if r.FormValue("admin") != "" {
-		aliasData := []interface{}{
-			admin.UserID,
-			admin.AliasName,
-			admin.AliasBio,
-			admin.AccessRight,
-		}
-		aliasPushArray := []interface{}{
-			"alias",
+		payload := []interface{}{
+			"channelEdit",
 			channelID,
 			updatedBy,
-			aliasData,
-			admin.AliasImg,
+			[]string{channelName, channelDescription},
 		}
-		common.ChunkPush(allSessions, aliasPushArray)
-	}
 
-	if r.FormValue("groups") != "" {
-		for _, g := range diffGroups {
-			groupPushArray := []interface{}{
-				"group",
-				channelID,
-				updatedBy,
-				[]interface{}{
-					g.GroupName,
-					g.AliasNames,
-				},
-				g.GroupImg,
-			}
-			common.ChunkPush(allSessions, groupPushArray)
+		if err := common.ChunkPush(sessions, payload); err != nil {
+			common.WriteResponseWithSession(
+				w, session, err.Error()+"; push content save error", http.StatusOK,
+			)
+			return
 		}
 	}
-
-	safeChannel := sanitizeChannel(channel)
 
 	responseData := struct {
-		Csrf         string                    `json:"csrf"`
-		Channel      collection.ChannelStruct `json:"channel"`
-		PushContents []string                  `json:"pushContents"`
+		Csrf               string `json:"csrf"`
+		ChannelID          int64  `json:"channelID"`
+		ChannelName        string `json:"channelName,omitempty"`
+		ChannelDescription string `json:"channelDescription,omitempty"`
+		InvitationCode     string `json:"invitationCode,omitempty"`
+		InvitationGuestCode string `json:"invitationGuestCode,omitempty"`
 	}{
-		Csrf:         session.Csrf,
-		Channel:      safeChannel,
-		PushContents: session.PushContents,
+		Csrf:                session.Csrf,
+		ChannelID:           channelID,
+		ChannelName:         channelName,
+		ChannelDescription:  channelDescription,
+		InvitationCode:      invitationCode,
+		InvitationGuestCode: invitationGuestCode,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
+	_ = json.NewEncoder(w).Encode(responseData)
 }
 
-func sanitizeChannel(channel collection.ChannelStruct) collection.ChannelStruct {
-	safe := channel
-	safeAliases := make([]collection.Alias, 0, len(channel.Aliases))
-	for _, a := range channel.Aliases {
-		a.UserID = "" // ★ UserIDはレスポンスでは返さない
-		safeAliases = append(safeAliases, a)
+func parseChannelID(r *http.Request) (int64, error) {
+	id, err := strconv.ParseInt(r.FormValue("channelID"), 10, 64)
+	if err != nil || id <= 0 {
+		return 0, fmt.Errorf("invalid channelID")
 	}
-	safe.Aliases = safeAliases
-	return safe
+	return id, nil
+}
+
+func parsePushNames(r *http.Request) ([]string, error) {
+	value := r.FormValue("pushNames")
+	if value == "" {
+		return nil, nil
+	}
+
+	var names []string
+	if err := json.Unmarshal([]byte(value), &names); err != nil {
+		return nil, fmt.Errorf("pushNames JSON unmarshal: %w", err)
+	}
+	return names, nil
+}
+
+// channelActorAccess verifies that updatedBy is an alias owned by the
+// authenticated user in this channel.
+func channelActorAccess(
+	ctx context.Context,
+	channelID int64,
+	userID int64,
+	updatedBy string,
+) (int16, error) {
+	var accessRight int16
+
+	err := common.DB.AliasDB.QueryRowContext(
+		ctx,
+		`
+		SELECT access_right
+		FROM alias
+		WHERE channel_id = $1
+		  AND user_id = $2
+		  AND alias_name = $3
+		`,
+		channelID,
+		userID,
+		updatedBy,
+	).Scan(&accessRight)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("alias not found or does not belong to current user")
+		}
+		return 0, err
+	}
+
+	if accessRight < 0 || accessRight > 2 {
+		return 0, fmt.Errorf("invalid alias access_right")
+	}
+
+	return accessRight, nil
+}
+
+// loadSessionsForUserIDs fetches sessions through SessionDB.
+// No JOIN to UserDB or AliasDB is needed.
+func loadSessionsForUserIDs(
+	ctx context.Context,
+	userIDs []int64,
+) ([]collection.SessionStruct, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := common.DB.SessionDB.QueryContext(
+		ctx,
+		`
+		SELECT
+			session_id,
+			user_id,
+			COALESCE(device_id, ''),
+			COALESCE(created_at, NOW()),
+			COALESCE(updated_at, NOW()),
+			COALESCE(push_token, ''),
+			COALESCE(device_type, 0),
+			COALESCE(csrf, ''),
+			COALESCE(push_contents, ARRAY[]::TEXT[]),
+			COALESCE(mail, ''),
+			COALESCE(telephone, '')
+		FROM "session"
+		WHERE user_id = ANY($1::BIGINT[])
+		ORDER BY updated_at ASC
+		`,
+		pq.Array(userIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []collection.SessionStruct
+
+	for rows.Next() {
+		var s collection.SessionStruct
+		var pushContents pq.StringArray
+
+		if err := rows.Scan(
+			&s.SessionID,
+			&s.UserID,
+			&s.DeviceID,
+			&s.CreatedAt,
+			&s.UpdatedAt,
+			&s.PushToken,
+			&s.DeviceType,
+			&s.Csrf,
+			&pushContents,
+			&s.Mail,
+			&s.Telephone,
+		); err != nil {
+			return nil, err
+		}
+
+		s.PushContents = []string(pushContents)
+		sessions = append(sessions, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return sessions, nil
+}
+
+// loadSessionsForAliasNames finds distinct users through AliasDB, then loads
+// their sessions through SessionDB. An empty names list means all channel users.
+func loadSessionsForAliasNames(
+	ctx context.Context,
+	channelID int64,
+	names []string,
+) ([]collection.SessionStruct, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	if len(names) == 0 {
+		rows, err = common.DB.AliasDB.QueryContext(
+			ctx,
+			`
+			SELECT DISTINCT user_id
+			FROM alias
+			WHERE channel_id = $1 AND user_id IS NOT NULL
+			`,
+			channelID,
+		)
+	} else {
+		rows, err = common.DB.AliasDB.QueryContext(
+			ctx,
+			`
+			SELECT DISTINCT user_id
+			FROM alias
+			WHERE channel_id = $1
+			  AND user_id IS NOT NULL
+			  AND alias_name::text = ANY($2::text[])
+			`,
+			channelID,
+			pq.Array(names),
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var userIDs []int64
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	rowsErr := rows.Err()
+	_ = rows.Close()
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+
+	return loadSessionsForUserIDs(ctx, userIDs)
 }
