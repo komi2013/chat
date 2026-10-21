@@ -186,7 +186,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("DEBUG: Session created successfully for user %s\n", userID)
 
 	// Clean up old sessions
-	if len(sessions) >= 5 {
+	if len(sessions) >= 10 {
 		sort.Slice(sessions, func(i, j int) bool {
 			return sessions[i].UpdatedAt.Before(sessions[j].UpdatedAt)
 		})

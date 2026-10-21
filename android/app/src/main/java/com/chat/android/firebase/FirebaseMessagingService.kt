@@ -16,7 +16,7 @@ import org.json.JSONArray
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class FirebaseMessagingService : FirebaseMessagingService() {
+class FirebaseMessagingService : com.google.firebase.messaging.FirebaseMessagingService() {
     
     @Inject
     lateinit var pushNotificationManager: PushNotificationManager
@@ -124,13 +124,6 @@ class FirebaseMessagingService : FirebaseMessagingService() {
             .ifBlank { if (isDmTarget) "New direct message" else "You were mentioned in a group" }
         pushNotificationManager.showNotification(
             title = title,
-            body = body,
-            channelId = channelID,
-            collapseKey = "mention|$messageID"
-        )
-    }
-        pushNotificationManager.showNotification(
-            title = "$author mentioned you",
             body = body,
             channelId = channelID,
             collapseKey = "mention|$messageID"
