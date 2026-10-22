@@ -3,7 +3,6 @@ package com.chat.android.core.push.handlers
 import android.content.Context
 import android.util.Log
 import com.chat.android.core.push.PushData
-import com.chat.android.core.push.PushMentionMatcher
 import com.chat.android.core.push.PushHandler
 import com.chat.android.core.util.Base62
 import com.chat.android.core.util.formatThreadTime
@@ -63,7 +62,7 @@ class ThreadHandler(private val context: Context) : PushHandler {
             val isDm = parentID.contains('@')
             val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
 
-            val mention = PushMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper) || isDmTarget
+            val mention = ThreadMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper) || isDmTarget
             val displayStatus = if (mention) 2 else 1
             dbHelper.getThreadHead(parentID)?.let { head ->
                 dbHelper.saveThreadHead(head.copy(displayStatus = displayStatus))
@@ -115,7 +114,7 @@ class ThreadHandler(private val context: Context) : PushHandler {
             val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
             val isDm = parentID.contains('@')
             val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
-            val isMention = PushMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper) || isDmTarget
+            val isMention = ThreadMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper) || isDmTarget
             if (isMention) {
                 // displayStatus を 2 (メンション) に更新
                 dbHelper.getThreadHead(parentID)?.let { head ->

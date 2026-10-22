@@ -5,7 +5,7 @@ import android.net.Uri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.chat.android.core.push.PushReceiveDispatcher
-import com.chat.android.core.push.PushMentionMatcher
+import com.chat.android.core.push.handlers.ThreadMentionMatcher
 import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.entryform.EntryFormCodec
 import kotlinx.coroutines.CoroutineScope
@@ -112,7 +112,7 @@ class FirebaseMessagingService : com.google.firebase.messaging.FirebaseMessaging
         val isDm = parentID.contains('@')
         val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
 
-        if (!isDmTarget && !PushMentionMatcher.mentionsCurrentUser(message, channelID, db)) return
+        if (!isDmTarget && !ThreadMentionMatcher.mentionsCurrentUser(message, channelID, db)) return
 
         val author = contents.optString(7).ifBlank { updatedBy }
         val title = if (isDmTarget) "DM from $author" else "$author mentioned you"

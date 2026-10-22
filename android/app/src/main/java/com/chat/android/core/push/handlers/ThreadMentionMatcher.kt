@@ -1,10 +1,10 @@
-package com.chat.android.core.push
+package com.chat.android.core.push.handlers
 
 import com.chat.android.feature.channel.ChannelDbHelper
 import org.json.JSONArray
 
 /** Matches a message mention against the current user's alias and group membership. */
-object PushMentionMatcher {
+object ThreadMentionMatcher {
     fun mentionsCurrentUser(message: String, channelID: String, dbHelper: ChannelDbHelper): Boolean {
         val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
         if (myname.isBlank()) return false
