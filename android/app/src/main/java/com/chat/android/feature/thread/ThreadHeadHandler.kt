@@ -1,4 +1,4 @@
-package com.chat.android.core.push.handlers
+package com.chat.android.feature.thread
 
 import android.content.Context
 import android.util.Log
@@ -8,11 +8,12 @@ import com.chat.android.feature.channel.ChannelDbHelper
 import com.chat.android.feature.channel.DbThreadHead
 
 /**
- * threadHead push を処理する（vue/src/pushReceive/threadHead.js に対応）。
- *
- * contents は threadHead オブジェクト本体（配列ではない）。
+ * threadHead push を処理する。
  */
-class ThreadHeadHandler(private val context: Context) : PushHandler {
+class ThreadHeadHandler(
+    private val context: Context,
+    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore
+) : PushHandler {
 
     override suspend fun handle(pd: PushData) {
         val channelID = pd.channelID
@@ -23,11 +24,8 @@ class ThreadHeadHandler(private val context: Context) : PushHandler {
         if (parentID.isEmpty()) return
 
         val dbHelper = ChannelDbHelper(context)
-        val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
+        val myname = profileStore.profile(channelID).first
 
-        // タイトルを DM の相手名に書き換える（vue と同じ）。
-        //   parentID が "@グループ名"    → 自分が更新者でなければグループ名をタイトルに
-        //   parentID が "自分@相手" 形式 → 相手側の名前をタイトルに
         var title = obj.optString("title", "")
         if (parentID.startsWith('@')) {
             val nameTail = parentID.substring(1)

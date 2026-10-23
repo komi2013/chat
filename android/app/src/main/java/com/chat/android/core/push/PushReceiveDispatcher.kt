@@ -18,8 +18,8 @@ import com.chat.android.core.push.handlers.ChannelEditHandler
 import com.chat.android.core.push.handlers.EmojiHandler
 import com.chat.android.core.push.handlers.EntryFormHandler
 import com.chat.android.core.push.handlers.GroupHandler
-import com.chat.android.core.push.handlers.ThreadHandler
-import com.chat.android.core.push.handlers.ThreadHeadHandler
+import com.chat.android.feature.thread.ThreadHandler
+import com.chat.android.feature.thread.ThreadHeadHandler
 import com.chat.android.core.push.handlers.ReceptionOrderHandler
 import com.chat.android.core.push.handlers.StoreSelectHandler
 import com.chat.android.core.push.handlers.ShiftStaffHandler
@@ -29,6 +29,7 @@ import com.chat.android.core.network.SessionManager
 import com.chat.android.core.network.ApiService
 import com.chat.android.core.repository.UserRepository
 import com.chat.android.feature.reception.ReceptionApiService
+import com.chat.android.feature.thread.ThreadNotificationProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,7 +46,8 @@ class PushReceiveDispatcher(
     private val apiService: ApiService,
     private val receptionApiService: ReceptionApiService,
     private val userRepository: UserRepository,
-    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore
+    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore,
+    private val notificationProcessor: ThreadNotificationProcessor
 ) {
     // Application-scoped Coroutine guarantees background SQLite execution completes
     // even if the FCM service starts shutting down.
@@ -61,9 +63,9 @@ class PushReceiveDispatcher(
             "channelEdit" to ChannelEditHandler(context),
             "alias" to AliasHandler(context, sessionManager, profileStore),
             "group" to GroupHandler(context),
-            "thread" to ThreadHandler(context),
-            "threadEdit" to ThreadHandler(context),
-            "threadHead" to ThreadHeadHandler(context),
+            "thread" to ThreadHandler(context, profileStore),
+            "threadEdit" to ThreadHandler(context, profileStore),
+            "threadHead" to ThreadHeadHandler(context, profileStore),
             "emoji" to EmojiHandler(context),
             "bookmark" to BookmarkHandler(context),
             "calendar" to CalendarHandler(context, dbHelper),
@@ -154,6 +156,11 @@ class PushReceiveDispatcher(
                     Log.i("PushDispatcher", "Health check ping received for channel: ${pd.channelID}")
                 } else {
                     Log.w("PushDispatcher", "Unknown action: ${pd.title}")
+                }
+
+                // Process high-priority notifications (mentions, calls, etc.)
+                if (fromPush) {
+                    notificationProcessor.processNotification(pd)
                 }
 
             } catch (e: Exception) {

@@ -1,4 +1,4 @@
-package com.chat.android.core.push.handlers
+package com.chat.android.feature.thread
 
 import android.content.Context
 import android.util.Log
@@ -11,14 +11,12 @@ import com.chat.android.feature.channel.DbThread
 import org.json.JSONArray
 
 /**
- * thread / threadEdit push を処理する（vue/src/pushReceive/thread.js, threadEdit.js に対応）。
- *
- * contents は位置配列:
- *   [0]=parentID [1]=messageID [2]=messageTxt [3]=aliasImg
- *   [4]=aliasNames [5]=backID [6]=emojis [7]=aliasName （thread のみ）
- * 添付ファイルは pd[5] に配列で来る。
+ * thread / threadEdit push を処理する。
  */
-class ThreadHandler(private val context: Context) : PushHandler {
+class ThreadHandler(
+    private val context: Context,
+    private val profileStore: com.chat.android.feature.channel.ChannelProfileStore
+) : PushHandler {
 
     override suspend fun handle(pd: PushData) {
         val channelID = pd.channelID
@@ -32,7 +30,6 @@ class ThreadHandler(private val context: Context) : PushHandler {
         val dbHelper = ChannelDbHelper(context)
 
         if (pd.title == "thread") {
-            // 既存なら何もしない（vue と同じ重複ガード）
             if (dbHelper.getThread(messageID) != null) return
 
             val messageTxt = array.optString(2, "") + imageAwareFileLinks(pd.rawJson.optJSONArray(5))
@@ -56,19 +53,16 @@ class ThreadHandler(private val context: Context) : PushHandler {
             )
             Log.i("ThreadHandler", "Upserted thread $messageID")
 
-            // メンション判定と displayStatus 更新 (thread.js と同様)
-            // DM の場合は自分以外からの投稿ならメンション扱いで displayStatus=2 とする。
-            val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
+            val myname = profileStore.profile(channelID).first
             val isDm = parentID.contains('@')
             val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
 
-            val mention = ThreadMentionMatcher.mentionsCurrentUser(messageTxt, channelID, dbHelper) || isDmTarget
+            val mention = ThreadMentionMatcher.mentionsCurrentUser(messageTxt, channelID, myname, dbHelper) || isDmTarget
             val displayStatus = if (mention) 2 else 1
             dbHelper.getThreadHead(parentID)?.let { head ->
                 dbHelper.saveThreadHead(head.copy(displayStatus = displayStatus))
             }
 
-            // 自動ブックマーク (メンションかつ絵文字がある場合)
             if (mention) {
                 val emojis = array.optJSONArray(6)
                 if (emojis != null && emojis.length() > 0) {
@@ -82,46 +76,36 @@ class ThreadHandler(private val context: Context) : PushHandler {
             val messageTxt = array.optString(2, "")
             val incomingUpdatedUnixAt = array.optLong(8, 0L)
 
-            // messageTxt が空なら削除（vue と同じ）
             if (messageTxt.isEmpty()) {
                 dbHelper.deleteThread(messageID)
                 return
             }
 
             if (existing == null) return
-
-            // 順序制御: 既存データの updatedUnixAt の方が新しい場合は更新しない（vue と同じ）
-            // 同時刻または incoming が 0 の場合は更新を許可する
-            if (existing.updatedUnixAt > incomingUpdatedUnixAt && incomingUpdatedUnixAt != 0L) {
-                return
-            }
+            if (existing.updatedUnixAt > incomingUpdatedUnixAt && incomingUpdatedUnixAt != 0L) return
 
             val newTxt = messageTxt + imageAwareFileLinks(pd.rawJson.optJSONArray(5))
             dbHelper.saveThread(
                 existing.copy(
-                    // Keep image attachments renderable when an edited message is received.
                     messageTxt = newTxt,
                     aliasImg = array.optString(3, "").ifBlank { existing.aliasImg },
                     aliasNamesJson = array.optJSONArray(4)?.toString() ?: existing.aliasNamesJson,
                     emojisJson = mergeEmojis(existing.emojisJson, array.optJSONArray(6)),
-                    isBookmarked = array.optBoolean(8, existing.isBookmarked), // Note: array index might vary between thread and threadEdit, verifying...
+                    isBookmarked = array.optBoolean(8, existing.isBookmarked),
                     updatedUnixAt = incomingUpdatedUnixAt
                 )
             )
             Log.i("ThreadHandler", "Edited thread $messageID")
 
-            // メンションチェックとブックマーク自動登録 (vue/src/pushReceive/threadEdit.js の後半部分)
-            val myname = dbHelper.getChannel(channelID)?.myname.orEmpty()
+            val myname = profileStore.profile(channelID).first
             val isDm = parentID.contains('@')
             val isDmTarget = isDm && parentID.split('@').contains(myname) && updatedBy != myname
-            val isMention = ThreadMentionMatcher.mentionsCurrentUser(newTxt, channelID, dbHelper) || isDmTarget
+            val isMention = ThreadMentionMatcher.mentionsCurrentUser(newTxt, channelID, myname, dbHelper) || isDmTarget
             if (isMention) {
-                // displayStatus を 2 (メンション) に更新
                 dbHelper.getThreadHead(parentID)?.let { head ->
                     dbHelper.saveThreadHead(head.copy(displayStatus = 2))
                 }
                 
-                // ブックマーク自動登録 (emojis がある場合)
                 val incomingEmojis = array.optJSONArray(6)
                 if (incomingEmojis != null && incomingEmojis.length() > 0) {
                     dbHelper.getThread(messageID)?.let {
@@ -132,9 +116,6 @@ class ThreadHandler(private val context: Context) : PushHandler {
         }
     }
 
-    /**
-     * 添付ファイルリンク。vue の thread.js と同じで、画像は ＊img＊、それ以外は ＊f＊。
-     */
     private fun imageAwareFileLinks(files: JSONArray?): String = buildLinks(files)
 
     private fun isImageFile(link: String): Boolean {
@@ -160,7 +141,6 @@ class ThreadHandler(private val context: Context) : PushHandler {
         return formatThreadTime(Base62.decode(body))
     }
 
-    /** 既存と更新の絵文字を aliasName で重複なく統合する。 */
     private fun mergeEmojis(existingJson: String, incoming: JSONArray?): String {
         val result = JSONArray()
         val seen = mutableSetOf<String>()
