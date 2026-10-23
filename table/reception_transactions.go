@@ -20,7 +20,7 @@ type ReceptionBookStruct struct {
 type ReceptionFacilityBookTimeStruct struct {
 	ID          int64  `json:"id" db:"facility_book_time_id"`
 	ReceptionID int64  `json:"receptionID" db:"reception_id"`
-	FacilityID  int64  `json:"facilityID" db:"facility_id"`
+	FacilityID  int  `json:"facilityID" db:"facility_id"`
 	BookID      int64  `json:"bookID" db:"book_id"`
 	SortOrder   int    `json:"sortOrder" db:"sort_order"`
 	BookStart   string `json:"bookStart" db:"book_start"`
@@ -31,7 +31,7 @@ type ReceptionFacilityBookTimeStruct struct {
 type ReceptionFacilityCodeStruct struct {
 	CurrentCode string    `json:"currentCode" db:"current_code"`
 	ReceptionID int64     `json:"receptionID" db:"reception_id"`
-	FacilityID  int64     `json:"facilityID" db:"facility_id"`
+	FacilityID  int     `json:"facilityID" db:"facility_id"`
 	UpdatedAt   time.Time `json:"updatedAt,omitempty" db:"updated_at"`
 }
 

@@ -52,7 +52,6 @@ type receptionGetResponse struct {
 	AdminNames      []string                 `json:"adminNames"`
 	JoinNames       []string                 `json:"joinNames"`
 	InquiryNames    []string                 `json:"inquiryNames,omitempty"`
-	Subscriptions   []string                 `json:"subscriptions,omitempty"`
 	OrderUserIDs    []int64                  `json:"orderUserIDs,omitempty"`
 	UpdatedAt       time.Time                `json:"updatedAt,omitempty"`
 	ReceptionTitle  string                   `json:"receptionTitle,omitempty"`
@@ -207,7 +206,6 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 		reception.Passcodes = nil
 		reception.JoinNames = nil
 		reception.InquiryNames = nil
-		reception.Subscriptions = nil
 		reception.OrderUserIDs = nil
 		for i := range facilities {
 			facilities[i].Passcodes = nil
@@ -232,7 +230,7 @@ func ReceptionGet(w http.ResponseWriter, r *http.Request) {
 		Reception: receptionGetResponse{
 			ReceptionID: reception.ReceptionID, ChannelID: reception.ChannelID,
 			AdminNames: reception.AdminNames, JoinNames: reception.JoinNames,
-			InquiryNames: reception.InquiryNames, Subscriptions: reception.Subscriptions,
+			InquiryNames: reception.InquiryNames,
 			OrderUserIDs: reception.OrderUserIDs, UpdatedAt: reception.UpdatedAt,
 			ReceptionTitle: reception.ReceptionTitle, Skills: reception.Skills,
 			WorkStaffNeed: reception.WorkStaffNeed, Passcodes: reception.Passcodes,
@@ -318,13 +316,13 @@ func loadReceptionBase(ctx context.Context, q receptionQueryer, receptionID int6
 	var reception table.ReceptionStruct
 	err := q.QueryRowContext(ctx, `
 		SELECT reception_id, channel_id, admin_names, join_names, inquiry_names,
-		       subscriptions, order_user_ids, COALESCE(updated_at, CURRENT_TIMESTAMP),
+		       order_user_ids, COALESCE(updated_at, CURRENT_TIMESTAMP),
 		       COALESCE(reception_title, ''), skills, work_staff_need
 		FROM reception WHERE reception_id = $1
 	`, receptionID).Scan(
 		&reception.ReceptionID, &reception.ChannelID,
 		pq.Array(&reception.AdminNames), pq.Array(&reception.JoinNames),
-		pq.Array(&reception.InquiryNames), pq.Array(&reception.Subscriptions),
+		pq.Array(&reception.InquiryNames),
 		pq.Array(&reception.OrderUserIDs), &reception.UpdatedAt,
 		&reception.ReceptionTitle, pq.Array(&reception.Skills), &reception.WorkStaffNeed,
 	)
@@ -342,7 +340,7 @@ func loadReception(ctx context.Context, q receptionQueryer, receptionID int64) (
 
 	err := q.QueryRowContext(ctx, `
 		SELECT reception_id, channel_id, admin_names, join_names, inquiry_names,
-		       subscriptions, order_user_ids, COALESCE(updated_at, CURRENT_TIMESTAMP),
+		       order_user_ids, COALESCE(updated_at, CURRENT_TIMESTAMP),
 		       COALESCE(reception_title, ''), skills, work_staff_need,
 		       passcodes, asks, ask_choices, ask_multi_choices, facilities,
 		       open_times, shifts, staff_skills, work_staffs, wait_configs, menus, item_details
@@ -350,7 +348,7 @@ func loadReception(ctx context.Context, q receptionQueryer, receptionID int64) (
 	`, receptionID).Scan(
 		&reception.ReceptionID, &reception.ChannelID,
 		pq.Array(&reception.AdminNames), pq.Array(&reception.JoinNames),
-		pq.Array(&reception.InquiryNames), pq.Array(&reception.Subscriptions),
+		pq.Array(&reception.InquiryNames),
 		pq.Array(&reception.OrderUserIDs), &reception.UpdatedAt,
 		&reception.ReceptionTitle, pq.Array(&reception.Skills), &reception.WorkStaffNeed,
 		&passcodesJSON, &asksJSON, &askChoicesJSON, &askMultiChoicesJSON,

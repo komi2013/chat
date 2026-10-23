@@ -95,7 +95,7 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 	var facility table.FacilityMaster
 	foundByCode := false
 	if code != "" {
-		var facilityID int64
+		var facilityID int
 		err = tx.QueryRowContext(ctx, `
 			SELECT facility_id
 			FROM reception_facility_code
@@ -126,7 +126,7 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		facilityID, parseErr := strconv.ParseInt(facilityIDText, 10, 64)
+		facilityID, parseErr := strconv.Atoi(facilityIDText)
 		if parseErr != nil || facilityID <= 0 {
 			common.WriteResponseWithSession(w, session, "A valid facilityID is required for staff when code is not supplied or does not match", http.StatusOK)
 			return
@@ -202,7 +202,7 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(responseData)
 }
 
-func receptionOrderDeleteFindFacility(facilities []table.FacilityMaster, facilityID int64) (table.FacilityMaster, bool) {
+func receptionOrderDeleteFindFacility(facilities []table.FacilityMaster, facilityID int) (table.FacilityMaster, bool) {
 	for _, facility := range facilities {
 		if facility.FacilityID == facilityID {
 			return facility, true

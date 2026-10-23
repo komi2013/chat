@@ -103,7 +103,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT reception_id, channel_id, admin_names, join_names, inquiry_names,
-		       subscriptions, order_user_ids, updated_at, COALESCE(reception_title, ''),
+		       order_user_ids, updated_at, COALESCE(reception_title, ''),
 		       skills, work_staff_need, passcodes, asks, ask_choices, ask_multi_choices,
 		       facilities, open_times, shifts, staff_skills, work_staffs, wait_configs,
 		       menus, item_details
@@ -112,7 +112,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	`, receptionID).Scan(
 		&reception.ReceptionID, &reception.ChannelID,
 		pq.Array(&reception.AdminNames), pq.Array(&reception.JoinNames),
-		pq.Array(&reception.InquiryNames), pq.Array(&reception.Subscriptions),
+		pq.Array(&reception.InquiryNames),
 		pq.Array(&reception.OrderUserIDs), &reception.UpdatedAt,
 		&reception.ReceptionTitle, pq.Array(&reception.Skills), &reception.WorkStaffNeed,
 		&passcodesJSON, &asksJSON, &askChoicesJSON, &askMultiChoicesJSON,
@@ -156,7 +156,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Menus are JSONB master data in reception.menus, not a separate table.
-	var selectedMenu database.Menu
+	var selectedMenu table.Menu
 	menuFound := false
 	for _, item := range reception.Menus {
 		if item.MenuID == menuID {
@@ -172,7 +172,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 
 	// Facilities are JSONB master data in reception.facilities. Active codes and
 	// occupied times remain in their dedicated operational tables.
-	var facility database.FacilityMaster
+	var facility table.FacilityMaster
 	hasFacility := selectedMenu.NeedFacilityID > 0
 	if hasFacility {
 		facilityFound := false
@@ -192,7 +192,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		facilityTimes := make([]database.ReceptionFacilityBookTimeStruct, 0)
+		facilityTimes := make([]table.ReceptionFacilityBookTimeStruct, 0)
 		rows, queryErr := tx.QueryContext(ctx, `
 			SELECT facility_book_time_id, reception_id, facility_id, book_id,
 			       sort_order, book_start, book_end
@@ -205,7 +205,7 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for rows.Next() {
-			var item database.ReceptionFacilityBookTimeStruct
+			var item table.ReceptionFacilityBookTimeStruct
 			if err := rows.Scan(&item.ID, &item.ReceptionID, &item.FacilityID, &item.BookID, &item.SortOrder, &item.BookStart, &item.BookEnd); err != nil {
 				rows.Close()
 				common.WriteResponseWithSession(w, session, "Failed to read facility booking times: "+err.Error(), http.StatusOK)
@@ -360,7 +360,7 @@ func receptionBookLoadBookings(
 	ctx context.Context,
 	tx *sql.Tx,
 	receptionID int64,
-) ([]database.ReceptionBookStruct, error) {
+) ([]table.ReceptionBookStruct, error) {
 	rows, err := tx.QueryContext(ctx, `
 		SELECT book_id, reception_id, sort_order, book_start, book_end, answers,
 		       COALESCE(menu_id, 0), COALESCE(people, 0), COALESCE(created_at, CURRENT_TIMESTAMP)
@@ -373,9 +373,9 @@ func receptionBookLoadBookings(
 	}
 	defer rows.Close()
 
-	result := make([]database.ReceptionBookStruct, 0)
+	result := make([]table.ReceptionBookStruct, 0)
 	for rows.Next() {
-		var item database.ReceptionBookStruct
+		var item table.ReceptionBookStruct
 		if err := rows.Scan(&item.BookID, &item.ReceptionID, &item.SortOrder,
 			&item.BookStart, &item.BookEnd, pq.Array(&item.Answers),
 			&item.MenuID, &item.People, &item.CreatedAt); err != nil {
@@ -393,7 +393,7 @@ func receptionBookParseJST(value string, jst *time.Location) (time.Time, error) 
 func receptionBookStaffHasSkill(
 	aliasName string,
 	needSkill string,
-	staffSkills []database.StaffSkill,
+	staffSkills []table.StaffSkill,
 ) bool {
 	for _, staff := range staffSkills {
 		if staff.AliasName != aliasName {
@@ -412,8 +412,8 @@ func receptionBookEligibleStaff(
 	start time.Time,
 	end time.Time,
 	needSkill string,
-	workStaffs []database.WorkStaff,
-	staffSkills []database.StaffSkill,
+	workStaffs []table.WorkStaff,
+	staffSkills []table.StaffSkill,
 	jst *time.Location,
 ) []string {
 	eligible := make([]string, 0)

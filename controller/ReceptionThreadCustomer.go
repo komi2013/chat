@@ -24,6 +24,8 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 	messageID := r.FormValue("messageID")
 	parentID := r.FormValue("parentID")
+	inquiryName := r.FormValue("inquiryName")
+	inquiryImg := r.FormValue("inquiryImg")
 	messageTxt := common.SanitizeRichText(r.FormValue("messageTxt"))
 
 	threadHeadNew := false
@@ -88,9 +90,9 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	aliasNames = append(aliasNames, joinNames...)
 	threadHead["aliasNames"] = aliasNames
 	threadHead["adminNames"] = adminNames
-	threadHead["aliasImg"] = session.NickImg
+	threadHead["aliasImg"] = inquiryImg
 
-	threadHeadArray := []interface{}{"threadHead", channelID, session.Nickname, threadHead}
+	threadHeadArray := []interface{}{"threadHead", channelID, inquiryName, threadHead}
 
 	// Access-right 3 represents an inquirer in the PostgreSQL schema.
 	// Avoid creating duplicate aliases for the same user/channel/name tuple.
@@ -101,7 +103,7 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 			SELECT 1 FROM alias
 			WHERE channel_id = $1 AND user_id = $3 AND alias_name = $2
 		)
-	`, channelID, session.Nickname, session.UserID)
+	`, channelID, inquiryName, session.UserID)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, fmt.Sprintf("alias登録失敗: %v", err), http.StatusInternalServerError)
 		return
@@ -147,24 +149,18 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		userIDs = append(userIDs, session.UserID)
 	}
 
-	aliasPushArray := []interface{}{
-		"alias", channelID, session.Nickname,
-		[]interface{}{session.UserID, session.Nickname, "", "inquirer"},
-		session.NickImg,
-	}
-	threadData := []interface{}{
-		parentID, messageID, messageTxt, session.NickImg,
-		[]string{session.Nickname}, "", []interface{}{}, session.Nickname,
-	}
-	pushArray := []interface{}{"thread", channelID, session.Nickname, threadData, []string{}}
 
-	pushTargetSessions := make([]table.SessionStruct, 0)
+	threadData := []interface{}{
+		parentID, messageID, messageTxt, inquiryImg,
+		[]string{inquiryName}, "", []interface{}{}, inquiryName,
+	}
+	pushArray := []interface{}{"thread", channelID, inquiryName, threadData, []string{}}
+
 	filteredSessions := make([]table.SessionStruct, 0)
 	if len(userIDs) > 0 {
 		rows, queryErr := common.DB.SessionDB.QueryContext(ctx, `
 			SELECT session_id, device_id, user_id, created_at, updated_at,
-			       push_token, device_type, csrf, push_contents, mail, telephone,
-			       nickname, nick_img
+			       push_token, device_type, csrf, push_contents, mail, telephone
 			FROM session
 			WHERE user_id = ANY($1)
 		`, pq.Array(userIDs))
@@ -180,7 +176,6 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 				&item.SessionID, &item.DeviceID, &item.UserID, &item.CreatedAt,
 				&item.UpdatedAt, &item.PushToken, &item.DeviceType, &item.Csrf,
 				pq.Array(&item.PushContents), &item.Mail, &item.Telephone,
-				&item.Nickname, &item.NickImg,
 			); scanErr != nil {
 				common.WriteResponseWithSession(w, session, scanErr.Error(), http.StatusOK)
 				return
@@ -193,15 +188,6 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// The shared helper applies the application's existing channel-specific
-	// session filtering rules to the sessions loaded from PostgreSQL.
-	filteredSessions = common.FilterSessionsByChannelID(filteredSessions, strconv.FormatInt(channelID, 10))
-	for _, target := range filteredSessions {
-		if target.UserID != session.UserID {
-			pushTargetSessions = append(pushTargetSessions, target)
-		}
-	}
-	common.ChunkPush(pushTargetSessions, aliasPushArray)
 	if threadHeadNew {
 		common.ChunkPush(filteredSessions, threadHeadArray)
 	} else {

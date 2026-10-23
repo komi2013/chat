@@ -102,7 +102,7 @@ func ReceptionOrder(w http.ResponseWriter, r *http.Request) {
 
 	// Active facility codes are kept in the operational registry, not in the
 	// facilities JSONB array. Resolve the stable facility ID, then find its master.
-	var facilityID int64
+	var facilityID int
 	err = tx.QueryRowContext(ctx, `
 		SELECT facility_id
 		FROM reception_facility_code

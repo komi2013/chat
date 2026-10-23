@@ -4,14 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"chat/table"
 	"chat/common"
+	"chat/table"
 
 	"github.com/lib/pq"
 )
@@ -54,8 +53,6 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 
 	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
 	if err != nil {
-		// Keep the project's existing session-error response here if it
-		// differs from the JSON response format below.
 		writeChannelJoinError(w, http.StatusUnauthorized, err.Error(), "")
 		return
 	}
@@ -66,7 +63,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := int64(session.UserID)
+	userID := session.UserID
 
 	if myname == "" {
 		writeChannelJoinError(w, http.StatusBadRequest, "myname is required", session.Csrf)
@@ -75,11 +72,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 
 	// 1. Validate the channel and invitation.
 	var (
-		channelName       string
-		channelDescription sql.NullString
-		invitationCode    sql.NullString
+		channelName         string
+		channelDescription  sql.NullString
+		invitationCode      sql.NullString
 		guestInvitationCode sql.NullString
-		invitedAt          sql.NullTime
+		invitedAt           sql.NullTime
 	)
 
 	err = common.DB.ChannelDB.QueryRow(`
@@ -119,10 +116,6 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Check alias-name uniqueness within this channel.
-	//
-	// Inquirers (access_right = 3) are excluded from the check.
-	// A user may have multiple aliases in the same channel, but an alias
-	// name cannot be duplicated by another non-inquirer alias.
 	var duplicate bool
 	err = common.DB.AliasDB.QueryRow(`
 		SELECT EXISTS (
@@ -143,24 +136,21 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Determine the access right from the invitation code.
-	// Joining must never grant admin (1) or inquirer (3).
+	// 3. Determine access right from the invitation code.
 	var accessRight int16 = accessRightNormal
 	if isGuestInvitation {
 		accessRight = accessRightGuest
 	}
 
-	// 4. Save the image using the existing image-saving implementation.
-	// ImgSave receives the channel ID as text to preserve the existing
-	// function's argument convention.
-	ImgSave(myimg, session.UserID, myname, channelIDText, 3, 1)
+	// 4. Save the image. ImgSave expects a numeric channel ID.
+	if _, err := common.ImgSave(myimg, session.UserID, myname, channelID, 3, 1); err != nil {
+		log.Printf("ChannelJoin: save alias image: %v", err)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to save alias image", session.Csrf)
+		return
+	}
 
 	// 5. Insert the alias.
-	//
-	// alias_id remains a string. This preserves the existing convention
-	// of deriving it from the channel ID and alias name.
 	aliasID := channelIDText + myname
-
 	_, err = common.DB.AliasDB.Exec(`
 		INSERT INTO alias (
 			alias_id,
@@ -173,17 +163,12 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, aliasID, channelID, myname, myimg, session.UserID, accessRight)
 	if err != nil {
-		// A concurrent request can pass the earlier duplicate check.
-		// A unique index on (channel_id, alias_name), excluding inquirers,
-		// should be used to enforce the rule at the database level too.
 		log.Printf("ChannelJoin: insert alias: %v", err)
 		writeChannelJoinError(w, http.StatusConflict, "Failed to join channel; the alias name may already be in use", session.Csrf)
 		return
 	}
 
-	// 6. Load aliases and groups to build the initial sync for this user's
-	// sessions. These reads happen after the alias insert so the new alias
-	// is included in the returned alias list.
+	// 6. Load aliases and groups for the initial sync.
 	aliases, err := loadJoinAliases(channelID)
 	if err != nil {
 		log.Printf("ChannelJoin: load aliases: %v", err)
@@ -218,30 +203,27 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var memberUserID int64
 		if err := rows.Scan(&memberUserID); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			log.Printf("ChannelJoin: scan member user ID: %v", err)
 			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.Csrf)
 			return
 		}
 
 		if !seenUserIDs[memberUserID] {
-		    seenUserIDs[memberUserID] = true
-		    userIDs = append(userIDs, memberUserID)
+			seenUserIDs[memberUserID] = true
+			userIDs = append(userIDs, memberUserID)
 		}
-
 	}
 
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		log.Printf("ChannelJoin: iterate member user IDs: %v", err)
 		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.Csrf)
 		return
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	// 8. Load sessions for all channel members.
-	//
-	// Session.user_id is INT, so use numeric IDs in this query.
 	sessionRows, err := common.DB.SessionDB.Query(`
 		SELECT session_id, user_id, COALESCE(push_token, ''), COALESCE(device_type, 0)
 		FROM "session"
@@ -258,14 +240,14 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 
 	for sessionRows.Next() {
 		var (
-			sessionID string
-			memberID  int64
-			pushToken string
+			sessionID  string
+			memberID   int64
+			pushToken  string
 			deviceType int16
 		)
 
 		if err := sessionRows.Scan(&sessionID, &memberID, &pushToken, &deviceType); err != nil {
-			sessionRows.Close()
+			_ = sessionRows.Close()
 			log.Printf("ChannelJoin: scan session: %v", err)
 			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.Csrf)
 			return
@@ -273,7 +255,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 
 		memberSession := table.SessionStruct{
 			SessionID:  sessionID,
-			UserID:     strconv.FormatInt(memberID, 10),
+			UserID:     memberID,
 			PushToken:  pushToken,
 			DeviceType: int(deviceType),
 		}
@@ -286,21 +268,17 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := sessionRows.Err(); err != nil {
-		sessionRows.Close()
+		_ = sessionRows.Close()
 		log.Printf("ChannelJoin: iterate sessions: %v", err)
 		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.Csrf)
 		return
 	}
-	sessionRows.Close()
+	_ = sessionRows.Close()
 
 	// 9. Prepare push payloads.
-	//
-	// First queue every payload in PostgreSQL. Only after every queue write
-	// succeeds do we attempt push delivery.
 	var pending []pendingJoinPush
 
 	for _, ownSession := range ownSessions {
-		// Channel metadata.
 		pending = append(pending, pendingJoinPush{
 			session: ownSession,
 			pushID:  channelIDText,
@@ -312,7 +290,6 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 
-		// Existing aliases, including the alias just inserted.
 		for _, alias := range aliases {
 			pending = append(pending, pendingJoinPush{
 				session: ownSession,
@@ -332,7 +309,6 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		// Groups.
 		for _, group := range groups {
 			pending = append(pending, pendingJoinPush{
 				session: ownSession,
@@ -361,7 +337,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 				channelIDText,
 				myname,
 				[]string{
-					session.UserID,
+					strconv.FormatInt(session.UserID, 10),
 					myname,
 					"",
 					strconv.Itoa(int(accessRight)),
@@ -371,7 +347,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// 10. Queue all push contents before dispatching any notifications.
+	// 10. Queue all push contents before dispatching notifications.
 	for _, p := range pending {
 		data, err := json.Marshal(p.payload)
 		if err != nil {
@@ -395,8 +371,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 11. Dispatch push notifications only after all database writes above
-	// have succeeded. Delivery errors are logged and do not fail the join.
+	// 11. Dispatch push notifications after database writes succeed.
 	for _, p := range pending {
 		if _, err := common.SendWebJustPush(p.payload, p.pushID, p.session); err != nil {
 			log.Printf("ChannelJoin: push delivery failed for session %s: %v", p.session.SessionID, err)
@@ -447,6 +422,7 @@ func loadJoinAliases(channelID int64) ([]joinAlias, error) {
 		}
 		aliases = append(aliases, a)
 	}
+
 	return aliases, rows.Err()
 }
 
@@ -464,15 +440,18 @@ func loadJoinGroups(channelID int64) ([]joinGroup, error) {
 	groups := make([]joinGroup, 0)
 	for rows.Next() {
 		var (
-			g        joinGroup
+			g          joinGroup
 			aliasNames pq.StringArray
 		)
+
 		if err := rows.Scan(&g.GroupName, &aliasNames, &g.GroupImg); err != nil {
 			return nil, err
 		}
+
 		g.AliasNames = []string(aliasNames)
 		groups = append(groups, g)
 	}
+
 	return groups, rows.Err()
 }
 
@@ -491,5 +470,3 @@ func writeChannelJoinError(w http.ResponseWriter, status int, message, csrf stri
 		"error": message,
 	})
 }
-
-var _ = fmt.Sprintf

@@ -14,13 +14,7 @@ import (
 func main() {
 	if len(os.Args) == 1 {
 		cfg := common.LoadConfig()
-		common.InitMongo(cfg)
-		http.HandleFunc("/AdDelete/", controller.AdDelete)
-		http.HandleFunc("/AdEdit/", controller.AdEdit)
-		http.HandleFunc("/AdGet/", controller.AdGet)
-		http.HandleFunc("/AdInvoice/", controller.AdInvoice)
-		// http.HandleFunc("/AdPriceGet/", controller.AdPriceGet)
-		http.HandleFunc("/AdPublicGet/", controller.AdPublicGet)
+		common.InitPostgres(cfg)
 		http.HandleFunc("/ChannelAdd/", controller.ChannelAdd)
 		http.HandleFunc("/ChannelDelete/", controller.ChannelDelete)
 		http.HandleFunc("/ChannelEdit/", controller.ChannelEdit)
@@ -28,7 +22,6 @@ func main() {
 		http.HandleFunc("/ContentsJustPush/", controller.ContentsJustPush)
 		http.HandleFunc("/ContentsPush/", controller.ContentsPush)
 		http.HandleFunc("/LogFromJS/", controller.LogFromJS)
-		http.HandleFunc("/NicknameGet/", controller.NicknameGet)
 		http.HandleFunc("/PushSubscribe/", controller.PushSubscribe)
 		http.HandleFunc("/PushSubscribeMobile/", controller.PushSubscribeMobile)
 		http.HandleFunc("/ReceptionBook/", controller.ReceptionBook)
@@ -46,10 +39,6 @@ func main() {
 		http.HandleFunc("/SignInGoogle/", controller.SignInGoogle)
 		http.HandleFunc("/SignInGoogleMobile/", controller.SignInGoogleMobile)
 		http.HandleFunc("/SignInTestMobile/", controller.SignInTestMobile)
-		http.HandleFunc("/TweetEmoji/", controller.TweetEmoji)
-		http.HandleFunc("/TweetGet/", controller.TweetGet)
-		http.HandleFunc("/TweetGetLatest/", controller.TweetGetLatest)
-		http.HandleFunc("/TweetPost/", controller.TweetPost)
 		http.HandleFunc("/upload/", controller.Upload)
 		http.HandleFunc("/UserEdit/", controller.UserEdit)
 		http.HandleFunc("/UserGet/", controller.UserGet)
@@ -74,10 +63,8 @@ func main() {
 		}
 
 		cfg := common.LoadConsoleConfig()
-		common.InitMongo(cfg)
+		common.InitPostgres(cfg)
 		switch command {
-		case "AdPublish":
-			console.AdPublish()
 		case "FileClean":
 			console.FileClean()
 		case "TestPush":

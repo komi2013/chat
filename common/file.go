@@ -64,7 +64,7 @@ func upsertFile(
 	publicPath string,
 	fileSizeMB float64,
 	updatedAt time.Time,
-	availableBy []string,
+	availableBy []int64,
 	usageType int,
 ) error {
 	if DB == nil || DB.FileDB == nil {
@@ -77,7 +77,7 @@ func upsertFile(
 	}
 
 	if availableBy == nil {
-		availableBy = []string{}
+		availableBy = []int64{}
 	}
 
 	_, err := DB.FileDB.ExecContext(
@@ -200,7 +200,7 @@ func FileSave(
 	r *http.Request,
 	channelID int64,
 	uploadedBy int64,
-	userIDs []string,
+	userIDs []int64,
 	usageType int,
 ) ([]string, error) {
 	if DB == nil || DB.FileDB == nil {

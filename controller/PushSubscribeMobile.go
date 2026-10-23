@@ -197,7 +197,7 @@ type pushSubscribeMobileGroup struct {
 // each channel's aliases and groups from their respective PostgreSQL databases.
 func loadPushSubscribeMobileChannels(
 	ctx context.Context,
-	userID int,
+	userID int64,
 ) ([]pushSubscribeMobileChannel, error) {
 	channelIDs := make([]int64, 0)
 

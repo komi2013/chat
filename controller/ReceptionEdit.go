@@ -135,7 +135,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 			menu.ItemDetails[i].ImgPath,
 			session.UserID,
 			aliasName,
-			channelIDText,
+			channelID,
 			3,
 			6,
 		)
@@ -256,7 +256,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		err = tx.QueryRowContext(ctx, `
 			INSERT INTO reception (
 				channel_id, updated_at, reception_title, work_staff_need,
-				admin_names, join_names, inquiry_names, subscriptions,
+				admin_names, join_names, inquiry_names,
 				order_user_ids, skills,
 				passcodes, asks, ask_choices, ask_multi_choices, facilities,
 				open_times, shifts, staff_skills, work_staffs, wait_configs,
@@ -272,7 +272,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		`,
 			reception.ChannelID, reception.UpdatedAt, reception.ReceptionTitle, reception.WorkStaffNeed,
 			pq.Array(nonNilStrings(reception.AdminNames)), pq.Array(nonNilStrings(reception.JoinNames)),
-			pq.Array(nonNilStrings(reception.InquiryNames)), pq.Array(nonNilStrings(reception.Subscriptions)),
+			pq.Array(nonNilStrings(reception.InquiryNames)),
 			pq.Array(nonNilInt64s(reception.OrderUserIDs)), pq.Array(nonNilStrings(reception.Skills)),
 			string(passcodesJSON), string(asksJSON), string(askChoicesJSON), string(askMultiChoicesJSON), string(facilitiesJSON),
 			string(openTimesJSON), string(shiftsJSON), string(staffSkillsJSON), string(workStaffsJSON), string(waitConfigsJSON),
@@ -286,7 +286,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.ExecContext(ctx, `
 			UPDATE reception SET
 				channel_id = $1, updated_at = $2, reception_title = $3, work_staff_need = $4,
-				admin_names = $5, join_names = $6, inquiry_names = $7, subscriptions = $8,
+				admin_names = $5, join_names = $6, inquiry_names = $7,
 				order_user_ids = $9, skills = $10,
 				passcodes = $11::jsonb, asks = $12::jsonb, ask_choices = $13::jsonb,
 				ask_multi_choices = $14::jsonb, facilities = $15::jsonb, open_times = $16::jsonb,
@@ -296,7 +296,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		`,
 			reception.ChannelID, reception.UpdatedAt, reception.ReceptionTitle, reception.WorkStaffNeed,
 			pq.Array(nonNilStrings(reception.AdminNames)), pq.Array(nonNilStrings(reception.JoinNames)),
-			pq.Array(nonNilStrings(reception.InquiryNames)), pq.Array(nonNilStrings(reception.Subscriptions)),
+			pq.Array(nonNilStrings(reception.InquiryNames)),
 			pq.Array(nonNilInt64s(reception.OrderUserIDs)), pq.Array(nonNilStrings(reception.Skills)),
 			string(passcodesJSON), string(asksJSON), string(askChoicesJSON), string(askMultiChoicesJSON),
 			string(facilitiesJSON), string(openTimesJSON), string(shiftsJSON), string(staffSkillsJSON),

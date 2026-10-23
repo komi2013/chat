@@ -13,7 +13,6 @@ type ReceptionStruct struct {
 	AdminNames     []string  `json:"adminNames" db:"admin_names"`
 	JoinNames      []string  `json:"joinNames" db:"join_names"`
 	InquiryNames   []string  `json:"inquiryNames,omitempty" db:"inquiry_names"`
-	Subscriptions  []string  `json:"subscriptions,omitempty" db:"subscriptions"`
 	OrderUserIDs   []int64   `json:"orderUserIDs,omitempty" db:"order_user_ids"`
 	UpdatedAt      time.Time `json:"updatedAt,omitempty" db:"updated_at"`
 	ReceptionTitle string    `json:"receptionTitle,omitempty" db:"reception_title"`
@@ -59,7 +58,7 @@ type AskMultiChoice struct {
 }
 
 type FacilityMaster struct {
-	FacilityID   int64      `json:"facilityID"`
+	FacilityID   int      `json:"facilityID"`
 	FacilityName string     `json:"facilityName"`
 	Capacity     int        `json:"capacity"`
 	Passcodes    []Passcode `json:"passcodes,omitempty"`
@@ -70,7 +69,7 @@ type FacilityMaster struct {
 // code registry and facility-book-time transaction table. Do not write this
 // type directly into reception.facilities JSONB.
 type FacilityView struct {
-	FacilityID   int64      `json:"facilityID"`
+	FacilityID   int      `json:"facilityID"`
 	FacilityName string     `json:"facilityName"`
 	Capacity     int        `json:"capacity"`
 	Passcodes    []Passcode `json:"passcodes,omitempty"`
@@ -131,6 +130,7 @@ type Menu struct {
 	FreeOptions      [][]int64    `json:"freeOptions,omitempty"`
 	FreeMultiOptions []int64      `json:"freeMultiOptions,omitempty"`
 	ForBookType      int          `json:"forBookType,omitempty"`
+	NeedFacilityID   int          `json:"needFacilityID,omitempty"`
 }
 
 type ItemDetail struct {
