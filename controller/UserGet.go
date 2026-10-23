@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"chat/collection"
 	"chat/common"
+	"chat/database"
 )
 
 func UserGet(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +20,7 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user collection.UserResponse
+	var user database.UserResponse
 
 	err = common.DB.UserDB.QueryRowContext(
 		r.Context(),
@@ -53,10 +53,10 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseData := struct {
-		Csrf         string   `json:"csrf"`
-		PushContents []string `json:"pushContents"`
-		SessionID    string   `json:"sessionId,omitempty"`
-		User         userResponse `json:"user"`
+		Csrf         string                `json:"csrf"`
+		PushContents []string              `json:"pushContents"`
+		SessionID    string                `json:"sessionId,omitempty"`
+		User         database.UserResponse `json:"user"`
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
@@ -69,12 +69,4 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(responseData)
-}
-
-type userResponse struct {
-	Mail          string  `json:"mail,omitempty"`
-	Telephone     string  `json:"telephone,omitempty"`
-	WalletAddress string  `json:"walletAddress"`
-	Latitude      float64 `json:"latitude"`
-	Longitude     float64 `json:"longitude"`
 }

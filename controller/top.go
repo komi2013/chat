@@ -1,33 +1,26 @@
 package controller
 
 import (
-	// "context"
-	// "errors"
 	"encoding/json"
 	"html/template"
-  "log"
-  "net/http"
-  "strings"
-  // "time"
+	"log"
+	"net/http"
+	"strings"
 
-  // "go.mongodb.org/mongo-driver/mongo"
-  // "go.mongodb.org/mongo-driver/bson"
-  // "go.mongodb.org/mongo-driver/mongo/options"
-  // "go.mongodb.org/mongo-driver/bson/primitive"
-
-  "chat/common"
-  "chat/collection"
+	"chat/common"
+	"chat/database"
 )
 
 func Top(w http.ResponseWriter, r *http.Request) {
-  cfg := common.LoadConfig()
+	cfg := common.LoadConfig()
 
-	var session collection.SessionStruct
+	var session database.SessionStruct
 	var err error
 	var tmplPath string
 	var domain string
 	var googleClientID string
 	var sessionJSON template.JS
+
 	switch {
 	case strings.Contains(r.URL.Path, "/sign/"):
 		tmplPath = "view/signGoogle.html"
@@ -35,50 +28,91 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		googleClientID = cfg.GoogleClientID
 
 		session, _ = common.SessionGet(w, r)
+
 		session, err = common.PushReGenerate(session)
 		if err != nil {
-			log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
+			log.Printf(
+				"ReGenerateCSRF failed: %v; path=%s",
+				err,
+				r.URL.Path,
+			)
 		}
+
 		b, err := json.Marshal(session)
 		if err != nil {
-			log.Printf("sessionJSON: %v; Req: ", err, r.URL.Path, r.Form)
+			log.Printf(
+				"session JSON encoding failed: %v; path=%s",
+				err,
+				r.URL.Path,
+			)
+		} else {
+			sessionJSON = template.JS(b)
 		}
-		sessionJSON = template.JS(b)
+
 	case strings.Contains(r.URL.Path, "/pushSubscription/"):
 		tmplPath = "view/pushSubscription.html"
+
 		session, err = common.SessionGet(w, r)
 		if err != nil {
-			log.Printf("SessionGet: %v; Req: ", err, r.URL.Path, r.Form)
-			http.Error(w, "Error SessionGet", http.StatusInternalServerError)
+			log.Printf(
+				"SessionGet failed: %v; path=%s",
+				err,
+				r.URL.Path,
+			)
+			http.Error(
+				w,
+				"Error SessionGet",
+				http.StatusInternalServerError,
+			)
 			return
 		}
-		// session, err = common.PushReGenerate(session)
-		// if err != nil {
-		// 	log.Printf("ReGenerateCSRF: %v; Req: ", err, r.URL.Path, r.Form)
-		// 	http.Error(w, "Error ReGenerateCSRF", http.StatusInternalServerError)
-		// 	return
-		// }
+
 	default:
 		tmplPath = "view/index.html"
 	}
-	type View struct {
-		Session collection.SessionStruct
-		Domain string
-		GoogleClientID string
-		CacheV string
-		SessionJS template.JS
-	}
-	var view View
-	view.Session = session
-	view.Domain = domain
-	view.GoogleClientID = googleClientID
-	view.CacheV = cfg.CacheV
-	view.SessionJS = sessionJSON
 
-	tpl := template.Must(template.ParseFiles(tmplPath))
+	type View struct {
+		Session        database.SessionStruct
+		Domain         string
+		GoogleClientID string
+		CacheV         string
+		SessionJS      template.JS
+	}
+
+	view := View{
+		Session:        session,
+		Domain:         domain,
+		GoogleClientID: googleClientID,
+		CacheV:         cfg.CacheV,
+		SessionJS:      sessionJSON,
+	}
+
+	tpl, err := template.ParseFiles(tmplPath)
+	if err != nil {
+		log.Printf(
+			"Template parsing failed: %v; path=%s",
+			err,
+			tmplPath,
+		)
+		http.Error(
+			w,
+			"Error loading template",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
 	if err := tpl.Execute(w, view); err != nil {
-		http.Error(w, "Error rendering template", http.StatusInternalServerError)
-		log.Printf("Template execution: %v; Req: ", err, r.URL.Path, r.Form)
+		log.Printf(
+			"Template execution failed: %v; path=%s",
+			err,
+			r.URL.Path,
+		)
+		http.Error(
+			w,
+			"Error rendering template",
+			http.StatusInternalServerError,
+		)
 		return
 	}
 }
