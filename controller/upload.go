@@ -103,7 +103,6 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// For downloadable files, check the file's available_by BIGINT[].
-	// Assumption: file.file_id stores the same dbID formerly stored in Mongo _id.
 	if fileType == "file" {
 		dbID := fmt.Sprintf(
 			"%s/upload_data/%s/%s/%s",

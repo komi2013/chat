@@ -8,13 +8,13 @@ import (
 	"strings"
 
 	"chat/common"
-	"chat/database"
+	"chat/table"
 )
 
 func Top(w http.ResponseWriter, r *http.Request) {
 	cfg := common.LoadConfig()
 
-	var session database.SessionStruct
+	var session table.SessionStruct
 	var err error
 	var tmplPath string
 	var domain string
@@ -32,7 +32,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 		session, err = common.PushReGenerate(session)
 		if err != nil {
 			log.Printf(
-				"ReGenerateCSRF failed: %v; path=%s",
+				"ReGenerateCsrf failed: %v; path=%s",
 				err,
 				r.URL.Path,
 			)
@@ -72,7 +72,7 @@ func Top(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type View struct {
-		Session        database.SessionStruct
+		Session        table.SessionStruct
 		Domain         string
 		GoogleClientID string
 		CacheV         string

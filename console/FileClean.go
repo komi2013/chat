@@ -9,13 +9,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 )
 
 // FileClean - 古いファイルとMongoDBドキュメントを削除
 func FileClean() {
-	coll := common.DB.FileDB.Collection("file")
+	coll := common.DB.FileDB.table("file")
 	ctx := context.Background()
 	now := time.Now()
 
@@ -31,7 +31,7 @@ func FileClean() {
 		return
 	}
 	defer cursor.Close(ctx)
-	var files []collection.FileStruct
+	var files []table.FileStruct
 	if err = cursor.All(ctx, &files); err != nil {
 		fileCleanError.Printf("⚠️ MongoDB cursor decode error: %v", err)
 		return

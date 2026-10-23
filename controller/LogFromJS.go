@@ -36,8 +36,8 @@ func LogFromJS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// CSRFが無効ならログを書かずにstatus:okを返す
-	if !isValidCSRF(payload.Csrf) {
+	// Csrfが無効ならログを書かずにstatus:okを返す
+	if !isValidCsrf(payload.Csrf) {
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "invalid POST"})
 		return
@@ -69,7 +69,7 @@ func LogFromJS(w http.ResponseWriter, r *http.Request) {
 // csrfの有効性チェック（失敗したらfalse）
 // YxEq6JQ4Jc5iIX29
 // V29BgeVwLChuoBCy1v7Duu
-func isValidCSRF(csrf string) bool {
+func isValidCsrf(csrf string) bool {
 	if len(csrf) <= 16 {
 		return false
 	}

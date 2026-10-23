@@ -28,7 +28,7 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 	userDB := common.DB.UserDB
 	sessionDB := common.DB.SessionDB
 
-	// Validate CSRF.
+	// Validate Csrf.
 	cookie, err := r.Cookie("g_csrf_token")
 	if err != nil || cookie.Value != r.FormValue("g_csrf_token") {
 		http.Error(w, "invalid csrf token", http.StatusBadRequest)
@@ -188,7 +188,7 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generate a secure session ID and CSRF token.
+	// Generate a secure session ID and Csrf token.
 	sessionID, err := randomToken()
 	if err != nil {
 		log.Printf("session ID creation failed: %v", err)
@@ -198,7 +198,7 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 
 	csrf, err := randomToken()
 	if err != nil {
-		log.Printf("CSRF token creation failed: %v", err)
+		log.Printf("Csrf token creation failed: %v", err)
 		http.Error(w, "cannot create session", http.StatusInternalServerError)
 		return
 	}
@@ -313,12 +313,12 @@ func SignInGoogle(w http.ResponseWriter, r *http.Request) {
 
 		_ = json.NewEncoder(w).Encode(struct {
 			Success bool   `json:"success"`
-			CSRF    string `json:"csrf"`
+			Csrf    string `json:"csrf"`
 			UserID  int64  `json:"userId"`
 			Message string `json:"message"`
 		}{
 			Success: true,
-			CSRF:    csrf,
+			Csrf:    csrf,
 			UserID:  userID,
 			Message: "Success",
 		})

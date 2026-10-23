@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/oauth2/google"
-	"chat/collection"
+	"chat/table"
 )
 
 type FCMMessage struct {
@@ -212,7 +212,7 @@ func (f *FCMManager) SendToMultipleTokens(tokens []string, title, body, channelI
 }
 
 // Helper function to get FCM tokens from sessions
-func GetFCMTokensFromSessions(sessions []collection.SessionStruct) []string {
+func GetFCMTokensFromSessions(sessions []table.SessionStruct) []string {
 	var tokens []string
 	for _, session := range sessions {
 		if deviceType, token := ResolvePushTarget(session); deviceType == 2 && token != "" {

@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
+	github.com/lib/pq v1.12.3
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/miguelmota/go-ethereum-hdwallet v0.1.3
 	go.mongodb.org/mongo-driver v1.17.10

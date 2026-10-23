@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"chat/common"
-	"chat/database"
+	"chat/table"
 )
 
 func UserGet(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +20,7 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user database.UserResponse
+	var user table.UserResponse
 
 	err = common.DB.UserDB.QueryRowContext(
 		r.Context(),
@@ -56,7 +56,7 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 		Csrf         string                `json:"csrf"`
 		PushContents []string              `json:"pushContents"`
 		SessionID    string                `json:"sessionId,omitempty"`
-		User         database.UserResponse `json:"user"`
+		User         table.UserResponse `json:"user"`
 	}{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,

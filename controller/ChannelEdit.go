@@ -11,7 +11,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 )
 
@@ -248,7 +248,7 @@ func channelActorAccess(
 func loadSessionsForUserIDs(
 	ctx context.Context,
 	userIDs []int64,
-) ([]collection.SessionStruct, error) {
+) ([]table.SessionStruct, error) {
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
@@ -279,10 +279,10 @@ func loadSessionsForUserIDs(
 	}
 	defer rows.Close()
 
-	var sessions []collection.SessionStruct
+	var sessions []table.SessionStruct
 
 	for rows.Next() {
-		var s collection.SessionStruct
+		var s table.SessionStruct
 		var pushContents pq.StringArray
 
 		if err := rows.Scan(
@@ -317,7 +317,7 @@ func loadSessionsForAliasNames(
 	ctx context.Context,
 	channelID int64,
 	names []string,
-) ([]collection.SessionStruct, error) {
+) ([]table.SessionStruct, error) {
 	var (
 		rows *sql.Rows
 		err  error

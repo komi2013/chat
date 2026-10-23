@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 
 	"github.com/lib/pq"
@@ -179,7 +179,7 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions := make([]collection.SessionStruct, 0)
+	sessions := make([]table.SessionStruct, 0)
 	for sessionRows.Next() {
 		var (
 			sessionID   string
@@ -204,7 +204,7 @@ func ContentsJustPush(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sessions = append(sessions, collection.SessionStruct{
+		sessions = append(sessions, table.SessionStruct{
 			SessionID:    sessionID,
 			UserID:       int(userID),
 			PushToken:    pushToken,

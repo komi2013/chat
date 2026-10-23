@@ -22,7 +22,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 	userDB := common.DB.UserDB
 	sessionDB := common.DB.SessionDB
 
-	// Mobile CSRF form value.
+	// Mobile Csrf form value.
 	formCsrf := r.FormValue("csrf")
 	if formCsrf == "" {
 		http.Error(w, "missing csrf", http.StatusBadRequest)
@@ -157,7 +157,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a new server-generated session ID and CSRF token.
+	// Create a new server-generated session ID and Csrf token.
 	sessionID, err := randomToken()
 	if err != nil {
 		log.Printf("session ID generation failed: %v", err)
@@ -171,7 +171,7 @@ func SignInGoogleMobile(w http.ResponseWriter, r *http.Request) {
 
 	csrf, err := randomToken()
 	if err != nil {
-		log.Printf("session CSRF generation failed: %v", err)
+		log.Printf("session Csrf generation failed: %v", err)
 		http.Error(
 			w,
 			"cannot create session",

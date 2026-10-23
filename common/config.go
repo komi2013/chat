@@ -9,127 +9,118 @@ import (
 )
 
 type Config struct {
-	GoPort          string
-	CacheV          string
+	GoPort string
+	CacheV string
 
-  PgChannel  string
-  PgAlias   string
-  PgGroup   string
-  PgFile     string
-  PgInvoice  string
-  PgReception string
-  PgSession  string
-  PgUser     string
+	// PostgreSQL connection strings
+	PgChannel   string
+	PgAlias     string
+	PgGroup     string
+	PgFile      string
+	PgInvoice   string
+	PgReception string
+	PgSession   string
+	PgUser      string
 
-	VAPIDPublicKey  string
-	VAPIDPrivateKey string
-	OSImgDir        string
-	PublicImgPath   string
-	UploadDir       string
-	Domain          string
-	GoogleClientID  string
-	GoogleClientMobileID  string
-	EtherscanApiKey string
-	WebRTC          string
-	FirebaseProjectID      string
+	VAPIDPublicKey            string
+	VAPIDPrivateKey           string
+	OSImgDir                  string
+	PublicImgPath             string
+	UploadDir                 string
+	Domain                    string
+	GoogleClientID            string
+	GoogleClientMobileID      string
+	EtherscanApiKey           string
+	WebRTC                    string
+	FirebaseProjectID         string
 	FirebaseServiceAccountKey string
-	FCMTestToken    string
-	// FCMAccessToken optionally overrides the service-account flow with a
-	// short-lived OAuth2 access token (handy for local testing).
-	FCMAccessToken  string
+	FCMTestToken              string
+	FCMAccessToken            string
 }
 
 func LoadConfig() *Config {
 	const pathRelative = "infrastructure/.env"
-	err := godotenv.Load(pathRelative)
-	if err != nil {
-		log.Fatalf("FATAL: Console Config loading failed! Required path not found: %s. Error: %v", pathRelative, err)
+
+	if err := godotenv.Load(pathRelative); err != nil {
+		log.Fatalf(
+			"FATAL: Console Config loading failed! Required path not found: %s. Error: %v",
+			pathRelative,
+			err,
+		)
 	}
+
 	return loadFromEnv()
 }
 
-// -----------------------------------------------------------
-// LoadConsoleConfig() : コンソールタスク (Crontab/CLI) の環境変数を読み込む
-// Policy: STRICTLY use the Absolute Path for maximum Crontab reliability.
-// -----------------------------------------------------------
+// LoadConsoleConfig loads environment variables for console tasks.
 func LoadConsoleConfig() *Config {
-
 	prodAbsolute := "/Work/chat/infrastructure/.env"
 	devAbsolute := "/root/infrastructure/.env"
-	err := godotenv.Load(prodAbsolute)
-	if err != nil {
-		err = godotenv.Load(devAbsolute)
-		if err != nil {
-			log.Fatalf("Console .env loading failed; prod:<%s> dev:<%s> err: %v", prodAbsolute, devAbsolute, err)
+
+	if err := godotenv.Load(prodAbsolute); err != nil {
+		if err := godotenv.Load(devAbsolute); err != nil {
+			log.Fatalf(
+				"Console .env loading failed; prod:<%s> dev:<%s> err: %v",
+				prodAbsolute,
+				devAbsolute,
+				err,
+			)
 		}
-	// } else {
-	// 	log.Printf("DEBUG: EnvFilePathProdAbsolute path failed (%v). Attempting dev path: %s", err, EnvFilePathDevAbsolute)
-	// 	err = godotenv.Load(EnvFilePathDevAbsolute)
-		// if err != nil {
-		// 	// Both attempts failed. Issue a final warning.
-		// 	log.Printf("WARNING: App Configuration file not found. Relying on existing environment variables.")
-		// } else {
-		// 	log.Println("DEBUG: App Config loaded from Relative Path:", EnvFilePathRelative)
-		// }
 	}
+
 	return loadFromEnv()
 }
 
-// Helper function to read variables from the environment into the Config struct
+// loadFromEnv reads environment variables into Config.
 func loadFromEnv() *Config {
 	return &Config{
-		GoPort:          os.Getenv("GO_PORT"),
-		CacheV:          fixCache(),
+		GoPort: os.Getenv("GO_PORT"),
+		CacheV:  fixCache(),
 
-		PgChannel   string
-		PgAlias     string
-		PgGroup     string
-		PgFile      string
-		PgInvoice   string
-		PgReception string
-		PgSession   string
-		PgUser      string
+		// PostgreSQL
+		PgChannel:   os.Getenv("PG_CHANNEL"),
+		PgAlias:     os.Getenv("PG_ALIAS"),
+		PgGroup:     os.Getenv("PG_GROUP"),
+		PgFile:      os.Getenv("PG_FILE"),
+		PgInvoice:   os.Getenv("PG_INVOICE"),
+		PgReception: os.Getenv("PG_RECEPTION"),
+		PgSession:   os.Getenv("PG_SESSION"),
+		PgUser:      os.Getenv("PG_USER"),
 
-// PG_CHANNEL="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_ALIAS="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_GROUP="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_FILE="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_INVOICE="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_RECEPTION="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_SESSION="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-// PG_USER="host=postgres port=5432 user=postgres password=12345678 dbname=app sslmode=disable"
-		
-		VAPIDPublicKey:  "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
-		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
-		OSImgDir:        os.Getenv("OS_IMG_DIR"),
-		PublicImgPath:   os.Getenv("PUBLIC_IMG_PATH"),
-		UploadDir:       os.Getenv("UPLOAD_DIR"),
-		Domain:          os.Getenv("DOMAIN"),
-		GoogleClientID:  os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientMobileID:  os.Getenv("GOOGLE_CLIENT_MOBILE_ID"),
-		EtherscanApiKey: os.Getenv("ETHER_SCAN_APIKEY"),
-		WebRTC:          os.Getenv("WEB_RTC"),
-		FirebaseProjectID:      os.Getenv("FIREBASE_PROJECT_ID"),
+		VAPIDPublicKey:            "BIN2Jc5Vmkmy-S3AUrcMlpKxJpLeVRAfu9WBqUbJ70SJOCWGCGXKY-Xzyh7HDr6KbRDGYHjqZ06OcS3BjD7uAm8",
+		VAPIDPrivateKey:           os.Getenv("VAPID_PRIVATE_KEY"),
+		OSImgDir:                  os.Getenv("OS_IMG_DIR"),
+		PublicImgPath:             os.Getenv("PUBLIC_IMG_PATH"),
+		UploadDir:                 os.Getenv("UPLOAD_DIR"),
+		Domain:                    os.Getenv("DOMAIN"),
+		GoogleClientID:            os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientMobileID:      os.Getenv("GOOGLE_CLIENT_MOBILE_ID"),
+		EtherscanApiKey:           os.Getenv("ETHER_SCAN_APIKEY"),
+		WebRTC:                    os.Getenv("WEB_RTC"),
+		FirebaseProjectID:         os.Getenv("FIREBASE_PROJECT_ID"),
 		FirebaseServiceAccountKey: os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY"),
-		FCMTestToken:    os.Getenv("FCM_TEST_TOKEN"),
-		FCMAccessToken:  os.Getenv("FCM_ACCESS_TOKEN"),
+		FCMTestToken:              os.Getenv("FCM_TEST_TOKEN"),
+		FCMAccessToken:            os.Getenv("FCM_ACCESS_TOKEN"),
 	}
 }
 
 func fixCache() string {
-  f, err := os.Open("infrastructure/cache_v.env")
-  if err != nil {
-      log.Fatalf("FATAL: cache_v.env not found: %v", err)
-  }
-  defer f.Close()
-  envMap, err := godotenv.Parse(f)
-  if err != nil {
-      log.Fatalf("FATAL: cache_v.env parse error: %v", err)
-  }
-  cacheStr := envMap["CACHE_V"]
-  if os.Getenv("ENV") == "dev" {
-      cacheStr = time.Now().Format("20060102T1504")
-  }
-  return cacheStr
-}
+	f, err := os.Open("infrastructure/cache_v.env")
+	if err != nil {
+		log.Fatalf("FATAL: cache_v.env not found: %v", err)
+	}
+	defer f.Close()
 
+	envMap, err := godotenv.Parse(f)
+	if err != nil {
+		log.Fatalf("FATAL: cache_v.env parse error: %v", err)
+	}
+
+	cacheStr := envMap["CACHE_V"]
+
+	if os.Getenv("ENV") == "dev" {
+		cacheStr = time.Now().Format("20060102T1504")
+	}
+
+	return cacheStr
+}

@@ -11,7 +11,7 @@ import (
 
 	"github.com/SherClockHolmes/webpush-go"
 
-	"chat/collection"
+	"chat/table"
 )
 
 // pushContentExecutor is implemented by both *sql.DB and *sql.Tx.
@@ -71,7 +71,7 @@ func dispatchPushAndLog(
 	arr []interface{},
 	pushID string,
 	jsonData string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) *http.Response {
 	if _, token := ResolvePushTarget(session); token == "" {
 		log.Printf(
@@ -108,7 +108,7 @@ func dispatchPushAndLog(
 func SendWebPushNotification(
 	arr []interface{},
 	pushID string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) (*http.Response, error) {
 	jsonData, err := json.Marshal(arr)
 	if err != nil {
@@ -164,7 +164,7 @@ func PushNotification(
 // ResolvePushTarget returns the registered transport and token.
 //
 //	deviceType: 0 = none, 1 = VAPID (web), 2 = FCM (Android), 3 = APNs (iOS).
-func ResolvePushTarget(session collection.SessionStruct) (int, string) {
+func ResolvePushTarget(session table.SessionStruct) (int, string) {
 	if session.PushToken == "" {
 		return 0, ""
 	}
@@ -194,7 +194,7 @@ func deviceTypeLabel(deviceType int) string {
 func sendFCMPush(
 	arr []interface{},
 	pushID string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) error {
 	_, token := ResolvePushTarget(session)
 	if token == "" {
@@ -219,7 +219,7 @@ func dispatchPush(
 	arr []interface{},
 	pushID string,
 	jsonData string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) (*http.Response, error) {
 	deviceType, _ := ResolvePushTarget(session)
 
@@ -250,7 +250,7 @@ func dispatchPush(
 // If one database write fails, the transaction rolls back and no pushes
 // are sent. Push delivery errors are logged only.
 func ChunkPush(
-	sessions []collection.SessionStruct,
+	sessions []table.SessionStruct,
 	arr []interface{},
 ) error {
 	jsonData, err := json.Marshal(arr)
@@ -275,7 +275,7 @@ func ChunkPush(
 	}
 
 	type pendingPush struct {
-		session collection.SessionStruct
+		session table.SessionStruct
 		pushID  string
 		payload []interface{}
 		json    string
@@ -361,7 +361,7 @@ func ChunkPush(
 
 // ChunkJustPush sends chunked payloads without saving push_contents.
 func ChunkJustPush(
-	sessions []collection.SessionStruct,
+	sessions []table.SessionStruct,
 	arr []interface{},
 ) {
 	jsonData, err := json.Marshal(arr)
@@ -412,7 +412,7 @@ func ChunkJustPush(
 func SendWebJustPush(
 	arr []interface{},
 	pushID string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) (*http.Response, error) {
 	jsonData, err := json.Marshal(arr)
 	if err != nil {
@@ -428,7 +428,7 @@ func SendWebJustPush(
 func SendPushNotification(
 	arr []interface{},
 	pushID string,
-	session collection.SessionStruct,
+	session table.SessionStruct,
 ) error {
 	jsonData, err := json.Marshal(arr)
 	if err != nil {

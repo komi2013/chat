@@ -9,7 +9,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 )
 
@@ -179,7 +179,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. Fetch the sessions belonging to those users.
-	var sessions []collection.SessionStruct
+	var sessions []table.SessionStruct
 
 	if len(userIDs) > 0 {
 		rows, err := common.DB.SessionDB.QueryContext(
@@ -214,7 +214,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for rows.Next() {
-			var s collection.SessionStruct
+			var s table.SessionStruct
 			var pushContents pq.StringArray
 
 			if err := rows.Scan(

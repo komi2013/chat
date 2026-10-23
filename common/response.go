@@ -6,7 +6,7 @@ import (
   "net/http"
   // "strings"
 
-  "chat/collection"
+  "chat/table"
 )
 
 type BaseResponse struct {
@@ -21,8 +21,8 @@ type ReceptionResponse struct {
 	Error        string   `json:"error,omitempty"`
   Mail         string   `json:"mail,omitempty"`
   Telephone    string   `json:"telephone,omitempty"`
-	Reception 	 collection.ReceptionStruct `json:"reception,omitempty"`
-	Menu 	 			 collection.MenuStruct `json:"menu,omitempty"`
+	Reception 	 table.ReceptionStruct `json:"reception,omitempty"`
+	Menu 	 			 table.Menu `json:"menu,omitempty"`
 	FacilityName string    `json:"facilityName,omitempty"`
 	Nickname     string    `json:"nickname,omitempty"`
 }
@@ -36,7 +36,7 @@ func ResponseErrorStatus(w http.ResponseWriter, err error) bool {
 	return false
 }
 
-func WriteResponseWithSession(w http.ResponseWriter, session collection.SessionStruct, errMsg string, status int) {
+func WriteResponseWithSession(w http.ResponseWriter, session table.SessionStruct, errMsg string, status int) {
     w.Header().Set("Content-Type", "application/json")
     if status != http.StatusOK {
       w.WriteHeader(status)
@@ -75,7 +75,7 @@ func WriteResponseWithoutSession(w http.ResponseWriter, csrf string, errMsg stri
     json.NewEncoder(w).Encode(responseData)
 }
 
-func rotatedSessionID(session collection.SessionStruct) string {
+func rotatedSessionID(session table.SessionStruct) string {
   if session.SessionIDRotated {
     return session.SessionID
   }

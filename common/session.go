@@ -12,7 +12,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"chat/collection"
+	"chat/table"
 )
 
 func secureRandomToken() (string, error) {
@@ -24,8 +24,8 @@ func secureRandomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func loadSession(ctx context.Context, sessionID string) (collection.SessionStruct, error) {
-	var session collection.SessionStruct
+func loadSession(ctx context.Context, sessionID string) (table.SessionStruct, error) {
+	var session table.SessionStruct
 	var pushContents pq.StringArray
 
 	err := DB.SessionDB.QueryRowContext(
@@ -68,14 +68,14 @@ func loadSession(ctx context.Context, sessionID string) (collection.SessionStruc
 	return session, nil
 }
 
-func SessionGet(w http.ResponseWriter, r *http.Request) (collection.SessionStruct, error) {
+func SessionGet(w http.ResponseWriter, r *http.Request) (table.SessionStruct, error) {
 	sessionID, _, err := sessionIDFromRequest(r)
 	if err != nil {
-		return collection.SessionStruct{}, err
+		return table.SessionStruct{}, err
 	}
 
 	if DB == nil || DB.SessionDB == nil {
-		return collection.SessionStruct{}, errors.New("session database unavailable")
+		return table.SessionStruct{}, errors.New("session database unavailable")
 	}
 
 	return loadSession(r.Context(), sessionID)
@@ -85,14 +85,14 @@ func SessionCheckTake(
 	w http.ResponseWriter,
 	r *http.Request,
 	token string,
-) (collection.SessionStruct, error) {
+) (table.SessionStruct, error) {
 	if DB == nil || DB.SessionDB == nil {
-		return collection.SessionStruct{}, errors.New("session database unavailable")
+		return table.SessionStruct{}, errors.New("session database unavailable")
 	}
 
 	sessionID, bearerToken, err := sessionIDFromRequest(r)
 	if err != nil {
-		return collection.SessionStruct{}, err
+		return table.SessionStruct{}, err
 	}
 
 	session, err := loadSession(r.Context(), sessionID)
@@ -182,9 +182,9 @@ func sessionIDFromRequest(r *http.Request) (string, bool, error) {
 }
 
 func CSRFcheckMake(
-	session collection.SessionStruct,
+	session table.SessionStruct,
 	token string,
-) (collection.SessionStruct, error) {
+) (table.SessionStruct, error) {
 	if session.Csrf != token {
 		return session, errors.New("CSRFcheckMake token error")
 	}
@@ -198,8 +198,8 @@ func CSRFcheckMake(
 }
 
 func CSRFReGenerate(
-	session collection.SessionStruct,
-) (collection.SessionStruct, error) {
+	session table.SessionStruct,
+) (table.SessionStruct, error) {
 	token, err := secureRandomToken()
 	if err != nil {
 		return session, err
@@ -210,8 +210,8 @@ func CSRFReGenerate(
 }
 
 func PushReGenerate(
-	session collection.SessionStruct,
-) (collection.SessionStruct, error) {
+	session table.SessionStruct,
+) (table.SessionStruct, error) {
 	if DB == nil || DB.SessionDB == nil {
 		return session, errors.New("session database unavailable")
 	}
@@ -266,8 +266,8 @@ func PushReGenerate(
 // SessionRegenerate replaces the session in a single transaction.
 // Cookie/header updates are performed by SessionCheckTake after this succeeds.
 func SessionRegenerate(
-	session collection.SessionStruct,
-) (collection.SessionStruct, error) {
+	session table.SessionStruct,
+) (table.SessionStruct, error) {
 	if DB == nil || DB.SessionDB == nil {
 		return session, errors.New("session database unavailable")
 	}

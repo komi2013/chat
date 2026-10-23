@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 
 	"github.com/lib/pq"
@@ -40,7 +40,7 @@ type joinGroup struct {
 }
 
 type pendingJoinPush struct {
-	session collection.SessionStruct
+	session table.SessionStruct
 	payload []interface{}
 	pushID  string
 }
@@ -62,14 +62,14 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 
 	channelID, err := strconv.ParseInt(channelIDText, 10, 64)
 	if err != nil || channelID <= 0 {
-		writeChannelJoinError(w, http.StatusBadRequest, "Invalid channelID", session.CSRF)
+		writeChannelJoinError(w, http.StatusBadRequest, "Invalid channelID", session.Csrf)
 		return
 	}
 
 	userID := int64(session.UserID)
 
 	if myname == "" {
-		writeChannelJoinError(w, http.StatusBadRequest, "myname is required", session.CSRF)
+		writeChannelJoinError(w, http.StatusBadRequest, "myname is required", session.Csrf)
 		return
 	}
 
@@ -100,11 +100,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			writeChannelJoinError(w, http.StatusNotFound, "Channel not found", session.CSRF)
+			writeChannelJoinError(w, http.StatusNotFound, "Channel not found", session.Csrf)
 			return
 		}
 		log.Printf("ChannelJoin: load channel: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel", session.Csrf)
 		return
 	}
 
@@ -114,7 +114,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	if (!isRegularInvitation && !isGuestInvitation) ||
 		!invitedAt.Valid ||
 		time.Since(invitedAt.Time) > 7*24*time.Hour {
-		writeChannelJoinError(w, http.StatusBadRequest, "Invalid or expired invitation code", session.CSRF)
+		writeChannelJoinError(w, http.StatusBadRequest, "Invalid or expired invitation code", session.Csrf)
 		return
 	}
 
@@ -135,11 +135,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	`, channelID, myname, accessRightInquirer).Scan(&duplicate)
 	if err != nil {
 		log.Printf("ChannelJoin: check duplicate alias name: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to check alias name", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to check alias name", session.Csrf)
 		return
 	}
 	if duplicate {
-		writeChannelJoinError(w, http.StatusConflict, "This alias name is already used in this channel", session.CSRF)
+		writeChannelJoinError(w, http.StatusConflict, "This alias name is already used in this channel", session.Csrf)
 		return
 	}
 
@@ -177,7 +177,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		// A unique index on (channel_id, alias_name), excluding inquirers,
 		// should be used to enforce the rule at the database level too.
 		log.Printf("ChannelJoin: insert alias: %v", err)
-		writeChannelJoinError(w, http.StatusConflict, "Failed to join channel; the alias name may already be in use", session.CSRF)
+		writeChannelJoinError(w, http.StatusConflict, "Failed to join channel; the alias name may already be in use", session.Csrf)
 		return
 	}
 
@@ -187,14 +187,14 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	aliases, err := loadJoinAliases(channelID)
 	if err != nil {
 		log.Printf("ChannelJoin: load aliases: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel aliases", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel aliases", session.Csrf)
 		return
 	}
 
 	groups, err := loadJoinGroups(channelID)
 	if err != nil {
 		log.Printf("ChannelJoin: load groups: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel groups", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel groups", session.Csrf)
 		return
 	}
 
@@ -208,7 +208,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	`, channelID, accessRightInquirer)
 	if err != nil {
 		log.Printf("ChannelJoin: load member user IDs: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.Csrf)
 		return
 	}
 
@@ -220,7 +220,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&memberUserID); err != nil {
 			rows.Close()
 			log.Printf("ChannelJoin: scan member user ID: %v", err)
-			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.CSRF)
+			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.Csrf)
 			return
 		}
 
@@ -234,7 +234,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	if err := rows.Err(); err != nil {
 		rows.Close()
 		log.Printf("ChannelJoin: iterate member user IDs: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load channel members", session.Csrf)
 		return
 	}
 	rows.Close()
@@ -249,12 +249,12 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	`, pq.Array(userIDs))
 	if err != nil {
 		log.Printf("ChannelJoin: load sessions: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.Csrf)
 		return
 	}
 
-	var ownSessions []collection.SessionStruct
-	var otherSessions []collection.SessionStruct
+	var ownSessions []table.SessionStruct
+	var otherSessions []table.SessionStruct
 
 	for sessionRows.Next() {
 		var (
@@ -267,11 +267,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		if err := sessionRows.Scan(&sessionID, &memberID, &pushToken, &deviceType); err != nil {
 			sessionRows.Close()
 			log.Printf("ChannelJoin: scan session: %v", err)
-			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.CSRF)
+			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.Csrf)
 			return
 		}
 
-		memberSession := collection.SessionStruct{
+		memberSession := table.SessionStruct{
 			SessionID:  sessionID,
 			UserID:     strconv.FormatInt(memberID, 10),
 			PushToken:  pushToken,
@@ -288,7 +288,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	if err := sessionRows.Err(); err != nil {
 		sessionRows.Close()
 		log.Printf("ChannelJoin: iterate sessions: %v", err)
-		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.CSRF)
+		writeChannelJoinError(w, http.StatusInternalServerError, "Failed to load member sessions", session.Csrf)
 		return
 	}
 	sessionRows.Close()
@@ -376,7 +376,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		data, err := json.Marshal(p.payload)
 		if err != nil {
 			log.Printf("ChannelJoin: marshal push payload: %v", err)
-			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to prepare notifications", session.CSRF)
+			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to prepare notifications", session.Csrf)
 			return
 		}
 
@@ -390,7 +390,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 		`, string(data), p.session.SessionID)
 		if err != nil {
 			log.Printf("ChannelJoin: queue push content for session %s: %v", p.session.SessionID, err)
-			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to queue notifications", session.CSRF)
+			writeChannelJoinError(w, http.StatusInternalServerError, "Failed to queue notifications", session.Csrf)
 			return
 		}
 	}
@@ -407,7 +407,7 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"csrf":         session.CSRF,
+		"csrf":         session.Csrf,
 		"pushContents": session.PushContents,
 	})
 }

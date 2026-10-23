@@ -1,17 +1,9 @@
 package controller
 
 import (
-  // "chat/collection"
   "chat/common"
-  // "context"
   "encoding/json"
-  // "fmt"
-  // "log"
-  // "math"
   "net/http"
-  // "time"
-
-  // "go.mongodb.org/mongo-driver/bson"
 )
 
 func WebRTCTokenGet(w http.ResponseWriter, r *http.Request) {

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 
 	"github.com/lib/pq"
@@ -132,7 +132,7 @@ func PushSubscribeMobile(w http.ResponseWriter, r *http.Request) {
 		"pushCheck",
 		"FCM token registration completed",
 	}
-	common.ChunkPush([]collection.SessionStruct{session}, pushPayload)
+	common.ChunkPush([]table.SessionStruct{session}, pushPayload)
 
 	// 5. Return channel, alias, and group data.
 	//

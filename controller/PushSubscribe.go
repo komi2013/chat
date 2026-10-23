@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 
 	"github.com/lib/pq"
@@ -421,7 +421,7 @@ func PushSubscribe(w http.ResponseWriter, r *http.Request) {
 		"pushCheck",
 		"push登録完了",
 	}
-	common.ChunkPush([]collection.SessionStruct{session}, pushPayload)
+	common.ChunkPush([]table.SessionStruct{session}, pushPayload)
 
 	// 7. Respond with channel, alias and group data.
 	//

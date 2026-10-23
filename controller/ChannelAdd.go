@@ -7,7 +7,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 )
 
@@ -116,10 +116,10 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var mySessions []collection.SessionStruct
+	var mySessions []table.SessionStruct
 
 	for rows.Next() {
-		var s collection.SessionStruct
+		var s table.SessionStruct
 		var pushContents pq.StringArray
 
 		err := rows.Scan(

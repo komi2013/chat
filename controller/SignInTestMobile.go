@@ -78,7 +78,7 @@ func SignInTestMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a new session ID and CSRF token.
+	// Generate a new session ID and Csrf token.
 	sessionID, err := randomToken()
 	if err != nil {
 		log.Printf("test session ID generation failed: %v", err)
@@ -92,7 +92,7 @@ func SignInTestMobile(w http.ResponseWriter, r *http.Request) {
 
 	csrf, err := randomToken()
 	if err != nil {
-		log.Printf("test CSRF generation failed: %v", err)
+		log.Printf("test Csrf generation failed: %v", err)
 		http.Error(
 			w,
 			"cannot create session",

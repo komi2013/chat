@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"chat/collection"
+	"chat/table"
 	"chat/common"
 
 	"github.com/lib/pq"
@@ -178,14 +178,14 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessions := make([]collection.SessionStruct, 0)
+	sessions := make([]table.SessionStruct, 0)
 	for sessionRows.Next() {
 		var (
 			sessionID    string
 			userID       int64
 			pushToken    string
 			deviceType   int
-			sessionCSRF  string
+			sessionCsrf  string
 			pushContents []string
 		)
 
@@ -194,7 +194,7 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 			&userID,
 			&pushToken,
 			&deviceType,
-			&sessionCSRF,
+			&sessionCsrf,
 			pq.Array(&pushContents),
 		); err != nil {
 			sessionRows.Close()
@@ -205,12 +205,12 @@ func ContentsPush(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sessions = append(sessions, collection.SessionStruct{
+		sessions = append(sessions, table.SessionStruct{
 			SessionID:    sessionID,
 			UserID:       int(userID),
 			PushToken:    pushToken,
 			DeviceType:   deviceType,
-			Csrf:         sessionCSRF,
+			Csrf:         sessionCsrf,
 			PushContents: pushContents,
 		})
 	}
