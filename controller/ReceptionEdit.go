@@ -11,18 +11,34 @@ import (
 
 	"github.com/lib/pq"
 
-	"chat/collection"
 	"chat/common"
+	"chat/table"
 )
 
+// ReceptionEdit saves reception/menu master data according to
+// postgres_schema_optimized.sql. Master arrays are stored in reception JSONB;
+// bookings, queues, facility codes, and facility occupancy remain operational rows.
+// receptionEditPayload embeds the database model while accepting operational
+// facility fields that are returned by the API but not stored in facilities JSONB.
+type receptionEditPayload struct {
+	table.ReceptionStruct
+	Facilities []table.FacilityView `json:"facilities"`
+}
+
+type receptionMenuPayload struct {
+	UpdatedAt   time.Time          `json:"updatedAt,omitempty"`
+	Menus       []table.Menu       `json:"menus"`
+	ItemDetails []table.ItemDetail `json:"itemDetails"`
+}
+
 func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
-	var reception collection.ReceptionStruct
+	var reception receptionEditPayload
 	if err := json.Unmarshal([]byte(r.FormValue("reception")), &reception); err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid JSON reception", http.StatusOK)
 		return
 	}
 
-	var menu collection.MenuStruct
+	var menu receptionMenuPayload
 	if err := json.Unmarshal([]byte(r.FormValue("menu")), &menu); err != nil {
 		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid JSON menu", http.StatusOK)
 		return
@@ -45,17 +61,11 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Confirm the POSTed aliasName/channelID belongs to this logged-in user.
-	// This check validates request consistency; edit authorization is checked separately
-	// against reception.admin_names below.
 	var aliasExists bool
 	err = common.DB.AliasDB.QueryRowContext(ctx, `
 		SELECT EXISTS (
-			SELECT 1
-			FROM alias
-			WHERE user_id = $1
-			  AND alias_name = $2
-			  AND channel_id = $3
+			SELECT 1 FROM alias
+			WHERE user_id = $1 AND alias_name = $2 AND channel_id = $3
 		)
 	`, session.UserID, aliasName, channelID).Scan(&aliasExists)
 	if err != nil {
@@ -67,7 +77,6 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Do not silently accept conflicting channel IDs from the JSON and the form.
 	if reception.ChannelID == 0 {
 		reception.ChannelID = channelID
 	} else if reception.ChannelID != channelID {
@@ -84,15 +93,11 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 
 	isNewReception := reception.ReceptionID <= 0
 	if isNewReception {
-		// A new reception has no stored admin_names yet. Require the creator to be
-		// included in the initial admin_names list.
 		if !containsString(reception.AdminNames, aliasName) {
 			common.WriteResponseWithSession(w, session, "Only reception admins can create or edit this reception", http.StatusOK)
 			return
 		}
 	} else {
-		// Lock the current reception row and authorize against the stored admin_names,
-		// never against admin_names supplied in the POST body.
 		var storedChannelID int64
 		var storedAdminNames []string
 		err = tx.QueryRowContext(ctx, `
@@ -121,7 +126,7 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save item images after identity and authorization checks.
+	// Save images only after authentication and authorization checks.
 	for i := range menu.ItemDetails {
 		if menu.ItemDetails[i].ImgPath == "" {
 			continue
@@ -141,6 +146,107 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		menu.ItemDetails[i].ImgPath = savedPath
 	}
 
+	// Allocate stable IDs for new facilities and shifts before marshaling JSONB.
+	for i := range reception.Facilities {
+		if reception.Facilities[i].FacilityID <= 0 {
+			if err := tx.QueryRowContext(ctx, `SELECT nextval('reception_facility_id_seq')`).Scan(&reception.Facilities[i].FacilityID); err != nil {
+				common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to allocate facility ID at index %d: %v", i, err), http.StatusOK)
+				return
+			}
+		}
+	}
+	reception.ReceptionStruct.Facilities = make([]table.FacilityMaster, len(reception.Facilities))
+	for i, facility := range reception.Facilities {
+		reception.ReceptionStruct.Facilities[i] = table.FacilityMaster{
+			FacilityID: facility.FacilityID, FacilityName: facility.FacilityName,
+			Capacity: facility.Capacity, Passcodes: facility.Passcodes, Bookable: facility.Bookable,
+		}
+	}
+	shiftIDs := make(map[int64]struct{}, len(reception.Shifts))
+	for i := range reception.Shifts {
+		if reception.Shifts[i].ShiftID <= 0 {
+			if err := tx.QueryRowContext(ctx, `SELECT nextval('reception_shift_id_seq')`).Scan(&reception.Shifts[i].ShiftID); err != nil {
+				common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to allocate shift ID at index %d: %v", i, err), http.StatusOK)
+				return
+			}
+		}
+		if _, duplicate := shiftIDs[reception.Shifts[i].ShiftID]; duplicate {
+			common.WriteResponseWithSession(w, session, fmt.Sprintf("Duplicate shiftID %d", reception.Shifts[i].ShiftID), http.StatusOK)
+			return
+		}
+		shiftIDs[reception.Shifts[i].ShiftID] = struct{}{}
+	}
+	for i, staff := range reception.WorkStaffs {
+		if _, ok := shiftIDs[staff.ShiftID]; !ok {
+			common.WriteResponseWithSession(w, session, fmt.Sprintf("workStaff[%d] references unknown shiftID %d", i, staff.ShiftID), http.StatusOK)
+			return
+		}
+	}
+
+	// Facility currentCode and BookTimes are deliberately excluded from the
+	// facilities JSONB column. Current codes are stored in the registry table;
+	// booking occupancy remains in reception_facility_book_time.
+	facilitiesJSON, err := marshalFacilitiesMaster(reception.Facilities)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode facilities: "+err.Error(), http.StatusOK)
+		return
+	}
+	passcodesJSON, err := json.Marshal(nonNilValue(reception.Passcodes))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode passcodes: "+err.Error(), http.StatusOK)
+		return
+	}
+	asksJSON, err := json.Marshal(nonNilValue(reception.Asks))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode asks: "+err.Error(), http.StatusOK)
+		return
+	}
+	askChoicesJSON, err := json.Marshal(nonNilValue(reception.AskChoices))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode ask choices: "+err.Error(), http.StatusOK)
+		return
+	}
+	askMultiChoicesJSON, err := json.Marshal(nonNilValue(reception.AskMultiChoices))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode ask multi-choices: "+err.Error(), http.StatusOK)
+		return
+	}
+	openTimesJSON, err := json.Marshal(nonNilValue(reception.OpenTimes))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode open times: "+err.Error(), http.StatusOK)
+		return
+	}
+	shiftsJSON, err := json.Marshal(nonNilValue(reception.Shifts))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode shifts: "+err.Error(), http.StatusOK)
+		return
+	}
+	staffSkillsJSON, err := json.Marshal(nonNilValue(reception.StaffSkills))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode staff skills: "+err.Error(), http.StatusOK)
+		return
+	}
+	workStaffsJSON, err := json.Marshal(nonNilValue(reception.WorkStaffs))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode work staffs: "+err.Error(), http.StatusOK)
+		return
+	}
+	waitConfigsJSON, err := json.Marshal(nonNilValue(reception.WaitConfigs))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode wait configs: "+err.Error(), http.StatusOK)
+		return
+	}
+	menusJSON, err := json.Marshal(nonNilValue(menu.Menus))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode menus: "+err.Error(), http.StatusOK)
+		return
+	}
+	itemDetailsJSON, err := json.Marshal(nonNilValue(menu.ItemDetails))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode item details: "+err.Error(), http.StatusOK)
+		return
+	}
+
 	now := time.Now()
 	reception.UpdatedAt = now
 	menu.UpdatedAt = now
@@ -149,22 +255,28 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	if isNewReception {
 		err = tx.QueryRowContext(ctx, `
 			INSERT INTO reception (
-				channel_id, admin_names, join_names, inquiry_names, subscriptions,
-				order_user_ids, updated_at, reception_title, skills, work_staff_need
+				channel_id, updated_at, reception_title, work_staff_need,
+				admin_names, join_names, inquiry_names, subscriptions,
+				order_user_ids, skills,
+				passcodes, asks, ask_choices, ask_multi_choices, facilities,
+				open_times, shifts, staff_skills, work_staffs, wait_configs,
+				menus, item_details
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			VALUES (
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+				$11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb,
+				$16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb,
+				$21::jsonb, $22::jsonb
+			)
 			RETURNING reception_id
 		`,
-			reception.ChannelID,
-			pq.Array(nonNilStrings(reception.AdminNames)),
-			pq.Array(nonNilStrings(reception.JoinNames)),
-			pq.Array(nonNilStrings(reception.InquiryNames)),
-			pq.Array(nonNilStrings(reception.Subscriptions)),
-			pq.Array(nonNilInt64s(reception.OrderUserIDs)),
-			reception.UpdatedAt,
-			reception.ReceptionTitle,
-			pq.Array(nonNilStrings(reception.Skills)),
-			reception.WorkStaffNeed,
+			reception.ChannelID, reception.UpdatedAt, reception.ReceptionTitle, reception.WorkStaffNeed,
+			pq.Array(nonNilStrings(reception.AdminNames)), pq.Array(nonNilStrings(reception.JoinNames)),
+			pq.Array(nonNilStrings(reception.InquiryNames)), pq.Array(nonNilStrings(reception.Subscriptions)),
+			pq.Array(nonNilInt64s(reception.OrderUserIDs)), pq.Array(nonNilStrings(reception.Skills)),
+			string(passcodesJSON), string(asksJSON), string(askChoicesJSON), string(askMultiChoicesJSON), string(facilitiesJSON),
+			string(openTimesJSON), string(shiftsJSON), string(staffSkillsJSON), string(workStaffsJSON), string(waitConfigsJSON),
+			string(menusJSON), string(itemDetailsJSON),
 		).Scan(&reception.ReceptionID)
 		if err != nil {
 			common.WriteResponseWithSession(w, session, "Failed to insert reception: "+err.Error(), http.StatusOK)
@@ -172,30 +284,23 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		_, err = tx.ExecContext(ctx, `
-			UPDATE reception
-			SET channel_id = $1,
-			    admin_names = $2,
-			    join_names = $3,
-			    inquiry_names = $4,
-			    subscriptions = $5,
-			    order_user_ids = $6,
-			    updated_at = $7,
-			    reception_title = $8,
-			    skills = $9,
-			    work_staff_need = $10
-			WHERE reception_id = $11
+			UPDATE reception SET
+				channel_id = $1, updated_at = $2, reception_title = $3, work_staff_need = $4,
+				admin_names = $5, join_names = $6, inquiry_names = $7, subscriptions = $8,
+				order_user_ids = $9, skills = $10,
+				passcodes = $11::jsonb, asks = $12::jsonb, ask_choices = $13::jsonb,
+				ask_multi_choices = $14::jsonb, facilities = $15::jsonb, open_times = $16::jsonb,
+				shifts = $17::jsonb, staff_skills = $18::jsonb, work_staffs = $19::jsonb,
+				wait_configs = $20::jsonb, menus = $21::jsonb, item_details = $22::jsonb
+			WHERE reception_id = $23
 		`,
-			reception.ChannelID,
-			pq.Array(nonNilStrings(reception.AdminNames)),
-			pq.Array(nonNilStrings(reception.JoinNames)),
-			pq.Array(nonNilStrings(reception.InquiryNames)),
-			pq.Array(nonNilStrings(reception.Subscriptions)),
-			pq.Array(nonNilInt64s(reception.OrderUserIDs)),
-			reception.UpdatedAt,
-			reception.ReceptionTitle,
-			pq.Array(nonNilStrings(reception.Skills)),
-			reception.WorkStaffNeed,
-			reception.ReceptionID,
+			reception.ChannelID, reception.UpdatedAt, reception.ReceptionTitle, reception.WorkStaffNeed,
+			pq.Array(nonNilStrings(reception.AdminNames)), pq.Array(nonNilStrings(reception.JoinNames)),
+			pq.Array(nonNilStrings(reception.InquiryNames)), pq.Array(nonNilStrings(reception.Subscriptions)),
+			pq.Array(nonNilInt64s(reception.OrderUserIDs)), pq.Array(nonNilStrings(reception.Skills)),
+			string(passcodesJSON), string(asksJSON), string(askChoicesJSON), string(askMultiChoicesJSON),
+			string(facilitiesJSON), string(openTimesJSON), string(shiftsJSON), string(staffSkillsJSON),
+			string(workStaffsJSON), string(waitConfigsJSON), string(menusJSON), string(itemDetailsJSON), reception.ReceptionID,
 		)
 		if err != nil {
 			common.WriteResponseWithSession(w, session, "Failed to update reception: "+err.Error(), http.StatusOK)
@@ -203,15 +308,24 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err = replaceReceptionChildren(ctx, tx, reception); err != nil {
-		common.WriteResponseWithSession(w, session, "Failed to save reception details: "+err.Error(), http.StatusOK)
+	// Sync the active facility-code registry only. Do not delete booking,
+	// queue, or facility-occupancy rows as a side effect of editing master data.
+	if _, err = tx.ExecContext(ctx, `DELETE FROM reception_facility_code WHERE reception_id = $1`, reception.ReceptionID); err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to replace facility codes: "+err.Error(), http.StatusOK)
 		return
 	}
-
-	menu.ReceptionID = reception.ReceptionID
-	if err = replaceReceptionMenu(ctx, tx, menu); err != nil {
-		common.WriteResponseWithSession(w, session, "Failed to save menu: "+err.Error(), http.StatusOK)
-		return
+	for i, facility := range reception.Facilities {
+		if facility.CurrentCode == "" {
+			continue
+		}
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO reception_facility_code (current_code, reception_id, facility_id, updated_at)
+			VALUES ($1, $2, $3, $4)
+		`, facility.CurrentCode, reception.ReceptionID, facility.FacilityID, now)
+		if err != nil {
+			common.WriteResponseWithSession(w, session, fmt.Sprintf("Failed to save facilities[%d].currentCode: %v", i, err), http.StatusOK)
+			return
+		}
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -222,338 +336,40 @@ func ReceptionEdit(w http.ResponseWriter, r *http.Request) {
 	responseData := common.ReceptionResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
-		Reception:    reception,
+		Reception:    reception.ReceptionStruct,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(responseData); err != nil {
-		// Response headers/body may already be written; no second response is sent.
 		return
 	}
 }
 
-func replaceReceptionChildren(ctx context.Context, tx *sql.Tx, reception collection.ReceptionStruct) error {
-	id := reception.ReceptionID
-
-	// Children with facility_id must be deleted before reception_facility rows.
-	deletes := []string{
-		`DELETE FROM reception_facility_passcode WHERE facility_id IN (SELECT facility_id FROM reception_facility WHERE reception_id = $1)`,
-		`DELETE FROM reception_facility_book_time WHERE facility_id IN (SELECT facility_id FROM reception_facility WHERE reception_id = $1)`,
-		`DELETE FROM reception_passcode WHERE reception_id = $1`,
-		`DELETE FROM reception_open_time WHERE reception_id = $1`,
-		`DELETE FROM reception_ask WHERE reception_id = $1`,
-		`DELETE FROM reception_ask_choice WHERE reception_id = $1`,
-		`DELETE FROM reception_ask_multi_choice WHERE reception_id = $1`,
-		`DELETE FROM reception_facility WHERE reception_id = $1`,
-		`DELETE FROM reception_shift WHERE reception_id = $1`,
-		`DELETE FROM reception_staff_skill WHERE reception_id = $1`,
-		`DELETE FROM reception_work_staff WHERE reception_id = $1`,
-		`DELETE FROM reception_book WHERE reception_id = $1`,
-		`DELETE FROM reception_queue WHERE reception_id = $1`,
-		`DELETE FROM reception_wait_config WHERE reception_id = $1`,
+func marshalFacilitiesMaster[T any](facilities []T) (json.RawMessage, error) {
+	// Round-trip through generic JSON maps so API-only/operational fields do not
+	// accidentally get persisted in reception.facilities JSONB.
+	if facilities == nil {
+		facilities = []T{}
 	}
-	for _, query := range deletes {
-		if _, err := tx.ExecContext(ctx, query, id); err != nil {
-			return err
-		}
+	raw, err := json.Marshal(facilities)
+	if err != nil {
+		return nil, err
 	}
-
-	for i, p := range reception.Passcodes {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_passcode (reception_id, sort_order, passkey, pass_start, pass_end)
-			VALUES ($1, $2, $3, $4, $5)
-		`, id, i, p.Passkey, p.PassStart, p.PassEnd); err != nil {
-			return fmt.Errorf("insert passcode[%d]: %w", i, err)
-		}
+	var objects []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &objects); err != nil {
+		return nil, err
 	}
-
-	for i, t := range reception.OpenTimes {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_open_time (reception_id, sort_order, limit_start, limit_end)
-			VALUES ($1, $2, $3, $4)
-		`, id, i, t.LimitStart, t.LimitEnd); err != nil {
-			return fmt.Errorf("insert openTime[%d]: %w", i, err)
-		}
+	for _, object := range objects {
+		delete(object, "currentCode")
+		delete(object, "bookTimes")
 	}
-
-	for i, a := range reception.Asks {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_ask (reception_id, sort_order, question, sequence)
-			VALUES ($1, $2, $3, $4)
-		`, id, i, a.Question, a.Sequence); err != nil {
-			return fmt.Errorf("insert ask[%d]: %w", i, err)
-		}
-	}
-
-	for i, a := range reception.AskChoices {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_ask_choice (reception_id, sort_order, question, choices, sequence)
-			VALUES ($1, $2, $3, $4, $5)
-		`, id, i, a.Question, pq.Array(nonNilStrings(a.Choices)), a.Sequence); err != nil {
-			return fmt.Errorf("insert askChoice[%d]: %w", i, err)
-		}
-	}
-
-	for i, a := range reception.AskMultiChoices {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_ask_multi_choice (reception_id, sort_order, question, choices, sequence)
-			VALUES ($1, $2, $3, $4, $5)
-		`, id, i, a.Question, pq.Array(nonNilStrings(a.Choices)), a.Sequence); err != nil {
-			return fmt.Errorf("insert askMultiChoice[%d]: %w", i, err)
-		}
-	}
-
-	for i, f := range reception.Facilities {
-		var facilityID int64
-		err := tx.QueryRowContext(ctx, `
-			INSERT INTO reception_facility (
-				reception_id, sort_order, facility_name, capacity, current_code, bookable
-			)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING facility_id
-		`, id, i, f.FacilityName, f.Capacity, nullableString(f.CurrentCode), f.Bookable).Scan(&facilityID)
-		if err != nil {
-			return fmt.Errorf("insert facility[%d]: %w", i, err)
-		}
-
-		for j, p := range f.Passcodes {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO reception_facility_passcode (facility_id, sort_order, passkey, pass_start, pass_end)
-				VALUES ($1, $2, $3, $4, $5)
-			`, facilityID, j, p.Passkey, nullableString(p.PassStart), nullableString(p.PassEnd)); err != nil {
-				return fmt.Errorf("insert facility[%d].passcodes[%d]: %w", i, j, err)
-			}
-		}
-		for j, bt := range f.BookTimes {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO reception_facility_book_time (facility_id, sort_order, book_start, book_end)
-				VALUES ($1, $2, $3, $4)
-			`, facilityID, j, bt.BookStart, bt.BookEnd); err != nil {
-				return fmt.Errorf("insert facility[%d].bookTimes[%d]: %w", i, j, err)
-			}
-		}
-	}
-
-	// Reinsert shifts while preserving existing shift IDs. New shifts (ShiftID == 0)
-	// get an identity value from PostgreSQL and that value is copied back to the response.
-	shiftIDs := make(map[int64]bool, len(reception.Shifts))
-	for i, s := range reception.Shifts {
-		var shiftID int64
-		var err error
-		if s.ShiftID > 0 {
-			err = tx.QueryRowContext(ctx, `
-				INSERT INTO reception_shift (
-					shift_id, reception_id, sort_order, alias_names, shift_start, shift_end, open, skill, fix
-				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-				RETURNING shift_id
-			`, s.ShiftID, id, i, pq.Array(nonNilStrings(s.AliasNames)), s.ShiftStart, s.ShiftEnd, s.Open, s.Skill, s.Fix).Scan(&shiftID)
-		} else {
-			err = tx.QueryRowContext(ctx, `
-				INSERT INTO reception_shift (
-					reception_id, sort_order, alias_names, shift_start, shift_end, open, skill, fix
-				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				RETURNING shift_id
-			`, id, i, pq.Array(nonNilStrings(s.AliasNames)), s.ShiftStart, s.ShiftEnd, s.Open, s.Skill, s.Fix).Scan(&shiftID)
-		}
-		if err != nil {
-			return fmt.Errorf("insert shift[%d]: %w", i, err)
-		}
-		reception.Shifts[i].ShiftID = shiftID
-		shiftIDs[shiftID] = true
-	}
-
-	for i, s := range reception.StaffSkills {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_staff_skill (reception_id, sort_order, alias_name, skills)
-			VALUES ($1, $2, $3, $4)
-		`, id, i, nullableString(s.AliasName), pq.Array(nonNilStrings(s.Skills))); err != nil {
-			return fmt.Errorf("insert staffSkill[%d]: %w", i, err)
-		}
-	}
-
-	for i, s := range reception.WorkStaffs {
-		if s.ShiftID <= 0 || !shiftIDs[s.ShiftID] {
-			return fmt.Errorf("insert workStaff[%d]: missing or invalid shiftID %d", i, s.ShiftID)
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_work_staff (reception_id, shift_id, sort_order, alias_name, work_start, work_end, seq)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, id, s.ShiftID, i, s.AliasName, s.WorkStart, s.WorkEnd, s.Seq); err != nil {
-			return fmt.Errorf("insert workStaff[%d]: %w", i, err)
-		}
-	}
-
-	for i, b := range reception.Books {
-		var menuID any
-		if b.MenuID != 0 {
-			menuID = b.MenuID
-		}
-		var err error
-		if b.CreatedAt.IsZero() {
-			_, err = tx.ExecContext(ctx, `
-				INSERT INTO reception_book (
-					reception_id, sort_order, book_start, book_end, answers, menu_id, people, nickname
-				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			`, id, i, b.BookStart, b.BookEnd, pq.Array(nonNilStrings(b.Answers)), menuID, b.People, b.Nickname)
-		} else {
-			_, err = tx.ExecContext(ctx, `
-				INSERT INTO reception_book (
-					reception_id, sort_order, book_start, book_end, answers, menu_id, people, created_at, nickname
-				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			`, id, i, b.BookStart, b.BookEnd, pq.Array(nonNilStrings(b.Answers)), menuID, b.People, b.CreatedAt, b.Nickname)
-		}
-		if err != nil {
-			return fmt.Errorf("insert book[%d]: %w", i, err)
-		}
-	}
-
-	for i, q := range reception.Queues {
-		var userID any
-		if q.UserID != 0 {
-			userID = q.UserID
-		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_queue (reception_id, sort_order, waiting_guest, queue_name, queued_at, user_id)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, id, i, q.WaitingGuest, nullableString(q.QueueName), nullableString(q.QueuedAt), userID); err != nil {
-			return fmt.Errorf("insert queue[%d]: %w", i, err)
-		}
-	}
-
-	for i, wc := range reception.WaitConfigs {
-		guestRange := []int{wc.GuestRange[0], wc.GuestRange[1]}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO reception_wait_config (reception_id, sort_order, guest_range, wait_ratio)
-			VALUES ($1, $2, $3, $4)
-		`, id, i, pq.Array(guestRange), wc.WaitRatio); err != nil {
-			return fmt.Errorf("insert waitConfig[%d]: %w", i, err)
-		}
-	}
-
-	return nil
+	return json.Marshal(objects)
 }
 
-func replaceReceptionMenu(ctx context.Context, tx *sql.Tx, menu collection.MenuStruct) error {
-	id := menu.ReceptionID
-
-	// Remove dependent rows first, then replace all menu rows for this reception.
-	deletes := []string{
-		`DELETE FROM reception_menu_item_content WHERE menu_item_id IN (SELECT id FROM reception_menu_item WHERE reception_id = $1)`,
-		`DELETE FROM reception_menu_paid_option WHERE menu_item_id IN (SELECT id FROM reception_menu_item WHERE reception_id = $1)`,
-		`DELETE FROM reception_menu_free_option_item WHERE free_option_group_id IN (SELECT id FROM reception_menu_free_option_group WHERE menu_item_id IN (SELECT id FROM reception_menu_item WHERE reception_id = $1))`,
-		`DELETE FROM reception_menu_free_option_group WHERE menu_item_id IN (SELECT id FROM reception_menu_item WHERE reception_id = $1)`,
-		`DELETE FROM reception_menu_free_multi_option WHERE menu_item_id IN (SELECT id FROM reception_menu_item WHERE reception_id = $1)`,
-		`DELETE FROM reception_menu_item WHERE reception_id = $1`,
-		`DELETE FROM reception_menu_item_detail_choice WHERE choice_group_id IN (SELECT id FROM reception_menu_item_detail_choice_group WHERE item_detail_id IN (SELECT id FROM reception_menu_item_detail WHERE reception_id = $1))`,
-		`DELETE FROM reception_menu_item_detail_choice_group WHERE item_detail_id IN (SELECT id FROM reception_menu_item_detail WHERE reception_id = $1)`,
-		`DELETE FROM reception_menu_item_detail WHERE reception_id = $1`,
+func nonNilValue[T any](values []T) []T {
+	if values == nil {
+		return []T{}
 	}
-	for _, query := range deletes {
-		if _, err := tx.ExecContext(ctx, query, id); err != nil {
-			return err
-		}
-	}
-
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO reception_menu (reception_id, updated_at)
-		VALUES ($1, $2)
-		ON CONFLICT (reception_id) DO UPDATE SET updated_at = EXCLUDED.updated_at
-	`, id, menu.UpdatedAt); err != nil {
-		return fmt.Errorf("upsert menu header: %w", err)
-	}
-
-	for i, m := range menu.Menus {
-		var menuItemID int64
-		err := tx.QueryRowContext(ctx, `
-			INSERT INTO reception_menu_item (
-				reception_id, sort_order, menu_id, menu_name, price, prepaid_price,
-				need_skill, need_facility, specify_name_flag, spend_minute, for_book_type
-			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-			RETURNING id
-		`, id, i, m.MenuID, m.MenuName, m.Price, m.PrepaidPrice,
-			nullableString(m.NeedSkill), nullableString(m.NeedFacility), m.SpecifyNameFlag,
-			nullableInt(m.SpendMinute), nullableInt(m.ForBookType)).Scan(&menuItemID)
-		if err != nil {
-			return fmt.Errorf("insert menu[%d]: %w", i, err)
-		}
-
-		for j, itemID := range m.Items {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO reception_menu_item_content (menu_item_id, sort_order, item_id)
-				VALUES ($1, $2, $3)
-			`, menuItemID, j, itemID); err != nil {
-				return fmt.Errorf("insert menu[%d].items[%d]: %w", i, j, err)
-			}
-		}
-		for j, option := range m.PaidOptions {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO reception_menu_paid_option (menu_item_id, sort_order, item_id, price)
-				VALUES ($1, $2, $3, $4)
-			`, menuItemID, j, option.ItemID, option.Price); err != nil {
-				return fmt.Errorf("insert menu[%d].paidOptions[%d]: %w", i, j, err)
-			}
-		}
-		for j, group := range m.FreeOptions {
-			var groupID int64
-			if err := tx.QueryRowContext(ctx, `
-				INSERT INTO reception_menu_free_option_group (menu_item_id, sort_order)
-				VALUES ($1, $2) RETURNING id
-			`, menuItemID, j).Scan(&groupID); err != nil {
-				return fmt.Errorf("insert menu[%d].freeOptions group[%d]: %w", i, j, err)
-			}
-			for k, itemID := range group {
-				if _, err := tx.ExecContext(ctx, `
-					INSERT INTO reception_menu_free_option_item (free_option_group_id, sort_order, item_id)
-					VALUES ($1, $2, $3)
-				`, groupID, k, itemID); err != nil {
-					return fmt.Errorf("insert menu[%d].freeOptions[%d][%d]: %w", i, j, k, err)
-				}
-			}
-		}
-		for j, itemID := range m.FreeMultiOptions {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO reception_menu_free_multi_option (menu_item_id, sort_order, item_id)
-				VALUES ($1, $2, $3)
-			`, menuItemID, j, itemID); err != nil {
-				return fmt.Errorf("insert menu[%d].freeMultiOptions[%d]: %w", i, j, err)
-			}
-		}
-	}
-
-	for i, detail := range menu.ItemDetails {
-		var detailID int64
-		if err := tx.QueryRowContext(ctx, `
-			INSERT INTO reception_menu_item_detail (reception_id, sort_order, item_id, item_name, img_path)
-			VALUES ($1, $2, $3, $4, $5)
-			RETURNING id
-		`, id, i, detail.ItemID, detail.ItemName, nullableString(detail.ImgPath)).Scan(&detailID); err != nil {
-			return fmt.Errorf("insert itemDetail[%d]: %w", i, err)
-		}
-
-		for j, choices := range detail.Choices {
-			var groupID int64
-			if err := tx.QueryRowContext(ctx, `
-				INSERT INTO reception_menu_item_detail_choice_group (item_detail_id, sort_order)
-				VALUES ($1, $2) RETURNING id
-			`, detailID, j).Scan(&groupID); err != nil {
-				return fmt.Errorf("insert itemDetail[%d].choices group[%d]: %w", i, j, err)
-			}
-			for k, choice := range choices {
-				if _, err := tx.ExecContext(ctx, `
-					INSERT INTO reception_menu_item_detail_choice (choice_group_id, sort_order, choice_text)
-					VALUES ($1, $2, $3)
-				`, groupID, k, choice); err != nil {
-					return fmt.Errorf("insert itemDetail[%d].choices[%d][%d]: %w", i, j, k, err)
-				}
-			}
-		}
-	}
-
-	return nil
+	return values
 }
 
 func containsString(values []string, target string) bool {
@@ -577,18 +393,4 @@ func nonNilInt64s(values []int64) []int64 {
 		return []int64{}
 	}
 	return values
-}
-
-func nullableString(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
-}
-
-func nullableInt(value int) any {
-	if value == 0 {
-		return nil
-	}
-	return value
 }

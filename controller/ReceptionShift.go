@@ -9,68 +9,57 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lib/pq"
-
-	"chat/collection"
 	"chat/common"
+	"chat/table"
 )
 
-// workStaffShiftRow carries the database relationship to shift_id internally.
-// ShiftID is not required in the public WorkStaff JSON payload.
-type workStaffShiftRow struct {
-	ID        int64
-	ShiftID   int64
-	SortOrder int
-	Staff     collection.WorkStaff
-}
-
 func ReceptionShift(w http.ResponseWriter, r *http.Request) {
+	csrf := r.FormValue("csrf")
 	aliasName := r.FormValue("aliasName")
+
 	channelID, err := strconv.ParseInt(r.FormValue("channelID"), 10, 64)
 	if err != nil || channelID <= 0 {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid channelID", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, "Invalid channelID", http.StatusOK)
 		return
 	}
 	receptionID, err := strconv.ParseInt(r.FormValue("receptionID"), 10, 64)
 	if err != nil || receptionID <= 0 {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "Invalid receptionID", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, "Invalid receptionID", http.StatusOK)
 		return
 	}
 
-	var updatedShifts []collection.Shift
+	var updatedShifts []table.Shift
 	if err := json.Unmarshal([]byte(r.FormValue("updatedShifts")), &updatedShifts); err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "updatedShifts JSON Unmarshal Error", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, "updatedShifts JSON Unmarshal Error", http.StatusOK)
 		return
 	}
 
-	// Every update must target an existing shift. Open must never be negative.
 	seenShiftIDs := make(map[int64]bool, len(updatedShifts))
 	for i, shift := range updatedShifts {
 		if shift.ShiftID <= 0 {
-			common.WriteResponseWithoutSession(w, r.FormValue("csrf"), fmt.Sprintf("updatedShifts[%d]: invalid shiftID", i), http.StatusOK)
+			common.WriteResponseWithoutSession(w, csrf, fmt.Sprintf("updatedShifts[%d]: invalid shiftID", i), http.StatusOK)
 			return
 		}
 		if seenShiftIDs[shift.ShiftID] {
-			common.WriteResponseWithoutSession(w, r.FormValue("csrf"), fmt.Sprintf("updatedShifts[%d]: duplicate shiftID", i), http.StatusOK)
+			common.WriteResponseWithoutSession(w, csrf, fmt.Sprintf("updatedShifts[%d]: duplicate shiftID", i), http.StatusOK)
 			return
 		}
 		seenShiftIDs[shift.ShiftID] = true
 		if shift.Open < 0 {
-			common.WriteResponseWithoutSession(w, r.FormValue("csrf"), fmt.Sprintf("updatedShifts[%d]: open must be >= 0", i), http.StatusOK)
+			common.WriteResponseWithoutSession(w, csrf, fmt.Sprintf("updatedShifts[%d]: open must be >= 0", i), http.StatusOK)
 			return
 		}
 	}
 
-	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, csrf)
 	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), err.Error()+";SessionCheckTake", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, err.Error()+";SessionCheckTake", http.StatusOK)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Validate the posted user/alias/channel tuple against the alias table.
 	var aliasExists bool
 	err = common.DB.AliasDB.QueryRowContext(ctx, `
 		SELECT EXISTS (
@@ -97,8 +86,23 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// loadReception reads the normalized child tables. Its shift query must select
-	// shift_id (not the old generic id column) and assign it to collection.Shift.ShiftID.
+	// Lock the single reception master row while editing its JSONB arrays.
+	var lockedReceptionID int64
+	err = tx.QueryRowContext(ctx, `
+		SELECT reception_id
+		FROM reception
+		WHERE reception_id = $1 AND channel_id = $2
+		FOR UPDATE
+	`, receptionID, channelID).Scan(&lockedReceptionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			common.WriteResponseWithSession(w, session, "reception not found or channelID does not match reception", http.StatusOK)
+		} else {
+			common.WriteResponseWithSession(w, session, "Failed to lock reception: "+err.Error(), http.StatusOK)
+		}
+		return
+	}
+
 	reception, err := loadReception(ctx, tx, receptionID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -116,20 +120,16 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 	shiftPositions := make(map[int64]int, len(reception.Shifts))
 	for i, shift := range reception.Shifts {
 		if shift.ShiftID <= 0 {
-			common.WriteResponseWithSession(w, session, "A shift has an invalid shiftID; check the reception_get.go loader and schema", http.StatusOK)
+			common.WriteResponseWithSession(w, session, "A shift has an invalid shiftID", http.StatusOK)
+			return
+		}
+		if _, duplicate := shiftPositions[shift.ShiftID]; duplicate {
+			common.WriteResponseWithSession(w, session, fmt.Sprintf("Duplicate stored shiftID %d", shift.ShiftID), http.StatusOK)
 			return
 		}
 		shiftPositions[shift.ShiftID] = i
 	}
 
-	workRows, err := loadReceptionWorkStaffRows(ctx, tx, receptionID)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, "Failed to load work staff: "+err.Error(), http.StatusOK)
-		return
-	}
-
-	// Apply only the shifts supplied by the client. ShiftStart and Skill may change
-	// because shiftID, rather than those mutable values, identifies the row.
 	for _, updated := range updatedShifts {
 		shiftIndex, exists := shiftPositions[updated.ShiftID]
 		if !exists {
@@ -144,125 +144,54 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		}
 
 		existingAliasSet := make(map[string]bool)
-		for _, row := range workRows {
-			if row.ShiftID == updated.ShiftID {
-				existingAliasSet[row.Staff.AliasName] = true
+		for _, staff := range reception.WorkStaffs {
+			if staff.ShiftID == updated.ShiftID {
+				existingAliasSet[staff.AliasName] = true
 			}
 		}
 
-		// Remove staff no longer within the Open portion of AliasNames;
-		// update retained staff's working times when ShiftStart/ShiftEnd changes.
-		filteredRows := workRows[:0]
-		for _, row := range workRows {
-			if row.ShiftID != updated.ShiftID {
-				filteredRows = append(filteredRows, row)
+		// Keep only staff within the open portion of AliasNames and update their times.
+		filteredStaff := make([]table.WorkStaff, 0, len(reception.WorkStaffs))
+		for _, staff := range reception.WorkStaffs {
+			if staff.ShiftID != updated.ShiftID {
+				filteredStaff = append(filteredStaff, staff)
 				continue
 			}
-
-			if !openAliasSet[row.Staff.AliasName] {
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM reception_work_staff
-					WHERE id = $1 AND reception_id = $2 AND shift_id = $3
-				`, row.ID, receptionID, updated.ShiftID); err != nil {
-					common.WriteResponseWithSession(w, session, "Failed to remove work staff: "+err.Error(), http.StatusOK)
-					return
-				}
+			if !openAliasSet[staff.AliasName] {
 				continue
 			}
-
-			if _, err := tx.ExecContext(ctx, `
-				UPDATE reception_work_staff
-				SET work_start = $1, work_end = $2
-				WHERE id = $3 AND reception_id = $4 AND shift_id = $5
-			`, updated.ShiftStart, updated.ShiftEnd, row.ID, receptionID, updated.ShiftID); err != nil {
-				common.WriteResponseWithSession(w, session, "Failed to update work staff: "+err.Error(), http.StatusOK)
-				return
-			}
-			row.Staff.WorkStart = updated.ShiftStart
-			row.Staff.WorkEnd = updated.ShiftEnd
-			filteredRows = append(filteredRows, row)
+			staff.WorkStart = updated.ShiftStart
+			staff.WorkEnd = updated.ShiftEnd
+			filteredStaff = append(filteredStaff, staff)
 		}
-		workRows = filteredRows
+		reception.WorkStaffs = filteredStaff
 
-		// Add newly opened aliases. Open greater than len(AliasNames) means all
-		// available aliases, matching the existing helper's behavior.
-		nextSortOrder := 0
-		for _, row := range workRows {
-			if row.SortOrder >= nextSortOrder {
-				nextSortOrder = row.SortOrder + 1
-			}
-		}
-		for i, name := range updated.AliasNames {
-			if i >= updated.Open {
-				break
-			}
+		// Add aliases newly included in the open portion.
+		for _, name := range openAliases {
 			if existingAliasSet[name] {
 				continue
 			}
-
-			seq := len(workRows) + 1
-			var id int64
-			err := tx.QueryRowContext(ctx, `
-				INSERT INTO reception_work_staff (
-					reception_id, shift_id, sort_order, alias_name, work_start, work_end, seq
-				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)
-				RETURNING id
-			`, receptionID, updated.ShiftID, nextSortOrder, name, updated.ShiftStart, updated.ShiftEnd, seq).Scan(&id)
-			if err != nil {
-				common.WriteResponseWithSession(w, session, "Failed to add work staff: "+err.Error(), http.StatusOK)
-				return
-			}
-			workRows = append(workRows, workStaffShiftRow{
-				ID:        id,
+			reception.WorkStaffs = append(reception.WorkStaffs, table.WorkStaff{
 				ShiftID:   updated.ShiftID,
-				SortOrder: nextSortOrder,
-				Staff: collection.WorkStaff{
-					ShiftID:   updated.ShiftID,
-					AliasName: name,
-					WorkStart: updated.ShiftStart,
-					WorkEnd:   updated.ShiftEnd,
-					Seq:       seq,
-				},
+				AliasName: name,
+				WorkStart: updated.ShiftStart,
+				WorkEnd:   updated.ShiftEnd,
+				Seq:       len(reception.WorkStaffs) + 1,
 			})
-			nextSortOrder++
 			existingAliasSet[name] = true
 		}
 
 		updated.AliasNames = nonNilShiftAliases(updated.AliasNames)
-		result, err := tx.ExecContext(ctx, `
-			UPDATE reception_shift
-			SET alias_names = $1,
-			    shift_start = $2,
-			    shift_end = $3,
-			    open = $4,
-			    skill = $5,
-			    fix = $6
-			WHERE reception_id = $7 AND shift_id = $8
-		`, pq.Array(updated.AliasNames), updated.ShiftStart, updated.ShiftEnd, updated.Open, updated.Skill, updated.Fix, receptionID, updated.ShiftID)
-		if err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to update shift: "+err.Error(), http.StatusOK)
-			return
-		}
-		rowsAffected, err := result.RowsAffected()
-		if err != nil || rowsAffected != 1 {
-			if err != nil {
-				common.WriteResponseWithSession(w, session, "Failed to check updated shift: "+err.Error(), http.StatusOK)
-			} else {
-				common.WriteResponseWithSession(w, session, "Shift not found", http.StatusOK)
-			}
-			return
-		}
 		reception.Shifts[shiftIndex] = updated
 	}
 
-	// Remove expired shifts and their WorkStaffs using Japan local time.
+	// Remove expired shifts and their associated work staff using Japan local time.
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
 		jst = time.FixedZone("JST", 9*60*60)
 	}
 	now := time.Now().In(jst)
-	validShifts := make([]collection.Shift, 0, len(reception.Shifts))
+	validShifts := make([]table.Shift, 0, len(reception.Shifts))
 	expiredShiftIDs := make(map[int64]bool)
 	for _, shift := range reception.Shifts {
 		shiftEndTime, parseErr := time.ParseInLocation("2006-01-02T15:04", shift.ShiftEnd, jst)
@@ -270,32 +199,39 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 			validShifts = append(validShifts, shift)
 			continue
 		}
-
-		if _, err := tx.ExecContext(ctx, `
-			DELETE FROM reception_work_staff
-			WHERE reception_id = $1 AND shift_id = $2
-		`, receptionID, shift.ShiftID); err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to delete expired work staff: "+err.Error(), http.StatusOK)
-			return
-		}
-		if _, err := tx.ExecContext(ctx, `
-			DELETE FROM reception_shift
-			WHERE reception_id = $1 AND shift_id = $2
-		`, receptionID, shift.ShiftID); err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to delete expired shift: "+err.Error(), http.StatusOK)
-			return
-		}
 		expiredShiftIDs[shift.ShiftID] = true
 	}
 	reception.Shifts = validShifts
 
-	// Rebuild the response's WorkStaffs slice from the rows after all changes.
-	reception.WorkStaffs = make([]collection.WorkStaff, 0, len(workRows))
-	for _, row := range workRows {
-		if expiredShiftIDs[row.ShiftID] {
-			continue
+	validWorkStaffs := make([]table.WorkStaff, 0, len(reception.WorkStaffs))
+	for _, staff := range reception.WorkStaffs {
+		if !expiredShiftIDs[staff.ShiftID] {
+			validWorkStaffs = append(validWorkStaffs, staff)
 		}
-		reception.WorkStaffs = append(reception.WorkStaffs, row.Staff)
+	}
+	reception.WorkStaffs = validWorkStaffs
+
+	shiftsJSON, err := json.Marshal(nonNilShifts(reception.Shifts))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode shifts: "+err.Error(), http.StatusOK)
+		return
+	}
+	workStaffsJSON, err := json.Marshal(nonNilWorkStaffs(reception.WorkStaffs))
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to encode work staff: "+err.Error(), http.StatusOK)
+		return
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE reception
+		SET shifts = $1::jsonb,
+		    work_staffs = $2::jsonb,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE reception_id = $3 AND channel_id = $4
+	`, string(shiftsJSON), string(workStaffsJSON), receptionID, channelID)
+	if err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to save shifts: "+err.Error(), http.StatusOK)
+		return
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -303,51 +239,14 @@ func ReceptionShift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	reception.UpdatedAt = time.Now()
 	responseData := common.ReceptionResponse{
 		Csrf:         session.Csrf,
 		PushContents: session.PushContents,
 		Reception:    reception,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(responseData); err != nil {
-		return
-	}
-}
-
-func loadReceptionWorkStaffRows(ctx context.Context, q receptionQueryer, receptionID int64) ([]workStaffShiftRow, error) {
-	rows, err := q.QueryContext(ctx, `
-		SELECT id, shift_id, sort_order, COALESCE(alias_name, ''),
-		       COALESCE(work_start, ''), COALESCE(work_end, ''), seq
-		FROM reception_work_staff
-		WHERE reception_id = $1
-		ORDER BY sort_order, id
-	`, receptionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []workStaffShiftRow
-	for rows.Next() {
-		var row workStaffShiftRow
-		if err := rows.Scan(
-			&row.ID,
-			&row.ShiftID,
-			&row.SortOrder,
-			&row.Staff.AliasName,
-			&row.Staff.WorkStart,
-			&row.Staff.WorkEnd,
-			&row.Staff.Seq,
-		); err != nil {
-			return nil, err
-		}
-		row.Staff.ShiftID = row.ShiftID
-		result = append(result, row)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
+	_ = json.NewEncoder(w).Encode(responseData)
 }
 
 func nonNilShiftAliases(values []string) []string {
@@ -357,8 +256,6 @@ func nonNilShiftAliases(values []string) []string {
 	return values
 }
 
-// getOpenAliasesFromShift returns the first Open aliases; a negative Open is
-// rejected before this helper is called.
 func getOpenAliasesFromShift(aliasNames []string, open int) []string {
 	if open <= 0 {
 		return []string{}
@@ -367,4 +264,18 @@ func getOpenAliasesFromShift(aliasNames []string, open int) []string {
 		return aliasNames[:open]
 	}
 	return aliasNames
+}
+
+func nonNilShifts(values []table.Shift) []table.Shift {
+	if values == nil {
+		return []table.Shift{}
+	}
+	return values
+}
+
+func nonNilWorkStaffs(values []table.WorkStaff) []table.WorkStaff {
+	if values == nil {
+		return []table.WorkStaff{}
+	}
+	return values
 }

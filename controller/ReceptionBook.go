@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"github.com/lib/pq"
 
 	"chat/common"
-	"chat/database"
+	"chat/table"
 )
 
 const receptionBookDateTimeLayout = "2006-01-02T15:04"
@@ -94,28 +95,57 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// Load the reception's core row. All related records are read from their
-	// normalized PostgreSQL tables rather than from a nested collection struct.
-	var reception database.ReceptionStruct
+	// Load the reception row and decode its JSONB master fields.
+	var reception table.ReceptionStruct
+	var passcodesJSON, asksJSON, askChoicesJSON, askMultiChoicesJSON []byte
+	var facilitiesJSON, openTimesJSON, shiftsJSON, staffSkillsJSON []byte
+	var workStaffsJSON, waitConfigsJSON, menusJSON, itemDetailsJSON []byte
+
 	err = tx.QueryRowContext(ctx, `
 		SELECT reception_id, channel_id, admin_names, join_names, inquiry_names,
-		       subscriptions, order_user_ids, COALESCE(updated_at, CURRENT_TIMESTAMP),
-		       COALESCE(reception_title, ''), skills, work_staff_need
+		       subscriptions, order_user_ids, updated_at, COALESCE(reception_title, ''),
+		       skills, work_staff_need, passcodes, asks, ask_choices, ask_multi_choices,
+		       facilities, open_times, shifts, staff_skills, work_staffs, wait_configs,
+		       menus, item_details
 		FROM reception
 		WHERE reception_id = $1
 	`, receptionID).Scan(
-		&reception.ReceptionID,
-		&reception.ChannelID,
-		pq.Array(&reception.AdminNames),
-		pq.Array(&reception.JoinNames),
-		pq.Array(&reception.InquiryNames),
-		pq.Array(&reception.Subscriptions),
-		pq.Array(&reception.OrderUserIDs),
-		&reception.UpdatedAt,
-		&reception.ReceptionTitle,
-		pq.Array(&reception.Skills),
-		&reception.WorkStaffNeed,
+		&reception.ReceptionID, &reception.ChannelID,
+		pq.Array(&reception.AdminNames), pq.Array(&reception.JoinNames),
+		pq.Array(&reception.InquiryNames), pq.Array(&reception.Subscriptions),
+		pq.Array(&reception.OrderUserIDs), &reception.UpdatedAt,
+		&reception.ReceptionTitle, pq.Array(&reception.Skills), &reception.WorkStaffNeed,
+		&passcodesJSON, &asksJSON, &askChoicesJSON, &askMultiChoicesJSON,
+		&facilitiesJSON, &openTimesJSON, &shiftsJSON, &staffSkillsJSON,
+		&workStaffsJSON, &waitConfigsJSON, &menusJSON, &itemDetailsJSON,
 	)
+	if err == nil {
+		for _, item := range []struct {
+			name string
+			raw  []byte
+			dst  any
+		}{
+			{"passcodes", passcodesJSON, &reception.Passcodes},
+			{"asks", asksJSON, &reception.Asks},
+			{"ask_choices", askChoicesJSON, &reception.AskChoices},
+			{"ask_multi_choices", askMultiChoicesJSON, &reception.AskMultiChoices},
+			{"facilities", facilitiesJSON, &reception.Facilities},
+			{"open_times", openTimesJSON, &reception.OpenTimes},
+			{"shifts", shiftsJSON, &reception.Shifts},
+			{"staff_skills", staffSkillsJSON, &reception.StaffSkills},
+			{"work_staffs", workStaffsJSON, &reception.WorkStaffs},
+			{"wait_configs", waitConfigsJSON, &reception.WaitConfigs},
+			{"menus", menusJSON, &reception.Menus},
+			{"item_details", itemDetailsJSON, &reception.ItemDetails},
+		} {
+			if len(item.raw) > 0 {
+				if unmarshalErr := json.Unmarshal(item.raw, item.dst); unmarshalErr != nil {
+					err = fmt.Errorf("decode reception.%s: %w", item.name, unmarshalErr)
+					break
+				}
+			}
+		}
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			common.WriteResponseWithSession(w, session, "Failed to find reception", http.StatusOK)
@@ -125,69 +155,36 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load the selected menu from the menu table.
-	var selectedMenu database.ReceptionMenuItemStruct
-	err = tx.QueryRowContext(ctx, `
-		SELECT id, reception_id, sort_order, menu_id, COALESCE(menu_name, ''),
-		       COALESCE(price, 0), COALESCE(prepaid_price, 0),
-		       COALESCE(need_skill, ''), COALESCE(need_facility, ''),
-		       COALESCE(specify_name_flag, FALSE), COALESCE(spend_minute, 0),
-		       COALESCE(for_book_type, 0)
-		FROM reception_menu_item
-		WHERE reception_id = $1 AND menu_id = $2
-		ORDER BY sort_order, id
-		LIMIT 1
-	`, receptionID, menuID).Scan(
-		&selectedMenu.ID,
-		&selectedMenu.ReceptionID,
-		&selectedMenu.SortOrder,
-		&selectedMenu.MenuID,
-		&selectedMenu.MenuName,
-		&selectedMenu.Price,
-		&selectedMenu.PrepaidPrice,
-		&selectedMenu.NeedSkill,
-		&selectedMenu.NeedFacility,
-		&selectedMenu.SpecifyNameFlag,
-		&selectedMenu.SpendMinute,
-		&selectedMenu.ForBookType,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			common.WriteResponseWithSession(w, session, "Service not found", http.StatusOK)
-		} else {
-			common.WriteResponseWithSession(w, session, "Failed to find menu: "+err.Error(), http.StatusOK)
+	// Menus are JSONB master data in reception.menus, not a separate table.
+	var selectedMenu database.Menu
+	menuFound := false
+	for _, item := range reception.Menus {
+		if item.MenuID == menuID {
+			selectedMenu = item
+			menuFound = true
+			break
 		}
+	}
+	if !menuFound {
+		common.WriteResponseWithSession(w, session, "Service not found", http.StatusOK)
 		return
 	}
 
-	// Capacity is checked independently of staff availability.
-	var facility database.ReceptionFacilityStruct
-	hasFacility := selectedMenu.NeedFacility != ""
+	// Facilities are JSONB master data in reception.facilities. Active codes and
+	// occupied times remain in their dedicated operational tables.
+	var facility database.FacilityMaster
+	hasFacility := selectedMenu.NeedFacilityID > 0
 	if hasFacility {
-		err = tx.QueryRowContext(ctx, `
-			SELECT facility_id, reception_id, sort_order, facility_name,
-			       COALESCE(capacity, 0), COALESCE(current_code, ''), bookable
-			FROM reception_facility
-			WHERE reception_id = $1
-			  AND facility_name = $2
-			  AND bookable = TRUE
-			ORDER BY sort_order, facility_id
-			LIMIT 1
-		`, receptionID, selectedMenu.NeedFacility).Scan(
-			&facility.FacilityID,
-			&facility.ReceptionID,
-			&facility.SortOrder,
-			&facility.FacilityName,
-			&facility.Capacity,
-			&facility.CurrentCode,
-			&facility.Bookable,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				common.WriteResponseWithSession(w, session, "Facility not available", http.StatusOK)
-			} else {
-				common.WriteResponseWithSession(w, session, "Failed to find facility: "+err.Error(), http.StatusOK)
+		facilityFound := false
+		for _, item := range reception.Facilities {
+			if item.FacilityID == selectedMenu.NeedFacilityID && item.Bookable {
+				facility = item
+				facilityFound = true
+				break
 			}
+		}
+		if !facilityFound {
+			common.WriteResponseWithSession(w, session, "Facility not available", http.StatusOK)
 			return
 		}
 		if facility.Capacity <= 0 {
@@ -197,18 +194,19 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 
 		facilityTimes := make([]database.ReceptionFacilityBookTimeStruct, 0)
 		rows, queryErr := tx.QueryContext(ctx, `
-			SELECT id, facility_id, COALESCE(book_id, 0), sort_order, book_start, book_end
+			SELECT facility_book_time_id, reception_id, facility_id, book_id,
+			       sort_order, book_start, book_end
 			FROM reception_facility_book_time
-			WHERE facility_id = $1
-			ORDER BY sort_order, id
-		`, facility.FacilityID)
+			WHERE reception_id = $1 AND facility_id = $2
+			ORDER BY sort_order, facility_book_time_id
+		`, receptionID, facility.FacilityID)
 		if queryErr != nil {
 			common.WriteResponseWithSession(w, session, "Failed to load facility booking times: "+queryErr.Error(), http.StatusOK)
 			return
 		}
 		for rows.Next() {
 			var item database.ReceptionFacilityBookTimeStruct
-			if err := rows.Scan(&item.ID, &item.FacilityID, &item.BookID, &item.SortOrder, &item.BookStart, &item.BookEnd); err != nil {
+			if err := rows.Scan(&item.ID, &item.ReceptionID, &item.FacilityID, &item.BookID, &item.SortOrder, &item.BookStart, &item.BookEnd); err != nil {
 				rows.Close()
 				common.WriteResponseWithSession(w, session, "Failed to read facility booking times: "+err.Error(), http.StatusOK)
 				return
@@ -244,20 +242,11 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	// NeedSkill selects which staff are eligible; an empty NeedSkill permits any
 	// staff member whose work interval covers the booking.
 	if reception.WorkStaffNeed {
-		workStaffs, err := receptionBookLoadWorkStaff(ctx, tx, receptionID)
-		if err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to load work staff: "+err.Error(), http.StatusOK)
-			return
-		}
-		staffSkills, err := receptionBookLoadStaffSkills(ctx, tx, receptionID)
-		if err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to load staff skills: "+err.Error(), http.StatusOK)
-			return
-		}
-		menuSkills, err := receptionBookLoadMenuSkills(ctx, tx, receptionID)
-		if err != nil {
-			common.WriteResponseWithSession(w, session, "Failed to load menu skills: "+err.Error(), http.StatusOK)
-			return
+		workStaffs := reception.WorkStaffs
+		staffSkills := reception.StaffSkills
+		menuSkills := make(map[int64]string, len(reception.Menus))
+		for _, item := range reception.Menus {
+			menuSkills[item.MenuID] = item.NeedSkill
 		}
 		bookings, err := receptionBookLoadBookings(ctx, tx, receptionID)
 		if err != nil {
@@ -334,15 +323,15 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	if hasFacility {
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO reception_facility_book_time (
-				facility_id, book_id, sort_order, book_start, book_end
+				reception_id, facility_id, book_id, sort_order, book_start, book_end
 			)
 			VALUES (
-				$1, $2,
+				$1, $2, $3,
 				(SELECT COALESCE(MAX(sort_order) + 1, 0)
-				 FROM reception_facility_book_time WHERE facility_id = $1),
-				$3, $4
+				 FROM reception_facility_book_time WHERE reception_id = $1 AND facility_id = $2),
+				$4, $5
 			)
-		`, facility.FacilityID, bookID, bookStart, bookEnd)
+		`, receptionID, facility.FacilityID, bookID, bookStart, bookEnd)
 		if err != nil {
 			common.WriteResponseWithSession(w, session, "Failed to update facility booking time: "+err.Error(), http.StatusOK)
 			return
@@ -365,89 +354,6 @@ func ReceptionBook(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(responseData)
-}
-
-func receptionBookLoadWorkStaff(
-	ctx context.Context,
-	tx *sql.Tx,
-	receptionID int64,
-) ([]database.ReceptionWorkStaffStruct, error) {
-	rows, err := tx.QueryContext(ctx, `
-		SELECT id, reception_id, shift_id, sort_order, alias_name, work_start, work_end, seq
-		FROM reception_work_staff
-		WHERE reception_id = $1
-		ORDER BY sort_order, id
-	`, receptionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make([]database.ReceptionWorkStaffStruct, 0)
-	for rows.Next() {
-		var item database.ReceptionWorkStaffStruct
-		if err := rows.Scan(&item.ID, &item.ReceptionID, &item.ShiftID, &item.SortOrder,
-			&item.AliasName, &item.WorkStart, &item.WorkEnd, &item.Seq); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
-}
-
-func receptionBookLoadStaffSkills(
-	ctx context.Context,
-	tx *sql.Tx,
-	receptionID int64,
-) ([]database.ReceptionStaffSkillStruct, error) {
-	rows, err := tx.QueryContext(ctx, `
-		SELECT id, reception_id, sort_order, COALESCE(alias_name, ''), skills
-		FROM reception_staff_skill
-		WHERE reception_id = $1
-		ORDER BY sort_order, id
-	`, receptionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make([]database.ReceptionStaffSkillStruct, 0)
-	for rows.Next() {
-		var item database.ReceptionStaffSkillStruct
-		if err := rows.Scan(&item.ID, &item.ReceptionID, &item.SortOrder,
-			&item.AliasName, pq.Array(&item.Skills)); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
-}
-
-func receptionBookLoadMenuSkills(
-	ctx context.Context,
-	tx *sql.Tx,
-	receptionID int64,
-) (map[int64]string, error) {
-	rows, err := tx.QueryContext(ctx, `
-		SELECT menu_id, COALESCE(need_skill, '')
-		FROM reception_menu_item
-		WHERE reception_id = $1
-	`, receptionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make(map[int64]string)
-	for rows.Next() {
-		var menuID int64
-		var needSkill string
-		if err := rows.Scan(&menuID, &needSkill); err != nil {
-			return nil, err
-		}
-		result[menuID] = needSkill
-	}
-	return result, rows.Err()
 }
 
 func receptionBookLoadBookings(
@@ -487,7 +393,7 @@ func receptionBookParseJST(value string, jst *time.Location) (time.Time, error) 
 func receptionBookStaffHasSkill(
 	aliasName string,
 	needSkill string,
-	staffSkills []database.ReceptionStaffSkillStruct,
+	staffSkills []database.StaffSkill,
 ) bool {
 	for _, staff := range staffSkills {
 		if staff.AliasName != aliasName {
@@ -506,8 +412,8 @@ func receptionBookEligibleStaff(
 	start time.Time,
 	end time.Time,
 	needSkill string,
-	workStaffs []database.ReceptionWorkStaffStruct,
-	staffSkills []database.ReceptionStaffSkillStruct,
+	workStaffs []database.WorkStaff,
+	staffSkills []database.StaffSkill,
 	jst *time.Location,
 ) []string {
 	eligible := make([]string, 0)

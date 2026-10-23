@@ -11,7 +11,7 @@ import (
 	"github.com/lib/pq"
 
 	"chat/common"
-	table "chat/database"
+	"chat/table"
 )
 
 func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
@@ -43,14 +43,16 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var reception table.ReceptionStruct
+	var facilitiesJSON []byte
 	err = tx.QueryRowContext(ctx, `
-		SELECT reception_id, channel_id, order_user_ids
+		SELECT reception_id, channel_id, order_user_ids, facilities
 		FROM reception
 		WHERE reception_id = $1
 	`, receptionID).Scan(
 		&reception.ReceptionID,
 		&reception.ChannelID,
 		pq.Array(&reception.OrderUserIDs),
+		&facilitiesJSON,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -60,9 +62,13 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if err := json.Unmarshal(facilitiesJSON, &reception.Facilities); err != nil {
+		common.WriteResponseWithSession(w, session, "Failed to decode reception facilities: "+err.Error(), http.StatusOK)
+		return
+	}
 
-	// Staff authorization is verified against PostgreSQL rather than session aliases.
-	// Inquirer aliases (access_right = 3) are not accepted as shop staff.
+	// Verify staff against PostgreSQL. Inquiry-only aliases (access_right = 3)
+	// are not accepted as shop staff.
 	staffAccess := false
 	if aliasName != "" && channelIDText != "" {
 		channelID, parseErr := strconv.ParseInt(channelIDText, 10, 64)
@@ -84,34 +90,28 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// A customer can authorize with the current facility code. Verified staff can
-	// authorize without a code by specifying facilityID.
-	var facility table.ReceptionFacilityStruct
+	// Resolve the target facility from the separate current-code registry or
+	// from reception.facilities JSONB. The JSONB master does not contain currentCode.
+	var facility table.FacilityMaster
 	foundByCode := false
 	if code != "" {
+		var facilityID int64
 		err = tx.QueryRowContext(ctx, `
-			SELECT facility_id, reception_id, sort_order, facility_name,
-			       COALESCE(capacity, 0), COALESCE(current_code, ''), bookable
-			FROM reception_facility
+			SELECT facility_id
+			FROM reception_facility_code
 			WHERE reception_id = $1 AND current_code = $2
-			ORDER BY sort_order, facility_id
-			LIMIT 1
-		`, receptionID, code).Scan(
-			&facility.FacilityID,
-			&facility.ReceptionID,
-			&facility.SortOrder,
-			&facility.FacilityName,
-			&facility.Capacity,
-			&facility.CurrentCode,
-			&facility.Bookable,
-		)
+		`, receptionID, code).Scan(&facilityID)
 		switch {
 		case err == nil:
-			foundByCode = true
+			facility, foundByCode = receptionOrderDeleteFindFacility(reception.Facilities, facilityID)
+			if !foundByCode {
+				common.WriteResponseWithSession(w, session, "Facility code points to a facility missing from reception master data", http.StatusOK)
+				return
+			}
 		case err == sql.ErrNoRows:
-			// Staff may fall back to facilityID.
+			// Verified staff may explicitly select a facility below.
 		default:
-			common.WriteResponseWithSession(w, session, "Failed to find facility: "+err.Error(), http.StatusOK)
+			common.WriteResponseWithSession(w, session, "Failed to find facility code: "+err.Error(), http.StatusOK)
 			return
 		}
 	}
@@ -131,33 +131,16 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 			common.WriteResponseWithSession(w, session, "A valid facilityID is required for staff when code is not supplied or does not match", http.StatusOK)
 			return
 		}
-
-		err = tx.QueryRowContext(ctx, `
-			SELECT facility_id, reception_id, sort_order, facility_name,
-			       COALESCE(capacity, 0), COALESCE(current_code, ''), bookable
-			FROM reception_facility
-			WHERE reception_id = $1 AND facility_id = $2
-		`, receptionID, facilityID).Scan(
-			&facility.FacilityID,
-			&facility.ReceptionID,
-			&facility.SortOrder,
-			&facility.FacilityName,
-			&facility.Capacity,
-			&facility.CurrentCode,
-			&facility.Bookable,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				common.WriteResponseWithSession(w, session, "Facility not found", http.StatusOK)
-			} else {
-				common.WriteResponseWithSession(w, session, "Failed to find facility: "+err.Error(), http.StatusOK)
-			}
+		var found bool
+		facility, found = receptionOrderDeleteFindFacility(reception.Facilities, facilityID)
+		if !found {
+			common.WriteResponseWithSession(w, session, "Facility not found", http.StatusOK)
 			return
 		}
 	}
 
-	// Read notification destinations before clearing the code. If this read fails,
-	// the DB change is rolled back and the caller can retry.
+	// Load push destinations before mutating the registry so a read failure does
+	// not leave the facility code cleared without notifying clients.
 	userIDs := receptionOrderDeleteUniquePositiveUserIDs(reception.OrderUserIDs)
 	sessions, err := receptionOrderDeleteLoadSessions(ctx, common.DB.SessionDB, userIDs)
 	if err != nil {
@@ -168,17 +151,13 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 	var result sql.Result
 	if foundByCode {
 		result, err = tx.ExecContext(ctx, `
-			UPDATE reception_facility
-			SET current_code = ''
-			WHERE reception_id = $1
-			  AND facility_id = $2
-			  AND current_code = $3
+			DELETE FROM reception_facility_code
+			WHERE reception_id = $1 AND facility_id = $2 AND current_code = $3
 		`, receptionID, facility.FacilityID, code)
 	} else {
-		// Verified staff selected a facility explicitly.
+		// Verified staff selected a facility explicitly. Delete only its active code.
 		result, err = tx.ExecContext(ctx, `
-			UPDATE reception_facility
-			SET current_code = ''
+			DELETE FROM reception_facility_code
 			WHERE reception_id = $1 AND facility_id = $2
 		`, receptionID, facility.FacilityID)
 	}
@@ -192,7 +171,7 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if rowsAffected != 1 {
-		common.WriteResponseWithSession(w, session, "Facility code was already changed; please retry", http.StatusOK)
+		common.WriteResponseWithSession(w, session, "Facility code was already changed or is not set; please retry", http.StatusOK)
 		return
 	}
 
@@ -201,8 +180,8 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Keep the old push message shape. Staff uses the verified alias; a customer
-	// uses their numeric user ID instead of an unverified alias from the request.
+	// Preserve the existing push payload. Use the verified alias for staff and
+	// the authenticated numeric user ID for customers.
 	actorID := strconv.FormatInt(session.UserID, 10)
 	if staffAccess {
 		actorID = aliasName
@@ -221,6 +200,15 @@ func ReceptionOrderDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(responseData)
+}
+
+func receptionOrderDeleteFindFacility(facilities []table.FacilityMaster, facilityID int64) (table.FacilityMaster, bool) {
+	for _, facility := range facilities {
+		if facility.FacilityID == facilityID {
+			return facility, true
+		}
+	}
+	return table.FacilityMaster{}, false
 }
 
 func receptionOrderDeleteLoadSessions(

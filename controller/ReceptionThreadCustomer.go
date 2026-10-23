@@ -2,193 +2,206 @@ package controller
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"strconv"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/lib/pq"
 
-	"chat/collection"
 	"chat/common"
+	"chat/table"
 )
 
 func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
-	channelID := r.FormValue("channelID")
+	csrf := r.FormValue("csrf")
+	receptionID, err := strconv.ParseInt(r.FormValue("receptionID"), 10, 64)
+	if err != nil || receptionID <= 0 {
+		common.WriteResponseWithoutSession(w, csrf, "Invalid receptionID format", http.StatusOK)
+		return
+	}
 	messageID := r.FormValue("messageID")
 	parentID := r.FormValue("parentID")
-	messageTxt := r.FormValue("messageTxt")
-	messageTxt = common.SanitizeRichText(messageTxt)
-	// threadHead := r.FormValue("threadHead")
+	messageTxt := common.SanitizeRichText(r.FormValue("messageTxt"))
+
 	threadHeadNew := false
-	var threadHead collection.ThreadHeadStruct
-	if r.FormValue("threadHead") != "" {
-		if err := json.Unmarshal([]byte(r.FormValue("threadHead")), &threadHead); err != nil {
-			common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "threadHead Invalid JSON", http.StatusOK)
+	var threadHead map[string]interface{}
+	if raw := r.FormValue("threadHead"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &threadHead); err != nil {
+			common.WriteResponseWithoutSession(w, csrf, "threadHead Invalid JSON", http.StatusOK)
 			return
 		}
 		threadHeadNew = true
-		threadHead.MessageTxt = common.SanitizeRichText(threadHead.MessageTxt)
-		threadHead.Description = common.SanitizeRichText(threadHead.Description)
+		if threadHead == nil {
+			threadHead = make(map[string]interface{})
+		}
+		if value, ok := threadHead["messageTxt"].(string); ok {
+			threadHead["messageTxt"] = common.SanitizeRichText(value)
+		}
+		if value, ok := threadHead["description"].(string); ok {
+			threadHead["description"] = common.SanitizeRichText(value)
+		}
 	}
 
-	// セッションチェック
-	session, err := common.SessionCheckTake(w, r, r.FormValue("csrf"))
+	session, err := common.SessionCheckTake(w, r, csrf)
 	if err != nil {
-		common.WriteResponseWithoutSession(w, r.FormValue("csrf"), "。サインインし直してください", http.StatusOK)
+		common.WriteResponseWithoutSession(w, csrf, "。サインインし直してください", http.StatusOK)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// receptionデータを取得してOrderUserIDsを取得
-	var reception collection.ReceptionStruct
-	receptionColl := common.DB.ReceptionDB.Collection("reception")
-	receptionFilter := bson.M{"_id": channelID}
-	err = receptionColl.FindOne(ctx, receptionFilter).Decode(&reception)
+	// receptionID is the request identifier. channelID and inquiry_names are
+	// always read from the PostgreSQL reception master row, not from POST data.
+	var channelID int64
+	var adminNames, joinNames, inquiryNames []string
+	err = common.DB.ReceptionDB.QueryRowContext(ctx, `
+		SELECT channel_id, admin_names, join_names, inquiry_names
+		FROM reception
+		WHERE reception_id = $1
+	`, receptionID).Scan(
+		&channelID,
+		pq.Array(&adminNames),
+		pq.Array(&joinNames),
+		pq.Array(&inquiryNames),
+	)
 	if err != nil {
-		log.Printf("receptionColl.FindOne: %v; Req: ", err, r.URL.Path, r.Form)
-		http.Error(w, "Failed to get reception data", http.StatusInternalServerError)
+		if err == sql.ErrNoRows {
+			common.WriteResponseWithSession(w, session, "Failed to find reception", http.StatusOK)
+		} else {
+			common.WriteResponseWithSession(w, session, "Failed to get reception data: "+err.Error(), http.StatusOK)
+		}
 		return
 	}
 
-	threadHead.AliasNames = append(threadHead.AliasNames, reception.JoinNames...)
-	threadHead.AdminNames = reception.AdminNames
-	threadHead.AliasImg   = session.NickImg
-
-	threadHeadArray := []interface{}{
-		"threadHead",    
-		channelID,       
-		session.Nickname, //updatedBy
-		threadHead,      //
+	aliasNames := make([]string, 0, len(joinNames))
+	if existing, ok := threadHead["aliasNames"].([]interface{}); ok {
+		for _, value := range existing {
+			if name, ok := value.(string); ok {
+				aliasNames = append(aliasNames, name)
+			}
+		}
 	}
+	aliasNames = append(aliasNames, joinNames...)
+	threadHead["aliasNames"] = aliasNames
+	threadHead["adminNames"] = adminNames
+	threadHead["aliasImg"] = session.NickImg
 
-	// aliasデータの準備
-	aliasData := []interface{}{
-		session.UserID,  // [0] userID
-		session.Nickname, // [1] aliasName
-		"",              // [2] bio
-		"inquirer",      // [3] accessRight
-	}
+	threadHeadArray := []interface{}{"threadHead", channelID, session.Nickname, threadHead}
 
-	// alias用のpush配列
-	aliasPushArray := []interface{}{
-		"alias",         // [0] pushTitle
-		channelID,       // [1] channelID
-		session.Nickname, // [2] updatedBy
-		aliasData,       // [3] aliasData
-		session.NickImg, // [4] aliasImg
-	}
-
-	// threadデータの準備
-	threadData := []interface{}{
-		parentID,          // [0] parentID
-		messageID,         // [1] messageID
-		messageTxt,        // [2] messageTxt
-		session.NickImg,  // [3] aliasImg
-		[]string{session.Nickname}, // [4] aliasNames
-		"",              // [5] backID
-		[]interface{}{}, // [6] emojis
-		session.Nickname, // [7] aliasName
-	}
-
-	// push配列の準備
-	pushArray := []interface{}{
-		"thread",        // [0] pushTitle
-		channelID,       // [1] channelID
-		session.Nickname, // [2] updatedBy
-		threadData,      // [3] threadData
-		[]string{},      // [4] fileLinks
-	}
-
-	pushTest, _ := json.Marshal(threadHeadArray)
-	log.Printf("threadHeadArray JSON: %s", string(pushTest))
-
-	// チャンネルコレクションの取得（1回でOK）
-	collChannel := common.DB.ChannelDB.Collection("channel")
-
-	// 1️⃣ 既存チャンネルの取得
-	var channel collection.ChannelStruct
-	filterChannel := bson.M{"_id": channelID}
-	err = collChannel.FindOne(ctx, filterChannel).Decode(&channel)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
-		return
-	}
-
-	// 2️⃣ 新しいAliasを作成
-	newAlias := collection.Alias{
-		AliasName:   session.Nickname,
-		AliasImg:    session.NickImg,
-		UserID:      session.UserID,
-		AliasBio:         "",
-		AccessRight: "inquirer",
-	}
-
-	// 3️⃣ MongoDBへ更新
-	update := bson.M{
-		"$push": bson.M{
-			"aliases":    newAlias,
-		},
-	}
-
-	_, err = collChannel.UpdateOne(ctx, filterChannel, update)
+	// Access-right 3 represents an inquirer in the PostgreSQL schema.
+	// Avoid creating duplicate aliases for the same user/channel/name tuple.
+	_, err = common.DB.AliasDB.ExecContext(ctx, `
+		INSERT INTO alias (channel_id, alias_name, alias_img, user_id, alias_bio, access_right)
+		SELECT $1, $2, '', $3, '', 3
+		WHERE NOT EXISTS (
+			SELECT 1 FROM alias
+			WHERE channel_id = $1 AND user_id = $3 AND alias_name = $2
+		)
+	`, channelID, session.Nickname, session.UserID)
 	if err != nil {
 		common.WriteResponseWithSession(w, session, fmt.Sprintf("alias登録失敗: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("✅ Alias '%s' (userID: %s) を channel '%s' に登録しました",
-		session.Nickname, session.UserID, channelID)
-
-
-	uniqueIDs := make(map[string]struct{})
-	var userIDs []string
-	pushNameSet := make(map[string]struct{}, len(reception.InquiryNames))
-	for _, name := range reception.InquiryNames {
-		pushNameSet[name] = struct{}{}
-	}
-	for _, alias := range channel.Aliases {
-		if _, ok := pushNameSet[alias.AliasName]; ok {
-			if _, exists := uniqueIDs[alias.UserID]; !exists {
-				uniqueIDs[alias.UserID] = struct{}{}
-				userIDs = append(userIDs, alias.UserID)
+	// Build the notification recipient set from reception.inquiry_names and
+	// aliases belonging to the reception's channel.
+	userIDs := make([]int64, 0)
+	seenUserIDs := make(map[int64]struct{})
+	if len(inquiryNames) > 0 {
+		rows, queryErr := common.DB.AliasDB.QueryContext(ctx, `
+			SELECT DISTINCT user_id
+			FROM alias
+			WHERE channel_id = $1
+			  AND alias_name = ANY($2)
+			  AND user_id IS NOT NULL
+			ORDER BY user_id
+		`, channelID, pq.Array(inquiryNames))
+		if queryErr != nil {
+			common.WriteResponseWithSession(w, session, queryErr.Error(), http.StatusOK)
+			return
+		}
+		for rows.Next() {
+			var userID int64
+			if scanErr := rows.Scan(&userID); scanErr != nil {
+				rows.Close()
+				common.WriteResponseWithSession(w, session, scanErr.Error(), http.StatusOK)
+				return
+			}
+			if _, exists := seenUserIDs[userID]; !exists {
+				seenUserIDs[userID] = struct{}{}
+				userIDs = append(userIDs, userID)
 			}
 		}
+		if rowsErr := rows.Err(); rowsErr != nil {
+			rows.Close()
+			common.WriteResponseWithSession(w, session, rowsErr.Error(), http.StatusOK)
+			return
+		}
+		rows.Close()
 	}
-	userIDs = append(userIDs, session.UserID) // カスタマー側のセッションを追加
-	log.Printf("Filtered userIDs (matched pushNames): %v", userIDs)
-
-
-
-	// セッションを取得してプッシュ
-	sessionColl := common.DB.SessionDB.Collection("session")
-	sessionFilter := bson.D{{"userID", bson.D{{"$in", userIDs}}}}
-	cursor, err := sessionColl.Find(ctx, sessionFilter)
-	if err != nil {
-		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
-		return
-	}
-	defer cursor.Close(ctx)
-
-	var sessions []collection.SessionStruct
-	if err = cursor.All(ctx, &sessions); err != nil {
-		common.WriteResponseWithSession(w, session, err.Error(), http.StatusOK)
-		return
+	if _, exists := seenUserIDs[session.UserID]; !exists {
+		userIDs = append(userIDs, session.UserID)
 	}
 
-	filteredSessions := common.FilterSessionsByChannelID(sessions, channelID)
+	aliasPushArray := []interface{}{
+		"alias", channelID, session.Nickname,
+		[]interface{}{session.UserID, session.Nickname, "", "inquirer"},
+		session.NickImg,
+	}
+	threadData := []interface{}{
+		parentID, messageID, messageTxt, session.NickImg,
+		[]string{session.Nickname}, "", []interface{}{}, session.Nickname,
+	}
+	pushArray := []interface{}{"thread", channelID, session.Nickname, threadData, []string{}}
 
-	var pushTargetSessions []collection.SessionStruct
-	for _, s := range filteredSessions {
-		if s.UserID != session.UserID {
-			pushTargetSessions = append(pushTargetSessions, s)
+	pushTargetSessions := make([]table.SessionStruct, 0)
+	filteredSessions := make([]table.SessionStruct, 0)
+	if len(userIDs) > 0 {
+		rows, queryErr := common.DB.SessionDB.QueryContext(ctx, `
+			SELECT session_id, device_id, user_id, created_at, updated_at,
+			       push_token, device_type, csrf, push_contents, mail, telephone,
+			       nickname, nick_img
+			FROM session
+			WHERE user_id = ANY($1)
+		`, pq.Array(userIDs))
+		if queryErr != nil {
+			common.WriteResponseWithSession(w, session, queryErr.Error(), http.StatusOK)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var item table.SessionStruct
+			if scanErr := rows.Scan(
+				&item.SessionID, &item.DeviceID, &item.UserID, &item.CreatedAt,
+				&item.UpdatedAt, &item.PushToken, &item.DeviceType, &item.Csrf,
+				pq.Array(&item.PushContents), &item.Mail, &item.Telephone,
+				&item.Nickname, &item.NickImg,
+			); scanErr != nil {
+				common.WriteResponseWithSession(w, session, scanErr.Error(), http.StatusOK)
+				return
+			}
+			filteredSessions = append(filteredSessions, item)
+		}
+		if rowsErr := rows.Err(); rowsErr != nil {
+			common.WriteResponseWithSession(w, session, rowsErr.Error(), http.StatusOK)
+			return
+		}
+	}
+
+	// The shared helper applies the application's existing channel-specific
+	// session filtering rules to the sessions loaded from PostgreSQL.
+	filteredSessions = common.FilterSessionsByChannelID(filteredSessions, strconv.FormatInt(channelID, 10))
+	for _, target := range filteredSessions {
+		if target.UserID != session.UserID {
+			pushTargetSessions = append(pushTargetSessions, target)
 		}
 	}
 	common.ChunkPush(pushTargetSessions, aliasPushArray)
-
 	if threadHeadNew {
 		common.ChunkPush(filteredSessions, threadHeadArray)
 	} else {
@@ -200,5 +213,5 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 		PushContents: session.PushContents,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responseData)
+	_ = json.NewEncoder(w).Encode(responseData)
 }
