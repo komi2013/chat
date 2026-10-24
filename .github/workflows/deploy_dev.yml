@@ -33,20 +33,28 @@ jobs:
       - name: Build Vue
         working-directory: ./vue
         run: npm run build
+        # → 成果物は ./vue/dist に生成される想定
 
-      # デプロイ用にファイルを整理するステップ
+      # 【修正】デプロイ用にファイルを整理するステップ（確実に dist から回収）
       - name: Prepare Deployment Files
         run: |
-          # 1. assets の準備
           mkdir -p assets
+          mkdir -p view
+
+          # vue/dist/assets が存在すればルートの assets/ にコピー
           if [ -d "vue/dist/assets" ]; then
             cp -r vue/dist/assets/* assets/
           fi
 
-          # 2. view の準備
-          mkdir -p view
-          if [ -d "vue/dist/view" ]; then
-            cp -r vue/dist/view/* view/
+          # vue/dist 内のHTMLファイルなどを view/ にコピー
+          if [ -d "vue/dist" ]; then
+            # vue/dist 直下の .html ファイルをコピー
+            cp -r vue/dist/*.html view/ 2>/dev/null || true
+            
+            # もし vue/dist/view ディレクトリが存在していればその中身もコピー
+            if [ -d "vue/dist/view" ]; then
+              cp -r vue/dist/view/* view/
+            fi
           fi
           
           echo "=== Assets Directory ==="
@@ -54,6 +62,9 @@ jobs:
           echo "=== View Directory ==="
           ls -R view
 
+      # -----------------------------------------------------
+      # Build Go App
+      # -----------------------------------------------------
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -63,6 +74,9 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o chat_dev
 
+      # -----------------------------------------------------
+      # Setup SSH
+      # -----------------------------------------------------
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -72,6 +86,9 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 29870 -H quigen.info >> ~/.ssh/known_hosts
 
+      # -----------------------------------------------------
+      # Environment Variables & Config
+      # -----------------------------------------------------
       - name: Generate cache_v.env
         run: |
           CACHEV=$(date +%Y%m%d%H%M)
@@ -103,9 +120,11 @@ jobs:
           rsync -rlptvz -e "ssh -p 29870" chat_dev \
             deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/chat_dev
 
-          # 3. Publicフォルダ全体をアップロード (assets含む)
-          rsync -rlptvz -e "ssh -p 29870" public/ \
-            deploy@quigen.info:/Work/chat_dev/public/
+          # 3. Publicフォルダ全体をアップロード (存在する場合)
+          if [ -d "public" ]; then
+            rsync -rlptvz -e "ssh -p 29870" public/ \
+              deploy@quigen.info:/Work/chat_dev/public/
+          fi
 
           # 4. Assets, Viewフォルダ全体をアップロード
           rsync -rlptvz -e "ssh -p 29870" assets/ \
@@ -115,6 +134,7 @@ jobs:
             deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/view/
 
           # 5. シンボリックリンクの切り替えとサービス再起動
+          # ※ ここにあった大文字小文字のタイポ（RELEASE_dev）を修正しました
           ssh -p 29870 deploy@quigen.info "
             # Goバイナリ
             ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/chat_dev /Work/chat_dev/chat_dev &&
@@ -123,7 +143,7 @@ jobs:
             ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/assets /Work/chat_dev/public/assets &&
 
             # Viewディレクトリ
-            ln -sfn /Work/chat_dev/releases/$RELEASE_dev/view /Work/chat_dev/view &&
+            ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/view /Work/chat_dev/view &&
             
             sudo systemctl restart chat_dev.service
           "
