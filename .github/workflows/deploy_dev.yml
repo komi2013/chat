@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload cache_v.env
         run: |
-          rsync -avz -e "ssh -p 29870" infrastructure/cache_v.env \
+          rsync -rlptvz -e "ssh -p 29870" infrastructure/cache_v.env \
             deploy@quigen.info:/Work/chat_dev/infrastructure/cache_v.env
 
       # -----------------------------------------------------
@@ -100,18 +100,18 @@ jobs:
           "
 
           # 2. Go binaryをアップロード
-          rsync -avz -e "ssh -p 29870" chat_dev \
+          rsync -rlptvz -e "ssh -p 29870" chat_dev \
             deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/chat_dev
 
           # 3. Publicフォルダ全体をアップロード (assets含む)
-          rsync -avz -e "ssh -p 29870" public/ \
+          rsync -rlptvz -e "ssh -p 29870" public/ \
             deploy@quigen.info:/Work/chat_dev/public/
 
           # 4. Assets, Viewフォルダ全体をアップロード
-          rsync -avz -e "ssh -p 29870" assets/ \
+          rsync -rlptvz -e "ssh -p 29870" assets/ \
             deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/assets/
 
-          rsync -avz -e "ssh -p 29870" view/ \
+          rsync -rlptvz -e "ssh -p 29870" view/ \
             deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/view/
 
           # 5. シンボリックリンクの切り替えとサービス再起動
