@@ -35,33 +35,27 @@ jobs:
         run: npm run build
         # → 成果物は ./vue/dist に生成される想定
 
-      # 【修正】デプロイ用にファイルを整理するステップ（確実に dist から回収）
+
+      # デプロイ用にファイルを整理するステップ（chatと同じ構成に戻す）
       - name: Prepare Deployment Files
         run: |
+          # 1. assets の準備
           mkdir -p assets
-          mkdir -p view
-
-          # vue/dist/assets が存在すればルートの assets/ にコピー
           if [ -d "vue/dist/assets" ]; then
             cp -r vue/dist/assets/* assets/
           fi
 
-          # vue/dist 内のHTMLファイルなどを view/ にコピー
-          if [ -d "vue/dist" ]; then
-            # vue/dist 直下の .html ファイルをコピー
-            cp -r vue/dist/*.html view/ 2>/dev/null || true
-            
-            # もし vue/dist/view ディレクトリが存在していればその中身もコピー
-            if [ -d "vue/dist/view" ]; then
-              cp -r vue/dist/view/* view/
-            fi
+          # 2. view の準備
+          mkdir -p view
+          if [ -d "vue/dist/view" ]; then
+            cp -r vue/dist/view/* view/
           fi
           
+          # 確認用：ファイル構成を表示
           echo "=== Assets Directory ==="
           ls -R assets
           echo "=== View Directory ==="
           ls -R view
-
       # -----------------------------------------------------
       # Build Go App
       # -----------------------------------------------------
