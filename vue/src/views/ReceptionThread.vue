@@ -26,7 +26,8 @@ const threadHead = ref(null)
 const fetched = ref(false);
 const copyable = ref(false);
 const errorMessage = ref('');
-let nickname
+const nickname = ref(localStorage.getItem('receptionNickname') || '')
+const nicknameImg = computed(() => `,${Array.from(nickname.value.trim())[0] || '?'},#4f7cac`)
 // receptionBook.vueのfindReception()を参考にした関数
 async function findReception() {
   const fd = new FormData();
@@ -48,7 +49,6 @@ async function findReception() {
   if (res.error) {
     errorMessage.value = res.error
   }
-  nickname = res.nickname
   return res.reception;
 }
 
@@ -58,13 +58,13 @@ const channel = ref({channelID: '', myname: '', channelName: ''})
 let msg = {messageTxt: '',messageID: '',parentID: '@'}
 onMounted(async () => {
   reception.value = await findReception()
-  const parentID = '@' + nickname
+  const parentID = '@' + nickname.value
   threadHead.value = await getIDB('threadHead', parentID)
   msg.parentID = parentID
   await makeThreadHead()
   document.title = threadHead.value.title
   channel.value.channelID = props.channelID
-  channel.value.myname = nickname
+  channel.value.myname = nickname.value
   channel.value.channelName = threadHead.value.title
   const content = await document.getElementById('content');
   content.scrollTop = await content.scrollHeight;
@@ -81,7 +81,7 @@ const messages = computed(() => {
 });
 
 async function makeThreadHead() {
-  const parentID = '@' + nickname
+  const parentID = '@' + nickname.value
   if (threadHead.value) {
     threadHead.value.inquirerFlag = true
     if (reception.value && reception.value.joinNames && reception.value.joinNames.includes(myname)) {
@@ -98,8 +98,8 @@ async function makeThreadHead() {
       parentID: parentID,
       title: reception.value.receptionTitle + 'への問い合わせ',
       messageTxt: '',
-      aliasName: nickname,
-      aliasNames: [nickname],
+      aliasName: nickname.value,
+      aliasNames: [nickname.value],
       displayStatus: 0,
       newThread: true,
       // threadType: 'reception' // 問い合わせ用の識別子
@@ -130,7 +130,7 @@ async function makeThreadHead() {
 function readStatus () {
   if (threadHead.value.displayStatus && threadHead.value.displayStatus == 1 || threadHead.value.displayStatus == 2) {
     threadHead.value.displayStatus = 0;
-    updIDBone('threadHead', '@' + nickname, 'displayStatus', 0);
+    updIDBone('threadHead', '@' + nickname.value, 'displayStatus', 0);
     revertFaviconBadge()
   }
 }
@@ -142,12 +142,20 @@ function backTo() {
   }
 }
 
+function saveNickname() {
+  localStorage.setItem('receptionNickname', nickname.value.trim())
+}
+
 </script>
 
 <template>
 <div id="drawer_column"><DrawerReception/></div>
 <div id="content">
   <div v-if="fetched">
+    <label class="inquiry-nickname">Nickname
+      <input v-model="nickname" @change="saveNickname" maxlength="40" autocomplete="nickname" placeholder="Enter your nickname" />
+      <span class="nickname-avatar" :style="{ backgroundColor: nicknameImg.split(',')[2] }">{{ nickname.trim().charAt(0) || '?' }}</span>
+    </label>
     <div v-if="threadHead">
       <div class="headTitle">
         <a :href="'/receptionThreadHead/' + channelID + '/' + threadHead.parentID + '/?code=' + code">
@@ -175,7 +183,9 @@ function backTo() {
       <ReceptionEditBox 
         :channel="channel"
         :message="msg"
-        :threadHead="threadHead" />
+        :threadHead="threadHead"
+        :nickname="nickname.trim()"
+        :nickname-img="nicknameImg" />
     </div>
     <br>
   </div>
@@ -189,6 +199,12 @@ function backTo() {
 <div id="ad_right"> <Advertisement /> <Advertisement /> <Advertisement /> </div>
 
 </template>
+
+<style scoped>
+.inquiry-nickname { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.inquiry-nickname input { max-width: 240px; padding: 6px; }
+.nickname-avatar { display: inline-flex; width: 32px; height: 32px; border-radius: 50%; align-items: center; justify-content: center; color: white; }
+</style>
 
 <style>
 

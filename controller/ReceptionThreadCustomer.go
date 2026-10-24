@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -24,8 +25,12 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 	messageID := r.FormValue("messageID")
 	parentID := r.FormValue("parentID")
-	inquiryName := r.FormValue("inquiryName")
+	inquiryName := strings.TrimSpace(r.FormValue("inquiryName"))
 	inquiryImg := r.FormValue("inquiryImg")
+	if inquiryName == "" || len([]rune(inquiryName)) > 40 {
+		common.WriteResponseWithoutSession(w, csrf, "Invalid inquiryName", http.StatusOK)
+		return
+	}
 	messageTxt := common.SanitizeRichText(r.FormValue("messageTxt"))
 
 	threadHeadNew := false
@@ -148,7 +153,6 @@ func ReceptionThreadCustomer(w http.ResponseWriter, r *http.Request) {
 	if _, exists := seenUserIDs[session.UserID]; !exists {
 		userIDs = append(userIDs, session.UserID)
 	}
-
 
 	threadData := []interface{}{
 		parentID, messageID, messageTxt, inquiryImg,

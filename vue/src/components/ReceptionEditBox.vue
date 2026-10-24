@@ -57,7 +57,9 @@ const props = defineProps({
       parentID: '',
       title: '新規問い合わせ'
     })
-  }
+  },
+  nickname: { type: String, default: '' },
+  nicknameImg: { type: String, default: '' }
 })
 
 const errorMessage = ref('')
@@ -124,6 +126,11 @@ async function uploadFile(file, messageID) {
 
 let clicked = false
 async function msgUpsert(messageID) {
+  const inquiryName = props.nickname.trim();
+  if (!inquiryName) {
+    errorMessage.value = 'Enter a nickname before sending.';
+    return;
+  }
   if (quill.value[messageID].root.innerHTML == '<p><br></p>') return
   if (clicked) return
   clicked = true
@@ -137,8 +144,17 @@ async function msgUpsert(messageID) {
   fd.append('messageID', thisMsgID);
   fd.append('parentID', props.message.parentID);
   fd.append('messageTxt', messageTxt);
+  fd.append('inquiryName', inquiryName);
+  fd.append('inquiryImg', props.nicknameImg);
   fd.append('csrf', localStorage.getItem('csrf'))
   if (editThreadHead.newThread || editThreadHead.newReply) {
+    if (editThreadHead.newThread) {
+      editThreadHead.aliasName = inquiryName;
+      editThreadHead.aliasNames = [inquiryName];
+      editThreadHead.aliasImg = props.nicknameImg;
+      props.message.parentID = '@' + inquiryName;
+      fd.set('parentID', props.message.parentID);
+    }
     editThreadHead.messageTxt = messageTxt
     editThreadHead.newThread = true
     delete editThreadHead.newReply
