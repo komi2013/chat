@@ -7,7 +7,14 @@ export async function alias(pd) {
   const accessRight = pd[4][3]
   // const del = pd[4][4] ?? false
   const aliasImg = pd[5]
-  const atMark = accessRight === 'inquirer' ? '@' : '' // @customer nickname
+  const numericAccessRight = ({
+    admin: 1,
+    guest: 2,
+    inquirer: 3,
+    inquiry: 3,
+    delete: -1,
+  })[accessRight] ?? Number(accessRight)
+  const atMark = numericAccessRight === 3 ? '@' : '' // @customer nickname
   const alias = {
     // aliasID: channelID + userID,
     aliasID: channelID + atMark + aliasName,
@@ -16,11 +23,11 @@ export async function alias(pd) {
     aliasImg: aliasImg,
     userID: userID,
     aliasBio: bio,
-    accessRight: accessRight,
+    accessRight: numericAccessRight,
   }
   // console.log('alias', alias)
   const pre = await getIDB('alias', alias.aliasID)
-  if (accessRight === 'delete') {
+  if (numericAccessRight === -1) {
     deleteIDB('alias', 'aliasID', alias.aliasID);
   } else {
     upsertIDB(alias, 'alias', 'aliasID', alias.aliasID);

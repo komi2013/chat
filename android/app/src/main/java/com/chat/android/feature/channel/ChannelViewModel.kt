@@ -129,8 +129,8 @@ class ChannelViewModel @Inject constructor(
                 val groups = repository.getGroups(id)
             val threadHeads = repository.getThreadHeads(id)
                 
-                val iamAdmin = aliases.any { it.aliasName == channel.myname && it.accessRight == "admin" }
-                val iamGuest = aliases.any { it.aliasName == channel.myname && it.accessRight == "guest" }
+                val iamAdmin = aliases.any { it.aliasName == channel.myname && it.accessRight == 1 }
+                val iamGuest = aliases.any { it.aliasName == channel.myname && it.accessRight == 2 }
 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -178,7 +178,7 @@ class ChannelViewModel @Inject constructor(
     /** 通知対象にするエイリアス名（Vue と同じ除外条件）。 */
     private fun pushTargetNames(aliases: List<DbAlias>): List<String> =
         aliases
-            .filter { it.accessRight != "guest" && it.accessRight != "inquirer" }
+            .filter { it.accessRight != 2 && it.accessRight != 3 }
             .map { it.aliasName }
 
     fun save() {

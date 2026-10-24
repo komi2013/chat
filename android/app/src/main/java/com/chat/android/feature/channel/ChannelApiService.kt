@@ -21,7 +21,7 @@ data class AliasPayload(
     @SerializedName("aliasImg") val aliasImg: String? = null,
     @SerializedName("userID") val userID: String? = null,
     @SerializedName("aliasBio") val aliasBio: String? = null,
-    @SerializedName("accessRight") val accessRight: String? = null
+    @SerializedName("accessRight") val accessRight: Int? = null
 )
 
 data class GroupPayload(

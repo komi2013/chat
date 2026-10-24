@@ -519,9 +519,14 @@ private fun LazyListScope.MemberSection(
                         Text(alias.aliasBio, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                if (alias.accessRight.isNotBlank()) {
+                if (alias.accessRight != 0) {
                     Text(
-                        alias.accessRight,
+                        when (alias.accessRight) {
+                            1 -> "admin"
+                            2 -> "guest"
+                            3 -> "inquiry"
+                            else -> alias.accessRight.toString()
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )

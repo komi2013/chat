@@ -208,7 +208,7 @@ class GroupViewModel @Inject constructor(
             }
 
             val pushNames = state.aliases
-                .filter { it.accessRight != "guest" && it.accessRight != "inquirer" }
+                .filter { it.accessRight != 2 && it.accessRight != 3 }
                 .joinToString(",", "[", "]") { "\"${it.aliasName.replace("\"", "\\\"")}\"" }
 
             repository.editGroups(id, myName, diffs.toString(), pushNames)

@@ -65,7 +65,7 @@ onMounted(async () => {
   myimg.value = localStorage.getItem('myimg') || channel.value.myimg || null
   userID = aliases.value.find((d) => d.aliasName === myname.value)?.userID
   adminNames.value = aliases.value
-    .filter(alias => alias.accessRight === "admin")
+    .filter(alias => Number(alias.accessRight) === 1)
     .map(alias => alias.aliasName)
   initAdminNames = [...adminNames.value]
   iamAdmin.value = adminNames.value.includes(channel.value.myname)
@@ -74,7 +74,7 @@ onMounted(async () => {
     removable: alias.userID === userID || iamAdmin.value,
   }))
   iamGuest.value = aliases.value.some(
-    alias => alias.accessRight === "guest" && alias.aliasName === channel.value.myname
+    alias => Number(alias.accessRight) === 2 && alias.aliasName === channel.value.myname
   )
   await initQuill()
 })
@@ -89,7 +89,7 @@ async function channelEdit () {
   fd.append('channelID', props.id)
   fd.append('updatedBy', channel.value.myname)
   const pushNames = aliases.value
-      .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+      .filter(d => ![2, 3].includes(Number(d.accessRight)))
       .map(d => d.aliasName)
   fd.append('pushNames', JSON.stringify(pushNames))
   fd.append('channelName', channel.value.channelName)
@@ -236,7 +236,7 @@ async function adminEdit() {
     fd.set('channelID', props.id)
     fd.set('updatedBy', channel.value.myname)
     const pushNames = aliases.value
-        .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+        .filter(d => ![2, 3].includes(Number(d.accessRight)))
         .map(d => d.aliasName)
     fd.append('pushNames', JSON.stringify(pushNames))
     // fd.set('pushTitle', 'alias')
@@ -271,10 +271,10 @@ function getAdminDiffData() {
   const removedNames = before.filter(name => !after.includes(name))
   const addedData = aliases.value
     .filter(a => addedNames.includes(a.aliasName))
-    .map(a => ({ ...a, accessRight: "admin" }))
+    .map(a => ({ ...a, accessRight: 1 }))
   const removedData = aliases.value
     .filter(a => removedNames.includes(a.aliasName))
-    .map(a => ({ ...a, accessRight: null }))
+    .map(a => ({ ...a, accessRight: 0 }))
   return [...addedData, ...removedData]
 }
 
@@ -382,7 +382,7 @@ function getAdminDiffData() {
   <div v-if="iamAdmin">
     <SelectAlias
       :channel="channel"
-      :aliases="aliases.filter(a => !a.accessRight || a.accessRight === 'admin')"
+      :aliases="aliases.filter(a => !Number(a.accessRight) || Number(a.accessRight) === 1)"
       :groups="groups"
       :editable="iamAdmin"
       :placeholder="'管理ユーザー'"

@@ -35,15 +35,23 @@ class AliasHandler(
         val userID = contents.optString(0, "")
         val aliasName = contents.optString(1, "")
         val aliasBio = contents.optString(2, "")
-        val accessRight = contents.optString(3, "")
+        val accessRightValue = contents.opt(3)
+        val accessRight = when (accessRightValue) {
+            is Number -> accessRightValue.toInt()
+            "admin" -> 1
+            "guest" -> 2
+            "inquirer", "inquiry" -> 3
+            "delete" -> -1
+            else -> -1
+        }
         // aliasImg is at index 5 in the top-level pd array
         val aliasImg = pd.rawJson.optString(5, "")
 
-        // aliasID = channelID + (accessRight=='inquirer'?'@':'') + aliasName
-        val atMark = if (accessRight == "inquirer") "@" else ""
+        // access_right 3 marks inquiry aliases, which use an @ prefix.
+        val atMark = if (accessRight == 3) "@" else ""
         val aliasID = "$channelID$atMark$aliasName"
 
-        if (accessRight == "delete") {
+        if (accessRight == -1) {
             dbHelper.deleteAlias(aliasID)
             Log.i("AliasHandler", "Deleted alias $aliasID")
             return

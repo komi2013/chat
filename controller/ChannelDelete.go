@@ -97,7 +97,7 @@ func ChannelDelete(w http.ResponseWriter, r *http.Request) {
 			WHERE channel_id = $1
 			  AND user_id = $2
 			  AND alias_name = $3
-			  AND access_right = 'admin'
+			  AND access_right = 1
 		)
 		`,
 		channelID,

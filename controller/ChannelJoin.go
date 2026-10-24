@@ -298,11 +298,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 					"alias",
 					channelIDText,
 					myname,
-					[]string{
+					[]interface{}{
 						nullStringValue(alias.UserID),
 						alias.AliasName,
 						nullStringValue(alias.AliasBio),
-						strconv.FormatInt(alias.AccessRight.Int64, 10),
+						alias.AccessRight.Int64,
 					},
 					nullStringValue(alias.AliasImg),
 				},
@@ -336,11 +336,11 @@ func ChannelJoin(w http.ResponseWriter, r *http.Request) {
 				"alias",
 				channelIDText,
 				myname,
-				[]string{
+				[]interface{}{
 					strconv.FormatInt(session.UserID, 10),
 					myname,
 					"",
-					strconv.Itoa(int(accessRight)),
+					accessRight,
 				},
 				myimg,
 			},

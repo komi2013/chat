@@ -416,7 +416,7 @@ func AliasEdit(w http.ResponseWriter, r *http.Request) {
       "alias",
       channelID,
       updatedBy,
-      []interface{}{"", name, "", "delete"},
+      []interface{}{"", name, "", -1},
       "",
     }
 

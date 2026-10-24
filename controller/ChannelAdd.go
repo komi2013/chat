@@ -243,7 +243,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 		session.UserID,
 		myname,
 		aliasImg,
-		"admin",
+		int16(1),
 	)
 	if err != nil {
 		common.WriteResponseWithSession(
@@ -289,7 +289,7 @@ func ChannelAdd(w http.ResponseWriter, r *http.Request) {
 				session.UserID,
 				myname,
 				"",
-				"admin",
+				int16(1),
 			},
 			aliasImg,
 		}

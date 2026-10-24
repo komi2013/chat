@@ -346,7 +346,7 @@ class ChannelRepository @Inject constructor(
             put("aliasImg", effectiveAliasImg)
             put("userID", existing?.userID?.takeIf { it.isNotBlank() } ?: myUserId)
             put("aliasBio", aliasBio)
-            put("accessRight", existing?.accessRight.orEmpty())
+            put("accessRight", existing?.accessRight ?: 0)
         }.toString()
 
         val response = apiService.channelEdit(
@@ -556,7 +556,7 @@ class ChannelRepository @Inject constructor(
                         aliasImg = alias.aliasImg.orEmpty(),
                         userID = resolvedUserId,
                         aliasBio = alias.aliasBio.orEmpty(),
-                        accessRight = alias.accessRight.orEmpty()
+                        accessRight = alias.accessRight ?: 0
                     )
                 )
             }

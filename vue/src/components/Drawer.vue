@@ -14,12 +14,12 @@ const singIn = ref(false)
 onMounted(async () => {
   if (props.channel) {
     iamGuest.value = props.aliases.some(
-      alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
+      alias => Number(alias.accessRight) === 2 && alias.aliasName === localStorage.getItem('myname')
     )
   } else if (localStorage.getItem('csrf')) {
     const aliases = await getIDBs('alias', 'channelIDIndex', localStorage.getItem("channelID"), 10000)
     iamGuest.value = aliases.some(
-      alias => alias.accessRight === "guest" && alias.aliasName === localStorage.getItem('myname')
+      alias => Number(alias.accessRight) === 2 && alias.aliasName === localStorage.getItem('myname')
     )
   }
   if (localStorage.getItem('csrf')) singIn.value = true

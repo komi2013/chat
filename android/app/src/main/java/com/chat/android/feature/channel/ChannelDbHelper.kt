@@ -32,7 +32,7 @@ data class DbAlias(
     val aliasImg: String,
     val userID: String,
     val aliasBio: String,
-    val accessRight: String
+    val accessRight: Int
 )
 
 data class DbGroup(
@@ -101,7 +101,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                 aliasImg TEXT,
                 userID TEXT,
                 aliasBio TEXT,
-                accessRight TEXT
+                accessRight INTEGER
             )
         """.trimIndent())
 
@@ -151,6 +151,9 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 12) {
+            db.execSQL("UPDATE alias SET accessRight = CASE accessRight WHEN 'admin' THEN 1 WHEN 'guest' THEN 2 WHEN 'inquirer' THEN 3 ELSE CAST(accessRight AS INTEGER) END")
+        }
         // v2 で user_profile / user_nickname を追加。
         // channel / alias / "group" は既存データを保持する。
         if (oldVersion < 2) {
@@ -520,7 +523,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
                         aliasImg = it.getString(it.getColumnIndexOrThrow("aliasImg")),
                         userID = it.getString(it.getColumnIndexOrThrow("userID")),
                         aliasBio = it.getString(it.getColumnIndexOrThrow("aliasBio")),
-                        accessRight = it.getString(it.getColumnIndexOrThrow("accessRight"))
+                        accessRight = it.getInt(it.getColumnIndexOrThrow("accessRight"))
                     )
                 )
             }
@@ -581,7 +584,7 @@ class ChannelDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAM
 
     companion object {
         private const val DATABASE_NAME = "ChannelFeatureDB.db"
-        private const val DATABASE_VERSION = 11
+        private const val DATABASE_VERSION = 12
 
 /** スレッド見出し。vue の threadHead IndexedDB ストアの項目に揃えている。 */
 private val THREAD_HEAD_TABLE = """

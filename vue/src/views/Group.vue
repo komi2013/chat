@@ -74,7 +74,7 @@ async function removeGroup(group) {
   fd.append('updatedBy', channel.value.myname)
 
   const pushNames = aliases.value
-    .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+    .filter(d => ![2, 3].includes(Number(d.accessRight)))
     .map(d => d.aliasName)
 
   fd.append('pushNames', JSON.stringify(pushNames))
@@ -108,7 +108,7 @@ async function editGroup(group) {
   fd.append('updatedBy', channel.value.myname)
 
   const pushNames = aliases.value
-    .filter(d => d.accessRight !== 'guest' && d.accessRight !== 'inquirer')
+    .filter(d => ![2, 3].includes(Number(d.accessRight)))
     .map(d => d.aliasName)
 
   fd.append('pushNames', JSON.stringify(pushNames))
