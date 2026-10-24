@@ -12,13 +12,6 @@ const router = createRouter({
       })
     },
     {
-      path: '/adSetting/:date?/',
-      component: () => import('../views/AdSetting.vue'),
-      props: route => ({
-        date: route.params.date
-      })
-    },
-    {
       path: '/calendar/:date?/',
       component: () => import('../views/Calendar.vue'),
       props: route => ({
@@ -67,13 +60,6 @@ const router = createRouter({
       props: route => ({
         id: route.params.id,
         code: route.query.code
-      })
-    },
-    {
-      path: '/nickname/:name/',
-      component: () => import('../views/Nickname.vue'),
-      props: route => ({
-        name: route.params.name
       })
     },
     {
@@ -227,17 +213,6 @@ const router = createRouter({
       path: '/topEdit/',
       component: () => import('../views/TopEdit.vue')
     },
-    {
-      path: '/tweet/:date?/:parentIDhtml?',
-      component: () => import('../views/Tweet.vue'),
-      props: route => ({
-        date: route.params.date,
-        parentIDhtml: route.params.parentIDhtml,
-        backID: route.query.backID,
-        messageID: route.query.messageID
-      })
-    },
-    { path: '/tweets/', component: () => import('../views/Tweets.vue') },
     {
       path: '/user/',
       component: () => import('../views/User.vue')
