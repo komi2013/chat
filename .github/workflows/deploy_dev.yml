@@ -143,7 +143,7 @@ jobs:
             ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/assets /Work/chat_dev/public/assets &&
 
             # Viewディレクトリ
-            ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/view /Work/chat_dev/publicview &&
+            ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/view /Work/chat_dev/public/view &&
 
             sudo systemctl restart chat_dev.service
           "
