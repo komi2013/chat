@@ -1,0 +1,136 @@
+name: Deploy Chat App Dev (mongo2postgres)
+
+on:
+  push:
+    branches: [ "mongo2postgres" ]
+
+env:
+  SERVER_HOST: quigen.info
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------
+      # Checkout repository
+      # -----------------------------------------------------
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------
+      # Build Vue (Vite)
+      # -----------------------------------------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vue dependencies
+        working-directory: ./vue
+        run: npm ci
+
+      - name: Build Vue
+        working-directory: ./vue
+        run: npm run build
+
+      # デプロイ用にファイルを整理するステップ
+      - name: Prepare Deployment Files
+        run: |
+          # 1. assets の準備
+          mkdir -p assets
+          if [ -d "vue/dist/assets" ]; then
+            cp -r vue/dist/assets/* assets/
+          fi
+
+          # 2. view の準備
+          mkdir -p view
+          if [ -d "vue/dist/view" ]; then
+            cp -r vue/dist/view/* view/
+          fi
+          
+          echo "=== Assets Directory ==="
+          ls -R assets
+          echo "=== View Directory ==="
+          ls -R view
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build Go app (chat_dev)
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o chat_dev
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p 29870 -H quigen.info >> ~/.ssh/known_hosts
+
+      - name: Generate cache_v.env
+        run: |
+          CACHEV=$(date +%Y%m%d%H%M)
+          echo "CACHE_V=$CACHEV" > infrastructure/cache_v.env
+          echo "Generated CACHE_V: $CACHEV"
+
+      - name: Upload cache_v.env
+        run: |
+          rsync -avz -e "ssh -p 29870" infrastructure/cache_v.env \
+            deploy@quigen.info:/Work/chat_dev/infrastructure/cache_v.env
+
+      # -----------------------------------------------------
+      # Deploy — BLUE/GREEN RELEASE (for chat_dev)
+      # -----------------------------------------------------
+      - name: Upload files to server
+        run: |
+          RELEASE_DIR="r-$(date +%Y%m%d%H%M)"
+          
+          echo "Deploying to quigen.info:29870/Work/chat_dev/releases/$RELEASE_DIR"
+
+          # 1. リリースディレクトリおよびログディレクトリを作成
+          ssh -p 29870 deploy@quigen.info "
+            mkdir -p /Work/chat_dev/releases/$RELEASE_DIR/assets
+            mkdir -p /Work/chat_dev/releases/$RELEASE_DIR/view
+            mkdir -p /Work/chat_dev/log
+          "
+
+          # 2. Go binaryをアップロード
+          rsync -avz -e "ssh -p 29870" chat_dev \
+            deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/chat_dev
+
+          # 3. Publicフォルダ全体をアップロード (assets含む)
+          rsync -avz -e "ssh -p 29870" public/ \
+            deploy@quigen.info:/Work/chat_dev/public/
+
+          # 4. Assets, Viewフォルダ全体をアップロード
+          rsync -avz -e "ssh -p 29870" assets/ \
+            deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/assets/
+
+          rsync -avz -e "ssh -p 29870" view/ \
+            deploy@quigen.info:/Work/chat_dev/releases/$RELEASE_DIR/view/
+
+          # 5. シンボリックリンクの切り替えとサービス再起動
+          ssh -p 29870 deploy@quigen.info "
+            # Goバイナリ
+            ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/chat_dev /Work/chat_dev/chat_dev &&
+            
+            # Assetsディレクトリ
+            ln -sfn /Work/chat_dev/releases/$RELEASE_DIR/assets /Work/chat_dev/public/assets &&
+
+            # Viewディレクトリ
+            ln -sfn /Work/chat_dev/releases/$RELEASE_dev/view /Work/chat_dev/view &&
+            
+            sudo systemctl restart chat_dev.service
+          "
+
+      - name: Cleanup old releases (keep last 2)
+        run: |
+          ssh -p 29870 deploy@quigen.info "
+            cd /Work/chat_dev/releases &&
+            ls -1t | tail -n +3 | xargs -I{} rm -rf {}
+          "
